@@ -13,16 +13,11 @@ pub struct Cli {
     /// the port to run service manager on
     #[arg(long, short)]
     port: Option<u16>,
-
-    /// automatically install missing plugins and dependencies
-    #[arg(default_value_t = false, long("yes"), short)]
-    auto_install: bool,
 }
 
 impl Cli {
     pub async fn run(self, guard: WorkerGuard) -> AppResult<()> {
         let port = self.port.clone().unwrap_or(5025);
-        let install_deps = self.auto_install;
 
         match self.command {
             CliCommand::Start => {
@@ -33,12 +28,13 @@ impl Cli {
                 svc,
                 base_config,
                 auth_config,
+                yes_auto_install: auto_install,
             } => {
                 let config = ServiceConfig {
                     ty: svc,
                     base: base_config,
                     auth: auth_config,
-                    auto_install: install_deps
+                    auto_install,
                 };
 
                 ServiceManager::add(config, port).await?;
@@ -70,6 +66,10 @@ enum CliCommand {
 
         #[command(flatten)]
         auth_config: ServiceAuthConfig,
+
+        /// automatically install missing plugins and dependencies
+        #[arg(default_value_t = false, short)]
+        yes_auto_install: bool,
     },
 
     /// stop a running service

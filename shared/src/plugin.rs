@@ -1,6 +1,6 @@
 use libloading::Library;
 
-use crate::{AppResult, tools::root_dir};
+use crate::{AppResult, errors::Error, tools::root_dir};
 use std::path::PathBuf;
 
 pub trait Plugin {
@@ -55,34 +55,40 @@ pub trait Plugin {
     }
 
     /// prepare plugin for loading. attempts to install plugin (and its dependencies) if it's not installed.
-    /// If `prompt` is true, users will 
+    /// If `prompt` is true, users will
     fn preload(&self, auto_install: bool) -> AppResult<()> {
         #[cfg(debug_assertions)]
         self.remove()?;
 
         let filename = self.output()?;
+        let mut install = if auto_install { "y" } else { "n" };
+        let mut promp_resp = String::new();
 
-        let ans = if auto_install { "y" } else { "n" };
-        let mut ans = String::from(ans);
+        if !filename.is_file() {
+            if !auto_install {
+                println!(
+                    "You currently don't have \"{}\" plugin installed. Do you want to install it? (y/n)",
+                    self.package_name()
+                );
 
-        if !filename.is_file() && !auto_install {
-            // confirm before installation
-            println!(
-                "You currently don't have \"{}\" plugin installed. Do you want to install it? (y/n)",
-                self.package_name()
-            );
+                std::io::stdin().read_line(&mut promp_resp)?;
+                promp_resp = promp_resp.trim().to_lowercase();
+                install = promp_resp.as_str();
+            }
 
-            if !self.auto_install() {
-                std::io::stdin().read_line(&mut ans)?;
-                let ans = ans.trim().to_lowercase();
+            if install != "y" {
+                return Err(Error::ServerError(format!(
+                    "required module \"{}\" is missing. install the module and try again.",
+                    self.package_name()
+                )));
             }
         }
 
-        if &ans == "y" {
+        if install == "y" {
             println!("installing \"{}\" plugin ...", self.package_name());
             self.install()?;
         }
-        
+
         Ok(())
     }
 
