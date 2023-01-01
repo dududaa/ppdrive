@@ -14,6 +14,7 @@ pub struct Service<'a> {
     ty: &'a ServiceType,
     port: &'a u16,
     modes: &'a [ServiceAuthMode],
+    auto_install: &'a bool
 }
 
 impl<'a> Service<'a> {
@@ -49,6 +50,10 @@ impl<'a> Service<'a> {
     pub fn modes(&self) -> &[ServiceAuthMode] {
         self.modes
     }
+
+    pub fn auto_install(&self) -> bool {
+        *self.auto_install
+    }
 }
 
 impl<'a> From<&'a ServiceConfig> for Service<'a> {
@@ -57,6 +62,7 @@ impl<'a> From<&'a ServiceConfig> for Service<'a> {
             ty: &value.ty,
             port: &value.base.port,
             modes: &value.auth.modes,
+            auto_install: &value.auto_install
         }
     }
 }

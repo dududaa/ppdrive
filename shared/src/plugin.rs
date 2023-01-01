@@ -55,29 +55,34 @@ pub trait Plugin {
     }
 
     /// prepare plugin for loading. attempts to install plugin (and its dependencies) if it's not installed.
-    fn preload(&self) -> AppResult<()> {
+    /// If `prompt` is true, users will 
+    fn preload(&self, auto_install: bool) -> AppResult<()> {
         #[cfg(debug_assertions)]
         self.remove()?;
 
         let filename = self.output()?;
 
-        if !filename.is_file() {
+        let ans = if auto_install { "y" } else { "n" };
+        let mut ans = String::from(ans);
+
+        if !filename.is_file() && !auto_install {
             // confirm before installation
             println!(
                 "You currently don't have \"{}\" plugin installed. Do you want to install it? (y/n)",
                 self.package_name()
             );
-            let mut ans = String::new();
 
-            std::io::stdin().read_line(&mut ans)?;
-            let ans = ans.trim().to_lowercase();
-
-            if &ans == "y" {
-                println!("installing \"{}\" plugin ...", self.package_name());
-                self.install()?;
+            if !self.auto_install() {
+                std::io::stdin().read_line(&mut ans)?;
+                let ans = ans.trim().to_lowercase();
             }
         }
 
+        if &ans == "y" {
+            println!("installing \"{}\" plugin ...", self.package_name());
+            self.install()?;
+        }
+        
         Ok(())
     }
 
@@ -126,10 +131,10 @@ pub trait HasDependecies: Plugin {
         !self.dependecies().is_empty()
     }
 
-    fn preload_deps(&self) -> AppResult<()> {
+    fn preload_deps(&self, auto_install: bool) -> AppResult<()> {
         if self.has_dependencies() {
             for dep in self.dependecies() {
-                dep.preload()?;
+                dep.preload(auto_install)?;
             }
         }
 

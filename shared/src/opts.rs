@@ -76,4 +76,5 @@ pub struct ServiceConfig {
     pub ty: ServiceType,
     pub base: ServiceBaseConfig,
     pub auth: ServiceAuthConfig,
+    pub auto_install: bool
 }

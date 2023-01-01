@@ -65,8 +65,9 @@ impl ServiceManager {
             svc.modes()
         );
 
-        svc.preload_deps()?;
-        svc.preload()?;
+        let auto_install = svc.auto_install();
+        svc.preload_deps(auto_install)?;
+        svc.preload(auto_install)?;
 
         // message service manager to load service
         let resp = Self::send_request::<u8>(ServiceRequest::Add(config), port).await?;
