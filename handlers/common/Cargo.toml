@@ -15,6 +15,7 @@ jwt = ["dep:jsonwebtoken"]
 axum.workspace = true
 axum-macros.workspace = true
 tokio = { workspace = true, optional = true, features = ["sync"] }
+tokio-util.workspace = true
 ppd_shared.workspace = true
 ppd_bk.workspace = true
 ppd_fs.workspace = true

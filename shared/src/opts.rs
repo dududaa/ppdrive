@@ -69,3 +69,19 @@ pub struct ServiceConfig {
     pub base: ServiceBaseConfig,
     pub auth: ServiceAuthConfig,
 }
+
+#[derive(Encode, Decode, Debug)]
+/// service management request type
+pub enum ServiceRequest {
+    /// add a new service with the provided config
+    Add(ServiceConfig),
+
+    /// cancel and remove a service with the given id
+    Cancel(u8),
+
+    /// list running services
+    List,
+
+    /// a request to confirm that service token has been sent to this management server
+    TokenReceived
+}

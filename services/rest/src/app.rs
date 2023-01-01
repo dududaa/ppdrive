@@ -45,7 +45,8 @@ fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
-async fn serve_app(config: &ServiceConfig, tx: TTRaw) -> ServerResult<()> {
+async fn serve_app(config: &ServiceConfig, tx: TTRaw<CancellationToken>) -> ServerResult<()> {
+    tracing::debug!("preparing to serve app...");
     let state = HandlerState::new(config).await?;
     let origins = &config.base.allowed_origins;
 
@@ -152,7 +153,7 @@ pub fn start_logger() -> ServerResult<LoggerGuard> {
     Ok(guard)
 }
 
-pub async fn initialize_app(config: &ServiceConfig, tx: TTRaw) -> ServerResult<()> {
+pub async fn initialize_app(config: &ServiceConfig, tx: TTRaw<CancellationToken>) -> ServerResult<()> {
     // start ppdrive app
     init_secrets().await?;
     serve_app(&config, tx).await
@@ -196,7 +197,7 @@ mod tests {
         config.base.port = 5000;
         config.auth.modes.push(ServiceAuthMode::Client);
 
-        let tx = PluginTransport::new();
+        let tx = PluginTransport::new(None);
         let ca = serve_app(&config, tx.into_raw()).await;
         if let Err(err) = &ca {
             println!("err: {err}")

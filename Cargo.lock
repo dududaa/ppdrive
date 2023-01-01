@@ -1035,6 +1035,7 @@ dependencies = [
  "ppd_shared",
  "serde",
  "tokio",
+ "tokio-util",
  "uuid",
 ]
 
@@ -1935,7 +1936,6 @@ dependencies = [
  "libloading",
  "serde",
  "tokio",
- "tokio-util",
  "toml",
  "tracing",
 ]

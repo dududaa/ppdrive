@@ -1,67 +1,79 @@
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
-};
+use std::sync::atomic::Ordering;
 
 use bincode::{Decode, Encode, config};
 use handlers::plugin::service::Service;
-use ppd_shared::{opts::ServiceConfig, plugin::PluginTransport};
+use ppd_shared::{opts::{ServiceConfig, ServiceRequest}, plugin::PluginTransport};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, task::{JoinError, JoinHandle}
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     errors::{AppResult, Error},
-    manage::{ServiceInfo, ServiceTask, TaskList},
-}; 
+    manage::{ServiceInfo, ServiceTask, Manager},
+};
 
 /// adds a new service to the task pool
 async fn start_service(
-    tasks: TaskList,
+    manager: Manager,
     config: ServiceConfig,
     socket: &mut TcpStream,
+    server_addr: String,
 ) -> AppResult<()> {
-    let mut tasks = tasks.lock().await;
     let mut task = ServiceTask::new(&config);
-    let id = task.id.clone();
-
-    let tx = PluginTransport::new();
+    
+    let tx = PluginTransport::new(Some(server_addr));
     let tx_clone = tx.clone();
-
-    tracing::debug!("spawning new servince...");
+    
+    tracing::debug!("spawning new service...");
     tokio::spawn(async move {
         let svc = Service::from(&config);
-        if let Err(err) = svc.start(config.clone(), tx_clone) {
+        tracing::debug!("calling start with tx");
+        if let Err(err) = svc.start::<CancellationToken>(config.clone(), tx_clone) {
             tracing::error!("unable to start server: {err}")
         }
     });
-
-    tracing::debug!("awaiting token...");
-    match tx.recv().await {
-        Some(token) => {
-            tracing::debug!("service token received");
-            task.token = Some(token)
+    
+    // wait for token to be sent by tx
+    let token_await = manager.token_await.load(Ordering::Relaxed);
+    
+    loop {
+        tracing::debug!("listening for input...");
+        if !token_await {
+            tracing::debug!("incoming token received...");
+            manager.token_await.store(true, Ordering::Relaxed);
+            break;
         }
-        None => tracing::error!("could not receive token")
     }
 
-    tasks.push(task);
-    std::mem::drop(tasks); // drop tasks MutexGuard to prevent deadlock
+    match tx.recv().await {
+        Some(token) => task.token = Some(token),
+        None => tracing::error!("could not receive token"),
+    }
 
-    let resp = Response::success(id).message(format!(
-        "service added to manager with id {id}. run 'ppdrive list' to see running services."
-    ));
-    resp.write(socket).await.ok();
+    let mut tasks = manager.tasks.lock().await;
+    let id = task.id.clone();
+    tasks.push(task);
+
+    std::mem::drop(tasks); // drop tasks MutexGuard to prevent deadlock
+    let resp = Response::success(id)
+        .message(format!(
+            "service added to manager with id {id}. run 'ppdrive list' to see running services."
+        ));
+
+    resp.write(socket).await?;
 
     Ok(())
 }
 
 /// stop a running service with the given id
 async fn stop_service(
-    tasks: &mut Vec<ServiceTask>,
+    manager: Manager,
     id: u8,
     socket: &mut TcpStream,
 ) -> AppResult<()> {
+    let mut tasks = manager.tasks.lock().await;
     let item = tasks.iter().enumerate().find(|(_, item)| item.id == id);
 
     let resp = match item {
@@ -85,7 +97,8 @@ async fn stop_service(
 }
 
 /// list running services
-async fn list_services(tasks: &mut Vec<ServiceTask>, socket: &mut TcpStream) -> AppResult<()> {
+async fn list_services(manager: Manager, socket: &mut TcpStream) -> AppResult<()> {
+    let tasks = manager.tasks.lock().await;
     let items: Vec<ServiceInfo> = tasks.iter().map(|s| s.into()).collect();
 
     let resp =
@@ -96,27 +109,36 @@ async fn list_services(tasks: &mut Vec<ServiceTask>, socket: &mut TcpStream) -> 
     Ok(())
 }
 
-pub async fn process_request(socket: &mut TcpStream, tasks: TaskList) -> AppResult<()> {
+pub async fn process_request(
+    socket: &mut TcpStream,
+    manager: Manager,
+    server_addr: String,
+) -> AppResult<()> {
     let mut buf = [0u8; 1024];
     let n = socket.read(&mut buf).await?;
 
     if n <= 0 {
         return Err(Error::InternalError("invalid packet received".to_string()));
     }
+    
+    let (req, _) = bincode::decode_from_slice::<ServiceRequest, _>(&buf, config::standard())?;
 
-    let (cmd, _) = bincode::decode_from_slice::<ServiceCommand, _>(&buf, config::standard())?;
-
-    match cmd {
-        ServiceCommand::Add(config) => start_service(tasks.clone(), config, socket).await,
-
-        ServiceCommand::Cancel(id) => {
-            let mut tasks = tasks.lock().await;
-            stop_service(&mut tasks, id, socket).await
+    match req {
+        ServiceRequest::Add(config) => {
+            start_service(manager, config, socket, server_addr).await
         }
 
-        ServiceCommand::List => {
-            let mut tasks = tasks.lock().await;
-            list_services(&mut tasks, socket).await
+        ServiceRequest::Cancel(id) => {
+            stop_service(manager, id, socket).await
+        }
+
+        ServiceRequest::List => {
+            list_services(manager, socket).await
+        }
+
+        ServiceRequest::TokenReceived => {
+            manager.token_await.store(false, Ordering::Relaxed);
+            Ok(())
         }
     }
 }
@@ -177,40 +199,4 @@ impl<T: Encode + Decode<()>> Response<T> {
 enum ResponseType {
     Success,
     Error,
-}
-
-#[derive(Encode, Decode)]
-/// service management commands
-pub enum ServiceCommand {
-    /// add a new service with the provided config
-    Add(ServiceConfig),
-
-    /// cancel and remove a service with the given id
-    Cancel(u8),
-
-    /// list running services
-    List,
-}
-
-#[derive(Debug)]
-pub struct TaskHandle<T>(JoinHandle<T>);
-impl<T> Future for TaskHandle<T> {
-    type Output = Result<T, JoinError>;
-    fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        unsafe { Pin::new_unchecked(&mut self.0) }.poll(cx)
-    }
-}
-
-impl<T> Drop for TaskHandle<T> {
-    fn drop(&mut self) {
-        self.0.abort();
-    }
-}
-
-fn spawn_service<T>(future: T) -> TaskHandle<T::Output>
-where
-    T: Future + Send + 'static,
-    T::Output: Send + 'static,
-{
-    TaskHandle(tokio::spawn(future))
 }

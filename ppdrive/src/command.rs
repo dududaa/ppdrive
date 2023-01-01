@@ -17,7 +17,7 @@ pub struct Cli {
 
 impl Cli {
     pub async fn run(self, guard: WorkerGuard) -> AppResult<()> {
-        let port = self.port.clone();
+        let port = self.port.clone().unwrap_or(5025);
 
         match self.command {
             CliCommand::Start {

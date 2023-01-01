@@ -1,9 +1,9 @@
-use std::sync::Arc;
+use std::sync::{atomic::AtomicBool, Arc};
 
 use bincode::{Decode, Encode, config};
 
 use ppd_shared::{
-    opts::ServiceConfig,
+    opts::{ServiceConfig, ServiceRequest},
     plugin::{HasDependecies, Plugin},
 };
 use tokio_util::sync::CancellationToken;
@@ -12,37 +12,40 @@ use tracing_appender::non_blocking::WorkerGuard;
 
 use crate::{
     errors::{AppResult, Error},
-    ops::{Response, ServiceCommand, process_request},
+    ops::{Response, process_request},
 };
 use handlers::plugin::service::Service;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 
-pub type TaskList = Arc<Mutex<Vec<ServiceTask>>>;
+pub type Manager = Arc<ServiceManager>;
 
 #[derive(Debug)]
 pub struct ServiceManager {
-    tasks: TaskList,
+    pub tasks: Mutex<Vec<ServiceTask>>,
+    pub token_await: AtomicBool
 }
 
 impl ServiceManager {
     /// start the service manager at the provided port. this is a tcp listener opened at the
     /// connected port.
     #[instrument]
-    pub async fn start(&self, port: Option<u16>, _guard: WorkerGuard) -> AppResult<()> {
+    pub async fn start(self, port: u16, _guard: WorkerGuard) -> AppResult<()> {
         let addr = Self::addr(port);
         let listener = TcpListener::bind(&addr).await?;
 
-        // let tasks = Arc::new(Mutex::new(vec![]));
+        let manager = Arc::new(self);
         tracing::info!("service manager listening at {}", addr);
 
         loop {
-            let tasks = self.tasks.clone();
+            let tasks = manager.clone();
+            let addr = addr.clone();
+
             match listener.accept().await {
                 Ok((mut socket, _)) => {
                     tokio::spawn(async move {
-                        if let Err(err) = process_request(&mut socket, tasks).await {
+                        if let Err(err) = process_request(&mut socket, tasks, addr).await {
                             tracing::error!("unable to process request: {err}")
                         }
                     });
@@ -56,7 +59,7 @@ impl ServiceManager {
     }
 
     /// add a new service to the manager
-    pub async fn add(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
+    pub async fn add(config: ServiceConfig, port: u16) -> AppResult<()> {
         let svc = Service::from(&config);
         tracing::info!(
             "starting service {:?} with auth modes {:?}",
@@ -68,22 +71,22 @@ impl ServiceManager {
         svc.preload()?;
 
         // message service manager to load service
-        let resp = Self::send_command::<u8>(ServiceCommand::Add(config), port).await?;
+        let resp = Self::send_request::<u8>(ServiceRequest::Add(config), port).await?;
         resp.log();
 
         Ok(())
     }
 
     /// cancel a service in the manager
-    pub async fn cancel(id: u8, port: Option<u16>) -> AppResult<()> {
-        let resp = Self::send_command::<()>(ServiceCommand::Cancel(id), port).await?;
+    pub async fn cancel(id: u8, port: u16) -> AppResult<()> {
+        let resp = Self::send_request::<()>(ServiceRequest::Cancel(id), port).await?;
         resp.log();
 
         Ok(())
     }
 
-    pub async fn list(port: Option<u16>) -> AppResult<()> {
-        let resp = Self::send_command::<Vec<ServiceInfo>>(ServiceCommand::List, port).await?;
+    pub async fn list(port: u16) -> AppResult<()> {
+        let resp = Self::send_request::<Vec<ServiceInfo>>(ServiceRequest::List, port).await?;
         let list = resp.body();
 
         resp.log();
@@ -102,9 +105,9 @@ impl ServiceManager {
     }
 
     /// send a command to manager's tcp connection
-    async fn send_command<T: Encode + Decode<()>>(
-        cmd: ServiceCommand,
-        port: Option<u16>,
+    async fn send_request<T: Encode + Decode<()>>(
+        cmd: ServiceRequest,
+        port: u16,
     ) -> AppResult<Response<T>> {
         match bincode::encode_to_vec(cmd, config::standard()) {
             Ok(data) => {
@@ -126,8 +129,7 @@ impl ServiceManager {
         }
     }
 
-    fn addr(port: Option<u16>) -> String {
-        let port = port.unwrap_or(5025);
+    fn addr(port: u16) -> String {
         format!("0.0.0.0:{}", port)
     }
 }
@@ -135,7 +137,8 @@ impl ServiceManager {
 impl Default for ServiceManager {
     fn default() -> Self {
         ServiceManager {
-            tasks: Arc::new(Mutex::new(vec![])),
+            tasks: Mutex::new(vec![]),
+            token_await: AtomicBool::new(true)
         }
     }
 }

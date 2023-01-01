@@ -7,6 +7,7 @@ use ppd_shared::{
     opts::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::{HasDependecies, Plugin, PluginTransport, TTRaw},
 };
+use tokio_util::sync::CancellationToken;
 
 #[derive(Debug)]
 pub struct Service<'a> {
@@ -17,14 +18,14 @@ pub struct Service<'a> {
 
 impl<'a> Service<'a> {
     /// start a rest or grpc service
-    pub fn start(&self, config: ServiceConfig, tx: PluginTransport) -> HandlerResult<()> {
+    pub fn start<T>(&self, config: ServiceConfig, tx: PluginTransport<CancellationToken>) -> HandlerResult<()> {
         let filename = self.output()?;
 
         let cfg_ptr = Arc::new(config);
         let cfg_raw = Arc::into_raw(cfg_ptr);
 
         let lib = self.load(filename)?;
-        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig, TTRaw)> = unsafe {
+        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig, TTRaw<CancellationToken>)> = unsafe {
             lib.get(b"start_svc")
                 .expect("unable to load start_server Symbol")
         };

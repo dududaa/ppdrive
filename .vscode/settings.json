@@ -1,4 +1,5 @@
 {
+    "rust-analyzer.checkOnSave": true
     // "rust-analyzer.cargo.features": [
     //     // "plugin", "tools", "rest"
     // ]

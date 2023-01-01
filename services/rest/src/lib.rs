@@ -5,12 +5,13 @@ use errors::ServerError;
 use ppd_bk::db::migration::run_migrations;
 use ppd_shared::{opts::ServiceConfig, plugin::TTRaw};
 use tokio::runtime::Runtime;
+use tokio_util::sync::CancellationToken;
 
 mod app;
 mod errors;
 pub type ServerResult<T> = Result<T, ServerError>;
 
-async fn launch_svc(config: Arc<ServiceConfig>, tx: TTRaw) -> ServerResult<()> {
+async fn launch_svc(config: Arc<ServiceConfig>, tx: TTRaw<CancellationToken>) -> ServerResult<()> {
     let _guard = start_logger()?;
 
     run_migrations(&config.base.db_url).await?;
@@ -20,7 +21,8 @@ async fn launch_svc(config: Arc<ServiceConfig>, tx: TTRaw) -> ServerResult<()> {
 }
 
 #[no_mangle]
-pub extern "C" fn start_svc(config: *const ServiceConfig, tx: TTRaw) {
+pub extern "C" fn start_svc(config: *const ServiceConfig, tx: TTRaw<CancellationToken>) {
+    tracing::debug!("tx raw reached ffi");
     let config = unsafe { Arc::from_raw(config) };
 
     if let Ok(rt) = Runtime::new() {
