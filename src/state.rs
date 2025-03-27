@@ -10,7 +10,7 @@ use crate::{errors::PPDriveError, utils::get_env};
 
 type DbPool = Pool<AsyncPgConnection>;
 
-async fn create_db_pool() -> Result<DbPool, PPDriveError> {
+pub async fn create_db_pool() -> Result<DbPool, PPDriveError> {
     let connection_url = get_env("DATABASE_URL")?;
     let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(connection_url);
     let pool = Pool::builder()

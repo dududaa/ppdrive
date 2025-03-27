@@ -16,3 +16,4 @@ diesel = { version = "2.2.0", features = ["postgres", "chrono", "r2d2"] }
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 diesel-async = { version = "0.5.2", features = ["postgres", "pool", "bb8", "tokio"] }
 dotenv = "0.15.0"
+chrono = "0.4.40"
