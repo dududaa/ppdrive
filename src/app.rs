@@ -1,0 +1,58 @@
+use axum::{extract::MatchedPath, http::Request, routing::{get, IntoMakeService}, Router};
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use reqwest::header::{HeaderValue,ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE, AUTHORIZATION};
+use tracing::info_span;
+use axum_macros::debug_handler;
+use tower_http::cors::Any;
+
+use crate::{errors::PPDriveError, state::AppState, utils::get_env};
+
+#[debug_handler]
+async fn test_route() -> Result<String, PPDriveError> {
+    Ok("tested successfully!".to_string())
+}
+
+pub async fn create_app() -> Result<IntoMakeService<Router<()>>, PPDriveError> {
+    let state = AppState::new().await?;
+
+    let wl = get_env("PPDRIVE_ALLOW_URL")?
+        .parse::<HeaderValue>()
+        .map_err(|err| PPDriveError::InitError(err.to_string()))?;
+
+    let cors = CorsLayer::new()
+        .allow_origin(wl)
+        .allow_headers([
+            ACCEPT,
+            ACCESS_CONTROL_ALLOW_HEADERS,
+            ACCESS_CONTROL_ALLOW_ORIGIN,
+            CONTENT_TYPE,
+            AUTHORIZATION,
+        ])
+        .allow_methods(Any);
+
+    let router = Router::new()
+        .route("/test", get(test_route))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request<_>| {
+                    // Log the matched route's path (with placeholders not filled in).
+                    // Use request.uri() or OriginalUri if you want the real path.
+                    let matched_path = request
+                        .extensions()
+                        .get::<MatchedPath>()
+                        .map(MatchedPath::as_str);
+
+                    info_span!(
+                        "http_request",
+                        method = ?request.method(),
+                        matched_path,
+                        some_other_field = tracing::field::Empty,
+                    )
+                }),
+        )
+        .layer(cors)
+        .with_state(state)
+        .into_make_service();
+
+    Ok(router)
+}
