@@ -7,8 +7,9 @@ use diesel::{
     ExpressionMethods, QueryDsl, SelectableHelper,
 };
 use diesel_async::RunQueryDsl;
+use serde::Serialize;
 
-use super::Permission;
+use super::{TryFromModel, Permission};
 
 #[derive(Queryable, Selectable, Insertable)]
 #[diesel(table_name = crate::schema::users)]
@@ -47,14 +48,11 @@ impl User {
             .await
             .map_err(|err| AppError::DatabaseError(err.to_string()))?;
 
-        let perms = match data.permission_group {
-            PermissionGroup::Custom => data.permissions,
-            _ => data.permission_group.default_permissions(),
-        };
-
-        if let Some(perms) = perms {
-            for perm in perms {
-                UserPermission::create(conn, user.id, perm).await?;
+        if let PermissionGroup::Custom = data.permission_group {
+            if let Some(perms) = data.permissions {
+                for perm in perms {
+                    UserPermission::create(conn, user.id, perm).await?;
+                }
             }
         }
 
@@ -71,9 +69,34 @@ impl User {
 
         Ok(())
     }
+
+    async fn permissions(&self, conn: &mut DbPooled<'_>) -> Result<Option<Vec<Permission>>, AppError> {
+        use crate::schema::user_permissions::dsl::*;
+
+        let pg = PermissionGroup::try_from(self.permission_group)?;
+        let perms = match pg {
+            PermissionGroup::Custom => {
+                let user_perms = user_permissions
+                    .filter(user_id.eq(self.id))
+                    .load::<UserPermission>(conn)
+                    .await
+                    .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+        
+                let mut perms = Vec::with_capacity(user_perms.len());
+                for perm in user_perms {
+                    perms.push(perm.try_into()?);
+                }
+
+                Some(perms)
+            }
+            _ => pg.default_permissions()
+        };
+
+        Ok(perms)
+    }
 }
 
-#[derive(Queryable, Identifiable, Associations)]
+#[derive(Queryable, Selectable, Identifiable, Associations)]
 #[diesel(belongs_to(User))]
 #[diesel(table_name = crate::schema::user_permissions)]
 pub struct UserPermission {
@@ -94,5 +117,35 @@ impl UserPermission {
             .map_err(|err| AppError::DatabaseError(err.to_string()))?;
 
         Ok(())
+    }
+}
+
+impl TryFrom<UserPermission> for Permission {
+    type Error = AppError;
+
+    fn try_from(value: UserPermission) -> Result<Self, Self::Error> {
+        let perm = Permission::try_from(value.permission)?;
+        Ok(perm)
+    }
+} 
+
+#[derive(Serialize)]
+pub struct UserSerializer {
+    pub is_admin: bool,
+    pub permission_group: PermissionGroup,
+    pub permissions: Option<Vec<Permission>>,
+    pub created_at: String,
+}
+
+impl TryFromModel<User> for UserSerializer {
+    type Error = AppError;
+    
+    async fn try_from_model(conn: &mut DbPooled<'_>, model: User) -> Result<Self, Self::Error> {
+        let User { is_admin, permission_group, created_at, .. } = model;
+
+        let permission_group = PermissionGroup::try_from(permission_group)?;
+        let permissions = model.permissions(conn).await?;
+
+        Ok(Self { is_admin, permission_group, permissions, created_at: created_at.to_string() })
     }
 }

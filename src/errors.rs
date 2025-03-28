@@ -10,6 +10,7 @@ pub enum AppError {
     InternalServerError(String),
     DatabaseError(String),
     AuthorizationError(String),
+    ParsingError(String)
 }
 
 impl Display for AppError {
@@ -19,6 +20,7 @@ impl Display for AppError {
             AppError::InternalServerError(msg) => write!(f, "{msg}"),
             AppError::DatabaseError(msg) => write!(f, "{msg}"),
             AppError::AuthorizationError(msg) => write!(f, "{msg}"),
+            AppError::ParsingError(msg) => write!(f, "{msg}"),
         }
     }
 }
