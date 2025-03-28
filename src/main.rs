@@ -10,6 +10,7 @@ mod state;
 mod utils;
 mod models;
 mod schema;
+mod routes;
 
 #[tokio::main]
 async fn main() -> Result<(), PPDriveError> {

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use diesel_async::{
-    pooled_connection::{bb8::Pool, AsyncDieselConnectionManager},
+    pooled_connection::{bb8::{Pool, PooledConnection}, AsyncDieselConnectionManager},
     AsyncPgConnection,
 };
 use tokio::sync::Mutex;
@@ -9,6 +9,7 @@ use tokio::sync::Mutex;
 use crate::{errors::PPDriveError, utils::get_env};
 
 type DbPool = Pool<AsyncPgConnection>;
+pub type DbPooled<'a> = PooledConnection<'a, AsyncPgConnection>;
 
 pub async fn create_db_pool() -> Result<DbPool, PPDriveError> {
     let connection_url = get_env("DATABASE_URL")?;
@@ -33,5 +34,9 @@ impl AppState {
         let s = Self { db };
 
         Ok(s)
+    }
+
+    pub async fn pool(&self) -> DbPool {
+        self.db.lock().await.clone()
     }
 }
