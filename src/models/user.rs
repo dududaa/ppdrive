@@ -1,7 +1,12 @@
+use crate::{
+    errors::AppError, models::PermissionGroup, routes::admin::CreateUserRequest, state::DbPooled,
+};
 use chrono::NaiveDateTime;
-use diesel::{prelude::{Associations, Identifiable, Insertable, Queryable, Selectable}, ExpressionMethods, QueryDsl, SelectableHelper};
+use diesel::{
+    prelude::{Associations, Identifiable, Insertable, Queryable, Selectable},
+    ExpressionMethods, QueryDsl, SelectableHelper,
+};
 use diesel_async::RunQueryDsl;
-use crate::{errors::AppError, models::PermissionGroup, routes::admin::CreateUserRequest, state::DbPooled};
 
 use super::Permission;
 
@@ -29,10 +34,7 @@ impl User {
         Ok(user)
     }
 
-    pub async fn create(
-        conn: &mut DbPooled<'_>,
-        data: CreateUserRequest,
-    ) -> Result<i32, AppError> {
+    pub async fn create(conn: &mut DbPooled<'_>, data: CreateUserRequest) -> Result<i32, AppError> {
         use crate::schema::users::dsl::users;
         use crate::schema::users::*;
 
@@ -58,6 +60,17 @@ impl User {
 
         Ok(user.id)
     }
+
+    pub async fn delete(conn: &mut DbPooled<'_>, user_id: i32) -> Result<(), AppError> {
+        use crate::schema::users::dsl::*;
+
+        diesel::delete(users.filter(id.eq(user_id)))
+            .execute(conn)
+            .await
+            .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+
+        Ok(())
+    }
 }
 
 #[derive(Queryable, Identifiable, Associations)]
@@ -66,7 +79,7 @@ impl User {
 pub struct UserPermission {
     pub id: i32,
     pub user_id: i32,
-    pub permission: i16
+    pub permission: i16,
 }
 
 impl UserPermission {
@@ -75,10 +88,7 @@ impl UserPermission {
         let val: i16 = perm.into();
 
         diesel::insert_into(user_permissions)
-            .values((
-                user_id.eq(uid),
-                permission.eq(val)
-            ))
+            .values((user_id.eq(uid), permission.eq(val)))
             .execute(conn)
             .await
             .map_err(|err| AppError::DatabaseError(err.to_string()))?;
