@@ -7,6 +7,7 @@ use tower_http::cors::Any;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
 
+use crate::routes::asset::asset_routes;
 use crate::{errors::AppError, routes::admin::admin_routes, state::AppState, utils::get_env};
 
 pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
@@ -29,6 +30,7 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
 
     let router = Router::new()
         .nest("/admin", admin_routes())
+        .nest("/assets", asset_routes())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 // Log the matched route's path (with placeholders not filled in).

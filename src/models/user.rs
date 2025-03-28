@@ -70,7 +70,7 @@ impl User {
         Ok(())
     }
 
-    async fn permissions(&self, conn: &mut DbPooled<'_>) -> Result<Option<Vec<Permission>>, AppError> {
+    pub async fn permissions(&self, conn: &mut DbPooled<'_>) -> Result<Option<Vec<Permission>>, AppError> {
         use crate::schema::user_permissions::dsl::*;
 
         let pg = PermissionGroup::try_from(self.permission_group)?;

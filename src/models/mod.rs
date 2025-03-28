@@ -1,6 +1,7 @@
-use serde::{Deserialize, Serialize};
 use crate::{errors::AppError, state::DbPooled};
+use serde::{Deserialize, Serialize};
 
+pub mod asset;
 pub mod user;
 
 pub trait TryFromModel<M>: Sized {
@@ -8,7 +9,7 @@ pub trait TryFromModel<M>: Sized {
     async fn try_from_model(conn: &mut DbPooled<'_>, model: M) -> Result<Self, Self::Error>;
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, PartialEq)]
 pub enum Permission {
     // write
     CreateFile,
@@ -26,6 +27,22 @@ pub enum Permission {
     DeleteFolder,
 }
 
+impl Permission {
+    /// Checks if [Permission] provides read capacities by default
+    pub fn default_read(&self) -> bool {
+        [Self::ReadFile, Self::ReadFolder].contains(self)
+    }
+
+    /// Checks if [Permission] provides write capacities by default
+    pub fn default_write(&self) -> bool {
+        [Self::CreateFile, Self::CreateFolder, Self::RenameFile, Self::RenameFolder, Self::ReplaceFile].contains(self)
+    }
+
+    /// Checks if [Permission] provides delete capacities by default
+    pub fn default_delete(&self) -> bool {
+        [Self::DeleteFile, Self::DeleteFolder].contains(self)
+    }
+}
 
 impl From<Permission> for i16 {
     fn from(value: Permission) -> Self {
@@ -57,12 +74,14 @@ impl TryFrom<i16> for Permission {
             6 => Ok(Permission::ReplaceFile),
             7 => Ok(Permission::DeleteFile),
             8 => Ok(Permission::DeleteFolder),
-            _ => Err(AppError::ParsingError(format!("'{value}' is invalid permission."))),
+            _ => Err(AppError::ParsingError(format!(
+                "'{value}' is invalid permission."
+            ))),
         }
     }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub enum PermissionGroup {
     Full,
     Read,
@@ -84,8 +103,23 @@ impl PermissionGroup {
                 Permission::ReplaceFile,
             ]),
             PermissionGroup::Delete => Some(vec![Permission::DeleteFile, Permission::DeleteFolder]),
-            _ => None
+            _ => None,
         }
+    }
+
+    /// Checks if [PermissionGroup] provides read capacities by default
+    pub fn default_read(&self) -> bool {
+        [Self::Full, Self::Read].contains(self)
+    }
+
+    /// Checks if [PermissionGroup] provides write capacities by default
+    pub fn default_write(&self) -> bool {
+        [Self::Full, Self::Write].contains(self)
+    }
+
+    /// Checks if [PermissionGroup] provides delete capacities by default
+    pub fn default_delete(&self) -> bool {
+        [Self::Full, Self::Delete].contains(self)
     }
 }
 
@@ -113,9 +147,9 @@ impl TryFrom<i16> for PermissionGroup {
             3 => Ok(PermissionGroup::Delete),
             4 => Ok(PermissionGroup::Custom),
             5 => Ok(PermissionGroup::Null),
-            _ => Err(AppError::ParsingError(format!("'{value}' is invalid permission group"))),
+            _ => Err(AppError::ParsingError(format!(
+                "'{value}' is invalid permission group"
+            ))),
         }
     }
 }
-
-

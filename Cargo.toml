@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7.9"
+axum = { version = "0.7.9", features = ["multipart"] }
 axum-macros = "0.4.2"
 tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
 tower = "0.4.13"
@@ -19,3 +19,9 @@ dotenv = "0.15.0"
 chrono = "0.4.40"
 serde = "1.0.219"
 serde_json = "1.0.140"
+
+[dependencies.uuid]
+version = "1.16.0"
+features = [
+    "v4",
+]

@@ -1,6 +1,15 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    assets (id) {
+        id -> Int4,
+        asset_path -> Varchar,
+        user_id -> Int4,
+        public -> Bool,
+    }
+}
+
+diesel::table! {
     user_permissions (id) {
         id -> Int4,
         user_id -> Int4,
@@ -17,9 +26,11 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(assets -> users (user_id));
 diesel::joinable!(user_permissions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    assets,
     user_permissions,
     users,
 );
