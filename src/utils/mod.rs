@@ -2,19 +2,19 @@ use diesel::{ExpressionMethods, SelectableHelper};
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    errors::PPDriveError,
-    models::{PermissionGroup, User},
+    errors::AppError,
+    models::{user::User, PermissionGroup},
     state::create_db_pool,
 };
 
-pub fn get_env(key: &str) -> Result<String, PPDriveError> {
+pub fn get_env(key: &str) -> Result<String, AppError> {
     std::env::var(key).map_err(|err| {
         tracing::error!("unable to get var {key}: {err}");
         err.into()
     })
 }
 
-pub async fn create_admin() -> Result<i32, PPDriveError> {
+pub async fn create_admin() -> Result<i32, AppError> {
     use crate::schema::users::dsl::users;
     use crate::schema::users::*;
 
@@ -27,7 +27,7 @@ pub async fn create_admin() -> Result<i32, PPDriveError> {
         .returning(User::as_returning())
         .get_result(&mut conn)
         .await
-        .map_err(|err| PPDriveError::DatabaseError(err.to_string()))?;
+        .map_err(|err| AppError::DatabaseError(err.to_string()))?;
 
     Ok(admin.id)
 }

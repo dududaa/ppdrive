@@ -1,5 +1,5 @@
 use dotenv::dotenv;
-use errors::PPDriveError;
+use errors::AppError;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::{create_admin, get_env};
 use crate::app::create_app;
@@ -13,7 +13,7 @@ mod schema;
 mod routes;
 
 #[tokio::main]
-async fn main() -> Result<(), PPDriveError> {
+async fn main() -> Result<(), AppError> {
     dotenv().ok();
 
     
@@ -48,7 +48,7 @@ async fn main() -> Result<(), PPDriveError> {
     
             axum::serve(listener, router)
                 .await
-                .map_err(|err| PPDriveError::InitError(err.to_string()))?;
+                .map_err(|err| AppError::InitError(err.to_string()))?;
         }
         Err(err) => {
             tracing::error!("Error starting listener: {err}");

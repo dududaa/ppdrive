@@ -5,52 +5,52 @@ use diesel_async::pooled_connection::bb8::RunError;
 use reqwest::StatusCode;
 
 #[derive(Debug)]
-pub enum PPDriveError {
+pub enum AppError {
     InitError(String),
     InternalServerError(String),
     DatabaseError(String),
     AuthorizationError(String),
 }
 
-impl Display for PPDriveError {
+impl Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PPDriveError::InitError(msg) => write!(f, "{msg}"),
-            PPDriveError::InternalServerError(msg) => write!(f, "{msg}"),
-            PPDriveError::DatabaseError(msg) => write!(f, "{msg}"),
-            PPDriveError::AuthorizationError(msg) => write!(f, "{msg}"),
+            AppError::InitError(msg) => write!(f, "{msg}"),
+            AppError::InternalServerError(msg) => write!(f, "{msg}"),
+            AppError::DatabaseError(msg) => write!(f, "{msg}"),
+            AppError::AuthorizationError(msg) => write!(f, "{msg}"),
         }
     }
 }
 
-impl From<VarError> for PPDriveError {
+impl From<VarError> for AppError {
     fn from(value: VarError) -> Self {
-        PPDriveError::InternalServerError(value.to_string())
+        AppError::InternalServerError(value.to_string())
     }
 }
 
-impl From<reqwest::Error> for PPDriveError {
+impl From<reqwest::Error> for AppError {
     fn from(value: reqwest::Error) -> Self {
-        PPDriveError::InternalServerError(value.to_string())
+        AppError::InternalServerError(value.to_string())
     }
 }
 
-impl From<serde_json::Error> for PPDriveError {
+impl From<serde_json::Error> for AppError {
     fn from(value: serde_json::Error) -> Self {
-        PPDriveError::InternalServerError(value.to_string())
+        AppError::InternalServerError(value.to_string())
     }
 }
 
-impl From<RunError> for PPDriveError {
+impl From<RunError> for AppError {
     fn from(value: RunError) -> Self {
-        PPDriveError::DatabaseError(value.to_string())
+        AppError::DatabaseError(value.to_string())
     }
 }
 
-impl IntoResponse for PPDriveError {
+impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
         let resp = match self {
-            PPDriveError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
+            AppError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
         };
 

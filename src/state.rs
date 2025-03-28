@@ -6,18 +6,18 @@ use diesel_async::{
 };
 use tokio::sync::Mutex;
 
-use crate::{errors::PPDriveError, utils::get_env};
+use crate::{errors::AppError, utils::get_env};
 
 type DbPool = Pool<AsyncPgConnection>;
 pub type DbPooled<'a> = PooledConnection<'a, AsyncPgConnection>;
 
-pub async fn create_db_pool() -> Result<DbPool, PPDriveError> {
+pub async fn create_db_pool() -> Result<DbPool, AppError> {
     let connection_url = get_env("DATABASE_URL")?;
     let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(connection_url);
     let pool = Pool::builder()
         .build(config)
         .await
-        .map_err(|err| PPDriveError::InitError(err.to_string()))?;
+        .map_err(|err| AppError::InitError(err.to_string()))?;
 
     Ok(pool)
 }
@@ -28,7 +28,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn new() -> Result<Self, PPDriveError> {
+    pub async fn new() -> Result<Self, AppError> {
         let pool = create_db_pool().await?;
         let db = Arc::new(Mutex::new(pool));
         let s = Self { db };

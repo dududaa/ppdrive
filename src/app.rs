@@ -7,14 +7,14 @@ use tower_http::cors::Any;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
 
-use crate::{errors::PPDriveError, routes::admin::admin_routes, state::AppState, utils::get_env};
+use crate::{errors::AppError, routes::admin::admin_routes, state::AppState, utils::get_env};
 
-pub async fn create_app() -> Result<IntoMakeService<Router<()>>, PPDriveError> {
+pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
     let state = AppState::new().await?;
 
     let wl = get_env("PPDRIVE_ALLOW_URL")?
         .parse::<HeaderValue>()
-        .map_err(|err| PPDriveError::InitError(err.to_string()))?;
+        .map_err(|err| AppError::InitError(err.to_string()))?;
 
     let cors = CorsLayer::new()
         .allow_origin(wl)

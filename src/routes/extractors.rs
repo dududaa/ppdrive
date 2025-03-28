@@ -6,7 +6,7 @@ use axum::{
 use reqwest::{header::AUTHORIZATION, StatusCode};
 use serde::Deserialize;
 
-use crate::{errors::PPDriveError, models::User, state::AppState, utils::get_env};
+use crate::{errors::AppError, models::user::User, state::AppState, utils::get_env};
 
 #[derive(Deserialize)]
 pub struct AuthUser {
@@ -28,7 +28,7 @@ where
     AppState: FromRef<S>,
     S: Send + Sync,
 {
-    type Rejection = PPDriveError;
+    type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         match parts.headers.get(AUTHORIZATION) {
@@ -41,14 +41,14 @@ where
                     .await
                     .map_err(|err| {
                         tracing::error!("unable to send auth request: {err}");
-                        PPDriveError::AuthorizationError(err.to_string())
+                        AppError::AuthorizationError(err.to_string())
                     })?;
 
                 let status = resp.status();
                 let c = resp.text().await?;
                 if ![StatusCode::OK, StatusCode::CREATED].contains(&status) {
                     tracing::error!("auth error: {c}");
-                    return Err(PPDriveError::AuthorizationError(c));
+                    return Err(AppError::AuthorizationError(c));
                 }
 
                 // Extract app state
@@ -70,7 +70,7 @@ where
 
                 Ok(extractor)
             }
-            None => Err(PPDriveError::AuthorizationError(
+            None => Err(AppError::AuthorizationError(
                 "Authorization not provided".to_string(),
             )),
         }
@@ -85,14 +85,14 @@ where
     AppState: FromRef<S>,
     S: Send + Sync,
 {
-    type Rejection = PPDriveError;
+    type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let user_ext = UserExtractor::from_request_parts(parts, state).await?;
         let cu = user_ext.0;
 
         if !cu.is_admin {
-            Err(PPDriveError::AuthorizationError("only an admin can access this route.".to_string()))
+            Err(AppError::AuthorizationError("only an admin can access this route.".to_string()))
         } else {
             Ok(Self)
         }

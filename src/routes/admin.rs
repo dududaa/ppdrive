@@ -2,7 +2,7 @@ use axum::{extract::State, routing::post, Json, Router};
 use axum_macros::debug_handler;
 use serde::Deserialize;
 
-use crate::{errors::PPDriveError, models::{Permission, PermissionGroup, User}, state::AppState};
+use crate::{errors::AppError, models::{Permission, PermissionGroup, user::User}, state::AppState};
 
 use super::extractors::{AdminRoute, UserExtractor};
 
@@ -18,7 +18,7 @@ async fn create_user(
     UserExtractor(_): UserExtractor,
     AdminRoute: AdminRoute,
     Json(data): Json<CreateUserRequest>
-) -> Result<Json<i32>, PPDriveError> {
+) -> Result<Json<i32>, AppError> {
     let pool = state.pool().await;
     let mut conn = pool.get().await?;
 
