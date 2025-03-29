@@ -1,5 +1,6 @@
 use diesel::{ExpressionMethods, SelectableHelper};
 use diesel_async::RunQueryDsl;
+use uuid::Uuid;
 
 use crate::{
     errors::AppError,
@@ -14,7 +15,7 @@ pub fn get_env(key: &str) -> Result<String, AppError> {
     })
 }
 
-pub async fn create_admin() -> Result<i32, AppError> {
+pub async fn create_admin() -> Result<Uuid, AppError> {
     use crate::schema::users::dsl::users;
     use crate::schema::users::*;
 
@@ -29,5 +30,5 @@ pub async fn create_admin() -> Result<i32, AppError> {
         .await
         .map_err(|err| AppError::DatabaseError(err.to_string()))?;
 
-    Ok(admin.id)
+    Ok(admin.pid)
 }

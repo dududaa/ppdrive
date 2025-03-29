@@ -20,6 +20,7 @@ diesel::table! {
 diesel::table! {
     users (id) {
         id -> Int4,
+        pid -> Uuid,
         is_admin -> Bool,
         permission_group -> Int2,
         created_at -> Timestamp,

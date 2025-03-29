@@ -11,7 +11,9 @@ pub enum AppError {
     DatabaseError(String),
     AuthorizationError(String),
     ParsingError(String),
-    IOError(String)
+    IOError(String),
+    NotImplemented(String),
+    NotFound(String),
 }
 
 impl Display for AppError {
@@ -23,6 +25,8 @@ impl Display for AppError {
             AppError::AuthorizationError(msg) => write!(f, "{msg}"),
             AppError::ParsingError(msg) => write!(f, "{msg}"),
             AppError::IOError(msg) => write!(f, "{msg}"),
+            AppError::NotImplemented(msg) => write!(f, "{msg}"),
+            AppError::NotFound(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -67,6 +71,7 @@ impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
         let resp = match self {
             AppError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
         };
 

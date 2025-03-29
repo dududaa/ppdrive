@@ -8,6 +8,7 @@ use diesel::{
 };
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
+use uuid::Uuid;
 
 use super::{TryFromModel, Permission};
 
@@ -16,6 +17,7 @@ use super::{TryFromModel, Permission};
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct User {
     pub id: i32,
+    pub pid: Uuid,
     pub is_admin: bool,
     pub permission_group: i16,
     pub created_at: NaiveDateTime,

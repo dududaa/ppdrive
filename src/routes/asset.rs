@@ -1,9 +1,14 @@
+use std::path::Path;
+
 use axum::{
-    extract::{Multipart, Path, State},
-    routing::{post, get},
+    body::Body,
+    extract::{MatchedPath, Multipart, Request, State},
+    http::Response,
+    routing::{get, post},
     Router,
 };
 use axum_macros::debug_handler;
+use reqwest::header;
 use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
@@ -20,17 +25,45 @@ use super::extractors::UserExtractor;
 
 #[debug_handler]
 async fn get_asset(
-    Path(asset_path): Path<String>,
     State(state): State<AppState>,
-) -> Result<String, AppError> {
+    request: Request,
+) -> Result<Response<Body>, AppError> {
+    let req_path = request
+        .extensions()
+        .get::<MatchedPath>()
+        .map(MatchedPath::as_str);
+
+    let matched_path = req_path.unwrap_or("");
+
     let pool = state.pool().await;
     let mut conn = pool.get().await?;
 
-    let asset = Asset::get_by_path(&mut conn, asset_path).await?;
+    let asset = Asset::get_by_path(&mut conn, matched_path.to_string()).await?;
 
     if asset.public {
         // TODO: build and return asset object
-        Ok(asset.asset_path)
+        let path = Path::new(&asset.asset_path);
+        if path.exists() {
+            if path.is_file() {
+                let content = tokio::fs::read(path).await?;
+                let mime_type = mime_guess::from_path(path).first_or_octet_stream();
+                let resp = Response::builder()
+                    .header(header::CONTENT_TYPE, mime_type.to_string())
+                    .body(Body::from(content))
+                    .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+
+                Ok(resp)
+            } else {
+                Err(AppError::NotImplemented(
+                    "folder view yet to be implemented".to_string(),
+                ))
+            }
+        } else {
+            Err(AppError::NotFound(format!(
+                "asset '{matched_path}' not found"
+            )))
+        }
+        // Ok(asset.asset_path)
     } else {
         Err(AppError::InternalServerError("access denied".to_string()))
     }
@@ -91,6 +124,6 @@ async fn create_asset(
 
 pub fn asset_routes() -> Router<AppState> {
     Router::new()
-    .route("/:asset_path", get(get_asset))
-    .route("/create", post(create_asset))
+        .route("/", get(get_asset))
+        .route("/create", post(create_asset))
 }
