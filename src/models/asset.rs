@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use diesel::{
-    prelude::{Associations, Insertable, Queryable, Selectable},
-    ExpressionMethods,
+    prelude::{Associations, Insertable, Queryable, Selectable}, ExpressionMethods, QueryDsl, SelectableHelper
 };
 use diesel_async::RunQueryDsl;
 use tokio::fs::File;
@@ -36,7 +35,7 @@ pub struct CreateAssetOptions {
     /// Asset's visibility. Public assets can be read/accessed by everyone. Private assets can be
     /// viewed ONLY by permission.
     pub public: bool,
-    
+
     /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
     /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.
     pub create_parents: bool,
@@ -47,6 +46,19 @@ pub struct CreateAssetOptions {
 }
 
 impl Asset {
+    pub async fn get_by_path(conn: &mut DbPooled<'_>, path: String) -> Result<Self, AppError> {
+        use crate::schema::assets::dsl::*;
+
+        let asset = assets
+            .filter(asset_path.eq(path))
+            .select(Asset::as_select())
+            .first(conn)
+            .await
+            .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+
+        Ok(asset)
+    }
+
     pub async fn create(
         conn: &mut DbPooled<'_>,
         opts: CreateAssetOptions,
