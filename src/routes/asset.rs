@@ -29,7 +29,7 @@ async fn get_asset(
     let asset = Asset::get_by_path(&mut conn, asset_path).await?;
 
     if asset.public {
-        // TODO: build and return file object
+        // TODO: build and return asset object
         Ok(asset.asset_path)
     } else {
         Err(AppError::InternalServerError("access denied".to_string()))
