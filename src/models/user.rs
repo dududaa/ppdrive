@@ -10,7 +10,7 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use uuid::Uuid;
 
-use super::{TryFromModel, Permission};
+use super::{Permission, TryFromModel};
 
 #[derive(Queryable, Selectable, Insertable)]
 #[diesel(table_name = crate::schema::users)]
@@ -20,6 +20,8 @@ pub struct User {
     pub pid: Uuid,
     pub is_admin: bool,
     pub permission_group: i16,
+    pub root_folder: Option<String>,
+    pub folder_max_size: Option<i64>,
     pub created_at: NaiveDateTime,
 }
 
@@ -37,6 +39,19 @@ impl User {
         Ok(user)
     }
 
+    pub async fn get_by_pid(conn: &mut DbPooled<'_>, user_pid: Uuid) -> Result<Self, AppError> {
+        use crate::schema::users::dsl::*;
+
+        let user = users
+            .filter(pid.eq(user_pid))
+            .select(User::as_select())
+            .first(conn)
+            .await
+            .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+
+        Ok(user)
+    }
+
     pub async fn create(conn: &mut DbPooled<'_>, data: CreateUserRequest) -> Result<i32, AppError> {
         use crate::schema::users::dsl::users;
         use crate::schema::users::*;
@@ -44,7 +59,11 @@ impl User {
         let pg: i16 = data.permission_group.clone().into();
 
         let user = diesel::insert_into(users)
-            .values(permission_group.eq(pg))
+            .values((
+                permission_group.eq(pg),
+                root_folder.eq(data.root_folder),
+                folder_max_size.eq(data.folder_max_size),
+            ))
             .returning(User::as_returning())
             .get_result(conn)
             .await
@@ -72,7 +91,10 @@ impl User {
         Ok(())
     }
 
-    pub async fn permissions(&self, conn: &mut DbPooled<'_>) -> Result<Option<Vec<Permission>>, AppError> {
+    pub async fn permissions(
+        &self,
+        conn: &mut DbPooled<'_>,
+    ) -> Result<Option<Vec<Permission>>, AppError> {
         use crate::schema::user_permissions::dsl::*;
 
         let pg = PermissionGroup::try_from(self.permission_group)?;
@@ -83,7 +105,7 @@ impl User {
                     .load::<UserPermission>(conn)
                     .await
                     .map_err(|err| AppError::DatabaseError(err.to_string()))?;
-        
+
                 let mut perms = Vec::with_capacity(user_perms.len());
                 for perm in user_perms {
                     perms.push(perm.try_into()?);
@@ -91,7 +113,7 @@ impl User {
 
                 Some(perms)
             }
-            _ => pg.default_permissions()
+            _ => pg.default_permissions(),
         };
 
         Ok(perms)
@@ -129,7 +151,7 @@ impl TryFrom<UserPermission> for Permission {
         let perm = Permission::try_from(value.permission)?;
         Ok(perm)
     }
-} 
+}
 
 #[derive(Serialize)]
 pub struct UserSerializer {
@@ -141,13 +163,23 @@ pub struct UserSerializer {
 
 impl TryFromModel<User> for UserSerializer {
     type Error = AppError;
-    
+
     async fn try_from_model(conn: &mut DbPooled<'_>, model: User) -> Result<Self, Self::Error> {
-        let User { is_admin, permission_group, created_at, .. } = model;
+        let User {
+            is_admin,
+            permission_group,
+            created_at,
+            ..
+        } = model;
 
         let permission_group = PermissionGroup::try_from(permission_group)?;
         let permissions = model.permissions(conn).await?;
 
-        Ok(Self { is_admin, permission_group, permissions, created_at: created_at.to_string() })
+        Ok(Self {
+            is_admin,
+            permission_group,
+            permissions,
+            created_at: created_at.to_string(),
+        })
     }
 }

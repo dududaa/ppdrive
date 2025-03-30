@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use axum::{
     extract::{Path, State},
     routing::{delete, post, get},
@@ -5,6 +7,7 @@ use axum::{
 };
 use axum_macros::debug_handler;
 use serde::Deserialize;
+use uuid::Uuid;
 
 use crate::{
     errors::AppError,
@@ -20,9 +23,8 @@ use super::extractors::{AdminRoute, UserExtractor};
 pub struct CreateUserRequest {
     pub permission_group: PermissionGroup,
     pub permissions: Option<Vec<Permission>>,
-    // pub assign_root_folder: Option<bool>,
-    // pub root_folder: Option<String>,
-    // pub folder_max_size: Option<u64>
+    pub root_folder: Option<String>,
+    pub folder_max_size: Option<i64>
 }
 
 #[debug_handler]
@@ -49,11 +51,11 @@ async fn get_user(
     let pool = state.pool().await;
     let mut conn = pool.get().await?;
 
-    let user_id = id.parse::<i32>().map_err(|err| {
+    let user_id = Uuid::from_str(&id).map_err(|err| {
         AppError::InternalServerError(format!("unable to parse user id '{id}': {err}"))
     })?;
 
-    let user = User::get(&mut conn, user_id).await?;
+    let user = User::get_by_pid(&mut conn, user_id).await?;
     let data = UserSerializer::try_from_model(&mut conn, user).await?;
 
     Ok(Json(data))

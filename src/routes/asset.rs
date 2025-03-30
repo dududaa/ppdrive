@@ -2,7 +2,7 @@ use std::path::Path;
 
 use axum::{
     body::Body,
-    extract::{MatchedPath, Multipart, Request, State},
+    extract::{Multipart, Path as ReqPath, State},
     http::Response,
     routing::{get, post},
     Router,
@@ -25,23 +25,15 @@ use super::extractors::UserExtractor;
 
 #[debug_handler]
 async fn get_asset(
+    ReqPath(asset_path): ReqPath<String>,
     State(state): State<AppState>,
-    request: Request,
 ) -> Result<Response<Body>, AppError> {
-    let req_path = request
-        .extensions()
-        .get::<MatchedPath>()
-        .map(MatchedPath::as_str);
-
-    let matched_path = req_path.unwrap_or("");
-
     let pool = state.pool().await;
     let mut conn = pool.get().await?;
 
-    let asset = Asset::get_by_path(&mut conn, matched_path.to_string()).await?;
+    let asset = Asset::get_by_path(&mut conn, asset_path.clone()).await?;
 
     if asset.public {
-        // TODO: build and return asset object
         let path = Path::new(&asset.asset_path);
         if path.exists() {
             if path.is_file() {
@@ -60,10 +52,9 @@ async fn get_asset(
             }
         } else {
             Err(AppError::NotFound(format!(
-                "asset '{matched_path}' not found"
+                "asset '{asset_path}' not found"
             )))
         }
-        // Ok(asset.asset_path)
     } else {
         Err(AppError::InternalServerError("access denied".to_string()))
     }
@@ -124,6 +115,6 @@ async fn create_asset(
 
 pub fn asset_routes() -> Router<AppState> {
     Router::new()
-        .route("/", get(get_asset))
+        .route("/*asset_path", get(get_asset))
         .route("/create", post(create_asset))
 }

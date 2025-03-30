@@ -73,6 +73,9 @@ impl Asset {
             asset_type,
             create_parents,
         } = opts;
+
+        let user = User::get(conn, user).await?;
+        let path = user.root_folder.map_or(path.clone(), |rf| format!("{rf}/{path}"));
         let ap = Path::new(&path);
 
         match asset_type {
@@ -94,7 +97,7 @@ impl Asset {
         }
 
         diesel::insert_into(assets)
-            .values((asset_path.eq(&path), public.eq(is_public), user_id.eq(user)))
+            .values((asset_path.eq(&path), public.eq(is_public), user_id.eq(user.id)))
             .execute(conn)
             .await
             .map_err(|err| AppError::DatabaseError(err.to_string()))?;

@@ -23,6 +23,9 @@ diesel::table! {
         pid -> Uuid,
         is_admin -> Bool,
         permission_group -> Int2,
+        #[max_length = 200]
+        root_folder -> Nullable<Varchar>,
+        folder_max_size -> Nullable<Int8>,
         created_at -> Timestamp,
     }
 }
