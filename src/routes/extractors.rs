@@ -17,7 +17,6 @@ pub struct AuthUser {
 pub struct CurrentUser {
     pub id: i32,
     username: String,
-    is_admin: bool,
     permission_group: PermissionGroup,
     permissions: Option<Vec<Permission>>
 }
@@ -84,7 +83,6 @@ where
 
                 let extractor = UserExtractor(CurrentUser {
                     id: user.id,
-                    is_admin: user.is_admin,
                     username: auth_user.username,
                     permission_group,
                     permissions
@@ -113,7 +111,7 @@ where
         let user_ext = UserExtractor::from_request_parts(parts, state).await?;
         let cu = user_ext.0;
 
-        if !cu.is_admin {
+        if true {
             Err(AppError::AuthorizationError("only an admin can access this route.".to_string()))
         } else {
             Ok(Self)

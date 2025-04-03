@@ -18,7 +18,6 @@ use super::{Permission, TryFromModel};
 pub struct User {
     pub id: i32,
     pub pid: Uuid,
-    pub is_admin: bool,
     pub permission_group: i16,
     pub root_folder: Option<String>,
     pub folder_max_size: Option<i64>,
@@ -155,7 +154,6 @@ impl TryFrom<UserPermission> for Permission {
 
 #[derive(Serialize)]
 pub struct UserSerializer {
-    pub is_admin: bool,
     pub permission_group: PermissionGroup,
     pub permissions: Option<Vec<Permission>>,
     pub created_at: String,
@@ -166,7 +164,6 @@ impl TryFromModel<User> for UserSerializer {
 
     async fn try_from_model(conn: &mut DbPooled<'_>, model: User) -> Result<Self, Self::Error> {
         let User {
-            is_admin,
             permission_group,
             created_at,
             ..
@@ -176,7 +173,6 @@ impl TryFromModel<User> for UserSerializer {
         let permissions = model.permissions(conn).await?;
 
         Ok(Self {
-            is_admin,
             permission_group,
             permissions,
             created_at: created_at.to_string(),

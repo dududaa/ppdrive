@@ -1,12 +1,10 @@
-use diesel::{ExpressionMethods, SelectableHelper};
-use diesel_async::RunQueryDsl;
+use chacha20poly1305::{
+    aead::{rand_core::RngCore, Aead, OsRng},
+    AeadCore, KeyInit, XChaCha20Poly1305,
+};
 use uuid::Uuid;
 
-use crate::{
-    errors::AppError,
-    models::{user::User, PermissionGroup},
-    state::create_db_pool,
-};
+use crate::{errors::AppError, models::client::{Client, CreateClientOpts}, state::create_db_pool};
 
 pub fn get_env(key: &str) -> Result<String, AppError> {
     std::env::var(key).map_err(|err| {
@@ -15,20 +13,40 @@ pub fn get_env(key: &str) -> Result<String, AppError> {
     })
 }
 
-pub async fn create_admin() -> Result<Uuid, AppError> {
-    use crate::schema::users::dsl::users;
-    use crate::schema::users::*;
+pub struct ClientKeys {
+    pub id: Uuid,
+    pub public: String,
+    pub private: String
+}
+
+pub async fn keygen() -> Result<ClientKeys, AppError> {
+    let key = XChaCha20Poly1305::generate_key(&mut OsRng);
+    let cipher = XChaCha20Poly1305::new(&key);
+    
+    let mut payload = [0u8; 16];
+    OsRng.fill_bytes(&mut payload);
+    
+    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+    let encryption = cipher.encrypt(&nonce, payload.as_slice())?;
+
+    // let nv = nonce.to_vec();
+    let ns = hex::encode(&nonce);
+    let nx = hex::encode(&encryption);
+
+    let copts = CreateClientOpts {
+        key: key.to_vec(),
+        payload: payload.to_vec()
+    };
 
     let pool = create_db_pool().await?;
     let mut conn = pool.get().await?;
-    let pg: i16 = PermissionGroup::Full.into();
+    let client = Client::create(&mut conn, copts).await?;
 
-    let admin = diesel::insert_into(users)
-        .values((is_admin.eq(true), permission_group.eq(pg)))
-        .returning(User::as_returning())
-        .get_result(&mut conn)
-        .await
-        .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+    let keys = ClientKeys {
+        id: client.client_id,
+        public: ns,
+        private: nx
+    };
 
-    Ok(admin.pid)
+    Ok(keys)
 }

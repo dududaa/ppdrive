@@ -23,8 +23,8 @@ services:
     environment:
       DATABASE_URL: postgres://${PPDRIVE_DB_USER}:${PPDRIVE_DB_PASSWORD}@db:5432/${PPDRIVE_DB_DB}
       PPDRIVE_AUTH_URL: ${PPDRIVE_AUTH_URL}
-      PPDRIVE_ALLOW_URL: ${PPDRIVE_ALLOW_URL}
       PPDRIVE_PORT: ${PPDRIVE_PORT}
+      PPDRIVE_ALLOW_URL: ${PPDRIVE_ALLOW_URL}
       
     depends_on:
       - db

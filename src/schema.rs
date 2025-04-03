@@ -10,6 +10,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    clients (id) {
+        id -> Int4,
+        public_key -> Bytea,
+        payload -> Bytea,
+        client_id -> Uuid,
+    }
+}
+
+diesel::table! {
     user_permissions (id) {
         id -> Int4,
         user_id -> Int4,
@@ -21,7 +30,6 @@ diesel::table! {
     users (id) {
         id -> Int4,
         pid -> Uuid,
-        is_admin -> Bool,
         permission_group -> Int2,
         #[max_length = 200]
         root_folder -> Nullable<Varchar>,
@@ -35,6 +43,7 @@ diesel::joinable!(user_permissions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     assets,
+    clients,
     user_permissions,
     users,
 );

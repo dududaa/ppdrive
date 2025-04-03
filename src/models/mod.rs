@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod asset;
 pub mod user;
+pub mod client;
 
 pub trait TryFromModel<M>: Sized {
     type Error;

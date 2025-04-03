@@ -1,7 +1,7 @@
 use dotenv::dotenv;
 use errors::AppError;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utils::{create_admin, get_env};
+use utils::{get_env, keygen, ClientKeys};
 use crate::app::create_app;
 
 mod app;
@@ -28,10 +28,15 @@ async fn main() -> Result<(), AppError> {
     let args: Vec<String> = std::env::args().collect();
 
     if let Some(a1) = args.get(1) {
-        if a1 == "create_admin" {
-            let admin_id = create_admin().await?;
-            tracing::info!("admin created successfully!");
-            tracing::info!("\nadmin_id: {admin_id}");
+        if a1 == "keygen" {
+            let ClientKeys{ id, public, private } = keygen().await?;
+            tracing::info!("
+                Token generated successfully!
+
+                PPD_PUBLIC: {public}
+                PPD_PRIVATE: {private}
+                CLIENT_ID: {id}
+            ");
         }
 
         return Ok(())
