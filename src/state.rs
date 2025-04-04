@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
+use diesel::{Connection, PgConnection};
 use diesel_async::{
     pooled_connection::{bb8::{Pool, PooledConnection}, AsyncDieselConnectionManager},
     AsyncPgConnection,
 };
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use tokio::sync::Mutex;
 
 use crate::{errors::AppError, utils::get_env};
@@ -11,7 +13,28 @@ use crate::{errors::AppError, utils::get_env};
 type DbPool = Pool<AsyncPgConnection>;
 pub type DbPooled<'a> = PooledConnection<'a, AsyncPgConnection>;
 
+const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+
+async fn run_migrations() -> Result<(), AppError> {
+    tokio::task::spawn_blocking(move || {
+        let database_url =
+            get_env("DATABASE_URL").expect("unable to get database url from environment");
+
+        let mut conn =
+            PgConnection::establish(&database_url).expect("failed to connect to database");
+        conn.run_pending_migrations(MIGRATIONS)
+            .expect("failed to run migration");
+    });
+
+    Ok(())
+}
+
 pub async fn create_db_pool() -> Result<DbPool, AppError> {
+    let debug_mode = get_env("DEBUG_MODE")?;
+    if &debug_mode != "true" {
+        run_migrations().await?;
+    }
+
     let connection_url = get_env("DATABASE_URL")?;
     let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(connection_url);
     let pool = Pool::builder()
