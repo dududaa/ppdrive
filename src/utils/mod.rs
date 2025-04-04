@@ -34,7 +34,6 @@ pub async fn keygen() -> Result<ClientKeys, AppError> {
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
     let encryption = cipher.encrypt(&nonce, payload.as_slice())?;
 
-    // let nv = nonce.to_vec();
     let ns = hex::encode(&nonce);
     let nx = hex::encode(&encryption);
 
