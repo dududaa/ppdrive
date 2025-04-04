@@ -1,3 +1,4 @@
+use axum::http::HeaderName;
 use axum::{extract::MatchedPath, http::Request, routing::IntoMakeService, Router};
 use reqwest::header::{
     HeaderValue, ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION,
@@ -25,6 +26,8 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
             ACCESS_CONTROL_ALLOW_ORIGIN,
             CONTENT_TYPE,
             AUTHORIZATION,
+            HeaderName::from_static("X-API-KEY"),
+            HeaderName::from_static("X-CLIENT-ID")
         ])
         .allow_methods(Any);
 

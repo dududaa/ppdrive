@@ -28,14 +28,12 @@ impl User {
     pub async fn get(conn: &mut DbPooled<'_>, user_id: i32) -> Result<Self, AppError> {
         use crate::schema::users::dsl::*;
 
-        let user = users
+        users
             .find(user_id)
             .select(User::as_select())
             .first(conn)
             .await
-            .map_err(|err| AppError::InternalServerError(err.to_string()))?;
-
-        Ok(user)
+            .map_err(|err| AppError::InternalServerError(err.to_string()))
     }
 
     pub async fn get_by_pid(conn: &mut DbPooled<'_>, user_pid: Uuid) -> Result<Self, AppError> {

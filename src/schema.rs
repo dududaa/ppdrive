@@ -12,9 +12,9 @@ diesel::table! {
 diesel::table! {
     clients (id) {
         id -> Int4,
-        public_key -> Bytea,
-        payload -> Bytea,
-        client_id -> Uuid,
+        enc_key -> Bytea,
+        enc_payload -> Bytea,
+        cid -> Uuid,
     }
 }
 

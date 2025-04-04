@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
@@ -5,18 +7,17 @@ use axum::{
 };
 use reqwest::{header::AUTHORIZATION, StatusCode};
 use serde::Deserialize;
+use uuid::Uuid;
 
-use crate::{errors::AppError, models::{user::User, Permission, PermissionGroup}, state::AppState, utils::get_env};
+use crate::{errors::AppError, models::{user::User, Permission, PermissionGroup}, state::AppState, utils::{get_env, verify_client, ClientKeys}};
 
 #[derive(Deserialize)]
 pub struct AuthUser {
     id: i32,
-    username: String,
 }
 
 pub struct CurrentUser {
     pub id: i32,
-    username: String,
     permission_group: PermissionGroup,
     permissions: Option<Vec<Permission>>
 }
@@ -83,7 +84,6 @@ where
 
                 let extractor = UserExtractor(CurrentUser {
                     id: user.id,
-                    username: auth_user.username,
                     permission_group,
                     permissions
                 });
@@ -108,13 +108,36 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let user_ext = UserExtractor::from_request_parts(parts, state).await?;
-        let cu = user_ext.0;
+        let (keys, client_id) = (parts.headers.get("X-API-KEY"), parts.headers.get("X-CLIENT-ID"));
+        
+        match (keys, client_id) {
+            (Some(keys), Some(client_id)) => {
+                let client_id = client_id.to_str().map_err(|err| AppError::AuthorizationError(err.to_string()))?;
+                let cuid = Uuid::from_str(client_id).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
+                
+                let keys = keys.to_str().map_err(|err| AppError::AuthorizationError(err.to_string()))?;
+                let ks: Vec<&str> = keys.split(".").collect();
+                
+                if let (Some(nonce), Some(enc)) = (ks.get(0), ks.get(1)) {
+                    let state = AppState::from_ref(state);
+                    let pool = state.pool().await;
+                    let mut conn = pool.get().await?;
 
-        if true {
-            Err(AppError::AuthorizationError("only an admin can access this route.".to_string()))
-        } else {
-            Ok(Self)
+                    let cks = ClientKeys {
+                        id: cuid,
+                        public: String::from(*nonce),
+                        private: String::from(*enc)
+                    };
+
+                    let valid = verify_client(&mut conn, cks).await?;
+                    if !valid {
+                        return Err(AppError::AuthorizationError("unable to to verify the client.".to_string()))
+                    }
+                }
+
+                Ok(AdminRoute)
+            },
+            _ => Err(AppError::AuthorizationError("missing authentication headers".to_string())),
         }
     }
 }
