@@ -35,10 +35,10 @@ pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
     OsRng.fill_bytes(&mut payload);
 
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
-    let encryption = cipher.encrypt(&nonce, payload.as_slice())?;
+    let enc = cipher.encrypt(&nonce, payload.as_slice())?;
 
     let ns = hex::encode(&nonce);
-    let nx = hex::encode(&encryption);
+    let nx = hex::encode(&enc);
 
     let copts = CreateClientOpts {
         key: key.to_vec(),
@@ -58,6 +58,7 @@ pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
     Ok(keys)
 }
 
+/// Verifies the provided [ClientAccessKeys] and authenticates the client.
 pub async fn verify_client(conn: &mut DbPooled<'_>, keys: ClientAccessKeys) -> Result<bool, AppError> {
     let ClientAccessKeys {
         client_id: id,
