@@ -5,7 +5,7 @@ services:
     image: postgres:latest
     container_name: ppdrive_db
     environment:
-      POSTGRES_PASSWORD: ${PPDRIVE_DB_DB}
+      POSTGRES_PASSWORD: ${PPDRIVE_DB_PASSWORD}
       
     ports:
       - "5432:5432"
@@ -21,10 +21,11 @@ services:
     container_name: ppdrive_app
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://${PPDRIVE_DB_USER}:${PPDRIVE_DB_PASSWORD}@db:5432/${PPDRIVE_DB_DB}
+      DATABASE_URL: postgres://${PPDRIVE_DB_USER}:${PPDRIVE_DB_PASSWORD}@db:5432/${PPDRIVE_DB_NAME}
       PPDRIVE_AUTH_URL: ${PPDRIVE_AUTH_URL}
       PPDRIVE_PORT: ${PPDRIVE_PORT}
       PPDRIVE_ALLOW_URL: ${PPDRIVE_ALLOW_URL}
+      DEBUG_MODE: ${DEBUG_MODE}
       
     depends_on:
       - db
