@@ -1,7 +1,7 @@
 use dotenv::dotenv;
 use errors::AppError;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utils::{get_env, keygen, ClientKeys};
+use utils::{get_env, client_keygen, ClientAccessKeys};
 use crate::app::create_app;
 
 mod app;
@@ -29,13 +29,13 @@ async fn main() -> Result<(), AppError> {
 
     if let Some(a1) = args.get(1) {
         if a1 == "keygen" {
-            let ClientKeys{ id, public, private } = keygen().await?;
+            let ClientAccessKeys{ client_id, public, private } = client_keygen().await?;
             tracing::info!("
                 Token generated successfully!
 
                 PPD_PUBLIC: {public}
                 PPD_PRIVATE: {private}
-                CLIENT_ID: {id}
+                CLIENT_ID: {client_id}
             ");
         }
 

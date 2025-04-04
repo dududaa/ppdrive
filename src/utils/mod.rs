@@ -18,13 +18,16 @@ pub fn get_env(key: &str) -> Result<String, AppError> {
     })
 }
 
-pub struct ClientKeys {
-    pub id: Uuid,
+/// Details of [ClientAccessKeys] will be used to authenticate and verify the client when accessing 
+/// administrative routes.
+pub struct ClientAccessKeys {
+    pub client_id: Uuid,
     pub public: String,
     pub private: String,
 }
 
-pub async fn keygen() -> Result<ClientKeys, AppError> {
+/// Generates new [ClientAccessKeys], creates a new [Client] and returns the client's access keys.
+pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
     let key = XChaCha20Poly1305::generate_key(&mut OsRng);
     let cipher = XChaCha20Poly1305::new(&key);
 
@@ -46,8 +49,8 @@ pub async fn keygen() -> Result<ClientKeys, AppError> {
     let mut conn = pool.get().await?;
     let client = Client::create(&mut conn, copts).await?;
 
-    let keys = ClientKeys {
-        id: client.cid,
+    let keys = ClientAccessKeys {
+        client_id: client.cid,
         public: ns,
         private: nx,
     };
@@ -55,9 +58,9 @@ pub async fn keygen() -> Result<ClientKeys, AppError> {
     Ok(keys)
 }
 
-pub async fn verify_client(conn: &mut DbPooled<'_>, keys: ClientKeys) -> Result<bool, AppError> {
-    let ClientKeys {
-        id,
+pub async fn verify_client(conn: &mut DbPooled<'_>, keys: ClientAccessKeys) -> Result<bool, AppError> {
+    let ClientAccessKeys {
+        client_id: id,
         public,
         private,
     } = keys;

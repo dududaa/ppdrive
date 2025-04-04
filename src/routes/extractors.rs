@@ -9,7 +9,7 @@ use reqwest::{header::AUTHORIZATION, StatusCode};
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::{errors::AppError, models::{user::User, Permission, PermissionGroup}, state::AppState, utils::{get_env, verify_client, ClientKeys}};
+use crate::{errors::AppError, models::{user::User, Permission, PermissionGroup}, state::AppState, utils::{get_env, verify_client, ClientAccessKeys}};
 
 #[derive(Deserialize)]
 pub struct AuthUser {
@@ -123,8 +123,8 @@ where
                     let pool = state.pool().await;
                     let mut conn = pool.get().await?;
 
-                    let cks = ClientKeys {
-                        id: cuid,
+                    let cks = ClientAccessKeys {
+                        client_id: cuid,
                         public: String::from(*nonce),
                         private: String::from(*enc)
                     };
