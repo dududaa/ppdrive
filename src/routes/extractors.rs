@@ -108,7 +108,7 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let (keys, client_id) = (parts.headers.get("X-API-KEY"), parts.headers.get("X-CLIENT-ID"));
+        let (keys, client_id) = (parts.headers.get("x-api-key"), parts.headers.get("x-client-id"));
         
         match (keys, client_id) {
             (Some(keys), Some(client_id)) => {

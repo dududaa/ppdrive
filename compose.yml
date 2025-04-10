@@ -25,13 +25,16 @@ services:
       PPDRIVE_AUTH_URL: ${PPDRIVE_AUTH_URL}
       PPDRIVE_PORT: ${PPDRIVE_PORT}
       PPDRIVE_ALLOW_URL: ${PPDRIVE_ALLOW_URL}
-      DEBUG_MODE: ${DEBUG_MODE}
+      DEBUG_MODE: false
       
     depends_on:
       - db
 
     ports:
       - ${PPDRIVE_PORT}:${PPDRIVE_PORT}
+
+    networks:
+      - app_network
 
 volumes:
   postgres_data:
