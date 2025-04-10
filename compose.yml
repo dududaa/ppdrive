@@ -3,7 +3,9 @@ services:
     image: postgres:latest
     container_name: ppdrive_db
     environment:
+      POSTGRES_USER: ${PPDRIVE_DB_USER}
       POSTGRES_PASSWORD: ${PPDRIVE_DB_PASSWORD}
+      POSTGRES_DB: ${PPDRIVE_DB_NAME}
 
     ports:
       - "5432:5432"
