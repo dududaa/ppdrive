@@ -2,8 +2,8 @@ use crate::{errors::AppError, state::DbPooled};
 use serde::{Deserialize, Serialize};
 
 pub mod asset;
-pub mod user;
 pub mod client;
+pub mod user;
 
 pub trait TryFromModel<M>: Sized {
     type Error;
@@ -14,7 +14,7 @@ pub trait TryFromModel<M>: Sized {
 pub enum AssetType {
     #[default]
     File,
-    Folder
+    Folder,
 }
 
 impl<'a> TryFrom<&'a str> for AssetType {
@@ -26,7 +26,9 @@ impl<'a> TryFrom<&'a str> for AssetType {
         } else if value == "folder" {
             Ok(Self::Folder)
         } else {
-            Err(AppError::ParsingError(format!("'{value}' is invalid asset type")))
+            Err(AppError::ParsingError(format!(
+                "'{value}' is invalid asset type"
+            )))
         }
     }
 }
@@ -57,7 +59,16 @@ impl Permission {
 
     /// Checks if [Permission] provides write capacities by default
     pub fn default_write(&self) -> bool {
-        [Self::CreateFile, Self::CreateFolder, Self::RenameFile, Self::RenameFolder, Self::ReplaceFile].contains(self)
+        [
+            Self::CreateFile,
+            Self::CreateFolder,
+            Self::RenameFile,
+            Self::RenameFolder,
+            Self::ReplaceFile,
+            Self::ReadFile,
+            Self::ReadFolder,
+        ]
+        .contains(self)
     }
 
     /// Checks if [Permission] provides delete capacities by default
@@ -118,6 +129,8 @@ impl PermissionGroup {
         match self {
             PermissionGroup::Read => Some(vec![Permission::ReadFile, Permission::ReadFolder]),
             PermissionGroup::Write => Some(vec![
+                Permission::ReadFile,
+                Permission::ReadFolder,
                 Permission::CreateFile,
                 Permission::CreateFolder,
                 Permission::RenameFile,

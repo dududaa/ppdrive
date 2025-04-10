@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use axum::{
     extract::{Path, State},
-    routing::{delete, post, get},
+    routing::{delete, get, post},
     Json, Router,
 };
 use axum_macros::debug_handler;
@@ -11,26 +11,28 @@ use uuid::Uuid;
 
 use crate::{
     errors::AppError,
-    models::{user::{User, UserSerializer}, Permission, PermissionGroup},
+    models::{
+        user::{User, UserSerializer},
+        Permission, PermissionGroup,
+    },
     state::AppState,
 };
 
 use crate::models::TryFromModel;
 
-use super::extractors::{AdminRoute, UserExtractor};
+use super::extractors::AdminRoute;
 
 #[derive(Deserialize)]
 pub struct CreateUserRequest {
     pub permission_group: PermissionGroup,
     pub permissions: Option<Vec<Permission>>,
     pub root_folder: Option<String>,
-    pub folder_max_size: Option<i64>
+    pub folder_max_size: Option<i64>,
 }
 
 #[debug_handler]
 async fn create_user(
     State(state): State<AppState>,
-    UserExtractor(_): UserExtractor,
     AdminRoute: AdminRoute,
     Json(data): Json<CreateUserRequest>,
 ) -> Result<Json<String>, AppError> {
@@ -45,7 +47,6 @@ async fn create_user(
 async fn get_user(
     Path(id): Path<String>,
     State(state): State<AppState>,
-    UserExtractor(_): UserExtractor,
     AdminRoute: AdminRoute,
 ) -> Result<Json<UserSerializer>, AppError> {
     let pool = state.pool().await;
@@ -65,7 +66,6 @@ async fn get_user(
 async fn delete_user(
     Path(id): Path<String>,
     State(state): State<AppState>,
-    UserExtractor(_): UserExtractor,
     AdminRoute: AdminRoute,
 ) -> Result<String, AppError> {
     let pool = state.pool().await;
