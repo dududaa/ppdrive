@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{
     errors::AppError, models::PermissionGroup, routes::admin::CreateUserRequest, state::DbPooled,
 };
@@ -52,9 +54,13 @@ impl User {
     pub async fn create(conn: &mut DbPooled<'_>, data: CreateUserRequest) -> Result<Uuid, AppError> {
         use crate::schema::users::dsl::users;
         use crate::schema::users::*;
-
+        
+        if let Some(folder) = &data.root_folder {
+            let path = Path::new(folder);
+            tokio::fs::create_dir_all(path).await?;
+        }
+        
         let pg: i16 = data.permission_group.clone().into();
-
         let user = diesel::insert_into(users)
             .values((
                 permission_group.eq(pg),
