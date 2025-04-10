@@ -15,7 +15,6 @@ mod routes;
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     dotenv().ok();
-
     
     tracing_subscriber::registry()
         .with(

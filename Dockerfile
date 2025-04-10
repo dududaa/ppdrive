@@ -16,13 +16,7 @@ RUN cargo build --release
 # Use a smaller image for the final application
 FROM debian:bookworm-slim
 
-# Install MariaDB client libraries
-# RUN apt-get update && apt-get install -y \
-#     libmariadb-dev-compat \
-#     libmariadb3 \
-#     libssl3 \
-#     ca-certificates \
-#     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libpq-dev
 
 # Set the working directory
 WORKDIR /app

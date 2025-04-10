@@ -49,7 +49,7 @@ impl User {
         Ok(user)
     }
 
-    pub async fn create(conn: &mut DbPooled<'_>, data: CreateUserRequest) -> Result<i32, AppError> {
+    pub async fn create(conn: &mut DbPooled<'_>, data: CreateUserRequest) -> Result<Uuid, AppError> {
         use crate::schema::users::dsl::users;
         use crate::schema::users::*;
 
@@ -74,7 +74,7 @@ impl User {
             }
         }
 
-        Ok(user.id)
+        Ok(user.pid)
     }
 
     pub async fn delete(conn: &mut DbPooled<'_>, user_id: i32) -> Result<(), AppError> {
