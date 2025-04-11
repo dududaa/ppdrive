@@ -6,7 +6,7 @@
 
 ## Features
 
-- **Self-Hosted**: Set up and run your own instance of PPDRIVE on your server.
+- **Self-Hosted**: Set up and run your own instance of PPDrive on your server.
 - **Self-Contained**: Everything you need is packaged together into a single executable program, reducing external dependencies.
 - **Pluggable**: Easily integrate PPDRIVE into your existing applications and favorite frameworks.
 - **Secure**: Provides robust security features (JWT authentication support, user permissions...etc) to keep your assets safe.
@@ -17,11 +17,11 @@
 
 ## Getting Started
 
-These instructions will help you set up and run PPDRIVE on your server.
+These instructions will help you set up and run PPDrive on your server.
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
+Before you begin, while you can install PPDrive man:
 
 - **Rust** (Version 1.XX or later): You can install Rust via [rustup](https://rustup.rs/).
 - **Docker** (optional, for containerized deployment): Install Docker from [docker.com](https://www.docker.com/).
