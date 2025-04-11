@@ -38,10 +38,6 @@ pub struct CreateAssetOptions {
     /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
     /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.
     pub create_parents: Option<bool>,
-
-    /// If asset is file and user/owner uploaded data to write to it. The data is written in a path (`tmp_file`)
-    /// by the route handler.
-    pub tmp_file: Option<String>,
 }
 
 impl Asset {
@@ -58,17 +54,17 @@ impl Asset {
         Ok(asset)
     }
 
-    pub async fn create(
+    pub async fn create_or_update(
         conn: &mut DbPooled<'_>,
         user: &i32,
         opts: CreateAssetOptions,
+        temp_file: Option<String>,
     ) -> Result<String, AppError> {
         use crate::schema::assets::dsl::*;
 
         let CreateAssetOptions {
             path,
             public: is_public,
-            tmp_file: temp_file,
             asset_type,
             create_parents,
         } = opts;
@@ -94,8 +90,8 @@ impl Asset {
                 }
 
                 if let Some(tmp) = temp_file {
-                    tokio::fs::rename(&tmp, ap).await?;
-                    tokio::fs::remove_file(ap).await?;
+                    tokio::fs::copy(&tmp, ap).await?;
+                    tokio::fs::remove_file(&tmp).await?;
                 }
             }
             AssetType::Folder => {
@@ -107,15 +103,34 @@ impl Asset {
             }
         }
 
-        diesel::insert_into(assets)
-            .values((
-                asset_path.eq(&path),
-                public.eq(is_public.unwrap_or_default()),
-                user_id.eq(user.id),
-            ))
-            .execute(conn)
-            .await
-            .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+        // try to create asset record if it doesn't exist. If exists, update
+        match Self::get_by_path(conn, path.clone()).await {
+            Ok(exists) => {
+                if exists.user_id == user.id {
+                    diesel::update(assets.find(exists.id))
+                        .set(public.eq(is_public.unwrap_or_default()))
+                        .execute(conn)
+                        .await
+                        .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+                } else {
+                    tokio::fs::remove_file(&path).await?;
+                    return Err(AppError::AuthorizationError(
+                        "user has no permission to update asset".to_string(),
+                    ));
+                }
+            }
+            Err(_) => {
+                diesel::insert_into(assets)
+                    .values((
+                        asset_path.eq(&path),
+                        public.eq(is_public.unwrap_or_default()),
+                        user_id.eq(user.id),
+                    ))
+                    .execute(conn)
+                    .await
+                    .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+            }
+        }
 
         Ok(path)
     }

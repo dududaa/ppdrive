@@ -32,6 +32,7 @@ async fn get_asset(
 
     if asset.public {
         let path = Path::new(&asset.asset_path);
+        
         if path.exists() {
             if path.is_file() {
                 let content = tokio::fs::read(path).await?;
@@ -40,6 +41,8 @@ async fn get_asset(
                     .header(header::CONTENT_TYPE, mime_type.to_string())
                     .body(Body::from(content))
                     .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+
+                tracing::info!("resp headers: {:?}", resp.headers());
 
                 Ok(resp)
             } else {
@@ -67,6 +70,7 @@ async fn create_asset(
         let user_id = current_user.id.clone();
 
         let mut opts = CreateAssetOptions::default();
+        let mut tmp_file = None;
 
         while let Some(mut field) = multipart.next_field().await? {
             let name = field.name().unwrap_or("").to_string();
@@ -83,14 +87,14 @@ async fn create_asset(
                     file.write_all(&chunk).await?;
                 }
 
-                opts.tmp_file = Some(tmp_path);
+                tmp_file = Some(tmp_path);
             }
         }
 
         let pool = state.pool().await;
         let mut conn = pool.get().await?;
 
-        let path = Asset::create(&mut conn, &user_id, opts).await?;
+        let path = Asset::create_or_update(&mut conn, &user_id, opts, tmp_file).await?;
         Ok(path)
     } else {
         Err(AppError::AuthorizationError(
