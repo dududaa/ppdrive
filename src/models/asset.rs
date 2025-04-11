@@ -4,6 +4,7 @@ use diesel::{
     prelude::{Associations, Insertable, Queryable, Selectable}, ExpressionMethods, QueryDsl, SelectableHelper
 };
 use diesel_async::RunQueryDsl;
+use serde::Deserialize;
 use tokio::fs::File;
 
 use crate::{errors::AppError, models::user::User, state::DbPooled};
@@ -21,11 +22,8 @@ pub struct Asset {
     pub public: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Deserialize)]
 pub struct CreateAssetOptions {
-    /// The asset owner
-    pub user: i32,
-
     /// Destination path where asset should be created
     pub path: String,
 
@@ -61,6 +59,7 @@ impl Asset {
 
     pub async fn create(
         conn: &mut DbPooled<'_>,
+        user: &i32,
         opts: CreateAssetOptions,
     ) -> Result<String, AppError> {
         use crate::schema::assets::dsl::*;
@@ -69,12 +68,11 @@ impl Asset {
             path,
             public: is_public,
             tmp_file: temp_file,
-            user,
             asset_type,
             create_parents,
         } = opts;
 
-        let user = User::get(conn, user).await?;
+        let user = User::get(conn, *user).await?;
         let path = user.root_folder.map_or(path.clone(), |rf| format!("{rf}/{path}"));
         let ap = Path::new(&path);
 

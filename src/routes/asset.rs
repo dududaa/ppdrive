@@ -14,10 +14,7 @@ use uuid::Uuid;
 
 use crate::{
     errors::AppError,
-    models::{
-        asset::{Asset, CreateAssetOptions},
-        AssetType,
-    },
+    models::asset::{Asset, CreateAssetOptions},
     state::AppState,
 };
 
@@ -67,24 +64,16 @@ async fn create_asset(
     mut multipart: Multipart,
 ) -> Result<String, AppError> {
     if current_user.can_create() {
-        let mut opts = CreateAssetOptions {
-            user: current_user.id.clone(),
-            ..Default::default()
-        };
+        let user_id = current_user.id.clone();
+
+        let mut opts = CreateAssetOptions::default();
 
         while let Some(mut field) = multipart.next_field().await? {
             let name = field.name().unwrap_or("").to_string();
 
-            if name == "path" {
-                opts.path = field.text().await?;
-            } else if name == "public" {
-                let public = field.text().await?;
-                opts.public = matches!(public.as_str(), "true" | "1" | "yes")
-            } else if name == "asset_type" {
-                opts.asset_type = AssetType::try_from(name.as_str())?;
-            } else if name == "create_parents" {
-                let create_parents = field.text().await?;
-                opts.create_parents = matches!(create_parents.as_str(), "true" | "1" | "yes");
+            if name == "options" {
+                let data = field.text().await?;
+                opts = serde_json::from_str(&data)?;
             } else if name == "file" {
                 let tmp_name = Uuid::new_v4().to_string();
                 let tmp_path = format!("./tmp/{tmp_name}");
@@ -101,7 +90,7 @@ async fn create_asset(
         let pool = state.pool().await;
         let mut conn = pool.get().await?;
 
-        let path = Asset::create(&mut conn, opts).await?;
+        let path = Asset::create(&mut conn, &user_id, opts).await?;
         Ok(path)
     } else {
         Err(AppError::AuthorizationError(

@@ -10,27 +10,11 @@ pub trait TryFromModel<M>: Sized {
     async fn try_from_model(conn: &mut DbPooled<'_>, model: M) -> Result<Self, Self::Error>;
 }
 
-#[derive(Default)]
+#[derive(Default, Deserialize)]
 pub enum AssetType {
     #[default]
     File,
     Folder,
-}
-
-impl<'a> TryFrom<&'a str> for AssetType {
-    type Error = AppError;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        if value == "file" {
-            Ok(Self::File)
-        } else if value == "folder" {
-            Ok(Self::Folder)
-        } else {
-            Err(AppError::ParsingError(format!(
-                "'{value}' is invalid asset type"
-            )))
-        }
-    }
 }
 
 #[derive(Deserialize, Serialize, PartialEq)]
