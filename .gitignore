@@ -1,3 +1,15 @@
-/target
-/tmp
-.env
+# Ignore everything
+*
+
+# But not these files/folders:
+!.gitignore
+!Cargo.toml
+!.dockerignore
+!README.MD
+!Dockerfile
+!diesel.toml
+!compose.yml
+!.env.example
+
+!src/
+!migrations
