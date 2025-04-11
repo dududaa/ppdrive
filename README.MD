@@ -1,15 +1,15 @@
 # PPDRIVE
 
-**PPDRIVE** is a self-hosted, self-contained digital assets management service that is pluggable into your applications. It allows you to manage, store, and access your digital assets with ease, offering flexibility for integration into various environments.
+**PPDRIVE** is a self-hosted, self-contained and pluggable service for digital assets management. It allows you to seamlessly upload, manage, store, and access your application files, attachments and other digital assets providing flexibile integration into various environments.
 
 ---
 
 ## Features
 
-- **Self-Hosted**: Set up and run your own instance of PPDRIVE.
-- **Self-Contained**: Everything you need is packaged together, reducing external dependencies.
-- **Pluggable**: Easily integrate PPDRIVE into your existing applications.
-- **Secure**: Provides robust security features to keep your assets safe.
+- **Self-Hosted**: Set up and run your own instance of PPDRIVE on your server.
+- **Self-Contained**: Everything you need is packaged together into a single executable program, reducing external dependencies.
+- **Pluggable**: Easily integrate PPDRIVE into your existing applications and favorite frameworks.
+- **Secure**: Provides robust security features (JWT authentication support, user permissions...etc) to keep your assets safe.
 - **Scalable**: Designed for scalability, making it suitable for both small and large projects.
 - **REST API**: Access your assets programmatically through a simple and well-documented REST API.
 
@@ -17,7 +17,7 @@
 
 ## Getting Started
 
-These instructions will help you set up and run PPDRIVE locally.
+These instructions will help you set up and run PPDRIVE on your server.
 
 ### Prerequisites
 
