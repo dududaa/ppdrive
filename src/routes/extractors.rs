@@ -74,15 +74,11 @@ where
 
                 let auth_user: AuthUser = serde_json::from_str(&c)?;
                 let user_id = auth_user.id;
-                tracing::info!("uuid received {}", user_id);
                 let uid = Uuid::parse_str(&user_id).map_err(|err| AppError::ParsingError(err.to_string()))?;
 
-                tracing::info!("uuid generated {}", uid);
                 let pool = state.pool().await;
                 let mut conn = pool.get().await?;
                 let user = User::get_by_pid(&mut conn, uid).await?;
-
-                tracing::info!("user retrieved {}", user.pid);
 
                 let permission_group = PermissionGroup::try_from(user.permission_group)?;
                 let permissions = user.permissions(&mut conn).await?;
