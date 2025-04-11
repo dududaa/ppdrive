@@ -35,13 +35,13 @@ async fn create_user(
     State(state): State<AppState>,
     AdminRoute: AdminRoute,
     Json(data): Json<CreateUserRequest>,
-) -> Result<Json<String>, AppError> {
+) -> Result<String, AppError> {
     let pool = state.pool().await;
     let mut conn = pool.get().await?;
 
     let user_id = User::create(&mut conn, data).await?;
 
-    Ok(Json(user_id.to_string()))
+    Ok(user_id.to_string())
 }
 
 #[debug_handler]
