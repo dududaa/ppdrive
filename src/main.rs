@@ -26,6 +26,7 @@ async fn main() -> Result<(), AppError> {
 
     let args: Vec<String> = std::env::args().collect();
 
+    // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
         if a1 == "keygen" {
             let ClientAccessKeys{ client_id, public, private } = client_keygen().await?;
@@ -41,6 +42,13 @@ async fn main() -> Result<(), AppError> {
         return Ok(())
     }
 
+
+    // create tmp dir for managing uploaded assets
+    if let Err(err) = tokio::fs::create_dir("tmp").await {
+        tracing::error!("unable to create tmp dir: {err}");
+    }
+
+    // start ppdrive app
     let port = get_env("PPDRIVE_PORT")?;
     let router = create_app().await?;
 

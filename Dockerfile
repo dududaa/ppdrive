@@ -27,7 +27,5 @@ WORKDIR /app
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/target/release/ppdrive .
 
-RUN mkdir tmp
-
 # Set the default command to run the application
 CMD ["./ppdrive"]
