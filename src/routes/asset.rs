@@ -42,8 +42,6 @@ async fn get_asset(
                     .body(Body::from(content))
                     .map_err(|err| AppError::InternalServerError(err.to_string()))?;
 
-                tracing::info!("resp headers: {:?}", resp.headers());
-
                 Ok(resp)
             } else {
                 Err(AppError::NotImplemented(
