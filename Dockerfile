@@ -16,13 +16,18 @@ RUN cargo build --release
 # Use a smaller image for the final application
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y libpq-dev
+RUN apt-get update && apt-get install -y \
+libpq-dev \
+libssl3 \
+ca-certificates
 
 # Set the working directory
 WORKDIR /app
 
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/target/release/ppdrive .
+
+RUN mkdir tmp
 
 # Set the default command to run the application
 CMD ["./ppdrive"]

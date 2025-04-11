@@ -86,9 +86,6 @@ async fn create_asset(
                 let create_parents = field.text().await?;
                 opts.create_parents = matches!(create_parents.as_str(), "true" | "1" | "yes");
             } else if name == "file" {
-                // TODO: Extract file extension/mime-type
-                // let filename = field.file_name().map(|s| s.to_string());
-
                 let tmp_name = Uuid::new_v4().to_string();
                 let tmp_path = format!("./tmp/{tmp_name}");
                 let mut file = File::create(&tmp_path).await?;

@@ -40,6 +40,7 @@ async fn create_user(
     let mut conn = pool.get().await?;
 
     let user_id = User::create(&mut conn, data).await?;
+
     Ok(Json(user_id.to_string()))
 }
 
