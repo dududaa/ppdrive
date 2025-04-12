@@ -9,7 +9,7 @@ services:
       PPDRIVE_DB_PORT: ${PPDRIVE_DB_PORT}
 
     ports:
-      - ${PPDRIVE_DB_PORT}:${PPDRIVE_DB_PORT}
+      - 5432:${PPDRIVE_DB_PORT}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
