@@ -52,7 +52,7 @@ jobs:
           VERSION=${GITHUB_REF_NAME#v}
           echo "Using Git tag version: $VERSION"
 
-          sed -i "s|prodbyola/cross-openssl:.*|prodbyola/cross-openssl:$VERSION|g" Cargo.toml
+          sed -i "s|prodbyola/cross-openssl:.*|prodbyola/cross-openssl:$VERSION|" Cargo.toml
 
       - name: Install cross
         run: cargo install cross
