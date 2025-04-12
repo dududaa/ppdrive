@@ -22,7 +22,7 @@ services:
     container_name: ppdrive_app
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://${PPDRIVE_DB_USER}:${PPDRIVE_DB_PASSWORD}@ppdrive_db:${PPDRIVE_DB_PORT}/${PPDRIVE_DB_NAME}
+      DATABASE_URL: postgres://${PPDRIVE_DB_USER}:${PPDRIVE_DB_PASSWORD}@ppdrive_db:5432/${PPDRIVE_DB_NAME}
       PPDRIVE_AUTH_URL: ${PPDRIVE_AUTH_URL}
       PPDRIVE_PORT: ${PPDRIVE_PORT}
       PPDRIVE_ALLOW_URL: ${PPDRIVE_ALLOW_URL}
