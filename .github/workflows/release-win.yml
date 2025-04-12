@@ -20,13 +20,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install MSYS2 and dependencies
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: >-
-            mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-gcc
+      # - name: Install MSYS2 and dependencies
+      #   uses: msys2/setup-msys2@v2
+      #   with:
+      #     update: true
+      #     install: >-
+      #       mingw-w64-x86_64-pkg-config
+      #       mingw-w64-x86_64-gcc
 
       # - name: Set environment variables for OpenSSL
       #   run: |
