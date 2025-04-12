@@ -38,7 +38,7 @@ jobs:
           
       - name: Install openssl
         shell: msys2 {0}
-        run: pacman -S openssl-devel pkgconf
+        run: pacman -S openssl-devel pkgconf --noconfirm
 
       - name: Build release
         run: cargo build --release --target ${{ env.BUILD_TARGET }}
