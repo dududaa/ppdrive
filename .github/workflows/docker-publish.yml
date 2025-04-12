@@ -2,10 +2,8 @@ name: Build & Push Docker Images
 
 on:
   push:
-    branches:
-      - 'deploy'
-    # tags:
-      # - 'v*'
+    tags:
+      - 'v*'
 
   workflow_dispatch:
 
