@@ -1,24 +1,29 @@
-name: Build & Release (Linux)
+name: Build & Release (Windows)
 
 on:
   push:
-    branches:
-      - 'deploy'
+    tags:
+      - 'v*'
 
 env:
-  BUILD_TARGET: x86_64-unknown-linux-gnu
+  BUILD_TARGET: x86_64-pc-windows-gnu
 
 permissions:
   contents: write 
 
 jobs:
   build:
-    name: Build for Linux
-    runs-on: ubuntu-latest
+    name: Build for Windows
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install psql
+        run: |
+          cargo add serde@0.9.100 --features vendored 
+          cargo add pq-sys@0.6 --features bundled
 
       - name: Build release
         run: cargo build --release --target ${{ env.BUILD_TARGET }}
