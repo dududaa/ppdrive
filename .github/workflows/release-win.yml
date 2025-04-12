@@ -37,6 +37,7 @@ jobs:
           cargo add pq-sys@0.6 --features bundled
           
       - name: Install openssl
+        shell: msys2 {0}
         run: pacman -S openssl-devel pkgconf
 
       - name: Build release
