@@ -25,8 +25,8 @@ jobs:
           git clone https://github.com/microsoft/vcpkg.git
 
           cd vcpkg
-          ./bootstrap-vcpkg.sh
-          ./vcpkg install libpq
+          .\bootstrap-vcpkg.bat
+          .\vcpkg install libpq
 
           cd ..
 
