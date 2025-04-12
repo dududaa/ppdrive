@@ -1,45 +1,48 @@
-services:
-  ppdrive_db:
-    image: postgres:latest
-    container_name: ppdrive_db
-    environment:
-      POSTGRES_USER: ${PPDRIVE_DB_USER}
-      POSTGRES_PASSWORD: ${PPDRIVE_DB_PASSWORD}
-      POSTGRES_DB: ${PPDRIVE_DB_NAME}
-      PPDRIVE_DB_PORT: ${PPDRIVE_DB_PORT}
+name: Cross-compile & Release
 
-    ports:
-      - 5432:${PPDRIVE_DB_PORT}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - app_network
+on:
+  push:
+    tags:
+      - 'v*'
 
-  ppdrive:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: ppdrive_app
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgres://${PPDRIVE_DB_USER}:${PPDRIVE_DB_PASSWORD}@ppdrive_db:5432/${PPDRIVE_DB_NAME}
-      PPDRIVE_AUTH_URL: ${PPDRIVE_AUTH_URL}
-      PPDRIVE_PORT: ${PPDRIVE_PORT}
-      PPDRIVE_ALLOW_URL: ${PPDRIVE_ALLOW_URL}
-      DEBUG_MODE: false
-      
-    depends_on:
-      - ppdrive_db
+permissions:
+  contents: write  # Allow creating releases and uploading assets
 
-    ports:
-      - ${PPDRIVE_PORT}:${PPDRIVE_PORT}
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ubuntu-latest
 
-    networks:
-      - app_network
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-pc-windows-gnu
+          # - x86_64-apple-darwin
 
-volumes:
-  postgres_data:
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-networks:
-  app_network:
-    driver: bridge
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Build with cross (custom Docker image with OpenSSL)
+        run: cross build --release --target ${{ matrix.target }}
+        env:
+          CROSS_DOCKER_IMAGE: 'prodbyola/cross-openssl:latest'
+
+      - name: Rename binary
+        run: |
+          BIN_NAME=ppdrive
+          EXT=""
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then EXT=".exe"; fi
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/$BIN_NAME$EXT dist/${BIN_NAME}-${{ matrix.target }}$EXT
+
+      - name: Upload Release Binary
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
