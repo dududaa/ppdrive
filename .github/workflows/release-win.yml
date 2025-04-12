@@ -49,9 +49,9 @@ jobs:
 
       - name: Rename binary
         run: |
-          BIN_NAME=ppdrive.exe
-          mkdir -p dist
-          cp target/${{ env.BUILD_TARGET }}/release/$BIN_NAME dist/${BIN_NAME}-${{ env.BUILD_TARGET }}
+          $BinName = "ppdrive.exe"
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item "target/${{ env.BUILD_TARGET }}/release/$BinName" "dist/${BinName}-${{ env.BUILD_TARGET }}"
 
       - name: Upload Release Binary
         uses: softprops/action-gh-release@v2
