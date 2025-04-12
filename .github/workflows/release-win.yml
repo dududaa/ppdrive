@@ -20,6 +20,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install vcpkg and libpq
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+
+          cd vcpkg
+          ./bootstrap-vcpkg.sh
+          ./vcpkg install libpq
+
+          cd ..
+
       - name: Build release
         run: cargo build --release --target ${{ env.BUILD_TARGET }}
 
