@@ -39,13 +39,20 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Update Cross Image
+      - name: Update cross custom image
         run: |
           cd cross
           IMAGE_NAME=${DOCKER_USER}/cross-openssl:${IMAGE_TAG}
           
           docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
+
+      - name: Replace image tag with Git tag
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "Using Git tag version: $VERSION"
+
+          sed -i "s|prodbyola/cross-openssl:.*|prodbyola/cross-openssl:$VERSION|g" Cargo.toml
 
       - name: Install cross
         run: cargo install cross
