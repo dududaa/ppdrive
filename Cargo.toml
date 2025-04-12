@@ -1,6 +1,6 @@
 [package]
 name = "ppdrive"
-version = "0.25.8"
+version = "0.26.18"
 edition = "2021"
 
 [dependencies]
@@ -32,4 +32,4 @@ features = [
 ]
 
 [package.metadata.cross.target.x86_64-unknown-linux-gnu]
-image = "prodbyola/cross-openssl:latest"
+image = "prodbyola/cross-openssl:0.26.18"
