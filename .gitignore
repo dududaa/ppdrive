@@ -12,4 +12,5 @@
 !.env.example
 
 !src/
-!migrations
+!migrations/
+!docs/

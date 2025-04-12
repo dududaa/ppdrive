@@ -1,20 +1,21 @@
 services:
-  db:
+  ppdrive_db:
     image: postgres:latest
     container_name: ppdrive_db
     environment:
       POSTGRES_USER: ${PPDRIVE_DB_USER}
       POSTGRES_PASSWORD: ${PPDRIVE_DB_PASSWORD}
       POSTGRES_DB: ${PPDRIVE_DB_NAME}
+      PPDRIVE_DB_PORT: ${PPDRIVE_DB_PORT}
 
     ports:
-      - "5432:5432"
+      - ${PPDRIVE_DB_PORT}:${PPDRIVE_DB_PORT}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - app_network
 
-  app:
+  ppdrive:
     build:
       context: .
       dockerfile: Dockerfile

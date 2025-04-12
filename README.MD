@@ -16,66 +16,7 @@
 ---
 
 ## Getting Started
-
-These instructions will help you set up and run PPDrive on your server.
-
-### Prerequisites
-
-Before you begin, while you can install PPDrive man:
-
-- **Rust** (Version 1.XX or later): You can install Rust via [rustup](https://rustup.rs/).
-- **Docker** (optional, for containerized deployment): Install Docker from [docker.com](https://www.docker.com/).
-
-### Installation
-
-#### Clone the Repository
-
-```bash
-git clone https://github.com/your-username/ppdrive.git
-cd ppdrive
-```
-
-#### Build and Run the Service
-To build and run PPDRIVE:
-```bash
-cargo build --release
-cargo run
-```
-
-#### Running with Docker (Optional)
-To run PPDRIVE in a Docker container, use the following commands:
-```bash
-docker compose up
-```
-
-## Configuration
-PPDRIVE comes with a default configuration file. You can modify the configuration by editing the config.toml file.
-
-Example:
-```toml
-[server]
-host = "0.0.0.0"
-port = 8080
-```
-
-## API Documentation
-PPDRIVE exposes a simple and flexible REST API to manage your digital assets.
-
-#### Authentication
-All API requests require authentication. You can configure the authentication mechanism in config.toml.
-
-#### Endpoints
-Here are some key API endpoints:
-
-- POST /assets/upload: Upload a new asset.
-
-- GET /assets/{id}: Retrieve asset metadata.
-
-- GET /assets/{id}/download: Download the asset.
-
-- DELETE /assets/{id}: Delete an asset.
-
-For a full list of available API endpoints and their usage, refer to the API Documentation.
+Please see the getting started section of the docs.
 
 ## Contributing
 We welcome contributions to PPDRIVE! Here’s how you can help:
