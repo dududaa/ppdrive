@@ -6,7 +6,9 @@ Before you begin, you can install PPDRIVE either with or without Docker Compose.
 
 ### Installation with Docker (Recommended)
 #### Install Docker and Docker Compose
-Checkout installation guides for [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/). If you're on your local machine, you can [download and install Docker Engine](https://www.docker.com/get-started/) instead, which comes with both Docker and Compose. 
+Checkout installation guides for [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/). If you're on your local machine, you can [download and install Docker Engine](https://www.docker.com/get-started/) instead, which comes with both Docker and Compose.
+
+**NOTE: If you prefer, you can simply pull [PPDRIVE's Docker Image](https://hub.docker.com/repository/docker/prodbyola/ppdrive) and update the [Configurations](#configuration).**
 
 #### Clone the Repository
 Once Docker Compose is installed, let's download PPDRIVE's repository. 

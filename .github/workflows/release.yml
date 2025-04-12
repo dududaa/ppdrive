@@ -52,7 +52,7 @@ jobs:
         run: docker pull ${{ env.DOCKER_USER }}/cross-openssl:${{ env.IMAGE_TAG }}
 
       - name: Install cross
-        run: cargo install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build with cross
         run: cross build --release --target ${{ matrix.target }}
