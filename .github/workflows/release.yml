@@ -9,7 +9,7 @@ env:
   REGISTRY: docker.io
   DOCKER_USER: prodbyola 
   IMAGE_TAG: ${{ github.ref_name }}
-  IMAGE_NAME: ${DOCKER_USER}/cross-openssl:${IMAGE_TAG}
+  IMAGE_NAME: ${{env.DOCKER_USER}}/cross-openssl:${{env.IMAGE_TAG}}
 
 permissions:
   contents: write 
