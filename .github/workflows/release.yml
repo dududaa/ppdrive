@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write  # Allow creating releases and uploading assets
+  contents: write 
 
 jobs:
   build:
