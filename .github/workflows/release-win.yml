@@ -20,26 +20,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          install: >-
-            base-devel
-            mingw-w64-x86_64-gcc
-            git
-            make
-          update: true
+      - name: Install Chocolatey
+        run: |
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+          iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+      - name: Install OpenSSL
+        run: choco install openssl.light -y
+
+      - name: Add OpenSSL to PATH
+        run: |
+          $opensslPath = "C:\Program Files\OpenSSL-Win64\bin"
+          echo "$opensslPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Verify OpenSSL installation
+        run: openssl version
 
       - name: Install psql
         run: |
           cargo add serde@0.9.100 --features vendored 
           cargo add pq-sys@0.6 --features bundled
           
-      - name: Install openssl
-        shell: msys2 {0}
-        run: pacman -S openssl-devel pkgconf --noconfirm
-
       - name: Build release
         run: cargo build --release --target ${{ env.BUILD_TARGET }}
 
