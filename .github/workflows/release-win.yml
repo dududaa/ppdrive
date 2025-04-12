@@ -33,16 +33,6 @@ jobs:
 
           cd ..
 
-      - name: Cache vcpkg
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cache/vcpkg
-            ~/.vcpkg
-          key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json') }}
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-
-
       - name: Build release
         run: cargo build --release --target ${{ env.BUILD_TARGET }}
 
