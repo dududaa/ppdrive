@@ -58,6 +58,7 @@ jobs:
         run: cross build --release --target ${{ matrix.target }}
         env:
           CROSS_DOCKER_IMAGE: ${{ env.DOCKER_USER }}/cross-openssl:${{ env.IMAGE_TAG }}
+          CROSS_LINKER: "x86_64-w64-mingw32-gcc"
 
       - name: Rename binary
         run: |
