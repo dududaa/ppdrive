@@ -3,10 +3,10 @@ name: Cross-compile & Release
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags like v1.0.0
+      - 'v*'
 
 permissions:
-  contents: write
+  contents: write  # Allow creating releases and uploading assets
 
 jobs:
   build:
@@ -24,23 +24,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+      - name: Install cross
+        run: cargo install cross
 
-      - name: Install Dependencies for Windows (mingw)
-        if: matrix.target == 'x86_64-pc-windows-gnu'
-        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64 libpq-dev
-
-      - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+      - name: Build with cross (custom Docker image with OpenSSL)
+        run: cross build --release --target ${{ matrix.target }}
+        env:
+          CROSS_DOCKER_IMAGE: 'prodbyola/cross-openssl:latest'
 
       - name: Rename binary
         run: |
-          BIN_NAME=ppdrive  # <-- Change this to your actual binary name
+          BIN_NAME=ppdrive
           EXT=""
           if [[ "${{ matrix.target }}" == *"windows"* ]]; then EXT=".exe"; fi
           mkdir -p dist
