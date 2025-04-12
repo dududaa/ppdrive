@@ -34,5 +34,5 @@ jobs:
           # Replace image names with tag
           sed -i "s|image: ${DOCKER_USER}/\(.*\):.*|image: ${DOCKER_USER}/\1:${IMAGE_TAG}|g" compose.yml
 
-          docker-compose build
-          docker-compose push
+          docker compose build
+          docker compose push
