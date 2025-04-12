@@ -20,10 +20,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >-
+            base-devel
+            mingw-w64-x86_64-gcc
+            git
+            make
+          update: true
+
       - name: Install psql
         run: |
           cargo add serde@0.9.100 --features vendored 
           cargo add pq-sys@0.6 --features bundled
+          
+      - name: Install openssl
+        run: pacman -S openssl-devel pkgconf
 
       - name: Build release
         run: cargo build --release --target ${{ env.BUILD_TARGET }}

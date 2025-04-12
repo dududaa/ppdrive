@@ -3,7 +3,9 @@ name: Build & Push Docker Images
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags like v1.0.0
+      - 'deploy'
+      # - 'v*'
+
   workflow_dispatch:
 
 env:
