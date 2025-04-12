@@ -9,6 +9,7 @@ env:
   REGISTRY: docker.io
   DOCKER_USER: prodbyola 
   IMAGE_TAG: ${{ github.ref_name }}
+  IMAGE_NAME: ${DOCKER_USER}/cross-openssl:${IMAGE_TAG}
 
 permissions:
   contents: write 
@@ -42,7 +43,6 @@ jobs:
       - name: Update Cross Image
         run: |
           cd cross
-          IMAGE_NAME=${DOCKER_USER}/ppdrive:${IMAGE_TAG}
           
           docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
@@ -54,7 +54,7 @@ jobs:
       - name: Build with cross (custom Docker image with OpenSSL)
         run: cross build --release --target ${{ matrix.target }}
         env:
-          CROSS_DOCKER_IMAGE: 'prodbyola/cross-openssl:latest'
+          CROSS_DOCKER_IMAGE: ${{ env.IMAGE_NAME }}
 
       - name: Rename binary
         run: |
