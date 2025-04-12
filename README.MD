@@ -16,7 +16,7 @@
 ---
 
 ## Getting Started
-Please see the getting started section of the docs.
+Please see the [Getting Started](https://prodbyola.github.io/ppdrive/#/) section of the docs.
 
 ## Contributing
 We welcome contributions to PPDRIVE! Here’s how you can help:
