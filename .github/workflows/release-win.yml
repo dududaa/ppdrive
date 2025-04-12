@@ -2,8 +2,8 @@ name: Build & Release (Windows)
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - 'deploy'
 
 env:
   BUILD_TARGET: x86_64-pc-windows-gnu
