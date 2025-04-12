@@ -48,6 +48,9 @@ jobs:
           docker push $IMAGE_NAME
           cd ..
 
+      - name: Pull cross image
+        run: docker pull ${{ env.DOCKER_USER }}/cross-openssl:${{ env.IMAGE_TAG }}
+
       - name: Install cross
         run: cargo install cross
 
