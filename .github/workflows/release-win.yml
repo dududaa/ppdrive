@@ -28,7 +28,20 @@ jobs:
           .\bootstrap-vcpkg.bat
           .\vcpkg install libpq
 
+          set LIBPQ_LIB_DIR=D:/a/ppdrive/ppdrive/vcpkg/packages/libpq_x64-windows/share/libpq/lib
+          set LIBPQ_INCLUDE_DIR=D:/a/ppdrive/ppdrive/vcpkg/packages/libpq_x64-windows/share/libpq/include          
+
           cd ..
+
+      - name: Cache vcpkg
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/vcpkg
+            ~/.vcpkg
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-
 
       - name: Build release
         run: cargo build --release --target ${{ env.BUILD_TARGET }}
