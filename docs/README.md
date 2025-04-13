@@ -96,5 +96,3 @@ Here are some key API endpoints:
 - DELETE /assets/{id}: Delete an asset.
 
 For a full list of available API endpoints and their usage, refer to the API Documentation.
-
-- Discord[https://discord.gg/BeVPFS7wkp]

@@ -37,6 +37,9 @@ We welcome contributions to PPDRIVE! Here’s how you can help:
 PPDRIVE is open-source software licensed under the MIT License.
 
 ## Acknowledgments
+- Basable: PPDRIVE is part of our ongoing Basable community project. You can [find us on Discord](https://discord.gg/BeVPFS7wkp).
 - Rust: The systems programming language used to build PPDRIVE.
+- Axum: A Rust-based web application framework that focuses on ergonomics and modularity.
+- Diesel: Rust ORM crate that offers a high level query builder and lets you think about your problems in Rust, not SQL 😊.
 - Docker: For containerizing the service.
 - Community: Thanks to the open-source community for their valuable contributions!
