@@ -14,12 +14,19 @@ use crate::{errors::AppError, routes::admin::admin_routes, state::AppState, util
 pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
     let state = AppState::new().await?;
 
-    let wl = get_env("PPDRIVE_ALLOW_URL")?
-        .parse::<HeaderValue>()
-        .map_err(|err| AppError::InitError(err.to_string()))?;
+    let whitelist = get_env("PPDRIVE_ALLOWED_ORIGINS")?;
+    let origins: Vec<HeaderValue> = whitelist.split(",").flat_map(|o| {
+        match o.parse::<HeaderValue>() {
+            Ok(h) => Some(h),
+            Err(err) => {
+                tracing::warn!("unable to parse origin {o}. Origin will not be whitelisted. \nmore info: {err}");
+                None
+            }
+        }
+    }).collect();
 
     let cors = CorsLayer::new()
-        .allow_origin(wl)
+        .allow_origin(origins)
         .allow_headers([
             ACCEPT,
             ACCESS_CONTROL_ALLOW_HEADERS,

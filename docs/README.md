@@ -2,15 +2,13 @@
 
 These instructions will help you set up and run PPDrive on your server.
 
-Before you begin, you can install PPDRIVE either with or without Docker Compose. For the easiest setup, we recommend using Docker Compose. However, we’ve provided step-by-step guides for both installation methods to suit your preference.
+Before you begin, please note that you can install PPDRIVE either with or without Docker Compose. For the easiest setup, we recommend using Docker Compose. However, we’ve provided step-by-step guides for both installation methods to suit your preference.
 
 ### Installation with Docker (Recommended)
-#### Install Docker and Docker Compose
+#### 1. Install Docker and Docker Compose
 Checkout installation guides for [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/). If you're on your local machine, you can [download and install Docker Engine](https://www.docker.com/get-started/) instead, which comes with both Docker and Compose.
 
-**NOTE: If you prefer, you can simply pull [PPDRIVE's Docker Image](https://hub.docker.com/repository/docker/prodbyola/ppdrive) and update the [Configurations](#configuration).**
-
-#### Clone the Repository
+#### 2. Clone the Repository
 Once Docker Compose is installed, let's download PPDRIVE's repository. 
 
 ```bash
@@ -18,26 +16,26 @@ git clone https://github.com/prodbyola/ppdrive.git
 cd ppdrive
 ```
 
-#### Copy Example Configuration
+#### 3. Copy Example Configuration
 PPDRIVE configurations are saved in a `.env` file. We provide an example configuration that you can copy and customize to suit your project’s needs.
 
 ```bash
 cp .example.env .env
 ```
 
-#### Update Configuration
-Now update the configuration file. Please see [Configuration](#configuration) for more.
+#### 4. Update Configuration
+Now update the configuration file. Please see [Configuration](/configuration) for more.
 ```bash
 nano .env
 ```
 
-#### Build and Deploy
+#### 5. Build and Deploy
 Once you're satisfied with your configurations, build and deploy ppdrive.
 ```bash
 docker compose up --build -d
 ```
 
-#### Verify Installation Success
+#### 6. Verify Installation Success
 To verify that installation is successful, check docker container's log.
 ```bash
 docker compose logs ppdrive
@@ -46,13 +44,13 @@ On successful installation, you should see a message like this:
 ```bash
 ppdrive_app  | 2025-04-12T09:50:22.229817Z  INFO ppdrive: listening on 0.0.0.0:5000
 ```
-Congratulations! The message indicates a PPDRIVE instance is running on port `5000` (or any other port you specified in [Configuration](#configuration)).
+Congratulations! The message indicates a PPDRIVE instance is running on port `5000` (or any other port you specified in [Configuration](/configuration)).
 
 
 ### Running Without Docker
 If you want to install PPDRIVE without Docker, please follow this guide carefully.
 
-#### Setup Database
+#### 1. Setup Database
 PPDRIVE uses Postgresql to manage application records internally (users, clients, assets, permissions...etc). FOllow these steps to setup your database.
 - If you haven't already, [download and install Postgresql](https://www.postgresql.org/download/)
 - Once installed, login as root user `psql -U postgres`
@@ -60,16 +58,16 @@ PPDRIVE uses Postgresql to manage application records internally (users, clients
 - Now create a new database for PPDRIVE `CREATE DATABASE your_database;`. Write down `your_database` as well.
 - Grant full priviledge on database to the user `GRANT ALL PRIVILEGES ON DATABASE your_database TO your_username;`
 
-#### Download PPDRIVE
+#### 2. Download PPDRIVE
 Visit our releases page and download PPDRIVE version of your choice. Place the executable program in your folder of choice and get ready to run it.
 
-#### Create and Fill Configuration File
+#### 3. Create and Fill Configuration File
 Create a `.env` file in the same folder where you put the PPDRIVE executable. Now copy all the [contents of this file](https://github.com/prodbyola/ppdrive/blob/main/.env.example) and put them in the newky created `.env` file.
 
-#### Modify Configuration
-Now update the configuration file (`.env`) according to your project. Remember to use the database credentials you created earlier in your configuration. Please see [Configuration](#configuration) for more.
+#### 4. Modify Configuration
+Now update the configuration file (`.env`) according to your project. Remember to use the database credentials you created earlier in your configuration. Please see [Configuration](/configuration) for more.
 
-#### Run PPDRIVE
+#### 5. Run PPDRIVE
 Once your configuation is ready, run PPDRIVE.
 ```bash
 ./ppdrive
@@ -78,18 +76,10 @@ You should see a message like this:
 ```bash
 ppdrive_app  | 2025-04-12T09:50:22.229817Z  INFO ppdrive: listening on 0.0.0.0:5000
 ```
-Congratulations! The message indicates a PPDRIVE instance is running on port `5000` (or any other port you specified in [Configuration](#configuration)).
+Congratulations! The message indicates a PPDRIVE instance is running on port `5000` (or any other port you specified in [Configuration](/configuration)).
 
 
-# Configuration
-PPDRIVE comes with a default configuration file. You can modify the configuration by editing the config.toml file.
-
-Example:
-```toml
-[server]
-host = "0.0.0.0"
-port = 8080
-```
+**NOTE: If you prefer, you can simply pull [PPDRIVE's Docker Image](https://hub.docker.com/repository/docker/prodbyola/ppdrive) and update the [Configuration](/configuration).**
 
 # API Documentation
 PPDRIVE exposes a simple and flexible REST API to manage your digital assets.

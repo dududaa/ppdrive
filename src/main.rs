@@ -12,6 +12,8 @@ mod models;
 mod schema;
 mod routes;
 
+const DEFAULT_PORT: &str = "5000";
+
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     dotenv().ok();
@@ -49,7 +51,13 @@ async fn main() -> Result<(), AppError> {
     }
 
     // start ppdrive app
-    let port = get_env("PPDRIVE_PORT")?;
+    let port = get_env("PPDRIVE_PORT").map(|s| {
+        if s.is_empty() {
+            return DEFAULT_PORT.to_string().clone()
+        }
+
+        s
+    }).unwrap_or(DEFAULT_PORT.to_string());
     let router = create_app().await?;
 
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await {

@@ -5,7 +5,7 @@
 ---
 
 ## Features
-
+- **Asset Upload and Retrieval**: Upload files and attachments from your applications with ease. Privately or publicly retrieve your assets via browser compatible API endpoints.
 - **Self-Hosted**: Set up and run your own instance of PPDrive on your server.
 - **Self-Contained**: Everything you need is packaged together into a single executable program, reducing external dependencies.
 - **Pluggable**: Easily integrate PPDRIVE into your existing applications and favorite frameworks.
