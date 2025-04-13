@@ -65,7 +65,7 @@ async fn create_asset(
     mut multipart: Multipart,
 ) -> Result<String, AppError> {
     if current_user.can_create() {
-        let user_id = current_user.id.clone();
+        let user_id = current_user.id;
 
         let mut opts = CreateAssetOptions::default();
         let mut tmp_file = None;
