@@ -59,7 +59,7 @@ PPDRIVE uses Postgresql to manage application records internally (users, clients
 - Grant full priviledge on database to the user `GRANT ALL PRIVILEGES ON DATABASE your_database TO your_username;`
 
 #### 2. Download PPDRIVE
-Visit our releases page and download PPDRIVE version of your choice. Place the executable program in your folder of choice and get ready to run it.
+Visit our [releases page](https://github.com/prodbyola/ppdrive/releases) and download PPDRIVE version of your choice. Place the executable program in your folder of choice and get ready to run it.
 
 #### 3. Create and Fill Configuration File
 Create a `.env` file in the same folder where you put the PPDRIVE executable. Now copy all the [contents of this file](https://github.com/prodbyola/ppdrive/blob/main/.env.example) and put them in the newky created `.env` file.
@@ -84,9 +84,6 @@ Congratulations! The message indicates a PPDRIVE instance is running on port `50
 # API Documentation
 PPDRIVE exposes a simple and flexible REST API to manage your digital assets.
 
-### Authentication
-All API requests require authentication. You can configure the authentication mechanism in config.toml.
-
 ### Endpoints
 Here are some key API endpoints:
 
@@ -99,3 +96,5 @@ Here are some key API endpoints:
 - DELETE /assets/{id}: Delete an asset.
 
 For a full list of available API endpoints and their usage, refer to the API Documentation.
+
+- Discord[https://discord.gg/BeVPFS7wkp]

@@ -1,6 +1,6 @@
 # PPDRIVE
 
-**PPDRIVE** is a self-hosted, self-contained and pluggable service for digital assets management. It allows you to seamlessly upload, manage, store, and access your application files, attachments and other digital assets providing flexibile integration into various environments.
+Are you creating or working on an application where you need to upload and manage files? **PPDRIVE** is a self-hosted, self-contained and pluggable service for digital assets management. It allows you to seamlessly upload, manage, store, and access your application files or assets while providing flexibile integration into various environments.
 
 ---
 
