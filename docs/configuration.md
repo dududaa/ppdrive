@@ -42,4 +42,5 @@ PPDRIVE_ALLOWED_ORIGINS=https://myclientapp1.com,https://myclientapp2.com
 PPDRIVE_ALLOWED_ORIGINS=*
 ```
 
-DEBUG_MODE=true # should be false in production
+### DEBUG_MODE
+Tells PPDRIVE whether to run in debug mode. This is useful for contributors locally running PPDRIVE with [Cargo](https://doc.rust-lang.org/cargo/).
