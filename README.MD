@@ -10,6 +10,7 @@ Are you creating or working on an application where you need to upload and manag
 - **Self-Contained**: Everything you need is packaged together into a single executable program, reducing external dependencies.
 - **Pluggable**: Easily integrate PPDRIVE into your existing applications and favorite frameworks.
 - **Secure**: Provides robust security features (JWT authentication support, user permissions...etc) to keep your assets safe.
+- **Framework Agnostic**: PPDRIVE works with any programming language or framework that can send REST API requests 😉.
 - **Scalable**: Designed for scalability, making it suitable for both small and large projects.
 - **REST API**: Access your assets programmatically through a simple and well-documented REST API.
 
