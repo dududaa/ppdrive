@@ -37,7 +37,7 @@ pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
     let enc = cipher.encrypt(&nonce, payload.as_slice())?;
 
-    let ns = hex::encode(&nonce);
+    let ns = hex::encode(nonce);
     let nx = hex::encode(&enc);
 
     let copts = CreateClientOpts {

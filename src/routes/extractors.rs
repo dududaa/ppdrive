@@ -119,7 +119,7 @@ where
                 let keys = keys.to_str().map_err(|err| AppError::AuthorizationError(err.to_string()))?;
                 let ks: Vec<&str> = keys.split(".").collect();
                 
-                if let (Some(nonce), Some(enc)) = (ks.get(0), ks.get(1)) {
+                if let (Some(nonce), Some(enc)) = (ks.first(), ks.get(1)) {
                     let state = AppState::from_ref(state);
                     let pool = state.pool().await;
                     let mut conn = pool.get().await?;
