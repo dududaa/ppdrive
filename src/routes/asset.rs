@@ -28,7 +28,7 @@ async fn get_asset(
     let pool = state.pool().await;
     let mut conn = pool.get().await?;
 
-    let asset = Asset::get_by_path(&mut conn, asset_path.clone()).await?;
+    let asset = Asset::get_by_path(&mut conn, &asset_path).await?;
 
     if asset.public {
         let path = Path::new(&asset.asset_path);

@@ -41,7 +41,7 @@ pub struct CreateAssetOptions {
 }
 
 impl Asset {
-    pub async fn get_by_path(conn: &mut DbPooled<'_>, path: String) -> Result<Self, AppError> {
+    pub async fn get_by_path(conn: &mut DbPooled<'_>, path: &str) -> Result<Self, AppError> {
         use crate::schema::assets::dsl::*;
 
         let asset = assets
@@ -104,7 +104,7 @@ impl Asset {
         }
 
         // try to create asset record if it doesn't exist. If exists, update
-        match Self::get_by_path(conn, path.clone()).await {
+        match Self::get_by_path(conn, &path).await {
             Ok(exists) => {
                 if exists.user_id == user.id {
                     diesel::update(assets.find(exists.id))
