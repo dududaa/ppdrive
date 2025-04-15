@@ -24,11 +24,11 @@ PPD_PRIVATE: *************************
 CLIENT_ID: ****************************
 ```
 
-Now you'll need to save these keys securely and pass them to your application(s). We'll show you how to use the keys in next steps.
+You'll need to save these keys securely and pass them to your application(s). We'll show you how to use the keys in next steps.
 
 #### 2. Pass the keys to your client's requests
 
-Now that the API keys have been generated, store them securely in a location your application can access—such as environment variables. When your application needs to call an [admin route](/routes#admin), include the keys in the request headers: `X-API-KEY` and `X-CLIENT-ID`. Below is an example using JavaScript (NodeJs) with [Axios](https://axios-http.com/docs/intro) but you can implement this in any language:
+Once the API keys have been generated, store them securely in a location your application can access—such as environment variables. When your application needs to call an [admin route](/routes#admin), include the keys in the request headers: `X-API-KEY` and `X-CLIENT-ID`. Below is an example using JavaScript (NodeJs) with [Axios](https://axios-http.com/docs/intro) but you can implement this in any language:
 
 ```javascript
 // `ppdriveUrl` is where PPDRIVE is deployed
@@ -56,5 +56,6 @@ axios.post(url, opts, config)
 The code above will send a "create new user" request to PPDRIVE. Notice how we concatenate the `public` and `private` PPDRIVE keys using a dot "."?. The request will be successful only if `X-CLIENT-ID` and `X-API-KEY` are present in the headers and only if they contain valid keys.
 
 # Authentication
+PPDRIVE manages its own records of application users in order to understand and track which assets belongs to who, securing user assets from unauthorized access. At the moment, PPDRIVE depends on your (external) app for request authentication. We're working on adding independent authentication mechanisms for those who desire. For now, you have to set PPDRIVE_AUTH_URL to tell PPDRIVE where to go for users authentication. Don't worry if you don't understand just yet. This guide will show you how everything fits together.
 
-All API requests require authentication. You can configure the authentication mechanism in config.toml.
+For users to upload assets and access other secured routes on PPDRIVE, a user account must be created (and
