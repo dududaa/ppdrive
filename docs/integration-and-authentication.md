@@ -56,6 +56,12 @@ axios.post(url, opts, config)
 The code above will send a "create new user" request to PPDRIVE. Notice how we concatenate the `public` and `private` PPDRIVE keys using a dot "."?. The request will be successful only if `X-CLIENT-ID` and `X-API-KEY` are present in the headers and only if they contain valid keys.
 
 # Authentication
-PPDRIVE manages its own records of application users in order to understand and track which assets belongs to who, securing user assets from unauthorized access. At the moment, PPDRIVE depends on your (external) app for request authentication. We're working on adding independent authentication mechanisms for those who desire. For now, you have to set PPDRIVE_AUTH_URL to tell PPDRIVE where to go for users authentication. Don't worry if you don't understand just yet. This guide will show you how everything fits together.
+PPDRIVE keeps its own record of users to help track asset ownership and ensure that each user's data is protected from unauthorized access.
 
-For users to upload assets and access other secured routes on PPDRIVE, a user account must be created (and
+Currently, PPDRIVE relies on your external app to handle user authentication. We're working on building our own standalone authentication system for those who prefer a self-contained setup.
+
+In the meantime, you'll need to set the PPDRIVE_AUTH_URL so that PPDRIVE knows where to send users for authentication.
+
+No worries if this sounds confusing — this guide will walk you through how it all works, step by step.
+
+#### 1. Create an authentication URL

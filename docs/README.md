@@ -81,7 +81,7 @@ Congratulations! The message indicates a PPDRIVE instance is running on port `50
 **NOTE: If you prefer, you can simply pull [PPDRIVE's Docker Image](https://hub.docker.com/repository/docker/prodbyola/ppdrive) and update the [Configuration](/configuration).**
 
 
-### Integrations
+### Integration
 Now let's [integrate PPDRIVE into your exisiting app(s)](/integration-and-authentication).
 
 # API Documentation
