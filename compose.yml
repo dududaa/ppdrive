@@ -36,7 +36,7 @@ services:
       - ${PPDRIVE_PORT}:${PPDRIVE_PORT}
 
     volumes:
-      - ppdrive_data:.
+      - ppdrive_data:/
 
     networks:
       - app_network
