@@ -28,18 +28,22 @@ services:
       PPDRIVE_PORT: ${PPDRIVE_PORT}
       PPDRIVE_ALLOWED_ORIGINS: ${PPDRIVE_ALLOWED_ORIGINS}
       DEBUG_MODE: false
-      
+
     depends_on:
       - ppdrive_db
 
     ports:
       - ${PPDRIVE_PORT}:${PPDRIVE_PORT}
 
+    volumes:
+      - ppdrive_data:.
+
     networks:
       - app_network
 
 volumes:
   postgres_data:
+  ppdrive_data:
 
 networks:
   app_network:
