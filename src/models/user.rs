@@ -70,11 +70,11 @@ impl User {
         use crate::schema::users::*;
 
         if let Some(folder) = &data.root_folder {
-            User::get_by_root_folder(conn, folder)
-                .await
-                .ok_or(AppError::InternalServerError(
-                    format!("user with root_folder: '{folder}' already exists. please provide unique folder name")
-                ))?;
+            if User::get_by_root_folder(conn, folder).await.is_some() {
+                return Err(AppError::InternalServerError(
+                        format!("user with root_folder: '{folder}' already exists. please provide unique folder name")
+                    ));
+            }
 
             let path = Path::new(folder);
             tokio::fs::create_dir_all(path).await?;
