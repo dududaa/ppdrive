@@ -51,15 +51,35 @@ impl User {
         Ok(user)
     }
 
-    pub async fn create(conn: &mut DbPooled<'_>, data: CreateUserRequest) -> Result<Uuid, AppError> {
+    pub async fn get_by_root_folder(conn: &mut DbPooled<'_>, folder: &str) -> Option<Self> {
+        use crate::schema::users::dsl::*;
+
+        users
+            .filter(root_folder.eq(folder))
+            .select(User::as_select())
+            .first(conn)
+            .await
+            .ok()
+    }
+
+    pub async fn create(
+        conn: &mut DbPooled<'_>,
+        data: CreateUserRequest,
+    ) -> Result<Uuid, AppError> {
         use crate::schema::users::dsl::users;
         use crate::schema::users::*;
-        
+
         if let Some(folder) = &data.root_folder {
+            User::get_by_root_folder(conn, folder)
+                .await
+                .ok_or(AppError::InternalServerError(
+                    format!("user with root_folder: '{folder}' already exists. please provide unique folder name")
+                ))?;
+
             let path = Path::new(folder);
             tokio::fs::create_dir_all(path).await?;
         }
-        
+
         let pg: i16 = data.permission_group.clone().into();
         let user = diesel::insert_into(users)
             .values((
