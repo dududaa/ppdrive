@@ -54,18 +54,12 @@ impl User {
     pub async fn get_by_root_folder(conn: &mut DbPooled<'_>, folder: &str) -> Option<Self> {
         use crate::schema::users::dsl::*;
 
-        let user = users
+        users
             .filter(root_folder.eq(folder))
             .select(User::as_select())
             .first(conn)
-            .await;
-
-        match &user {
-            Ok(user) => tracing::info!("found user for root folder {}", user.id),
-            Err(err) => tracing::info!("found err {err}"),
-        }
-
-        user.ok()
+            .await
+            .ok()
     }
 
     pub async fn create(

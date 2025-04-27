@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use diesel::{
     prelude::{Associations, Insertable, Queryable, Selectable},
@@ -58,7 +58,7 @@ impl Asset {
         conn: &mut DbPooled<'_>,
         user: &i32,
         opts: CreateAssetOptions,
-        temp_file: Option<String>,
+        temp_file: Option<PathBuf>,
     ) -> Result<String, AppError> {
         use crate::schema::assets::dsl::*;
 

@@ -1,23 +1,23 @@
+use crate::app::create_app;
 use dotenv::dotenv;
 use errors::AppError;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utils::{get_env, client_keygen, ClientAccessKeys};
-use crate::app::create_app;
+use utils::{client_keygen, get_env, ClientAccessKeys};
 
 mod app;
 mod errors;
+mod models;
+mod routes;
+mod schema;
 mod state;
 mod utils;
-mod models;
-mod schema;
-mod routes;
 
 const DEFAULT_PORT: &str = "5000";
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     dotenv().ok();
-    
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -31,33 +31,34 @@ async fn main() -> Result<(), AppError> {
     // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
         if a1 == "keygen" {
-            let ClientAccessKeys{ client_id, public, private } = client_keygen().await?;
-            tracing::info!("
+            let ClientAccessKeys {
+                client_id,
+                public,
+                private,
+            } = client_keygen().await?;
+            tracing::info!(
+                "
                 Token generated successfully!
 
                 PPD_PUBLIC: {public}
                 PPD_PRIVATE: {private}
                 CLIENT_ID: {client_id}
-            ");
+            "
+            );
         }
 
-        return Ok(())
+        return Ok(());
     }
-
 
     // create tmp dir for managing uploaded assets
-    if let Err(err) = tokio::fs::create_dir("tmp").await {
-        tracing::error!("unable to create tmp dir: {err}");
-    }
+    // if let Err(err) = tokio::fs::create_dir("tmp").await {
+    //     tracing::error!("unable to create tmp dir: {err}");
+    // }
 
     // start ppdrive app
-    let port = get_env("PPDRIVE_PORT").map(|s| {
-        if s.is_empty() {
-            return DEFAULT_PORT.to_string().clone()
-        }
-
-        s
-    }).unwrap_or(DEFAULT_PORT.to_string());
+    let port = get_env("PPDRIVE_PORT")
+        .ok()
+        .unwrap_or(DEFAULT_PORT.to_string());
     let router = create_app().await?;
 
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await {
@@ -65,7 +66,7 @@ async fn main() -> Result<(), AppError> {
             if let Ok(addr) = listener.local_addr() {
                 tracing::info!("listening on {addr}");
             }
-    
+
             axum::serve(listener, router)
                 .await
                 .map_err(|err| AppError::InitError(err.to_string()))?;
