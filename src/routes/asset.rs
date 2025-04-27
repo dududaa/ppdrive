@@ -32,7 +32,7 @@ async fn get_asset(
 
     if asset.public {
         let path = Path::new(&asset.asset_path);
-        
+
         if path.exists() {
             if path.is_file() {
                 let content = tokio::fs::read(path).await?;
@@ -78,9 +78,10 @@ async fn create_asset(
                 opts = serde_json::from_str(&data)?;
             } else if name == "file" {
                 let tmp_name = Uuid::new_v4().to_string();
-                let tmp_path = format!("./tmp/{tmp_name}");
-                let mut file = File::create(&tmp_path).await?;
+                let mut tmp_path = std::env::temp_dir();
+                tmp_path.push(tmp_name);
 
+                let mut file = File::create(&tmp_path).await?;
                 while let Some(chunk) = field.chunk().await? {
                     file.write_all(&chunk).await?;
                 }
