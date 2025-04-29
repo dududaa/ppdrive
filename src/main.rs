@@ -59,6 +59,7 @@ async fn main() -> Result<(), AppError> {
     let port = get_env("PPDRIVE_PORT")
         .ok()
         .unwrap_or(DEFAULT_PORT.to_string());
+
     let router = create_app().await?;
 
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await {
