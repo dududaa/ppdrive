@@ -8,7 +8,6 @@ mod app;
 mod errors;
 mod models;
 mod routes;
-mod schema;
 mod state;
 mod utils;
 

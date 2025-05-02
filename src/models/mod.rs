@@ -6,7 +6,7 @@ pub mod asset;
 pub mod client;
 pub mod user;
 
-trait IntoSerializer {
+pub trait IntoSerializer {
     type Serializer;
     async fn into_serializer(self, conn: &AnyPool) -> Result<Self::Serializer, AppError>;
 }
