@@ -1,21 +1,13 @@
 use std::path::{Path, PathBuf};
 
-use diesel::{
-    prelude::{Associations, Insertable, Queryable, Selectable},
-    ExpressionMethods, QueryDsl, SelectableHelper,
-};
-use diesel_async::RunQueryDsl;
 use serde::Deserialize;
+use sqlx::AnyPool;
 use tokio::fs::{create_dir_all, File};
 
-use crate::{errors::AppError, models::user::User, state::DbPooled};
-
 use super::AssetType;
+use crate::{errors::AppError, models::user::User};
 
-#[derive(Queryable, Selectable, Insertable, Associations)]
-#[diesel(belongs_to(User))]
-#[diesel(table_name = crate::schema::assets)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[derive(sqlx::FromRow)]
 pub struct Asset {
     pub id: i32,
     pub asset_path: String,
@@ -41,27 +33,21 @@ pub struct CreateAssetOptions {
 }
 
 impl Asset {
-    pub async fn get_by_path(conn: &mut DbPooled<'_>, path: &str) -> Result<Self, AppError> {
-        use crate::schema::assets::dsl::*;
-
-        let asset = assets
-            .filter(asset_path.eq(path))
-            .select(Asset::as_select())
-            .first(conn)
-            .await
-            .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+    pub async fn get_by_path(conn: &AnyPool, path: &str) -> Result<Self, AppError> {
+        let asset = sqlx::query_as::<_, Asset>("SELECT * FROM assets WHERE asset_path = ?")
+            .bind(path)
+            .fetch_one(conn)
+            .await?;
 
         Ok(asset)
     }
 
     pub async fn create_or_update(
-        conn: &mut DbPooled<'_>,
-        user: &i32,
+        conn: &AnyPool,
+        user_id: &i32,
         opts: CreateAssetOptions,
         temp_file: Option<PathBuf>,
     ) -> Result<String, AppError> {
-        use crate::schema::assets::dsl::*;
-
         let CreateAssetOptions {
             path,
             public: is_public,
@@ -69,13 +55,14 @@ impl Asset {
             create_parents,
         } = opts;
 
-        let user = User::get(conn, *user).await?;
+        let user = User::get(conn, user_id).await?;
         let path = user
             .root_folder
             .map_or(path.clone(), |rf| format!("{rf}/{path}"));
 
         let ap = Path::new(&path);
 
+        // create the asset
         match asset_type {
             AssetType::File => {
                 if let Some(parent) = ap.parent() {
@@ -107,11 +94,11 @@ impl Asset {
         match Self::get_by_path(conn, &path).await {
             Ok(exists) => {
                 if exists.user_id == user.id {
-                    diesel::update(assets.find(exists.id))
-                        .set(public.eq(is_public.unwrap_or_default()))
+                    sqlx::query("UPDATE assets SET public = ? WHERE id = ?")
+                        .bind(is_public.unwrap_or_default())
+                        .bind(exists.id)
                         .execute(conn)
-                        .await
-                        .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+                        .await?;
                 } else {
                     tokio::fs::remove_file(&path).await?;
                     return Err(AppError::AuthorizationError(
@@ -120,15 +107,17 @@ impl Asset {
                 }
             }
             Err(_) => {
-                diesel::insert_into(assets)
-                    .values((
-                        asset_path.eq(&path),
-                        public.eq(is_public.unwrap_or_default()),
-                        user_id.eq(user.id),
-                    ))
-                    .execute(conn)
-                    .await
-                    .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+                sqlx::query(
+                    r#"
+                        INSERT INTO assets (asset_path, public, user_id)
+                        VALUES(?, ?, ?)
+                    "#,
+                )
+                .bind(&path)
+                .bind(is_public.unwrap_or_default())
+                .bind(user.id)
+                .execute(conn)
+                .await?;
             }
         }
 
