@@ -3,12 +3,12 @@ use chacha20poly1305::{
     AeadCore, KeyInit, XChaCha20Poly1305, XNonce,
 };
 use hex::decode;
-use uuid::Uuid;
+use sqlx::AnyPool;
 
 use crate::{
     errors::AppError,
     models::client::{Client, CreateClientOpts},
-    state::{create_db_pool, DbPooled},
+    state::create_db_pool,
 };
 
 pub fn get_env(key: &str) -> Result<String, AppError> {
@@ -18,15 +18,15 @@ pub fn get_env(key: &str) -> Result<String, AppError> {
     })
 }
 
-/// Details of [ClientAccessKeys] will be used to authenticate and verify the client when accessing 
+/// Details of [ClientAccessKeys] will be used to authenticate and verify the client when accessing
 /// administrative routes.
 pub struct ClientAccessKeys {
-    pub client_id: Uuid,
+    pub client_id: String,
     pub public: String,
     pub private: String,
 }
 
-/// Generates new [ClientAccessKeys], creates a new [Client] and returns the client's access keys.
+/// Generates ne
 pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
     let key = XChaCha20Poly1305::generate_key(&mut OsRng);
     let cipher = XChaCha20Poly1305::new(&key);
@@ -45,9 +45,8 @@ pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
         payload: payload.to_vec(),
     };
 
-    let pool = create_db_pool().await?;
-    let mut conn = pool.get().await?;
-    let client = Client::create(&mut conn, copts).await?;
+    let conn = create_db_pool().await?;
+    let client = Client::create(&conn, copts).await?;
 
     let keys = ClientAccessKeys {
         client_id: client.cid,
@@ -59,13 +58,14 @@ pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
 }
 
 /// Verifies the provided [ClientAccessKeys] and authenticates the client.
-pub async fn verify_client(conn: &mut DbPooled<'_>, keys: ClientAccessKeys) -> Result<bool, AppError> {
+pub async fn verify_client(conn: &AnyPool, keys: ClientAccessKeys) -> Result<bool, AppError> {
     let ClientAccessKeys {
         client_id: id,
         public,
         private,
     } = keys;
-    let client = Client::get(conn, id).await?;
+
+    let client = Client::get(conn, &id).await?;
 
     let enc_key = client.enc_key.as_slice();
     let cipher = XChaCha20Poly1305::new(enc_key.into());

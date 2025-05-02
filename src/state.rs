@@ -37,7 +37,7 @@ impl AppState {
         Ok(s)
     }
 
-    pub async fn pool(&self) -> DbPool {
+    pub async fn pool(&self) -> AnyPool {
         self.db.lock().await.clone()
     }
 }
