@@ -1,44 +1,22 @@
-use std::sync::Arc;
-
-use diesel::{Connection, PgConnection};
-use diesel_async::{
-    pooled_connection::{bb8::{Pool, PooledConnection}, AsyncDieselConnectionManager},
-    AsyncPgConnection,
+use crate::{errors::AppError, utils::get_env};
+use sqlx::{
+    any::{install_default_drivers, AnyPoolOptions},
+    AnyPool,
 };
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::{errors::AppError, utils::get_env};
-
-type DbPool = Pool<AsyncPgConnection>;
-pub type DbPooled<'a> = PooledConnection<'a, AsyncPgConnection>;
-
-const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
-
-async fn run_migrations() -> Result<(), AppError> {
-    tokio::task::spawn_blocking(move || {
-        let database_url =
-            get_env("DATABASE_URL").expect("unable to get database url from environment");
-
-        let mut conn =
-            PgConnection::establish(&database_url).expect("failed to connect to database");
-        conn.run_pending_migrations(MIGRATIONS)
-            .expect("failed to run migration");
-    });
-
-    Ok(())
-}
-
-pub async fn create_db_pool() -> Result<DbPool, AppError> {
+pub async fn create_db_pool() -> Result<AnyPool, AppError> {
     let debug_mode = get_env("DEBUG_MODE")?;
     if &debug_mode != "true" {
-        run_migrations().await?;
+        // run_migrations().await?;
     }
 
+    install_default_drivers();
     let connection_url = get_env("DATABASE_URL")?;
-    let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(connection_url);
-    let pool = Pool::builder()
-        .build(config)
+    let pool = AnyPoolOptions::new()
+        .max_connections(100)
+        .connect(&connection_url)
         .await
         .map_err(|err| AppError::InitError(err.to_string()))?;
 
@@ -47,7 +25,7 @@ pub async fn create_db_pool() -> Result<DbPool, AppError> {
 
 #[derive(Clone)]
 pub struct AppState {
-    db: Arc<Mutex<DbPool>>,
+    db: Arc<Mutex<AnyPool>>,
 }
 
 impl AppState {
