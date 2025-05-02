@@ -23,9 +23,4 @@ mime_guess = "2.0.5"
 chacha20poly1305 = "0.10.1"
 hex = "0.4.3"
 sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls", "any", "postgres", "mysql", "sqlite", "chrono", "uuid" ] }
-
-[dependencies.uuid]
-version = "1.16.0"
-features = [
-    "v4",
-]
+uuid = { version = "1.16.0", features = ["v4"] }
