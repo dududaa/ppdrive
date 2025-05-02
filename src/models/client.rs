@@ -1,5 +1,6 @@
 use crate::errors::AppError;
 use sqlx::AnyPool;
+use uuid::Uuid;
 
 pub struct CreateClientOpts {
     pub key: Vec<u8>,
@@ -25,16 +26,22 @@ impl Client {
     }
 
     pub async fn create(conn: &AnyPool, opts: CreateClientOpts) -> Result<Self, AppError> {
+        let id = Uuid::new_v4();
+
         let client = sqlx::query_as::<_, Client>(
             r#"
-                INSERT INTO clients (enc_payload, enc_key)
-                VALUES(?, ?)
+                INSERT INTO clients (enc_payload, enc_key, cid)
+                VALUES($1, $2, $3)
+                RETURNING *
             "#,
         )
         .bind(&opts.payload)
         .bind(opts.key)
+        .bind(id.to_string())
         .fetch_one(conn)
         .await?;
+
+        tracing::info!("client created successfully!");
 
         Ok(client)
     }
