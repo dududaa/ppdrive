@@ -1,74 +1,50 @@
 use std::path::Path;
 
-use crate::{
-    errors::AppError, models::PermissionGroup, routes::admin::CreateUserRequest, state::DbPooled,
-};
-use chrono::NaiveDateTime;
-use diesel::{
-    prelude::{Associations, Identifiable, Insertable, Queryable, Selectable},
-    ExpressionMethods, QueryDsl, SelectableHelper,
-};
-use diesel_async::RunQueryDsl;
+use crate::{errors::AppError, models::PermissionGroup, routes::admin::CreateUserRequest};
 use serde::Serialize;
-use uuid::Uuid;
+use sqlx::{AnyPool, FromRow};
 
-use super::{Permission, TryFromModel};
+use super::{IntoSerializer, Permission};
 
-#[derive(Queryable, Selectable, Insertable)]
-#[diesel(table_name = crate::schema::users)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[derive(FromRow)]
 pub struct User {
     pub id: i32,
-    pub pid: Uuid,
+    pub pid: String,
     pub permission_group: i16,
     pub root_folder: Option<String>,
     pub folder_max_size: Option<i64>,
-    pub created_at: NaiveDateTime,
+    pub created_at: String,
 }
 
 impl User {
-    pub async fn get(conn: &mut DbPooled<'_>, user_id: i32) -> Result<Self, AppError> {
-        use crate::schema::users::dsl::*;
-
-        users
-            .find(user_id)
-            .select(User::as_select())
-            .first(conn)
-            .await
-            .map_err(|err| AppError::InternalServerError(err.to_string()))
-    }
-
-    pub async fn get_by_pid(conn: &mut DbPooled<'_>, user_pid: Uuid) -> Result<Self, AppError> {
-        use crate::schema::users::dsl::*;
-
-        let user = users
-            .filter(pid.eq(user_pid))
-            .select(User::as_select())
-            .first(conn)
-            .await
-            .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+    pub async fn get(conn: &AnyPool, user_id: &i32) -> Result<Self, AppError> {
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
+            .bind(user_id)
+            .fetch_one(conn)
+            .await?;
 
         Ok(user)
     }
 
-    pub async fn get_by_root_folder(conn: &mut DbPooled<'_>, folder: &str) -> Option<Self> {
-        use crate::schema::users::dsl::*;
+    pub async fn get_by_pid(conn: &AnyPool, pid: &str) -> Result<Self, AppError> {
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE pid = ?")
+            .bind(pid)
+            .fetch_one(conn)
+            .await?;
 
-        users
-            .filter(root_folder.eq(folder))
-            .select(User::as_select())
-            .first(conn)
-            .await
-            .ok()
+        Ok(user)
     }
 
-    pub async fn create(
-        conn: &mut DbPooled<'_>,
-        data: CreateUserRequest,
-    ) -> Result<Uuid, AppError> {
-        use crate::schema::users::dsl::users;
-        use crate::schema::users::*;
+    pub async fn get_by_root_folder(conn: &AnyPool, root_folder: &str) -> Option<Self> {
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE root_folder = ?")
+            .bind(root_folder)
+            .fetch_one(conn)
+            .await;
 
+        user.ok()
+    }
+
+    pub async fn create(conn: &AnyPool, data: CreateUserRequest) -> Result<String, AppError> {
         if let Some(folder) = &data.root_folder {
             if User::get_by_root_folder(conn, folder).await.is_some() {
                 return Err(AppError::InternalServerError(
@@ -81,21 +57,23 @@ impl User {
         }
 
         let pg: i16 = data.permission_group.clone().into();
-        let user = diesel::insert_into(users)
-            .values((
-                permission_group.eq(pg),
-                root_folder.eq(data.root_folder),
-                folder_max_size.eq(data.folder_max_size),
-            ))
-            .returning(User::as_returning())
-            .get_result(conn)
-            .await
-            .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+
+        let user = sqlx::query_as::<_, User>(
+            r#"
+                INSERT INTO users (permission_group, root_folder, folder_max_size)
+                VALUES(?, ?, ?)
+            "#,
+        )
+        .bind(pg)
+        .bind(&data.root_folder)
+        .bind(&data.folder_max_size)
+        .fetch_one(conn)
+        .await?;
 
         if let PermissionGroup::Custom = data.permission_group {
             if let Some(perms) = data.permissions {
                 for perm in perms {
-                    UserPermission::create(conn, user.id, perm).await?;
+                    UserPermission::create(conn, &user.id, perm).await?;
                 }
             }
         }
@@ -103,31 +81,25 @@ impl User {
         Ok(user.pid)
     }
 
-    pub async fn delete(conn: &mut DbPooled<'_>, user_id: i32) -> Result<(), AppError> {
-        use crate::schema::users::dsl::*;
-
-        diesel::delete(users.filter(id.eq(user_id)))
+    pub async fn delete(conn: &AnyPool, user_id: &i32) -> Result<(), AppError> {
+        sqlx::query("DELETE from users WHERE id = ?")
+            .bind(user_id)
             .execute(conn)
-            .await
-            .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+            .await?;
 
         Ok(())
     }
 
-    pub async fn permissions(
-        &self,
-        conn: &mut DbPooled<'_>,
-    ) -> Result<Option<Vec<Permission>>, AppError> {
-        use crate::schema::user_permissions::dsl::*;
-
+    pub async fn permissions(&self, conn: &AnyPool) -> Result<Option<Vec<Permission>>, AppError> {
         let pg = PermissionGroup::try_from(self.permission_group)?;
         let perms = match pg {
             PermissionGroup::Custom => {
-                let user_perms = user_permissions
-                    .filter(user_id.eq(self.id))
-                    .load::<UserPermission>(conn)
-                    .await
-                    .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+                let user_perms = sqlx::query_as::<_, UserPermission>(
+                    "SELECT * FROM user_permissions WHERE id = ?",
+                )
+                .bind(self.id)
+                .fetch_all(conn)
+                .await?;
 
                 let mut perms = Vec::with_capacity(user_perms.len());
                 for perm in user_perms {
@@ -143,9 +115,7 @@ impl User {
     }
 }
 
-#[derive(Queryable, Selectable, Identifiable, Associations)]
-#[diesel(belongs_to(User))]
-#[diesel(table_name = crate::schema::user_permissions)]
+#[derive(FromRow)]
 pub struct UserPermission {
     pub id: i32,
     pub user_id: i32,
@@ -153,15 +123,19 @@ pub struct UserPermission {
 }
 
 impl UserPermission {
-    async fn create(conn: &mut DbPooled<'_>, uid: i32, perm: Permission) -> Result<(), AppError> {
-        use crate::schema::user_permissions::dsl::*;
+    async fn create(conn: &AnyPool, uid: &i32, perm: Permission) -> Result<(), AppError> {
         let val: i16 = perm.into();
 
-        diesel::insert_into(user_permissions)
-            .values((user_id.eq(uid), permission.eq(val)))
-            .execute(conn)
-            .await
-            .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+        sqlx::query(
+            r#"
+                INSERT INTO user_permissions (user_id, permission)
+                VALUES(?, ?)
+            "#,
+        )
+        .bind(uid)
+        .bind(val)
+        .execute(conn)
+        .await?;
 
         Ok(())
     }
@@ -183,20 +157,21 @@ pub struct UserSerializer {
     pub created_at: String,
 }
 
-impl TryFromModel<User> for UserSerializer {
-    type Error = AppError;
+impl IntoSerializer for User {
+    type Serializer = UserSerializer;
 
-    async fn try_from_model(conn: &mut DbPooled<'_>, model: User) -> Result<Self, Self::Error> {
+    async fn into_serializer(self, conn: &AnyPool) -> Result<Self::Serializer, AppError> {
+        let permissions = self.permissions(conn).await?;
+
         let User {
             permission_group,
             created_at,
             ..
-        } = model;
+        } = self;
 
         let permission_group = PermissionGroup::try_from(permission_group)?;
-        let permissions = model.permissions(conn).await?;
 
-        Ok(Self {
+        Ok(UserSerializer {
             permission_group,
             permissions,
             created_at: created_at.to_string(),

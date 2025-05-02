@@ -1,5 +1,4 @@
--- Your SQL goes here
-CREATE TABLE assets(
+CREATE TABLE IF NOT EXISTS assets(
     id SERIAL PRIMARY KEY,
     asset_path VARCHAR NOT NULL UNIQUE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -1,7 +1,6 @@
 use std::{env::VarError, fmt::Display};
 
 use axum::{extract::multipart::MultipartError, response::IntoResponse};
-use diesel_async::pooled_connection::bb8::RunError;
 use reqwest::StatusCode;
 
 #[derive(Debug)]
@@ -61,8 +60,8 @@ impl From<MultipartError> for AppError {
     }
 }
 
-impl From<RunError> for AppError {
-    fn from(value: RunError) -> Self {
+impl From<sqlx::Error> for AppError {
+    fn from(value: sqlx::Error) -> Self {
         AppError::DatabaseError(value.to_string())
     }
 }
@@ -78,7 +77,7 @@ impl IntoResponse for AppError {
         let resp = match self {
             AppError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
 
         resp.into_response()
