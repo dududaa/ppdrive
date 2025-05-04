@@ -1,6 +1,5 @@
-use crate::errors::AppError;
+use crate::{errors::AppError, state::AppState};
 use serde::{Deserialize, Serialize};
-use sqlx::AnyPool;
 
 pub mod asset;
 pub mod client;
@@ -8,7 +7,7 @@ pub mod user;
 
 pub trait IntoSerializer {
     type Serializer;
-    async fn into_serializer(self, conn: &AnyPool) -> Result<Self::Serializer, AppError>;
+    async fn into_serializer(self, state: &AppState) -> Result<Self::Serializer, AppError>;
 }
 
 #[derive(Default, Deserialize)]

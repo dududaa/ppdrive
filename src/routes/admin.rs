@@ -33,8 +33,8 @@ async fn create_user(
     AdminRoute: AdminRoute,
     Json(data): Json<CreateUserRequest>,
 ) -> Result<String, AppError> {
-    let conn = state.pool().await;
-    let user_id = User::create(&conn, data).await?;
+    let conn = state.db_pool().await;
+    let user_id = User::create(&state, data).await?;
 
     Ok(user_id.to_string())
 }
@@ -45,10 +45,10 @@ async fn get_user(
     State(state): State<AppState>,
     AdminRoute: AdminRoute,
 ) -> Result<Json<UserSerializer>, AppError> {
-    let conn = state.pool().await;
+    let conn = state.db_pool().await;
 
-    let user = User::get_by_pid(&conn, &id).await?;
-    let data = user.into_serializer(&conn).await?;
+    let user = User::get_by_pid(&state, &id).await?;
+    let data = user.into_serializer(&state).await?;
 
     Ok(Json(data))
 }
@@ -59,12 +59,12 @@ async fn delete_user(
     State(state): State<AppState>,
     AdminRoute: AdminRoute,
 ) -> Result<String, AppError> {
-    let conn = state.pool().await;
+    let conn = state.db_pool().await;
 
     let user_id = id.parse::<i32>().map_err(|err| {
         AppError::InternalServerError(format!("unable to parse user id '{id}': {err}"))
     })?;
-    User::delete(&conn, &user_id).await?;
+    User::delete(&state, &user_id).await?;
 
     Ok("operation successful".to_string())
 }
