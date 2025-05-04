@@ -126,7 +126,6 @@ where
 
                 if let (Some(nonce), Some(enc)) = (ks.first(), ks.get(1)) {
                     let state = AppState::from_ref(state);
-                    let conn = state.db_pool().await;
 
                     let cks = ClientAccessKeys {
                         client_id: client_id.to_string(),
@@ -134,7 +133,7 @@ where
                         private: String::from(*enc),
                     };
 
-                    let valid = verify_client(&conn, cks).await?;
+                    let valid = verify_client(&state, cks).await?;
                     if !valid {
                         return Err(AppError::AuthorizationError(
                             "unable to to verify the client.".to_string(),
