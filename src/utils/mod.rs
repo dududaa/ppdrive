@@ -5,6 +5,7 @@ use chacha20poly1305::{
 use hex::decode;
 use sqlx::AnyPool;
 
+pub mod sqlx_ext;
 pub mod sqlx_utils;
 
 use crate::{

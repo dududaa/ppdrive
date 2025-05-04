@@ -77,10 +77,9 @@ where
                 let auth_user: AuthUser = serde_json::from_str(&c)?;
                 let user_id = auth_user.id;
 
-                let conn = state.db_pool().await;
                 let user = User::get_by_pid(&state, &user_id).await?;
 
-                let permission_group = PermissionGroup::try_from(user.permission_group)?;
+                let permission_group = PermissionGroup::try_from(*user.permission_group())?;
                 let permissions = user.permissions(&state).await?;
 
                 let extractor = UserExtractor(CurrentUser {

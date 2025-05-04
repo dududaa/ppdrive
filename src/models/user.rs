@@ -1,25 +1,31 @@
-use std::path::Path;
+use std::{fmt::Display, path::Path};
 
 use crate::{
     errors::AppError,
     models::PermissionGroup,
     routes::admin::CreateUserRequest,
     state::AppState,
-    utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
+    utils::{
+        sqlx_ext::AnyDateTime,
+        sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
+    },
 };
+use chrono::Utc;
 use serde::Serialize;
 use sqlx::{AnyPool, FromRow};
+use uuid::Uuid;
 
 use super::{IntoSerializer, Permission};
 
 #[derive(FromRow)]
 pub struct User {
     pub id: i32,
-    pub pid: String,
-    pub permission_group: i16,
-    pub root_folder: Option<String>,
-    pub folder_max_size: Option<i64>,
-    pub created_at: String,
+    pid: String,
+    permission_group: i16,
+    root_folder: Option<String>,
+    folder_max_size: Option<i64>,
+    #[sqlx(try_from = "String")]
+    created_at: AnyDateTime,
 }
 
 impl User {
@@ -29,7 +35,7 @@ impl User {
         let bn = state.backend_name();
         let filters = SqlxFilters::new("id").to_query(&bn);
 
-        let query = format!("SELECT * FROM users WHERE {filters}");
+        let query = format!(r#"SELECT * FROM users WHERE {filters}"#);
 
         let user = sqlx::query_as::<_, User>(&query)
             .bind(user_id)
@@ -45,7 +51,7 @@ impl User {
         let bn = state.backend_name();
         let filters = SqlxFilters::new("pid").to_query(&bn);
 
-        let query = format!("SELECT * FROM users WHERE {filters}");
+        let query = format!(r#"SELECT * FROM users WHERE {filters}"#);
 
         let user = sqlx::query_as::<_, User>(&query)
             .bind(pid)
@@ -74,6 +80,7 @@ impl User {
     pub async fn create(state: &AppState, data: CreateUserRequest) -> Result<String, AppError> {
         let conn = state.db_pool().await;
 
+        // check if someone already owns root folder
         if let Some(folder) = &data.root_folder {
             if User::get_by_root_folder(state, folder).await.is_some() {
                 return Err(AppError::InternalServerError(
@@ -86,22 +93,29 @@ impl User {
         }
 
         let pg: i16 = data.permission_group.clone().into();
+        let pid = Uuid::new_v4();
+        let created_at = Utc::now().naive_local();
+
         let bn = state.backend_name();
-        let values = SqlxValues(3).to_query(bn);
+        let values = SqlxValues(5).to_query(bn);
 
         let query = format!(
             r#"
-            INSERT INTO users (permission_group, root_folder, folder_max_size)
+            INSERT INTO users (permission_group, pid, root_folder, folder_max_size, created_at)
             {values}
         "#
         );
 
-        let user = sqlx::query_as::<_, User>(&query)
+        sqlx::query(&query)
             .bind(pg)
+            .bind(pid.to_string())
             .bind(&data.root_folder)
             .bind(&data.folder_max_size)
-            .fetch_one(&conn)
+            .bind(created_at.to_string())
+            .execute(&conn)
             .await?;
+
+        let user = User::get_by_pid(&state, &pid.to_string()).await?;
 
         if let PermissionGroup::Custom = data.permission_group {
             if let Some(perms) = data.permissions {
@@ -153,11 +167,18 @@ impl User {
 
         Ok(perms)
     }
+
+    pub fn root_folder(&self) -> &Option<String> {
+        &self.root_folder
+    }
+
+    pub fn permission_group(&self) -> &i16 {
+        &self.permission_group
+    }
 }
 
 #[derive(FromRow)]
 pub struct UserPermission {
-    pub id: i32,
     pub user_id: i32,
     pub permission: i16,
 }
@@ -216,5 +237,37 @@ impl IntoSerializer for User {
             permissions,
             created_at: created_at.to_string(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        errors::AppError,
+        models::{user::User, PermissionGroup},
+        routes::admin::CreateUserRequest,
+        state::AppState,
+    };
+
+    #[tokio::test]
+    async fn test_create_user() -> Result<(), AppError> {
+        dotenv::dotenv().ok();
+        match AppState::new().await {
+            Ok(state) => {
+                let data = CreateUserRequest {
+                    permissions: None,
+                    permission_group: PermissionGroup::Full,
+                    root_folder: Some("test_user".to_string()),
+                    folder_max_size: None,
+                };
+
+                let user = User::create(&state, data).await;
+
+                assert!(user.is_ok());
+            }
+            Err(err) => println!("unable to create state: {err}"),
+        }
+
+        Ok(())
     }
 }
