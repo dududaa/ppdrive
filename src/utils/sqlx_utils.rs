@@ -1,6 +1,5 @@
-use std::fmt::Display;
-
 use crate::errors::AppError;
+use std::fmt::Display;
 
 /// Generates compatible SQL string for defined Sqlx types
 pub trait ToQuery {
@@ -111,14 +110,22 @@ impl ToQuery for SqlxValues {
     fn to_query(self, bn: &BackendName) -> String {
         let mut values = Vec::with_capacity(self.0 as usize);
 
-        for i in 1..self.0 {
+        for i in 0..self.0 {
             match bn {
-                BackendName::Postgres => values.push(format!("${i}")),
+                BackendName::Postgres => values.push(format!("${}", i + 1)),
                 _ => values.push("?".to_string()),
             }
         }
 
         let values = values.join(", ");
-        format!("VALUES(${values})")
+        format!("VALUES({values})")
     }
 }
+
+// impl<'t> sqlx::Decode<'t, sqlx::Any> for NaiveDateTime {
+//     fn decode(
+//         value: <sqlx::Any as sqlx::Database>::ValueRef<'t>,
+//     ) -> Result<Self, sqlx::error::BoxDynError> {
+//         NaiveDateTime::decode(value)
+//     }
+// }
