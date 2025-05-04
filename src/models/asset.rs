@@ -1,15 +1,18 @@
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
-use sqlx::AnyPool;
 use tokio::fs::{create_dir_all, File};
 
 use super::AssetType;
-use crate::{errors::AppError, models::user::User, state::AppState};
+use crate::{
+    errors::AppError,
+    models::user::User,
+    state::AppState,
+    utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
+};
 
 #[derive(sqlx::FromRow)]
 pub struct Asset {
-    pub id: i32,
     pub asset_path: String,
     pub user_id: i32,
     pub public: bool,
@@ -33,10 +36,16 @@ pub struct CreateAssetOptions {
 }
 
 impl Asset {
-    pub async fn get_by_path(conn: &AnyPool, path: &str) -> Result<Self, AppError> {
-        let asset = sqlx::query_as::<_, Asset>("SELECT * FROM assets WHERE asset_path = ?")
+    pub async fn get_by_path(state: &AppState, path: &str) -> Result<Self, AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
+
+        let filters = SqlxFilters::new("asset_path").to_query(bn);
+        let query = format!("SELECT * FROM assets WHERE {filters}");
+
+        let asset = sqlx::query_as::<_, Asset>(&query)
             .bind(path)
-            .fetch_one(conn)
+            .fetch_one(&conn)
             .await?;
 
         Ok(asset)
@@ -91,13 +100,18 @@ impl Asset {
             }
         }
 
+        let bn = state.backend_name();
         // try to create asset record if it doesn't exist. If exists, update
-        match Self::get_by_path(&conn, &path).await {
+        match Self::get_by_path(state, &path).await {
             Ok(exists) => {
                 if exists.user_id == user.id {
-                    sqlx::query("UPDATE assets SET public = ? WHERE id = ?")
+                    let sf = SqlxFilters::new("public").to_query(bn);
+                    let ff = SqlxFilters::new("user_id").to_query(bn);
+                    let query = format!("UPDATE assets SET {sf} WHERE {ff}");
+
+                    sqlx::query(&query)
                         .bind(is_public.unwrap_or_default())
-                        .bind(exists.id)
+                        .bind(exists.user_id)
                         .execute(&conn)
                         .await?;
                 } else {
@@ -108,20 +122,50 @@ impl Asset {
                 }
             }
             Err(_) => {
-                sqlx::query(
-                    r#"
-                        INSERT INTO assets (asset_path, public, user_id)
-                        VALUES(?, ?, ?)
-                    "#,
-                )
-                .bind(&path)
-                .bind(is_public.unwrap_or_default())
-                .bind(user.id)
-                .execute(&conn)
-                .await?;
+                let values = SqlxValues(3).to_query(bn);
+                let query = format!("INSERT INTO assets (asset_path, public, user_id) {values}");
+                sqlx::query(&query)
+                    .bind(&path)
+                    .bind(is_public.unwrap_or_default())
+                    .bind(user.id)
+                    .execute(&conn)
+                    .await?;
             }
         }
 
         Ok(path)
+    }
+
+    pub async fn delete_for_user(state: &AppState, user_id: &i32) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
+
+        let filters = SqlxFilters::new("user_id").to_query(bn);
+        let query = format!("SELECT * FROM assets WHERE {filters}");
+
+        let assets = sqlx::query_as::<_, Asset>(&query)
+            .bind(user_id)
+            .fetch_all(&conn)
+            .await?;
+
+        for asset in assets {
+            asset.delete_object().await?;
+        }
+
+        let query = format!("DELETE FROM assets WHERE {filters}");
+        sqlx::query(&query).bind(user_id).execute(&conn).await?;
+
+        Ok(())
+    }
+
+    async fn delete_object(&self) -> Result<(), AppError> {
+        let path = Path::new(&self.asset_path);
+        if path.is_file() {
+            tokio::fs::remove_file(path).await?;
+        } else if path.is_dir() {
+            tokio::fs::remove_dir(path).await?;
+        }
+
+        Ok(())
     }
 }

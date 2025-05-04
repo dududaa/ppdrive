@@ -1,4 +1,4 @@
-use std::{fmt::Display, path::Path};
+use std::path::Path;
 
 use crate::{
     errors::AppError,
@@ -12,10 +12,10 @@ use crate::{
 };
 use chrono::Utc;
 use serde::Serialize;
-use sqlx::{AnyPool, FromRow};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::{IntoSerializer, Permission};
+use super::{asset::Asset, IntoSerializer, Permission};
 
 #[derive(FromRow)]
 pub struct User {
@@ -115,12 +115,12 @@ impl User {
             .execute(&conn)
             .await?;
 
-        let user = User::get_by_pid(&state, &pid.to_string()).await?;
+        let user = User::get_by_pid(state, &pid.to_string()).await?;
 
         if let PermissionGroup::Custom = data.permission_group {
             if let Some(perms) = data.permissions {
                 for perm in perms {
-                    UserPermission::create(&conn, &user.id, perm).await?;
+                    UserPermission::create(state, &user.id, perm).await?;
                 }
             }
         }
@@ -135,7 +135,16 @@ impl User {
         let filters = SqlxFilters::new("id").to_query(bn);
         let query = format!("DELETE from users WHERE {filters}");
 
-        sqlx::query(&query).bind(user_id).execute(&conn).await?;
+        sqlx::query(&query).bind(&user_id).execute(&conn).await?;
+
+        let ss = state.clone();
+        let user_id = user_id.clone();
+
+        tokio::task::spawn(async move {
+            if let Err(err) = User::clean_up(&ss, &user_id).await {
+                tracing::error!("user clean up failed: {err}")
+            }
+        });
 
         Ok(())
     }
@@ -168,6 +177,18 @@ impl User {
         Ok(perms)
     }
 
+    async fn delete_permissions(state: &AppState, user_id: &i32) -> Result<(), AppError> {
+        UserPermission::delete_for_user(state, user_id).await
+    }
+
+    /// Removes user permissions and assets. To be called inside or after [User::delete].
+    async fn clean_up(state: &AppState, user_id: &i32) -> Result<(), AppError> {
+        User::delete_permissions(state, user_id).await?;
+        Asset::delete_for_user(state, user_id).await?;
+
+        Ok(())
+    }
+
     pub fn root_folder(&self) -> &Option<String> {
         &self.root_folder
     }
@@ -184,19 +205,32 @@ pub struct UserPermission {
 }
 
 impl UserPermission {
-    async fn create(conn: &AnyPool, uid: &i32, perm: Permission) -> Result<(), AppError> {
+    async fn create(state: &AppState, user_id: &i32, perm: Permission) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+
         let val: i16 = perm.into();
 
-        sqlx::query(
-            r#"
-                INSERT INTO user_permissions (user_id, permission)
-                VALUES(?, ?)
-            "#,
-        )
-        .bind(uid)
-        .bind(val)
-        .execute(conn)
-        .await?;
+        let bn = state.backend_name();
+        let values = SqlxValues(2).to_query(bn);
+        let query = format!("INSERT INTO user_permissions (user_id, permission) {values}");
+
+        sqlx::query(&query)
+            .bind(user_id)
+            .bind(val)
+            .execute(&conn)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn delete_for_user(state: &AppState, user_id: &i32) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
+
+        let filters = SqlxFilters::new("user_id").to_query(bn);
+        let query = format!("DELETE FROM user_permissions WHERE {filters}");
+
+        sqlx::query(&query).bind(user_id).execute(&conn).await?;
 
         Ok(())
     }

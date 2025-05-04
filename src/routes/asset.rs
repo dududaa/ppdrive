@@ -25,8 +25,7 @@ async fn get_asset(
     ReqPath(asset_path): ReqPath<String>,
     State(state): State<AppState>,
 ) -> Result<Response<Body>, AppError> {
-    let conn = state.db_pool().await;
-    let asset = Asset::get_by_path(&conn, &asset_path).await?;
+    let asset = Asset::get_by_path(&state, &asset_path).await?;
 
     if asset.public {
         let path = Path::new(&asset.asset_path);
