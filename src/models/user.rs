@@ -1,6 +1,12 @@
 use std::path::Path;
 
-use crate::{errors::AppError, models::PermissionGroup, routes::admin::CreateUserRequest};
+use crate::{
+    errors::AppError,
+    models::PermissionGroup,
+    routes::admin::CreateUserRequest,
+    state::AppState,
+    utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
+};
 use serde::Serialize;
 use sqlx::{AnyPool, FromRow};
 
@@ -17,36 +23,59 @@ pub struct User {
 }
 
 impl User {
-    pub async fn get(conn: &AnyPool, user_id: &i32) -> Result<Self, AppError> {
-        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
+    pub async fn get(state: &AppState, user_id: &i32) -> Result<Self, AppError> {
+        let conn = state.db_pool().await;
+
+        let bn = state.backend_name();
+        let filters = SqlxFilters::new("id").to_query(&bn);
+
+        let query = format!("SELECT * FROM users WHERE {filters}");
+
+        let user = sqlx::query_as::<_, User>(&query)
             .bind(user_id)
-            .fetch_one(conn)
+            .fetch_one(&conn)
             .await?;
 
         Ok(user)
     }
 
-    pub async fn get_by_pid(conn: &AnyPool, pid: &str) -> Result<Self, AppError> {
-        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE pid = ?")
+    pub async fn get_by_pid(state: &AppState, pid: &str) -> Result<Self, AppError> {
+        let conn = state.db_pool().await;
+
+        let bn = state.backend_name();
+        let filters = SqlxFilters::new("pid").to_query(&bn);
+
+        let query = format!("SELECT * FROM users WHERE {filters}");
+
+        let user = sqlx::query_as::<_, User>(&query)
             .bind(pid)
-            .fetch_one(conn)
+            .fetch_one(&conn)
             .await?;
 
         Ok(user)
     }
 
-    pub async fn get_by_root_folder(conn: &AnyPool, root_folder: &str) -> Option<Self> {
-        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE root_folder = ?")
+    pub async fn get_by_root_folder(state: &AppState, root_folder: &str) -> Option<Self> {
+        let conn = state.db_pool().await;
+
+        let bn = state.backend_name();
+        let filters = SqlxFilters::new("root_folder").to_query(&bn);
+
+        let query = format!("SELECT * FROM users WHERE {filters}");
+
+        let user = sqlx::query_as::<_, User>(&query)
             .bind(root_folder)
-            .fetch_one(conn)
+            .fetch_one(&conn)
             .await;
 
         user.ok()
     }
 
-    pub async fn create(conn: &AnyPool, data: CreateUserRequest) -> Result<String, AppError> {
+    pub async fn create(state: &AppState, data: CreateUserRequest) -> Result<String, AppError> {
+        let conn = state.db_pool().await;
+
         if let Some(folder) = &data.root_folder {
-            if User::get_by_root_folder(conn, folder).await.is_some() {
+            if User::get_by_root_folder(state, folder).await.is_some() {
                 return Err(AppError::InternalServerError(
                         format!("user with root_folder: '{folder}' already exists. please provide unique folder name")
                     ));
@@ -57,23 +86,27 @@ impl User {
         }
 
         let pg: i16 = data.permission_group.clone().into();
+        let bn = state.backend_name();
+        let values = SqlxValues(3).to_query(bn);
 
-        let user = sqlx::query_as::<_, User>(
+        let query = format!(
             r#"
-                INSERT INTO users (permission_group, root_folder, folder_max_size)
-                VALUES(?, ?, ?)
-            "#,
-        )
-        .bind(pg)
-        .bind(&data.root_folder)
-        .bind(&data.folder_max_size)
-        .fetch_one(conn)
-        .await?;
+            INSERT INTO users (permission_group, root_folder, folder_max_size)
+            {values}
+        "#
+        );
+
+        let user = sqlx::query_as::<_, User>(&query)
+            .bind(pg)
+            .bind(&data.root_folder)
+            .bind(&data.folder_max_size)
+            .fetch_one(&conn)
+            .await?;
 
         if let PermissionGroup::Custom = data.permission_group {
             if let Some(perms) = data.permissions {
                 for perm in perms {
-                    UserPermission::create(conn, &user.id, perm).await?;
+                    UserPermission::create(&conn, &user.id, perm).await?;
                 }
             }
         }
@@ -81,25 +114,32 @@ impl User {
         Ok(user.pid)
     }
 
-    pub async fn delete(conn: &AnyPool, user_id: &i32) -> Result<(), AppError> {
-        sqlx::query("DELETE from users WHERE id = ?")
-            .bind(user_id)
-            .execute(conn)
-            .await?;
+    pub async fn delete(state: &AppState, user_id: &i32) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
+
+        let filters = SqlxFilters::new("id").to_query(bn);
+        let query = format!("DELETE from users WHERE {filters}");
+
+        sqlx::query(&query).bind(user_id).execute(&conn).await?;
 
         Ok(())
     }
 
-    pub async fn permissions(&self, conn: &AnyPool) -> Result<Option<Vec<Permission>>, AppError> {
+    pub async fn permissions(&self, state: &AppState) -> Result<Option<Vec<Permission>>, AppError> {
         let pg = PermissionGroup::try_from(self.permission_group)?;
         let perms = match pg {
             PermissionGroup::Custom => {
-                let user_perms = sqlx::query_as::<_, UserPermission>(
-                    "SELECT * FROM user_permissions WHERE id = ?",
-                )
-                .bind(self.id)
-                .fetch_all(conn)
-                .await?;
+                let conn = state.db_pool().await;
+                let bn = state.backend_name();
+
+                let filters = SqlxFilters::new("id").to_query(bn);
+                let query = format!("SELECT * FROM user_permissions WHERE {filters}");
+
+                let user_perms = sqlx::query_as::<_, UserPermission>(&query)
+                    .bind(self.id)
+                    .fetch_all(&conn)
+                    .await?;
 
                 let mut perms = Vec::with_capacity(user_perms.len());
                 for perm in user_perms {
@@ -160,8 +200,8 @@ pub struct UserSerializer {
 impl IntoSerializer for User {
     type Serializer = UserSerializer;
 
-    async fn into_serializer(self, conn: &AnyPool) -> Result<Self::Serializer, AppError> {
-        let permissions = self.permissions(conn).await?;
+    async fn into_serializer(self, state: &AppState) -> Result<Self::Serializer, AppError> {
+        let permissions = self.permissions(state).await?;
 
         let User {
             permission_group,

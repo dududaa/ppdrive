@@ -5,6 +5,8 @@ use chacha20poly1305::{
 use hex::decode;
 use sqlx::AnyPool;
 
+pub mod sqlx_utils;
+
 use crate::{
     errors::AppError,
     models::client::{Client, CreateClientOpts},
@@ -26,7 +28,7 @@ pub struct ClientAccessKeys {
     pub private: String,
 }
 
-/// Generates ne
+/// Creates new [Client] and returns the client's keys
 pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
     let key = XChaCha20Poly1305::generate_key(&mut OsRng);
     let cipher = XChaCha20Poly1305::new(&key);

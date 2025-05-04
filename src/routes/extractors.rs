@@ -77,11 +77,11 @@ where
                 let auth_user: AuthUser = serde_json::from_str(&c)?;
                 let user_id = auth_user.id;
 
-                let conn = state.pool().await;
-                let user = User::get_by_pid(&conn, &user_id).await?;
+                let conn = state.db_pool().await;
+                let user = User::get_by_pid(&state, &user_id).await?;
 
                 let permission_group = PermissionGroup::try_from(user.permission_group)?;
-                let permissions = user.permissions(&conn).await?;
+                let permissions = user.permissions(&state).await?;
 
                 let extractor = UserExtractor(CurrentUser {
                     id: user.id,
@@ -127,7 +127,7 @@ where
 
                 if let (Some(nonce), Some(enc)) = (ks.first(), ks.get(1)) {
                     let state = AppState::from_ref(state);
-                    let conn = state.pool().await;
+                    let conn = state.db_pool().await;
 
                     let cks = ClientAccessKeys {
                         client_id: client_id.to_string(),

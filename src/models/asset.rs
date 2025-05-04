@@ -5,7 +5,7 @@ use sqlx::AnyPool;
 use tokio::fs::{create_dir_all, File};
 
 use super::AssetType;
-use crate::{errors::AppError, models::user::User};
+use crate::{errors::AppError, models::user::User, state::AppState};
 
 #[derive(sqlx::FromRow)]
 pub struct Asset {
@@ -43,7 +43,7 @@ impl Asset {
     }
 
     pub async fn create_or_update(
-        conn: &AnyPool,
+        state: &AppState,
         user_id: &i32,
         opts: CreateAssetOptions,
         temp_file: Option<PathBuf>,
@@ -55,7 +55,8 @@ impl Asset {
             create_parents,
         } = opts;
 
-        let user = User::get(conn, user_id).await?;
+        let conn = state.db_pool().await;
+        let user = User::get(state, user_id).await?;
         let path = user
             .root_folder
             .map_or(path.clone(), |rf| format!("{rf}/{path}"));
@@ -91,13 +92,13 @@ impl Asset {
         }
 
         // try to create asset record if it doesn't exist. If exists, update
-        match Self::get_by_path(conn, &path).await {
+        match Self::get_by_path(&conn, &path).await {
             Ok(exists) => {
                 if exists.user_id == user.id {
                     sqlx::query("UPDATE assets SET public = ? WHERE id = ?")
                         .bind(is_public.unwrap_or_default())
                         .bind(exists.id)
-                        .execute(conn)
+                        .execute(&conn)
                         .await?;
                 } else {
                     tokio::fs::remove_file(&path).await?;
@@ -116,7 +117,7 @@ impl Asset {
                 .bind(&path)
                 .bind(is_public.unwrap_or_default())
                 .bind(user.id)
-                .execute(conn)
+                .execute(&conn)
                 .await?;
             }
         }
