@@ -59,7 +59,8 @@ async fn delete_user(
     let user_id = id.parse::<i32>().map_err(|err| {
         AppError::InternalServerError(format!("unable to parse user id '{id}': {err}"))
     })?;
-    User::delete(&state, &user_id).await?;
+    let user = User::get(&state, &user_id).await?;
+    user.delete(&state).await?;
 
     Ok("operation successful".to_string())
 }

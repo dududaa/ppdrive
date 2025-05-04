@@ -136,20 +136,26 @@ impl Asset {
         Ok(path)
     }
 
-    pub async fn delete_for_user(state: &AppState, user_id: &i32) -> Result<(), AppError> {
+    pub async fn delete_for_user(
+        state: &AppState,
+        user_id: &i32,
+        remove_files: bool,
+    ) -> Result<(), AppError> {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
         let filters = SqlxFilters::new("user_id").to_query(bn);
-        let query = format!("SELECT * FROM assets WHERE {filters}");
 
-        let assets = sqlx::query_as::<_, Asset>(&query)
-            .bind(user_id)
-            .fetch_all(&conn)
-            .await?;
+        if remove_files {
+            let query = format!("SELECT * FROM assets WHERE {filters}");
+            let assets = sqlx::query_as::<_, Asset>(&query)
+                .bind(user_id)
+                .fetch_all(&conn)
+                .await?;
 
-        for asset in assets {
-            asset.delete_object().await?;
+            for asset in assets {
+                asset.delete_object().await?;
+            }
         }
 
         let query = format!("DELETE FROM assets WHERE {filters}");

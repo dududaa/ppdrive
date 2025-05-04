@@ -79,3 +79,14 @@ async fn main() -> Result<(), AppError> {
 
     Ok(())
 }
+
+#[cfg(test)]
+pub mod main_test {
+    use crate::{errors::AppError, state::AppState};
+
+    /// load .env creates and app state
+    pub async fn pretest() -> Result<AppState, AppError> {
+        dotenv::dotenv().ok();
+        AppState::new().await
+    }
+}

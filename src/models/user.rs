@@ -35,7 +35,7 @@ impl User {
         let bn = state.backend_name();
         let filters = SqlxFilters::new("id").to_query(&bn);
 
-        let query = format!(r#"SELECT * FROM users WHERE {filters}"#);
+        let query = format!("SELECT * FROM users WHERE {filters}");
 
         let user = sqlx::query_as::<_, User>(&query)
             .bind(user_id)
@@ -51,7 +51,7 @@ impl User {
         let bn = state.backend_name();
         let filters = SqlxFilters::new("pid").to_query(&bn);
 
-        let query = format!(r#"SELECT * FROM users WHERE {filters}"#);
+        let query = format!("SELECT * FROM users WHERE {filters}");
 
         let user = sqlx::query_as::<_, User>(&query)
             .bind(pid)
@@ -99,12 +99,7 @@ impl User {
         let bn = state.backend_name();
         let values = SqlxValues(5).to_query(bn);
 
-        let query = format!(
-            r#"
-            INSERT INTO users (permission_group, pid, root_folder, folder_max_size, created_at)
-            {values}
-        "#
-        );
+        let query = format!("INSERT INTO users (permission_group, pid, root_folder, folder_max_size, created_at) {values}");
 
         sqlx::query(&query)
             .bind(pg)
@@ -128,23 +123,24 @@ impl User {
         Ok(user.pid)
     }
 
-    pub async fn delete(state: &AppState, user_id: &i32) -> Result<(), AppError> {
+    pub async fn delete(&self, state: &AppState) -> Result<(), AppError> {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
+
+        let ss = state.clone();
+        let user_id = self.id.clone();
+        let root_folder = self.root_folder().clone();
+
+        tokio::task::spawn(async move {
+            if let Err(err) = User::clean_up(&ss, &user_id, &root_folder).await {
+                tracing::error!("user clean up failed: {err}")
+            }
+        });
 
         let filters = SqlxFilters::new("id").to_query(bn);
         let query = format!("DELETE from users WHERE {filters}");
 
-        sqlx::query(&query).bind(&user_id).execute(&conn).await?;
-
-        let ss = state.clone();
-        let user_id = user_id.clone();
-
-        tokio::task::spawn(async move {
-            if let Err(err) = User::clean_up(&ss, &user_id).await {
-                tracing::error!("user clean up failed: {err}")
-            }
-        });
+        sqlx::query(&query).bind(&self.id).execute(&conn).await?;
 
         Ok(())
     }
@@ -182,10 +178,20 @@ impl User {
     }
 
     /// Removes user permissions and assets. To be called inside or after [User::delete].
-    async fn clean_up(state: &AppState, user_id: &i32) -> Result<(), AppError> {
+    async fn clean_up(
+        state: &AppState,
+        user_id: &i32,
+        root_folder: &Option<String>,
+    ) -> Result<(), AppError> {
         User::delete_permissions(state, user_id).await?;
-        Asset::delete_for_user(state, user_id).await?;
 
+        // delete root_folder
+        if let Some(root_folder) = root_folder {
+            let path = Path::new(root_folder);
+            tokio::fs::remove_dir(path).await?;
+        }
+
+        Asset::delete_for_user(state, user_id, root_folder.is_none()).await?;
         Ok(())
     }
 
@@ -278,30 +284,39 @@ impl IntoSerializer for User {
 mod tests {
     use crate::{
         errors::AppError,
+        main_test::pretest,
         models::{user::User, PermissionGroup},
         routes::admin::CreateUserRequest,
-        state::AppState,
     };
 
     #[tokio::test]
     async fn test_create_user() -> Result<(), AppError> {
-        dotenv::dotenv().ok();
-        match AppState::new().await {
-            Ok(state) => {
-                let data = CreateUserRequest {
-                    permissions: None,
-                    permission_group: PermissionGroup::Full,
-                    root_folder: Some("test_user".to_string()),
-                    folder_max_size: None,
-                };
+        let state = pretest().await?;
+        let data = CreateUserRequest {
+            permissions: None,
+            permission_group: PermissionGroup::Full,
+            root_folder: Some("test_user".to_string()),
+            folder_max_size: None,
+        };
 
-                let user = User::create(&state, data).await;
+        let user_uid = User::create(&state, data).await;
 
-                assert!(user.is_ok());
-            }
-            Err(err) => println!("unable to create state: {err}"),
+        assert!(user_uid.is_ok());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_delete_user() -> Result<(), AppError> {
+        let state = pretest().await?;
+        let user = User::get(&state, &4).await?;
+        let delete = user.delete(&state).await;
+
+        if let Err(err) = &delete {
+            println!("user delete failed: {err}");
         }
 
+        assert!(delete.is_ok());
         Ok(())
     }
 }
