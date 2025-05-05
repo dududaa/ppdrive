@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
@@ -7,9 +5,13 @@ use axum::{
 };
 use reqwest::{header::AUTHORIZATION, StatusCode};
 use serde::Deserialize;
-use uuid::Uuid;
 
-use crate::{errors::AppError, models::{user::User, Permission, PermissionGroup}, state::AppState, utils::{get_env, verify_client, ClientAccessKeys}};
+use crate::{
+    errors::AppError,
+    models::{user::User, Permission, PermissionGroup},
+    state::AppState,
+    utils::{get_env, verify_client, ClientAccessKeys},
+};
 
 #[derive(Deserialize)]
 pub struct AuthUser {
@@ -19,7 +21,7 @@ pub struct AuthUser {
 pub struct CurrentUser {
     pub id: i32,
     permission_group: PermissionGroup,
-    permissions: Option<Vec<Permission>>
+    permissions: Option<Vec<Permission>>,
 }
 
 impl CurrentUser {
@@ -29,10 +31,10 @@ impl CurrentUser {
             PermissionGroup::Custom => {
                 let d = vec![];
                 let perms = self.permissions.as_ref().unwrap_or(&d);
-                let find_write = perms.iter().find(|perm| perm.default_write() );
+                let find_write = perms.iter().find(|perm| perm.default_write());
                 find_write.is_some()
-            },
-            _ => self.permission_group.default_write()
+            }
+            _ => self.permission_group.default_write(),
         }
     }
 }
@@ -74,19 +76,16 @@ where
 
                 let auth_user: AuthUser = serde_json::from_str(&c)?;
                 let user_id = auth_user.id;
-                let uid = Uuid::parse_str(&user_id).map_err(|err| AppError::ParsingError(err.to_string()))?;
 
-                let pool = state.pool().await;
-                let mut conn = pool.get().await?;
-                let user = User::get_by_pid(&mut conn, uid).await?;
+                let user = User::get_by_pid(&state, &user_id).await?;
 
-                let permission_group = PermissionGroup::try_from(user.permission_group)?;
-                let permissions = user.permissions(&mut conn).await?;
+                let permission_group = PermissionGroup::try_from(*user.permission_group())?;
+                let permissions = user.permissions(&state).await?;
 
                 let extractor = UserExtractor(CurrentUser {
                     id: user.id,
                     permission_group,
-                    permissions
+                    permissions,
                 });
 
                 Ok(extractor)
@@ -109,36 +108,44 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let (keys, client_id) = (parts.headers.get("x-api-key"), parts.headers.get("x-client-id"));
-        
+        let (keys, client_id) = (
+            parts.headers.get("x-api-key"),
+            parts.headers.get("x-client-id"),
+        );
+
         match (keys, client_id) {
             (Some(keys), Some(client_id)) => {
-                let client_id = client_id.to_str().map_err(|err| AppError::AuthorizationError(err.to_string()))?;
-                let cuid = Uuid::from_str(client_id).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
-                
-                let keys = keys.to_str().map_err(|err| AppError::AuthorizationError(err.to_string()))?;
+                let client_id = client_id
+                    .to_str()
+                    .map_err(|err| AppError::AuthorizationError(err.to_string()))?;
+
+                let keys = keys
+                    .to_str()
+                    .map_err(|err| AppError::AuthorizationError(err.to_string()))?;
                 let ks: Vec<&str> = keys.split(".").collect();
-                
+
                 if let (Some(nonce), Some(enc)) = (ks.first(), ks.get(1)) {
                     let state = AppState::from_ref(state);
-                    let pool = state.pool().await;
-                    let mut conn = pool.get().await?;
 
                     let cks = ClientAccessKeys {
-                        client_id: cuid,
+                        client_id: client_id.to_string(),
                         public: String::from(*nonce),
-                        private: String::from(*enc)
+                        private: String::from(*enc),
                     };
 
-                    let valid = verify_client(&mut conn, cks).await?;
+                    let valid = verify_client(&state, cks).await?;
                     if !valid {
-                        return Err(AppError::AuthorizationError("unable to to verify the client.".to_string()))
+                        return Err(AppError::AuthorizationError(
+                            "unable to to verify the client.".to_string(),
+                        ));
                     }
                 }
 
                 Ok(AdminRoute)
-            },
-            _ => Err(AppError::AuthorizationError("missing authentication headers".to_string())),
+            }
+            _ => Err(AppError::AuthorizationError(
+                "missing authentication headers".to_string(),
+            )),
         }
     }
 }

@@ -3,12 +3,14 @@ use chacha20poly1305::{
     AeadCore, KeyInit, XChaCha20Poly1305, XNonce,
 };
 use hex::decode;
-use uuid::Uuid;
+
+pub mod sqlx_ext;
+pub mod sqlx_utils;
 
 use crate::{
     errors::AppError,
     models::client::{Client, CreateClientOpts},
-    state::{create_db_pool, DbPooled},
+    state::AppState,
 };
 
 pub fn get_env(key: &str) -> Result<String, AppError> {
@@ -18,15 +20,15 @@ pub fn get_env(key: &str) -> Result<String, AppError> {
     })
 }
 
-/// Details of [ClientAccessKeys] will be used to authenticate and verify the client when accessing 
+/// Details of [ClientAccessKeys] will be used to authenticate and verify the client when accessing
 /// administrative routes.
 pub struct ClientAccessKeys {
-    pub client_id: Uuid,
+    pub client_id: String,
     pub public: String,
     pub private: String,
 }
 
-/// Generates new [ClientAccessKeys], creates a new [Client] and returns the client's access keys.
+/// Creates new [Client] and returns the client's keys
 pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
     let key = XChaCha20Poly1305::generate_key(&mut OsRng);
     let cipher = XChaCha20Poly1305::new(&key);
@@ -45,12 +47,11 @@ pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
         payload: payload.to_vec(),
     };
 
-    let pool = create_db_pool().await?;
-    let mut conn = pool.get().await?;
-    let client = Client::create(&mut conn, copts).await?;
+    let state = AppState::new().await?;
+    let client_id = Client::create(&state, copts).await?;
 
     let keys = ClientAccessKeys {
-        client_id: client.cid,
+        client_id,
         public: ns,
         private: nx,
     };
@@ -59,15 +60,16 @@ pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
 }
 
 /// Verifies the provided [ClientAccessKeys] and authenticates the client.
-pub async fn verify_client(conn: &mut DbPooled<'_>, keys: ClientAccessKeys) -> Result<bool, AppError> {
+pub async fn verify_client(state: &AppState, keys: ClientAccessKeys) -> Result<bool, AppError> {
     let ClientAccessKeys {
         client_id: id,
         public,
         private,
     } = keys;
-    let client = Client::get(conn, id).await?;
 
-    let enc_key = client.enc_key.as_slice();
+    let client = Client::get(state, &id).await?;
+
+    let enc_key = client.enc_key().as_slice();
     let cipher = XChaCha20Poly1305::new(enc_key.into());
 
     let nonce_data = decode(public).map_err(|err| AppError::ParsingError(err.to_string()))?;
@@ -77,5 +79,23 @@ pub async fn verify_client(conn: &mut DbPooled<'_>, keys: ClientAccessKeys) -> R
     let enc = enc_data.as_slice();
     let decrypt = cipher.decrypt(nonce, enc)?;
 
-    Ok(client.enc_payload == decrypt)
+    Ok(client.enc_payload() == &decrypt)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{errors::AppError, main_test::pretest, utils::client_keygen};
+
+    #[tokio::test]
+    async fn test_keygen() -> Result<(), AppError> {
+        pretest().await?;
+        let keygen = client_keygen().await;
+
+        if let Err(err) = &keygen {
+            println!("keygen failed: {err}")
+        }
+
+        assert!(keygen.is_ok());
+        Ok(())
+    }
 }

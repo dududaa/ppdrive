@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use axum::{
     extract::{Path, State},
     routing::{delete, get, post},
@@ -7,7 +5,6 @@ use axum::{
 };
 use axum_macros::debug_handler;
 use serde::Deserialize;
-use uuid::Uuid;
 
 use crate::{
     errors::AppError,
@@ -18,7 +15,7 @@ use crate::{
     state::AppState,
 };
 
-use crate::models::TryFromModel;
+use crate::models::IntoSerializer;
 
 use super::extractors::AdminRoute;
 
@@ -36,10 +33,7 @@ async fn create_user(
     AdminRoute: AdminRoute,
     Json(data): Json<CreateUserRequest>,
 ) -> Result<String, AppError> {
-    let pool = state.pool().await;
-    let mut conn = pool.get().await?;
-
-    let user_id = User::create(&mut conn, data).await?;
+    let user_id = User::create(&state, data).await?;
 
     Ok(user_id.to_string())
 }
@@ -50,15 +44,8 @@ async fn get_user(
     State(state): State<AppState>,
     AdminRoute: AdminRoute,
 ) -> Result<Json<UserSerializer>, AppError> {
-    let pool = state.pool().await;
-    let mut conn = pool.get().await?;
-
-    let user_id = Uuid::from_str(&id).map_err(|err| {
-        AppError::InternalServerError(format!("unable to parse user id '{id}': {err}"))
-    })?;
-
-    let user = User::get_by_pid(&mut conn, user_id).await?;
-    let data = UserSerializer::try_from_model(&mut conn, user).await?;
+    let user = User::get_by_pid(&state, &id).await?;
+    let data = user.into_serializer(&state).await?;
 
     Ok(Json(data))
 }
@@ -69,13 +56,11 @@ async fn delete_user(
     State(state): State<AppState>,
     AdminRoute: AdminRoute,
 ) -> Result<String, AppError> {
-    let pool = state.pool().await;
-    let mut conn = pool.get().await?;
-
     let user_id = id.parse::<i32>().map_err(|err| {
         AppError::InternalServerError(format!("unable to parse user id '{id}': {err}"))
     })?;
-    User::delete(&mut conn, user_id).await?;
+    let user = User::get(&state, &user_id).await?;
+    user.delete(&state).await?;
 
     Ok("operation successful".to_string())
 }

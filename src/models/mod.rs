@@ -1,13 +1,13 @@
-use crate::{errors::AppError, state::DbPooled};
+use crate::{errors::AppError, state::AppState};
 use serde::{Deserialize, Serialize};
 
 pub mod asset;
 pub mod client;
 pub mod user;
 
-pub trait TryFromModel<M>: Sized {
-    type Error;
-    async fn try_from_model(conn: &mut DbPooled<'_>, model: M) -> Result<Self, Self::Error>;
+pub trait IntoSerializer {
+    type Serializer;
+    async fn into_serializer(self, state: &AppState) -> Result<Self::Serializer, AppError>;
 }
 
 #[derive(Default, Deserialize)]
