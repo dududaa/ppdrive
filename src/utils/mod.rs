@@ -16,8 +16,7 @@ pub fn get_env(key: &str) -> Result<String, AppError> {
 }
 
 /// Creates new [Client] and returns the client's keys
-pub async fn client_keygen() -> Result<String, AppError> {
-    let state = AppState::new().await?;
+pub async fn client_keygen(state: &AppState) -> Result<String, AppError> {
     let client_id = Client::create(&state).await?;
 
     let config = state.config();
@@ -57,19 +56,22 @@ pub async fn verify_client(state: &AppState, payload: &str) -> Result<bool, AppE
 
 #[cfg(test)]
 mod tests {
-    use crate::{errors::AppError, main_test::pretest, utils::client_keygen};
+    use crate::{
+        errors::AppError,
+        main_test::pretest,
+        utils::{client_keygen, verify_client},
+    };
 
     #[tokio::test]
     async fn test_keygen() -> Result<(), AppError> {
-        pretest().await?;
-        let keygen = client_keygen().await;
+        let state = pretest().await?;
 
-        match &keygen {
-            Ok(payload) => println!("id generated: {payload}"),
-            Err(err) => println!("keygen failed: {err}"),
-        }
-
+        let keygen = client_keygen(&state).await;
         assert!(keygen.is_ok());
+
+        let verified = verify_client(&state, &keygen?).await?;
+        assert!(verified);
+
         Ok(())
     }
 }

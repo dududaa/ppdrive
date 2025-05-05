@@ -1,6 +1,7 @@
 use crate::app::create_app;
 use dotenv::dotenv;
 use errors::AppError;
+use state::AppState;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::{client_keygen, get_env};
 
@@ -31,7 +32,8 @@ async fn main() -> Result<(), AppError> {
     // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
         if a1 == "keygen" {
-            let key = client_keygen().await?;
+            let state = AppState::new().await?;
+            let key = client_keygen(&state).await?;
             tracing::info!("ADMIN_KEY: {key}");
         }
 
