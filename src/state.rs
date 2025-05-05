@@ -1,4 +1,7 @@
-use crate::{errors::AppError, utils::get_env};
+use crate::{
+    errors::AppError,
+    utils::{get_env, sqlx_utils::BackendName},
+};
 use sqlx::{
     any::{install_default_drivers, AnyPoolOptions},
     AnyPool,
@@ -26,18 +29,27 @@ pub async fn create_db_pool() -> Result<AnyPool, AppError> {
 #[derive(Clone)]
 pub struct AppState {
     db: Arc<Mutex<AnyPool>>,
+    backend_name: BackendName,
 }
 
 impl AppState {
     pub async fn new() -> Result<Self, AppError> {
         let pool = create_db_pool().await?;
+
+        let conn = pool.acquire().await?;
+        let backend_name = conn.backend_name().try_into()?;
+
         let db = Arc::new(Mutex::new(pool));
-        let s = Self { db };
+        let s = Self { db, backend_name };
 
         Ok(s)
     }
 
-    pub async fn pool(&self) -> DbPool {
+    pub async fn db_pool(&self) -> AnyPool {
         self.db.lock().await.clone()
+    }
+
+    pub fn backend_name(&self) -> &BackendName {
+        &self.backend_name
     }
 }

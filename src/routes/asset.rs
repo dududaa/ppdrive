@@ -25,10 +25,7 @@ async fn get_asset(
     ReqPath(asset_path): ReqPath<String>,
     State(state): State<AppState>,
 ) -> Result<Response<Body>, AppError> {
-    let pool = state.pool().await;
-    let mut conn = pool.get().await?;
-
-    let asset = Asset::get_by_path(&mut conn, &asset_path).await?;
+    let asset = Asset::get_by_path(&state, &asset_path).await?;
 
     if asset.public {
         let path = Path::new(&asset.asset_path);
@@ -90,10 +87,7 @@ async fn create_asset(
             }
         }
 
-        let pool = state.pool().await;
-        let mut conn = pool.get().await?;
-
-        let path = Asset::create_or_update(&mut conn, &user_id, opts, tmp_file).await?;
+        let path = Asset::create_or_update(&state, &user_id, opts, tmp_file).await?;
         Ok(path)
     } else {
         Err(AppError::AuthorizationError(

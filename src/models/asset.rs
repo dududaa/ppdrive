@@ -1,23 +1,18 @@
 use std::path::{Path, PathBuf};
 
-use diesel::{
-    prelude::{Associations, Insertable, Queryable, Selectable},
-    ExpressionMethods, QueryDsl, SelectableHelper,
-};
-use diesel_async::RunQueryDsl;
 use serde::Deserialize;
 use tokio::fs::{create_dir_all, File};
 
-use crate::{errors::AppError, models::user::User, state::DbPooled};
-
 use super::AssetType;
+use crate::{
+    errors::AppError,
+    models::user::User,
+    state::AppState,
+    utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
+};
 
-#[derive(Queryable, Selectable, Insertable, Associations)]
-#[diesel(belongs_to(User))]
-#[diesel(table_name = crate::schema::assets)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[derive(sqlx::FromRow)]
 pub struct Asset {
-    pub id: i32,
     pub asset_path: String,
     pub user_id: i32,
     pub public: bool,
@@ -41,27 +36,27 @@ pub struct CreateAssetOptions {
 }
 
 impl Asset {
-    pub async fn get_by_path(conn: &mut DbPooled<'_>, path: &str) -> Result<Self, AppError> {
-        use crate::schema::assets::dsl::*;
+    pub async fn get_by_path(state: &AppState, path: &str) -> Result<Self, AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
 
-        let asset = assets
-            .filter(asset_path.eq(path))
-            .select(Asset::as_select())
-            .first(conn)
-            .await
-            .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+        let filters = SqlxFilters::new("asset_path").to_query(bn);
+        let query = format!("SELECT * FROM assets WHERE {filters}");
+
+        let asset = sqlx::query_as::<_, Asset>(&query)
+            .bind(path)
+            .fetch_one(&conn)
+            .await?;
 
         Ok(asset)
     }
 
     pub async fn create_or_update(
-        conn: &mut DbPooled<'_>,
-        user: &i32,
+        state: &AppState,
+        user_id: &i32,
         opts: CreateAssetOptions,
         temp_file: Option<PathBuf>,
     ) -> Result<String, AppError> {
-        use crate::schema::assets::dsl::*;
-
         let CreateAssetOptions {
             path,
             public: is_public,
@@ -69,13 +64,15 @@ impl Asset {
             create_parents,
         } = opts;
 
-        let user = User::get(conn, *user).await?;
-        let path = user
-            .root_folder
-            .map_or(path.clone(), |rf| format!("{rf}/{path}"));
+        let conn = state.db_pool().await;
+        let user = User::get(state, user_id).await?;
+
+        let folder = user.root_folder().as_deref();
+        let path = folder.map_or(path.clone(), |rf| format!("{rf}/{path}"));
 
         let ap = Path::new(&path);
 
+        // create the asset
         match asset_type {
             AssetType::File => {
                 if let Some(parent) = ap.parent() {
@@ -103,15 +100,20 @@ impl Asset {
             }
         }
 
+        let bn = state.backend_name();
         // try to create asset record if it doesn't exist. If exists, update
-        match Self::get_by_path(conn, &path).await {
+        match Self::get_by_path(state, &path).await {
             Ok(exists) => {
                 if exists.user_id == user.id {
-                    diesel::update(assets.find(exists.id))
-                        .set(public.eq(is_public.unwrap_or_default()))
-                        .execute(conn)
-                        .await
-                        .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+                    let sf = SqlxFilters::new("public").to_query(bn);
+                    let ff = SqlxFilters::new("user_id").to_query(bn);
+                    let query = format!("UPDATE assets SET {sf} WHERE {ff}");
+
+                    sqlx::query(&query)
+                        .bind(is_public.unwrap_or_default())
+                        .bind(exists.user_id)
+                        .execute(&conn)
+                        .await?;
                 } else {
                     tokio::fs::remove_file(&path).await?;
                     return Err(AppError::AuthorizationError(
@@ -120,18 +122,56 @@ impl Asset {
                 }
             }
             Err(_) => {
-                diesel::insert_into(assets)
-                    .values((
-                        asset_path.eq(&path),
-                        public.eq(is_public.unwrap_or_default()),
-                        user_id.eq(user.id),
-                    ))
-                    .execute(conn)
-                    .await
-                    .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+                let values = SqlxValues(3).to_query(bn);
+                let query = format!("INSERT INTO assets (asset_path, public, user_id) {values}");
+                sqlx::query(&query)
+                    .bind(&path)
+                    .bind(is_public.unwrap_or_default())
+                    .bind(user.id)
+                    .execute(&conn)
+                    .await?;
             }
         }
 
         Ok(path)
+    }
+
+    pub async fn delete_for_user(
+        state: &AppState,
+        user_id: &i32,
+        remove_files: bool,
+    ) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
+
+        let filters = SqlxFilters::new("user_id").to_query(bn);
+
+        if remove_files {
+            let query = format!("SELECT * FROM assets WHERE {filters}");
+            let assets = sqlx::query_as::<_, Asset>(&query)
+                .bind(user_id)
+                .fetch_all(&conn)
+                .await?;
+
+            for asset in assets {
+                asset.delete_object().await?;
+            }
+        }
+
+        let query = format!("DELETE FROM assets WHERE {filters}");
+        sqlx::query(&query).bind(user_id).execute(&conn).await?;
+
+        Ok(())
+    }
+
+    async fn delete_object(&self) -> Result<(), AppError> {
+        let path = Path::new(&self.asset_path);
+        if path.is_file() {
+            tokio::fs::remove_file(path).await?;
+        } else if path.is_dir() {
+            tokio::fs::remove_dir(path).await?;
+        }
+
+        Ok(())
     }
 }

@@ -8,7 +8,6 @@ mod app;
 mod errors;
 mod models;
 mod routes;
-mod schema;
 mod state;
 mod utils;
 
@@ -79,4 +78,15 @@ async fn main() -> Result<(), AppError> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+pub mod main_test {
+    use crate::{errors::AppError, state::AppState};
+
+    /// load .env creates and app state
+    pub async fn pretest() -> Result<AppState, AppError> {
+        dotenv::dotenv().ok();
+        AppState::new().await
+    }
 }

@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS clients(
+    id VARCHAR(36) PRIMARY KEY NOT NULL,
+    enc_key BYTEA NOT NULL,
+    enc_payload BYTEA NOT NULL
+)

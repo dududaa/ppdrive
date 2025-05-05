@@ -1,50 +1,66 @@
-use diesel::{ExpressionMethods, Insertable, QueryDsl, Queryable, Selectable, SelectableHelper};
-use diesel_async::RunQueryDsl;
-use uuid::Uuid;
+use crate::{
+    errors::AppError,
+    state::AppState,
+    utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
+};
 
-use crate::{errors::AppError, state::DbPooled};
+use uuid::Uuid;
 
 pub struct CreateClientOpts {
     pub key: Vec<u8>,
-    pub payload: Vec<u8>
+    pub payload: Vec<u8>,
 }
 
-#[derive(Queryable, Selectable, Insertable)]
-#[diesel(table_name = crate::schema::clients)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[derive(sqlx::FromRow)]
 pub struct Client {
-    pub id: i32,
-    pub enc_key: Vec<u8>,
-    pub enc_payload: Vec<u8>,
-    pub cid: Uuid
+    id: String,
+    enc_key: Vec<u8>,
+    enc_payload: Vec<u8>,
 }
 
 impl Client {
-    pub async fn get(conn: &mut DbPooled<'_>, cuid: Uuid) -> Result<Self, AppError> {
-        use crate::schema::clients::dsl::*;
+    pub async fn get(state: &AppState, id: &str) -> Result<Self, AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
 
-        clients
-            .filter(cid.eq(cuid))
-            .select(Client::as_select())
-            .first(conn)
-            .await
-            .map_err(|err| AppError::InternalServerError(err.to_string()))
+        let filters = SqlxFilters::new("id").to_query(bn);
+        let query = format!("SELECT * FROM clients WHERE {filters}");
 
-    }
-
-    pub async fn create(conn: &mut DbPooled<'_>, opts: CreateClientOpts) -> Result<Self, AppError> {
-        use crate::schema::clients::dsl::*;
-
-        let client = diesel::insert_into(clients)
-            .values((
-                enc_payload.eq(opts.payload),
-                enc_key.eq(opts.key)
-            ))
-            .returning(Client::as_returning())
-            .get_result(conn)
-            .await
-            .map_err(|err| AppError::DatabaseError(err.to_string()))?;
+        let client = sqlx::query_as::<_, Client>(&query)
+            .bind(id)
+            .fetch_one(&conn)
+            .await?;
 
         Ok(client)
+    }
+
+    pub async fn create(state: &AppState, opts: CreateClientOpts) -> Result<String, AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
+
+        let values = SqlxValues(3).to_query(bn);
+        let query = format!("INSERT INTO clients (id, enc_payload, enc_key) {values}");
+
+        let uid = Uuid::new_v4();
+        let id = uid.to_string();
+
+        sqlx::query(&query)
+            .bind(&id)
+            .bind(&opts.payload)
+            .bind(opts.key)
+            .execute(&conn)
+            .await?;
+
+        tracing::info!("client created successfully!");
+
+        Ok(id)
+    }
+
+    pub fn enc_key(&self) -> &Vec<u8> {
+        &self.enc_key
+    }
+
+    pub fn enc_payload(&self) -> &Vec<u8> {
+        &self.enc_payload
     }
 }
