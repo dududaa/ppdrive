@@ -26,9 +26,6 @@ pub async fn client_keygen(state: &AppState) -> Result<String, AppError> {
     let nonce = XNonce::from_slice(nonce_key);
     let cipher = XChaCha20Poly1305::new(key.into());
 
-    let mut payload = [0u8; 16];
-    OsRng.fill_bytes(&mut payload);
-
     let encrypt = cipher.encrypt(&nonce, client_id.as_bytes())?;
     let encode = hex::encode(&encrypt);
 

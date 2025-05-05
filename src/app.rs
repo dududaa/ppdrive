@@ -33,8 +33,7 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
             ACCESS_CONTROL_ALLOW_ORIGIN,
             CONTENT_TYPE,
             AUTHORIZATION,
-            HeaderName::from_static("x-api-key"),
-            HeaderName::from_static("x-client-id")
+            HeaderName::from_static("x-client-id"),
         ])
         .allow_methods(Any);
 
