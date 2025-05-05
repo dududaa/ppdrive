@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 /// Generates compatible SQL string for defined Sqlx types
 pub trait ToQuery {
-    fn to_query(self, bn: &BackendName) -> String;
+    fn to_query(&self, bn: &BackendName) -> String;
 }
 
 #[derive(Clone)]
@@ -81,7 +81,7 @@ impl<'a> SqlxFilters<'a> {
 }
 
 impl ToQuery for SqlxFilters<'_> {
-    fn to_query(self, bn: &BackendName) -> String {
+    fn to_query(&self, bn: &BackendName) -> String {
         let output: Vec<String> = self
             .items
             .iter()
@@ -107,7 +107,7 @@ impl ToQuery for SqlxFilters<'_> {
 /// ```
 pub struct SqlxValues(pub u8);
 impl ToQuery for SqlxValues {
-    fn to_query(self, bn: &BackendName) -> String {
+    fn to_query(&self, bn: &BackendName) -> String {
         let mut values = Vec::with_capacity(self.0 as usize);
 
         for i in 0..self.0 {
@@ -122,10 +122,53 @@ impl ToQuery for SqlxValues {
     }
 }
 
-// impl<'t> sqlx::Decode<'t, sqlx::Any> for NaiveDateTime {
-//     fn decode(
-//         value: <sqlx::Any as sqlx::Database>::ValueRef<'t>,
-//     ) -> Result<Self, sqlx::error::BoxDynError> {
-//         NaiveDateTime::decode(value)
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use crate::utils::sqlx_utils::{SqlxValues, ToQuery};
+
+    use super::{BackendName, SqlxFilters};
+
+    #[test]
+    fn test_sqlx_filters_pg() {
+        let filters = SqlxFilters::new("id");
+        let bn = BackendName::Postgres;
+
+        assert_eq!(&filters.to_query(&bn), "id = $1");
+
+        let filters = filters.and("age").or("name");
+        assert_eq!(&filters.to_query(&bn), "id = $1 AND age = $2 OR name = $3");
+    }
+
+    #[test]
+    fn test_sqlx_values_pg() {
+        let values = SqlxValues(1);
+        let bn = BackendName::Postgres;
+
+        assert_eq!(&values.to_query(&bn), "VALUES($1)");
+
+        let values = SqlxValues(3);
+        assert_eq!(&values.to_query(&bn), "VALUES($1, $2, $3)");
+    }
+
+    #[test]
+    fn test_sqlx_filters_mysql() {
+        let filters = SqlxFilters::new("id");
+        let bn = BackendName::Mysql;
+
+        assert_eq!(&filters.to_query(&bn), "id = ?");
+
+        let filters = filters.and("age").or("name");
+        assert_eq!(&filters.to_query(&bn), "id = ? AND age = ? OR name = ?");
+    }
+
+    #[test]
+    fn test_sqlx_values_mysql() {
+        let values = SqlxValues(1);
+        let bn = BackendName::Mysql;
+
+        assert_eq!(&values.to_query(&bn), "VALUES(?)");
+
+        let values = SqlxValues(3);
+        assert_eq!(&values.to_query(&bn), "VALUES(?, ?, ?)");
+    }
+}
