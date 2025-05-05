@@ -38,7 +38,7 @@ enum Filter<'a> {
     Or(&'a str),
 }
 
-impl<'a> Display for Filter<'a> {
+impl Display for Filter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Filter::Base(col) => write!(f, "{col}"),
@@ -80,7 +80,7 @@ impl<'a> SqlxFilters<'a> {
     }
 }
 
-impl<'a> ToQuery for SqlxFilters<'a> {
+impl ToQuery for SqlxFilters<'_> {
     fn to_query(self, bn: &BackendName) -> String {
         let output: Vec<String> = self
             .items

@@ -33,7 +33,7 @@ impl User {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("id").to_query(&bn);
+        let filters = SqlxFilters::new("id").to_query(bn);
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
@@ -49,7 +49,7 @@ impl User {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("pid").to_query(&bn);
+        let filters = SqlxFilters::new("pid").to_query(bn);
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
@@ -65,7 +65,7 @@ impl User {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("root_folder").to_query(&bn);
+        let filters = SqlxFilters::new("root_folder").to_query(bn);
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
@@ -105,7 +105,7 @@ impl User {
             .bind(pg)
             .bind(pid.to_string())
             .bind(&data.root_folder)
-            .bind(&data.folder_max_size)
+            .bind(data.folder_max_size)
             .bind(created_at.to_string())
             .execute(&conn)
             .await?;
@@ -128,7 +128,7 @@ impl User {
         let bn = state.backend_name();
 
         let ss = state.clone();
-        let user_id = self.id.clone();
+        let user_id = self.id;
         let root_folder = self.root_folder().clone();
 
         tokio::task::spawn(async move {
@@ -140,7 +140,7 @@ impl User {
         let filters = SqlxFilters::new("id").to_query(bn);
         let query = format!("DELETE from users WHERE {filters}");
 
-        sqlx::query(&query).bind(&self.id).execute(&conn).await?;
+        sqlx::query(&query).bind(self.id).execute(&conn).await?;
 
         Ok(())
     }
