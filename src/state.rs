@@ -1,4 +1,5 @@
 use crate::{
+    config::AppConfig,
     errors::AppError,
     utils::{get_env, sqlx_utils::BackendName},
 };
@@ -29,6 +30,7 @@ pub async fn create_db_pool() -> Result<AnyPool, AppError> {
 #[derive(Clone)]
 pub struct AppState {
     db: Arc<Mutex<AnyPool>>,
+    config: Arc<AppConfig>,
     backend_name: BackendName,
 }
 
@@ -37,10 +39,15 @@ impl AppState {
         let pool = create_db_pool().await?;
 
         let conn = pool.acquire().await?;
-        let backend_name = conn.backend_name().try_into()?;
-
         let db = Arc::new(Mutex::new(pool));
-        let s = Self { db, backend_name };
+
+        let backend_name = conn.backend_name().try_into()?;
+        let config = Arc::new(AppConfig::build()?);
+        let s = Self {
+            db,
+            backend_name,
+            config,
+        };
 
         Ok(s)
     }
@@ -51,5 +58,9 @@ impl AppState {
 
     pub fn backend_name(&self) -> &BackendName {
         &self.backend_name
+    }
+
+    pub fn config(&self) -> Arc<AppConfig> {
+        self.config.clone()
     }
 }
