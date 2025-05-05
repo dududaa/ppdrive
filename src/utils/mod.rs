@@ -1,17 +1,12 @@
 use chacha20poly1305::{
     aead::{rand_core::RngCore, Aead, OsRng},
-    AeadCore, KeyInit, XChaCha20Poly1305, XNonce,
+    KeyInit, XChaCha20Poly1305, XNonce,
 };
-use hex::decode;
 
 pub mod sqlx_ext;
 pub mod sqlx_utils;
 
-use crate::{
-    errors::AppError,
-    models::client::{Client, CreateClientOpts},
-    state::AppState,
-};
+use crate::{errors::AppError, models::client::Client, state::AppState};
 
 pub fn get_env(key: &str) -> Result<String, AppError> {
     std::env::var(key).map_err(|err| {
@@ -20,66 +15,44 @@ pub fn get_env(key: &str) -> Result<String, AppError> {
     })
 }
 
-/// Details of [ClientAccessKeys] will be used to authenticate and verify the client when accessing
-/// administrative routes.
-pub struct ClientAccessKeys {
-    pub client_id: String,
-    pub public: String,
-    pub private: String,
-}
-
 /// Creates new [Client] and returns the client's keys
-pub async fn client_keygen() -> Result<ClientAccessKeys, AppError> {
-    let key = XChaCha20Poly1305::generate_key(&mut OsRng);
-    let cipher = XChaCha20Poly1305::new(&key);
+pub async fn client_keygen() -> Result<String, AppError> {
+    let state = AppState::new().await?;
+    let client_id = Client::create(&state).await?;
+
+    let config = state.config();
+    let key = config.secret_key();
+    let nonce_key = config.nonce();
+
+    let nonce = XNonce::from_slice(nonce_key);
+    let cipher = XChaCha20Poly1305::new(key.into());
 
     let mut payload = [0u8; 16];
     OsRng.fill_bytes(&mut payload);
 
-    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
-    let enc = cipher.encrypt(&nonce, payload.as_slice())?;
+    let encrypt = cipher.encrypt(&nonce, client_id.as_bytes())?;
+    let encode = hex::encode(&encrypt);
 
-    let ns = hex::encode(nonce);
-    let nx = hex::encode(&enc);
-
-    let copts = CreateClientOpts {
-        key: key.to_vec(),
-        payload: payload.to_vec(),
-    };
-
-    let state = AppState::new().await?;
-    let client_id = Client::create(&state, copts).await?;
-
-    let keys = ClientAccessKeys {
-        client_id,
-        public: ns,
-        private: nx,
-    };
-
-    Ok(keys)
+    Ok(encode)
 }
 
 /// Verifies the provided [ClientAccessKeys] and authenticates the client.
-pub async fn verify_client(state: &AppState, keys: ClientAccessKeys) -> Result<bool, AppError> {
-    let ClientAccessKeys {
-        client_id: id,
-        public,
-        private,
-    } = keys;
+pub async fn verify_client(state: &AppState, payload: &str) -> Result<bool, AppError> {
+    let decode =
+        hex::decode(payload).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
 
-    let client = Client::get(state, &id).await?;
+    let config = state.config();
+    let key = config.secret_key();
+    let nonce_key = config.nonce();
 
-    let enc_key = client.enc_key().as_slice();
-    let cipher = XChaCha20Poly1305::new(enc_key.into());
+    let cipher = XChaCha20Poly1305::new(key.into());
+    let nonce = XNonce::from_slice(nonce_key);
 
-    let nonce_data = decode(public).map_err(|err| AppError::ParsingError(err.to_string()))?;
-    let enc_data = decode(private).map_err(|err| AppError::ParsingError(err.to_string()))?;
-
-    let nonce = XNonce::from_slice(nonce_data.as_slice());
-    let enc = enc_data.as_slice();
-    let decrypt = cipher.decrypt(nonce, enc)?;
-
-    Ok(client.enc_payload() == &decrypt)
+    let decrypt = cipher.decrypt(nonce, decode.as_slice())?;
+    let id =
+        String::from_utf8(decrypt).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
+    let ok = Client::get(state, &id).await.is_ok();
+    Ok(ok)
 }
 
 #[cfg(test)]
@@ -91,8 +64,9 @@ mod tests {
         pretest().await?;
         let keygen = client_keygen().await;
 
-        if let Err(err) = &keygen {
-            println!("keygen failed: {err}")
+        match &keygen {
+            Ok(payload) => println!("id generated: {payload}"),
+            Err(err) => println!("keygen failed: {err}"),
         }
 
         assert!(keygen.is_ok());

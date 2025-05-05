@@ -2,9 +2,10 @@ use crate::app::create_app;
 use dotenv::dotenv;
 use errors::AppError;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utils::{client_keygen, get_env, ClientAccessKeys};
+use utils::{client_keygen, get_env};
 
 mod app;
+mod config;
 mod errors;
 mod models;
 mod routes;
@@ -30,29 +31,12 @@ async fn main() -> Result<(), AppError> {
     // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
         if a1 == "keygen" {
-            let ClientAccessKeys {
-                client_id,
-                public,
-                private,
-            } = client_keygen().await?;
-            tracing::info!(
-                "
-                Token generated successfully!
-
-                PPD_PUBLIC: {public}
-                PPD_PRIVATE: {private}
-                CLIENT_ID: {client_id}
-            "
-            );
+            let key = client_keygen().await?;
+            tracing::info!("ADMIN_KEY: {key}");
         }
 
         return Ok(());
     }
-
-    // create tmp dir for managing uploaded assets
-    // if let Err(err) = tokio::fs::create_dir("tmp").await {
-    //     tracing::error!("unable to create tmp dir: {err}");
-    // }
 
     // start ppdrive app
     let port = get_env("PPDRIVE_PORT")

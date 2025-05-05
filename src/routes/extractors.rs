@@ -10,7 +10,7 @@ use crate::{
     errors::AppError,
     models::{user::User, Permission, PermissionGroup},
     state::AppState,
-    utils::{get_env, verify_client, ClientAccessKeys},
+    utils::verify_client,
 };
 
 #[derive(Deserialize)]
@@ -50,11 +50,15 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        // Extract app state
+        // https://docs.rs/axum/0.6.4/axum/extract/struct.State.html#for-library-authors
+        let state = AppState::from_ref(state);
+        let config = state.config();
+
         match parts.headers.get(AUTHORIZATION) {
             Some(auth) => {
-                let url = get_env("PPDRIVE_AUTH_URL")?;
                 let resp = reqwest::Client::new()
-                    .get(url)
+                    .get(config.auth_url())
                     .header(AUTHORIZATION, auth)
                     .send()
                     .await
@@ -69,10 +73,6 @@ where
                     tracing::error!("auth error: {c}");
                     return Err(AppError::AuthorizationError(c));
                 }
-
-                // Extract app state
-                // https://docs.rs/axum/0.6.4/axum/extract/struct.State.html#for-library-authors
-                let state = AppState::from_ref(state);
 
                 let auth_user: AuthUser = serde_json::from_str(&c)?;
                 let user_id = auth_user.id;
@@ -108,37 +108,20 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let (keys, client_id) = (
-            parts.headers.get("x-api-key"),
-            parts.headers.get("x-client-id"),
-        );
+        let client_id = parts.headers.get("x-client-id");
+        let state = AppState::from_ref(state);
 
-        match (keys, client_id) {
-            (Some(keys), Some(client_id)) => {
+        match client_id {
+            Some(client_id) => {
                 let client_id = client_id
                     .to_str()
                     .map_err(|err| AppError::AuthorizationError(err.to_string()))?;
 
-                let keys = keys
-                    .to_str()
-                    .map_err(|err| AppError::AuthorizationError(err.to_string()))?;
-                let ks: Vec<&str> = keys.split(".").collect();
-
-                if let (Some(nonce), Some(enc)) = (ks.first(), ks.get(1)) {
-                    let state = AppState::from_ref(state);
-
-                    let cks = ClientAccessKeys {
-                        client_id: client_id.to_string(),
-                        public: String::from(*nonce),
-                        private: String::from(*enc),
-                    };
-
-                    let valid = verify_client(&state, cks).await?;
-                    if !valid {
-                        return Err(AppError::AuthorizationError(
-                            "unable to to verify the client.".to_string(),
-                        ));
-                    }
+                let valid = verify_client(&state, client_id).await?;
+                if !valid {
+                    return Err(AppError::AuthorizationError(
+                        "unable to to verify the client.".to_string(),
+                    ));
                 }
 
                 Ok(AdminRoute)
