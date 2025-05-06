@@ -9,11 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::AppError,
-    models::{
-        asset::Asset,
-        permission::{Permission, PermissionGroup},
-        user::UserRole,
-    },
+    models::{asset::Asset, user::UserRole},
     state::AppState,
 };
 
@@ -25,8 +21,6 @@ mod extractors;
 
 #[derive(Deserialize)]
 pub struct CreateUserRequest {
-    pub permission_group: PermissionGroup,
-    pub permissions: Option<Vec<Permission>>,
     pub root_folder: Option<String>,
     pub folder_max_size: Option<i64>,
     pub role: UserRole,
