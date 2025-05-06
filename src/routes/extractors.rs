@@ -6,7 +6,10 @@ use axum::{
 
 use crate::{
     errors::AppError,
-    models::{user::User, Permission, PermissionGroup},
+    models::{
+        permission::{Permission, PermissionGroup},
+        user::User,
+    },
     state::AppState,
     utils::tools::keygen::verify_client,
 };

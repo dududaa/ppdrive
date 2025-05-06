@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     errors::AppError,
-    models::PermissionGroup,
+    models::permission::PermissionGroup,
     routes::admin::CreateUserRequest,
     state::AppState,
     utils::{
@@ -15,15 +15,53 @@ use serde::Serialize;
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::{asset::Asset, IntoSerializer, Permission};
+use super::{asset::Asset, permission::Permission, IntoSerializer};
+
+enum UserRole {
+    /// can only read assets
+    Basic,
+
+    /// full asset management
+    Creator,
+
+    /// full application management
+    Admin,
+}
+
+impl TryFrom<i16> for UserRole {
+    type Error = AppError;
+
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        use UserRole::*;
+
+        if value == 0 {
+            Ok(Basic)
+        } else if value == 1 {
+            Ok(Creator)
+        } else if value == 2 {
+            Ok(Admin)
+        } else {
+            Err(AppError::AuthorizationError(format!(
+                "invalid user_role '{value}' "
+            )))
+        }
+    }
+}
 
 #[derive(FromRow)]
 pub struct User {
     id: i32,
     pid: String,
     permission_group: i16,
+
+    #[sqlx(try_from = "i16")]
+    role: UserRole,
+
     root_folder: Option<String>,
     folder_max_size: Option<i64>,
+    email: Option<String>,
+    password: Option<String>,
+
     #[sqlx(try_from = "String")]
     created_at: AnyDateTime,
 }
@@ -289,7 +327,7 @@ mod tests {
     use crate::{
         errors::AppError,
         main_test::pretest,
-        models::{user::User, PermissionGroup},
+        models::{permission::PermissionGroup, user::User},
         routes::admin::CreateUserRequest,
     };
 
