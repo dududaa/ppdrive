@@ -3,13 +3,19 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use tokio::fs::{create_dir_all, File};
 
-use super::AssetType;
 use crate::{
     errors::AppError,
     models::user::User,
     state::AppState,
     utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
 };
+
+#[derive(Default, Deserialize)]
+pub enum AssetType {
+    #[default]
+    File,
+    Folder,
+}
 
 #[derive(sqlx::FromRow)]
 pub struct Asset {

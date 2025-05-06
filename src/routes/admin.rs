@@ -9,8 +9,8 @@ use serde::Deserialize;
 use crate::{
     errors::AppError,
     models::{
+        permission::{Permission, PermissionGroup},
         user::{User, UserSerializer},
-        Permission, PermissionGroup,
     },
     state::AppState,
 };

@@ -3,7 +3,7 @@ use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce};
 use crate::{errors::AppError, models::client::Client, state::AppState};
 
 pub async fn client_keygen(state: &AppState) -> Result<String, AppError> {
-    let client_id = Client::create(&state).await?;
+    let client_id = Client::create(state).await?;
 
     let config = state.config();
     let key = config.secret_key();
@@ -12,7 +12,7 @@ pub async fn client_keygen(state: &AppState) -> Result<String, AppError> {
     let nonce = XNonce::from_slice(nonce_key);
     let cipher = XChaCha20Poly1305::new(key.into());
 
-    let encrypt = cipher.encrypt(&nonce, client_id.as_bytes())?;
+    let encrypt = cipher.encrypt(nonce, client_id.as_bytes())?;
     let encode = hex::encode(&encrypt);
 
     Ok(encode)

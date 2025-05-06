@@ -10,6 +10,7 @@
 !diesel.toml
 !compose.yml
 !.env.example
+!LICENSE
 
 !src/
 !src/**

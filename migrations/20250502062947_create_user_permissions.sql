@@ -3,4 +3,4 @@ CREATE TABLE IF NOT EXISTS user_permissions(
     permission SMALLINT CHECK (permission BETWEEN 0 AND 255) NOT NULL
 );
 
-CREATE INDEX idx_user_id ON user_permissions(user_id);
+CREATE INDEX idx_user_permissions ON user_permissions(user_id);
