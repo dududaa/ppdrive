@@ -5,7 +5,7 @@ use axum::{
     response::Response,
 };
 use axum_macros::debug_handler;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::AppError,
@@ -20,6 +20,7 @@ use crate::{
 use std::path::Path as StdPath;
 
 pub mod client;
+pub mod creator;
 mod extractors;
 
 #[derive(Deserialize)]
@@ -29,6 +30,19 @@ pub struct CreateUserRequest {
     pub root_folder: Option<String>,
     pub folder_max_size: Option<i64>,
     pub role: UserRole,
+}
+
+#[derive(Deserialize)]
+pub struct LoginCredentials {
+    pub id: String,
+    pub password: Option<String>,
+    pub exp: Option<i64>,
+}
+
+#[derive(Serialize)]
+pub struct LoginToken {
+    token: String,
+    exp: i64,
 }
 
 #[debug_handler]
