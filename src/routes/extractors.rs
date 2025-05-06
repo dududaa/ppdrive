@@ -10,7 +10,7 @@ use crate::{
     errors::AppError,
     models::{user::User, Permission, PermissionGroup},
     state::AppState,
-    utils::verify_client,
+    utils::tools::keygen::verify_client,
 };
 
 #[derive(Deserialize)]
@@ -97,10 +97,10 @@ where
     }
 }
 
-pub struct AdminRoute;
+pub struct ClientRoute;
 
 #[async_trait]
-impl<S> FromRequestParts<S> for AdminRoute
+impl<S> FromRequestParts<S> for ClientRoute
 where
     AppState: FromRef<S>,
     S: Send + Sync,
@@ -108,26 +108,26 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let client_id = parts.headers.get("x-client-id");
+        let client_key = parts.headers.get("x-ppd-client");
         let state = AppState::from_ref(state);
 
-        match client_id {
-            Some(client_id) => {
-                let client_id = client_id
+        match client_key {
+            Some(key) => {
+                let client_id = key
                     .to_str()
                     .map_err(|err| AppError::AuthorizationError(err.to_string()))?;
 
                 let valid = verify_client(&state, client_id).await?;
                 if !valid {
                     return Err(AppError::AuthorizationError(
-                        "unable to to verify the client.".to_string(),
+                        "client authorization failed".to_string(),
                     ));
                 }
 
-                Ok(AdminRoute)
+                Ok(ClientRoute)
             }
             _ => Err(AppError::AuthorizationError(
-                "missing authentication headers".to_string(),
+                "missing 'x-client-key' headers".to_string(),
             )),
         }
     }
