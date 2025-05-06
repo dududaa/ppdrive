@@ -1,15 +1,21 @@
-use axum::http::HeaderName;
-use axum::{extract::MatchedPath, http::Request, routing::IntoMakeService, Router};
-use reqwest::header::{
+use axum::http::header::{
     HeaderValue, ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION,
     CONTENT_TYPE,
+};
+use axum::http::HeaderName;
+use axum::{
+    extract::MatchedPath,
+    http::Request,
+    routing::{get, IntoMakeService},
+    Router,
 };
 use tower_http::cors::Any;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
 
-use crate::routes::asset::asset_routes;
-use crate::{errors::AppError, routes::admin::admin_routes, state::AppState, utils::get_env};
+use crate::routes::client::client_routes;
+use crate::routes::get_asset;
+use crate::{errors::AppError, state::AppState, utils::get_env};
 
 pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
     let state = AppState::new().await?;
@@ -39,8 +45,8 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
         .allow_methods(Any);
 
     let router = Router::new()
-        .nest("/admin", admin_routes())
-        .nest("/assets", asset_routes())
+        .route("/*asset_path", get(get_asset))
+        .nest("/client", client_routes())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 // Log the matched route's path (with placeholders not filled in).

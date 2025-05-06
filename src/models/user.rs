@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::{
     errors::AppError,
     models::permission::PermissionGroup,
-    routes::admin::CreateUserRequest,
+    routes::CreateUserRequest,
     state::AppState,
     utils::{
         sqlx_ext::AnyDateTime,
@@ -11,13 +11,14 @@ use crate::{
     },
 };
 use chrono::Utc;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
 use super::{asset::Asset, permission::Permission, IntoSerializer};
 
-enum UserRole {
+#[derive(Deserialize)]
+pub enum UserRole {
     /// can only read assets
     Basic,
 
@@ -44,6 +45,18 @@ impl TryFrom<i16> for UserRole {
             Err(AppError::AuthorizationError(format!(
                 "invalid user_role '{value}' "
             )))
+        }
+    }
+}
+
+impl From<UserRole> for i16 {
+    fn from(value: UserRole) -> Self {
+        use UserRole::*;
+
+        match value {
+            Basic => 0,
+            Creator => 1,
+            Admin => 2,
         }
     }
 }
@@ -130,20 +143,22 @@ impl User {
             tokio::fs::create_dir_all(path).await?;
         }
 
+        let user_role: i16 = data.role.into();
         let pg: i16 = data.permission_group.clone().into();
         let pid = Uuid::new_v4();
         let created_at = Utc::now().naive_local();
 
         let bn = state.backend_name();
-        let values = SqlxValues(5).to_query(bn);
+        let values = SqlxValues(6).to_query(bn);
 
-        let query = format!("INSERT INTO users (permission_group, pid, root_folder, folder_max_size, created_at) {values}");
+        let query = format!("INSERT INTO users (permission_group, pid, root_folder, folder_max_size, role, created_at) {values}");
 
         sqlx::query(&query)
             .bind(pg)
             .bind(pid.to_string())
             .bind(&data.root_folder)
             .bind(data.folder_max_size)
+            .bind(user_role)
             .bind(created_at.to_string())
             .execute(&conn)
             .await?;
@@ -327,8 +342,11 @@ mod tests {
     use crate::{
         errors::AppError,
         main_test::pretest,
-        models::{permission::PermissionGroup, user::User},
-        routes::admin::CreateUserRequest,
+        models::{
+            permission::PermissionGroup,
+            user::{User, UserRole},
+        },
+        routes::CreateUserRequest,
     };
 
     #[tokio::test]
@@ -339,6 +357,7 @@ mod tests {
             permission_group: PermissionGroup::Full,
             root_folder: Some("test_user".to_string()),
             folder_max_size: None,
+            role: UserRole::Basic,
         };
 
         let user_uid = User::create(&state, data).await;

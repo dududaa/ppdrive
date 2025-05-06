@@ -3,7 +3,10 @@ use dotenv::dotenv;
 use errors::AppError;
 use state::AppState;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utils::{get_env, tools::keygen::client_keygen};
+use utils::{
+    get_env,
+    tools::{client::create_client, keygen::secret_generator},
+};
 
 mod app;
 mod config;
@@ -31,10 +34,15 @@ async fn main() -> Result<(), AppError> {
 
     // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
-        if a1 == "keygen" {
+        if a1 == "create_client" {
             let state = AppState::new().await?;
-            let key = client_keygen(&state).await?;
+            let key = create_client(&state).await?;
             tracing::info!("ADMIN_KEY: {key}");
+        }
+
+        if a1 == "keygen" {
+            secret_generator()?;
+            tracing::info!("secret keys generated and saved!");
         }
 
         return Ok(());
