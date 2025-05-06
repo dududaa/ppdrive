@@ -1,37 +1,29 @@
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
-    http::request::Parts,
+    http::{header::AUTHORIZATION, request::Parts},
 };
 
 use crate::{
     errors::AppError,
-    models::{
-        permission::{Permission, PermissionGroup},
-        user::User,
-    },
+    models::user::{User, UserRole},
     state::AppState,
-    utils::tools::client::verify_client,
+    utils::{jwt::decode_jwt, tools::client::verify_client},
 };
 
 pub struct CurrentUser {
-    pub id: i32,
-    permission_group: PermissionGroup,
-    permissions: Option<Vec<Permission>>,
+    id: i32,
+    role: UserRole,
 }
 
 impl CurrentUser {
     /// Checks if [CurrentUser] can create assets
     pub fn can_create(&self) -> bool {
-        match self.permission_group {
-            PermissionGroup::Custom => {
-                let d = vec![];
-                let perms = self.permissions.as_ref().unwrap_or(&d);
-                let find_write = perms.iter().find(|perm| perm.default_write());
-                find_write.is_some()
-            }
-            _ => self.permission_group.default_write(),
-        }
+        matches!(self.role, UserRole::Creator)
+    }
+
+    pub fn id(&self) -> &i32 {
+        &self.id
     }
 }
 
@@ -73,10 +65,10 @@ where
 
 /// A user that client is making request for. This extractor MUST be added
 /// after [ClientRoute] to ensure that the client is valid.
-pub struct ClientUser(pub CurrentUser);
+pub struct ExtractUser(pub CurrentUser);
 
 #[async_trait]
-impl<S> FromRequestParts<S> for ClientUser
+impl<S> FromRequestParts<S> for ExtractUser
 where
     AppState: FromRef<S>,
     S: Send + Sync,
@@ -84,22 +76,17 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let x_user = parts.headers.get("x-ppd-user");
-        let user = x_user.map(|header| header.to_str().unwrap_or("").to_string());
-
-        match user {
-            Some(user_id) => {
+        match parts.headers.get(AUTHORIZATION) {
+            Some(x_user) => {
                 let state = AppState::from_ref(state);
-                let user = User::get_by_pid(&state, &user_id).await?;
+                let config = state.config();
 
-                let permission_group = PermissionGroup::try_from(*user.permission_group())?;
-                let permissions = user.permissions(&state).await?;
+                let claims = decode_jwt(x_user, config.jwt_secret())?;
+                let user = User::get(&state, &claims.sub).await?;
 
-                Ok(ClientUser(CurrentUser {
-                    id: *user.id(),
-                    permission_group,
-                    permissions,
-                }))
+                let id = user.id().to_owned();
+                let role = user.role().clone();
+                Ok(ExtractUser(CurrentUser { id, role }))
             }
             None => Err(AppError::AuthorizationError(
                 "missing 'x-ppd-user' header".to_string(),

@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use super::{asset::Asset, permission::Permission, IntoSerializer};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub enum UserRole {
     /// can only read assets
     Basic,
@@ -258,6 +258,10 @@ impl User {
 
     pub fn id(&self) -> &i32 {
         &self.id
+    }
+
+    pub fn role(&self) -> &UserRole {
+        &self.role
     }
 }
 

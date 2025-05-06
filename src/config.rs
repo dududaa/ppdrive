@@ -1,5 +1,3 @@
-use chacha20poly1305::{aead::OsRng, AeadCore, KeyInit, XChaCha20Poly1305};
-
 use crate::{
     errors::AppError,
     utils::{
