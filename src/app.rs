@@ -33,7 +33,8 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
             ACCESS_CONTROL_ALLOW_ORIGIN,
             CONTENT_TYPE,
             AUTHORIZATION,
-            HeaderName::from_static("x-client-id"),
+            HeaderName::from_static("x-ppd-client"),
+            HeaderName::from_static("x-ppd-user"),
         ])
         .allow_methods(Any);
 

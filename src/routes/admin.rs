@@ -17,7 +17,7 @@ use crate::{
 
 use crate::models::IntoSerializer;
 
-use super::extractors::AdminRoute;
+use super::extractors::ClientRoute;
 
 #[derive(Deserialize)]
 pub struct CreateUserRequest {
@@ -30,7 +30,7 @@ pub struct CreateUserRequest {
 #[debug_handler]
 async fn create_user(
     State(state): State<AppState>,
-    AdminRoute: AdminRoute,
+    ClientRoute: ClientRoute,
     Json(data): Json<CreateUserRequest>,
 ) -> Result<String, AppError> {
     let user_id = User::create(&state, data).await?;
@@ -42,7 +42,7 @@ async fn create_user(
 async fn get_user(
     Path(id): Path<String>,
     State(state): State<AppState>,
-    AdminRoute: AdminRoute,
+    ClientRoute: ClientRoute,
 ) -> Result<Json<UserSerializer>, AppError> {
     let user = User::get_by_pid(&state, &id).await?;
     let data = user.into_serializer(&state).await?;
@@ -54,7 +54,7 @@ async fn get_user(
 async fn delete_user(
     Path(id): Path<String>,
     State(state): State<AppState>,
-    AdminRoute: AdminRoute,
+    ClientRoute: ClientRoute,
 ) -> Result<String, AppError> {
     let user_id = id.parse::<i32>().map_err(|err| {
         AppError::InternalServerError(format!("unable to parse user id '{id}': {err}"))

@@ -3,7 +3,7 @@ use dotenv::dotenv;
 use errors::AppError;
 use state::AppState;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utils::{client_keygen, get_env};
+use utils::{get_env, tools::keygen::client_keygen};
 
 mod app;
 mod config;
