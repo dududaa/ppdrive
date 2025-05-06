@@ -19,7 +19,7 @@ use super::{asset::Asset, IntoSerializer, Permission};
 
 #[derive(FromRow)]
 pub struct User {
-    pub id: i32,
+    id: i32,
     pid: String,
     permission_group: i16,
     root_folder: Option<String>,
@@ -201,6 +201,10 @@ impl User {
 
     pub fn permission_group(&self) -> &i16 {
         &self.permission_group
+    }
+
+    pub fn id(&self) -> &i32 {
+        &self.id
     }
 }
 

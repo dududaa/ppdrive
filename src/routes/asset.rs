@@ -18,7 +18,7 @@ use crate::{
     state::AppState,
 };
 
-use super::extractors::UserExtractor;
+use super::extractors::{ClientRoute, ClientUser};
 
 #[debug_handler]
 async fn get_asset(
@@ -58,11 +58,12 @@ async fn get_asset(
 #[debug_handler]
 async fn create_asset(
     State(state): State<AppState>,
-    UserExtractor(current_user): UserExtractor,
+    ClientRoute: ClientRoute,
+    ClientUser(user): ClientUser,
     mut multipart: Multipart,
 ) -> Result<String, AppError> {
-    if current_user.can_create() {
-        let user_id = current_user.id;
+    if user.can_create() {
+        let user_id = user.id;
 
         let mut opts = CreateAssetOptions::default();
         let mut tmp_file = None;

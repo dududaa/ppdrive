@@ -104,7 +104,7 @@ impl Asset {
         // try to create asset record if it doesn't exist. If exists, update
         match Self::get_by_path(state, &path).await {
             Ok(exists) => {
-                if exists.user_id == user.id {
+                if &exists.user_id == user.id() {
                     let sf = SqlxFilters::new("public").to_query(bn);
                     let ff = SqlxFilters::new("user_id").to_query(bn);
                     let query = format!("UPDATE assets SET {sf} WHERE {ff}");
@@ -127,7 +127,7 @@ impl Asset {
                 sqlx::query(&query)
                     .bind(&path)
                     .bind(is_public.unwrap_or_default())
-                    .bind(user.id)
+                    .bind(user.id())
                     .execute(&conn)
                     .await?;
             }
