@@ -10,6 +10,8 @@ use crate::{
     utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
 };
 
+use super::permission::{Permission, PermissionGroup};
+
 #[derive(Default, Deserialize)]
 pub enum AssetType {
     #[default]
@@ -22,6 +24,13 @@ pub struct Asset {
     pub asset_path: String,
     pub user_id: i32,
     pub public: bool,
+}
+
+#[derive(Deserialize)]
+pub struct AssetSharing {
+    pub user_id: String,
+    pub permission_group: PermissionGroup,
+    pub permissions: Option<Vec<Permission>>,
 }
 
 #[derive(Default, Deserialize)]
@@ -39,6 +48,9 @@ pub struct CreateAssetOptions {
     /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
     /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.
     pub create_parents: Option<bool>,
+
+    /// Users to share this asset with. This can only be set if `public` option is false
+    pub sharing: Vec<AssetSharing>,
 }
 
 impl Asset {
@@ -68,6 +80,7 @@ impl Asset {
             public: is_public,
             asset_type,
             create_parents,
+            sharing,
         } = opts;
 
         let conn = state.db_pool().await;
@@ -107,6 +120,8 @@ impl Asset {
         }
 
         let bn = state.backend_name();
+        let is_public = is_public.unwrap_or_default();
+
         // try to create asset record if it doesn't exist. If exists, update
         match Self::get_by_path(state, &path).await {
             Ok(exists) => {
@@ -116,7 +131,7 @@ impl Asset {
                     let query = format!("UPDATE assets SET {sf} WHERE {ff}");
 
                     sqlx::query(&query)
-                        .bind(is_public.unwrap_or_default())
+                        .bind(is_public)
                         .bind(exists.user_id)
                         .execute(&conn)
                         .await?;
@@ -132,7 +147,7 @@ impl Asset {
                 let query = format!("INSERT INTO assets (asset_path, public, user_id) {values}");
                 sqlx::query(&query)
                     .bind(&path)
-                    .bind(is_public.unwrap_or_default())
+                    .bind(is_public)
                     .bind(user.id())
                     .execute(&conn)
                     .await?;

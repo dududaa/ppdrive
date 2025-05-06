@@ -65,7 +65,6 @@ impl From<UserRole> for i16 {
 pub struct User {
     id: i32,
     pid: String,
-    permission_group: i16,
 
     #[sqlx(try_from = "i16")]
     role: UserRole,
@@ -144,17 +143,17 @@ impl User {
         }
 
         let user_role: i16 = data.role.into();
-        let pg: i16 = data.permission_group.clone().into();
         let pid = Uuid::new_v4();
         let created_at = Utc::now().naive_local();
 
         let bn = state.backend_name();
-        let values = SqlxValues(6).to_query(bn);
+        let values = SqlxValues(5).to_query(bn);
 
-        let query = format!("INSERT INTO users (permission_group, pid, root_folder, folder_max_size, role, created_at) {values}");
+        let query = format!(
+            "INSERT INTO users (pid, root_folder, folder_max_size, role, created_at) {values}"
+        );
 
         sqlx::query(&query)
-            .bind(pg)
             .bind(pid.to_string())
             .bind(&data.root_folder)
             .bind(data.folder_max_size)
@@ -164,15 +163,6 @@ impl User {
             .await?;
 
         let user = User::get_by_pid(state, &pid.to_string()).await?;
-
-        if let PermissionGroup::Custom = data.permission_group {
-            if let Some(perms) = data.permissions {
-                for perm in perms {
-                    UserPermission::create(state, &user.id, perm).await?;
-                }
-            }
-        }
-
         Ok(user.pid)
     }
 
@@ -196,34 +186,6 @@ impl User {
         sqlx::query(&query).bind(self.id).execute(&conn).await?;
 
         Ok(())
-    }
-
-    pub async fn permissions(&self, state: &AppState) -> Result<Option<Vec<Permission>>, AppError> {
-        let pg = PermissionGroup::try_from(self.permission_group)?;
-        let perms = match pg {
-            PermissionGroup::Custom => {
-                let conn = state.db_pool().await;
-                let bn = state.backend_name();
-
-                let filters = SqlxFilters::new("id").to_query(bn);
-                let query = format!("SELECT * FROM user_permissions WHERE {filters}");
-
-                let user_perms = sqlx::query_as::<_, UserPermission>(&query)
-                    .bind(self.id)
-                    .fetch_all(&conn)
-                    .await?;
-
-                let mut perms = Vec::with_capacity(user_perms.len());
-                for perm in user_perms {
-                    perms.push(perm.try_into()?);
-                }
-
-                Some(perms)
-            }
-            _ => pg.default_permissions(),
-        };
-
-        Ok(perms)
     }
 
     async fn delete_permissions(state: &AppState, user_id: &i32) -> Result<(), AppError> {
@@ -250,10 +212,6 @@ impl User {
 
     pub fn root_folder(&self) -> &Option<String> {
         &self.root_folder
-    }
-
-    pub fn permission_group(&self) -> &i16 {
-        &self.permission_group
     }
 
     pub fn id(&self) -> &i32 {
@@ -314,28 +272,28 @@ impl TryFrom<UserPermission> for Permission {
 
 #[derive(Serialize)]
 pub struct UserSerializer {
-    pub permission_group: PermissionGroup,
-    pub permissions: Option<Vec<Permission>>,
-    pub created_at: String,
+    id: String,
+    email: Option<String>,
+    password: Option<String>,
+    created_at: String,
 }
 
 impl IntoSerializer for User {
     type Serializer = UserSerializer;
 
-    async fn into_serializer(self, state: &AppState) -> Result<Self::Serializer, AppError> {
-        let permissions = self.permissions(state).await?;
-
+    async fn into_serializer(self, _: &AppState) -> Result<Self::Serializer, AppError> {
         let User {
-            permission_group,
+            pid: id,
+            email,
+            password,
             created_at,
             ..
         } = self;
 
-        let permission_group = PermissionGroup::try_from(permission_group)?;
-
         Ok(UserSerializer {
-            permission_group,
-            permissions,
+            id,
+            email,
+            password,
             created_at: created_at.to_string(),
         })
     }
@@ -346,10 +304,7 @@ mod tests {
     use crate::{
         errors::AppError,
         main_test::pretest,
-        models::{
-            permission::PermissionGroup,
-            user::{User, UserRole},
-        },
+        models::user::{User, UserRole},
         routes::CreateUserRequest,
     };
 
@@ -357,8 +312,6 @@ mod tests {
     async fn test_create_user() -> Result<(), AppError> {
         let state = pretest().await?;
         let data = CreateUserRequest {
-            permissions: None,
-            permission_group: PermissionGroup::Full,
             root_folder: Some("test_user".to_string()),
             folder_max_size: None,
             role: UserRole::Basic,
