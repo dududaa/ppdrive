@@ -1,7 +1,6 @@
-use std::{env::VarError, fmt::Display};
+use std::{env::VarError, fmt::Display, string::FromUtf8Error};
 
-use axum::{extract::multipart::MultipartError, response::IntoResponse};
-use reqwest::StatusCode;
+use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoResponse};
 
 #[derive(Debug)]
 pub enum AppError {
@@ -32,12 +31,6 @@ impl Display for AppError {
 
 impl From<VarError> for AppError {
     fn from(value: VarError) -> Self {
-        AppError::InternalServerError(value.to_string())
-    }
-}
-
-impl From<reqwest::Error> for AppError {
-    fn from(value: reqwest::Error) -> Self {
         AppError::InternalServerError(value.to_string())
     }
 }
@@ -81,5 +74,11 @@ impl IntoResponse for AppError {
         };
 
         resp.into_response()
+    }
+}
+
+impl From<FromUtf8Error> for AppError {
+    fn from(value: FromUtf8Error) -> Self {
+        AppError::InitError(value.to_string())
     }
 }

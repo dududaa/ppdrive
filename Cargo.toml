@@ -16,10 +16,6 @@ tower-http = { version = "0.5.1", features = [
 ] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-reqwest = { version = "0.12.9", features = ["json", "rustls-tls"] }
-# diesel = { version = "2.2.0", features = ["postgres", "chrono", "uuid"] }
-# diesel_migrations = { version = "2.2.0", features = ["postgres"] }
-# diesel-async = { version = "0.5.2", features = ["postgres", "pool", "bb8", "tokio"] }
 dotenv = "0.15.0"
 chrono = "0.4.40"
 serde = "1.0.219"
@@ -36,3 +32,4 @@ sqlx = { version = "0.8", features = [
     "sqlite",
 ] }
 uuid = { version = "1.16.0", features = ["v4"] }
+jsonwebtoken = "9.3.1"

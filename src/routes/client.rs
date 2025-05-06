@@ -1,58 +1,63 @@
-use std::path::Path;
-
 use axum::{
-    body::Body,
-    extract::{Multipart, Path as ReqPath, State},
-    http::Response,
-    routing::{get, post},
-    Router,
+    extract::{Multipart, Path, State},
+    routing::{delete, get, post},
+    Json, Router,
 };
 use axum_macros::debug_handler;
-use reqwest::header;
 use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
 use crate::{
     errors::AppError,
-    models::asset::{Asset, CreateAssetOptions},
+    models::{
+        asset::{Asset, CreateAssetOptions},
+        user::{User, UserSerializer},
+        IntoSerializer,
+    },
     state::AppState,
 };
 
-use super::extractors::{ClientRoute, ClientUser};
+use super::{
+    extractors::{ClientRoute, ClientUser},
+    CreateUserRequest,
+};
 
 #[debug_handler]
-async fn get_asset(
-    ReqPath(asset_path): ReqPath<String>,
+async fn create_user(
     State(state): State<AppState>,
-) -> Result<Response<Body>, AppError> {
-    let asset = Asset::get_by_path(&state, &asset_path).await?;
+    ClientRoute: ClientRoute,
+    Json(data): Json<CreateUserRequest>,
+) -> Result<String, AppError> {
+    let user_id = User::create(&state, data).await?;
 
-    if asset.public {
-        let path = Path::new(&asset.asset_path);
+    Ok(user_id.to_string())
+}
 
-        if path.exists() {
-            if path.is_file() {
-                let content = tokio::fs::read(path).await?;
-                let mime_type = mime_guess::from_path(path).first_or_octet_stream();
-                let resp = Response::builder()
-                    .header(header::CONTENT_TYPE, mime_type.to_string())
-                    .body(Body::from(content))
-                    .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+#[debug_handler]
+async fn get_user(
+    Path(id): Path<String>,
+    State(state): State<AppState>,
+    ClientRoute: ClientRoute,
+) -> Result<Json<UserSerializer>, AppError> {
+    let user = User::get_by_pid(&state, &id).await?;
+    let data = user.into_serializer(&state).await?;
 
-                Ok(resp)
-            } else {
-                Err(AppError::NotImplemented(
-                    "folder view yet to be implemented".to_string(),
-                ))
-            }
-        } else {
-            Err(AppError::NotFound(format!(
-                "asset '{asset_path}' not found"
-            )))
-        }
-    } else {
-        Err(AppError::InternalServerError("access denied".to_string()))
-    }
+    Ok(Json(data))
+}
+
+#[debug_handler]
+async fn delete_user(
+    Path(id): Path<String>,
+    State(state): State<AppState>,
+    ClientRoute: ClientRoute,
+) -> Result<String, AppError> {
+    let user_id = id.parse::<i32>().map_err(|err| {
+        AppError::InternalServerError(format!("unable to parse user id '{id}': {err}"))
+    })?;
+    let user = User::get(&state, &user_id).await?;
+    user.delete(&state).await?;
+
+    Ok("operation successful".to_string())
 }
 
 #[debug_handler]
@@ -97,8 +102,10 @@ async fn create_asset(
     }
 }
 
-pub fn asset_routes() -> Router<AppState> {
+/// Routes to be requested by PPDRIVE [Client].
+pub fn client_routes() -> Router<AppState> {
     Router::new()
-        .route("/*asset_path", get(get_asset))
-        .route("/create", post(create_asset))
+        .route("/user", post(create_user))
+        .route("/user/:id", get(get_user))
+        .route("user/:id", delete(delete_user))
 }

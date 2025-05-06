@@ -11,7 +11,7 @@ use crate::{
         user::User,
     },
     state::AppState,
-    utils::tools::keygen::verify_client,
+    utils::tools::client::verify_client,
 };
 
 pub struct CurrentUser {

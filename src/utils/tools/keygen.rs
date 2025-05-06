@@ -1,56 +1,27 @@
-use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce};
+use std::env::set_var;
 
-use crate::{errors::AppError, models::client::Client, state::AppState};
+use chacha20poly1305::{aead::OsRng, AeadCore, KeyInit, XChaCha20Poly1305};
 
-pub async fn client_keygen(state: &AppState) -> Result<String, AppError> {
-    let client_id = Client::create(state).await?;
+use crate::errors::AppError;
 
-    let config = state.config();
-    let key = config.secret_key();
-    let nonce_key = config.nonce();
+pub const SECRET_KEY: &str = "PPDRIVE_SECRET";
+pub const NONCE_KEY: &str = "PPDRIVE_NONCE";
+pub const JWT_KEY: &str = "PPDRIVE_JWT_SECRET";
+pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
 
-    let nonce = XNonce::from_slice(nonce_key);
-    let cipher = XChaCha20Poly1305::new(key.into());
+pub fn secret_generator() -> Result<(), AppError> {
+    let secret_key = XChaCha20Poly1305::generate_key(&mut OsRng);
+    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+    let secret_api = XChaCha20Poly1305::generate_key(&mut OsRng);
 
-    let encrypt = cipher.encrypt(nonce, client_id.as_bytes())?;
-    let encode = hex::encode(&encrypt);
+    let secret_key = String::from_utf8(secret_key.to_vec())?;
+    let nonce = String::from_utf8(nonce.to_vec())?;
+    let secret_api = String::from_utf8(secret_api.to_vec())?;
 
-    Ok(encode)
-}
+    set_var(SECRET_KEY, secret_key);
+    set_var(NONCE_KEY, nonce);
+    set_var(JWT_KEY, secret_api);
+    set_var(BEARER_KEY, "Bearer");
 
-pub async fn verify_client(state: &AppState, payload: &str) -> Result<bool, AppError> {
-    let decode =
-        hex::decode(payload).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
-
-    let config = state.config();
-    let key = config.secret_key();
-    let nonce_key = config.nonce();
-
-    let cipher = XChaCha20Poly1305::new(key.into());
-    let nonce = XNonce::from_slice(nonce_key);
-
-    let decrypt = cipher.decrypt(nonce, decode.as_slice())?;
-    let id =
-        String::from_utf8(decrypt).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
-    let ok = Client::get(state, &id).await.is_ok();
-    Ok(ok)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{client_keygen, verify_client};
-    use crate::{errors::AppError, main_test::pretest};
-
-    #[tokio::test]
-    async fn test_keygen() -> Result<(), AppError> {
-        let state = pretest().await?;
-
-        let keygen = client_keygen(&state).await;
-        assert!(keygen.is_ok());
-
-        let verified = verify_client(&state, &keygen?).await?;
-        assert!(verified);
-
-        Ok(())
-    }
+    Ok(())
 }
