@@ -41,7 +41,6 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
             CONTENT_TYPE,
             AUTHORIZATION,
             HeaderName::from_static("x-ppd-client"),
-            HeaderName::from_static("x-ppd-user"),
         ])
         .allow_methods(Any);
 
