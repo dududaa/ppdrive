@@ -41,6 +41,7 @@ async fn create_asset(
 
         let mut opts = CreateAssetOptions::default();
         let mut tmp_file = None;
+        let mut filesize = None;
 
         while let Some(mut field) = multipart.next_field().await? {
             let name = field.name().unwrap_or("").to_string();
@@ -58,7 +59,19 @@ async fn create_asset(
                     file.write_all(&chunk).await?;
                 }
 
+                filesize = Some(file.metadata().await?.len());
                 tmp_file = Some(tmp_path);
+            }
+        }
+
+        let cfz = user.current_folder_size().await?;
+        if let (Some(ufz), Some(filesize), Some(max_size)) = (cfz, filesize, user.folder_max_size())
+        {
+            let total_size = ufz + filesize;
+            if total_size > (*max_size as u64) {
+                return Err(AppError::InternalServerError(
+                    "the total partition size assigned to this user is exceeded.".to_string(),
+                ));
             }
         }
 

@@ -21,8 +21,15 @@ mod extractors;
 
 #[derive(Deserialize)]
 pub struct CreateUserRequest {
+    /// folder name where user's assets are stored.
+    /// If this is not specified, user's assets will be stored in application root folder.
     pub root_folder: Option<String>,
+
+    /// max size set for user's `root` folder (in bytes).
+    /// When this is exceeded, user will no longer be able to create an asset.
     pub folder_max_size: Option<i64>,
+
+    /// User's role. Please see [UserRole](crate::models::user::UserRole).
     pub role: UserRole,
 }
 
