@@ -22,7 +22,7 @@ pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Cl
     validation.algorithms = vec![Algorithm::HS512];
 
     let decoded = decode::<Claims>(&token, &DecodingKey::from_secret(secret), &validation)
-        .map_err(|err| AppError::InternalServerError(format!("invalid token: {err}")))?;
+        .map_err(|err| AppError::AuthorizationError(format!("invalid token: {err}")))?;
 
     Ok(decoded.claims)
 }

@@ -2,7 +2,6 @@ use std::path::Path;
 
 use crate::{
     errors::AppError,
-    models::permission::PermissionGroup,
     routes::CreateUserRequest,
     state::AppState,
     utils::{
@@ -15,51 +14,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::{asset::Asset, permission::Permission, IntoSerializer};
-
-#[derive(Deserialize, Clone)]
-pub enum UserRole {
-    /// can only read assets
-    Basic,
-
-    /// full asset management
-    Creator,
-
-    /// full application management
-    Admin,
-}
-
-impl TryFrom<i16> for UserRole {
-    type Error = AppError;
-
-    fn try_from(value: i16) -> Result<Self, Self::Error> {
-        use UserRole::*;
-
-        if value == 0 {
-            Ok(Basic)
-        } else if value == 1 {
-            Ok(Creator)
-        } else if value == 2 {
-            Ok(Admin)
-        } else {
-            Err(AppError::AuthorizationError(format!(
-                "invalid user_role '{value}' "
-            )))
-        }
-    }
-}
-
-impl From<UserRole> for i16 {
-    fn from(value: UserRole) -> Self {
-        use UserRole::*;
-
-        match value {
-            Basic => 0,
-            Creator => 1,
-            Admin => 2,
-        }
-    }
-}
+use super::{asset::Asset, permission::AssetPermission, IntoSerializer};
 
 #[derive(FromRow)]
 pub struct User {
@@ -188,24 +143,19 @@ impl User {
         Ok(())
     }
 
-    async fn delete_permissions(state: &AppState, user_id: &i32) -> Result<(), AppError> {
-        UserPermission::delete_for_user(state, user_id).await
-    }
-
     /// Removes user permissions and assets. To be called inside or after [User::delete].
     async fn clean_up(
         state: &AppState,
         user_id: &i32,
         root_folder: &Option<String>,
     ) -> Result<(), AppError> {
-        User::delete_permissions(state, user_id).await?;
-
         // delete root_folder
         if let Some(root_folder) = root_folder {
             let path = Path::new(root_folder);
             tokio::fs::remove_dir(path).await?;
         }
 
+        AssetPermission::delete_for_user(state, user_id).await?;
         Asset::delete_for_user(state, user_id, root_folder.is_none()).await?;
         Ok(())
     }
@@ -224,53 +174,6 @@ impl User {
 
     pub fn folder_max_size(&self) -> &Option<i64> {
         &self.folder_max_size
-    }
-}
-
-#[derive(FromRow)]
-pub struct UserPermission {
-    pub user_id: i32,
-    pub permission: i16,
-}
-
-impl UserPermission {
-    async fn create(state: &AppState, user_id: &i32, perm: Permission) -> Result<(), AppError> {
-        let conn = state.db_pool().await;
-
-        let val: i16 = perm.into();
-
-        let bn = state.backend_name();
-        let values = SqlxValues(2).to_query(bn);
-        let query = format!("INSERT INTO user_permissions (user_id, permission) {values}");
-
-        sqlx::query(&query)
-            .bind(user_id)
-            .bind(val)
-            .execute(&conn)
-            .await?;
-
-        Ok(())
-    }
-
-    async fn delete_for_user(state: &AppState, user_id: &i32) -> Result<(), AppError> {
-        let conn = state.db_pool().await;
-        let bn = state.backend_name();
-
-        let filters = SqlxFilters::new("user_id").to_query(bn);
-        let query = format!("DELETE FROM user_permissions WHERE {filters}");
-
-        sqlx::query(&query).bind(user_id).execute(&conn).await?;
-
-        Ok(())
-    }
-}
-
-impl TryFrom<UserPermission> for Permission {
-    type Error = AppError;
-
-    fn try_from(value: UserPermission) -> Result<Self, Self::Error> {
-        let perm = Permission::try_from(value.permission)?;
-        Ok(perm)
     }
 }
 
@@ -340,5 +243,49 @@ mod tests {
 
         assert!(delete.is_ok());
         Ok(())
+    }
+}
+
+#[derive(Deserialize, Clone)]
+pub enum UserRole {
+    /// can only read assets
+    Basic,
+
+    /// full asset management
+    Creator,
+
+    /// full application management
+    Admin,
+}
+
+impl TryFrom<i16> for UserRole {
+    type Error = AppError;
+
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        use UserRole::*;
+
+        if value == 0 {
+            Ok(Basic)
+        } else if value == 1 {
+            Ok(Creator)
+        } else if value == 2 {
+            Ok(Admin)
+        } else {
+            Err(AppError::AuthorizationError(format!(
+                "invalid user_role '{value}' "
+            )))
+        }
+    }
+}
+
+impl From<UserRole> for i16 {
+    fn from(value: UserRole) -> Self {
+        use UserRole::*;
+
+        match value {
+            Basic => 0,
+            Creator => 1,
+            Admin => 2,
+        }
     }
 }

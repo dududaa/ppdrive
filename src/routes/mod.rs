@@ -53,8 +53,8 @@ pub async fn get_asset(
 ) -> Result<Response<Body>, AppError> {
     let asset = Asset::get_by_path(&state, &asset_path).await?;
 
-    if asset.public {
-        let path = StdPath::new(&asset.asset_path);
+    if *asset.public() {
+        let path = StdPath::new(asset.path());
 
         if path.exists() {
             if path.is_file() {
