@@ -1,4 +1,4 @@
 CREATE TABLE IF NOT EXISTS clients(
     id VARCHAR(36) PRIMARY KEY NOT NULL,
-    client_key TEXT NOT NULL,
+    client_key VARCHAR(300) NOT NULL
 )
