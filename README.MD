@@ -14,6 +14,12 @@ Are you creating or working on an application where you need to upload and manag
 - **Scalable**: Designed for scalability, making it suitable for both small and large projects.
 - **REST API**: Access your assets programmatically through a simple and well-documented REST API.
 
+#### Features (Roadmap)
+- Admin Ui
+- File Compression
+- File Conversion
+- Async Upload
+- File Streaming
 ---
 
 ## Getting Started
@@ -34,8 +40,12 @@ We welcome contributions to PPDRIVE! Here’s how you can help:
 
 6. Create a pull request.
 
+---
+
 ## License
 PPDRIVE is open-source software licensed under the MIT License.
+
+---
 
 ## Acknowledgments
 - Basable: PPDRIVE is part of our ongoing Basable community project. You can [find us on Discord](https://discord.gg/BeVPFS7wkp).
