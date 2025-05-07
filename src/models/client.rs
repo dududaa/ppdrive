@@ -7,7 +7,7 @@ use crate::{
 #[derive(sqlx::FromRow)]
 pub struct Client {
     id: String,
-    client_key: String,
+    name: String,
 }
 
 impl Client {
@@ -26,16 +26,16 @@ impl Client {
         Ok(client)
     }
 
-    pub async fn create(state: &AppState, id: &str, key: &str) -> Result<(), AppError> {
+    pub async fn create(state: &AppState, id: &str, name: &str) -> Result<(), AppError> {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
         let values = SqlxValues(2).to_query(bn);
-        let query = format!("INSERT INTO clients (id, client_key) {values}");
+        let query = format!("INSERT INTO clients (id, name) {values}");
 
         sqlx::query(&query)
             .bind(&id)
-            .bind(key)
+            .bind(name)
             .execute(&conn)
             .await?;
 

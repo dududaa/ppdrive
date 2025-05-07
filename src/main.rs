@@ -35,12 +35,15 @@ async fn main() -> Result<(), AppError> {
     // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
         if a1 == "create_client" {
-            let state = AppState::new().await?;
-            let key = create_client(&state).await?;
-            tracing::info!("ADMIN_KEY: {key}");
-        }
-
-        if a1 == "keygen" {
+            match args.get(2) {
+                Some(name) => {
+                    let state = AppState::new().await?;
+                    let key = create_client(&state, name).await?;
+                    tracing::info!("ADMIN_KEY: {key}");
+                }
+                None => tracing::error!("client creation failed: please specify client name."),
+            }
+        } else if a1 == "keygen" {
             secret_generator().await?;
             tracing::info!("secret keys generated and saved!");
         }

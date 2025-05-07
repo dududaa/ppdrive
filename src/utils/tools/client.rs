@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::{errors::AppError, models::client::Client, state::AppState};
 
-pub async fn create_client(state: &AppState) -> Result<String, AppError> {
+pub async fn create_client(state: &AppState, name: &str) -> Result<String, AppError> {
     let client_id = Uuid::new_v4();
     let client_id = client_id.to_string();
 
@@ -17,7 +17,7 @@ pub async fn create_client(state: &AppState) -> Result<String, AppError> {
     let encrypt = cipher.encrypt(nonce, client_id.as_bytes())?;
     let encode = hex::encode(&encrypt);
 
-    Client::create(state, &client_id, &encode).await?;
+    Client::create(state, &client_id, name).await?;
 
     Ok(encode)
 }
@@ -48,8 +48,9 @@ mod tests {
     #[tokio::test]
     async fn test_keygen() -> Result<(), AppError> {
         let state = pretest().await?;
+        let name = "Demo Client";
 
-        let keygen = create_client(&state).await;
+        let keygen = create_client(&state, name).await;
         assert!(keygen.is_ok());
 
         let verified = verify_client(&state, &keygen?).await?;
