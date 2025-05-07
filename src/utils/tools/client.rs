@@ -1,9 +1,11 @@
 use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce};
+use uuid::Uuid;
 
 use crate::{errors::AppError, models::client::Client, state::AppState};
 
 pub async fn create_client(state: &AppState) -> Result<String, AppError> {
-    let client_id = Client::create(state).await?;
+    let client_id = Uuid::new_v4();
+    let client_id = client_id.to_string();
 
     let config = state.config();
     let key = config.secret_key();
@@ -14,6 +16,8 @@ pub async fn create_client(state: &AppState) -> Result<String, AppError> {
 
     let encrypt = cipher.encrypt(nonce, client_id.as_bytes())?;
     let encode = hex::encode(&encrypt);
+
+    Client::create(state, &client_id, &encode).await?;
 
     Ok(encode)
 }

@@ -4,11 +4,10 @@ use crate::{
     utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
 };
 
-use uuid::Uuid;
-
 #[derive(sqlx::FromRow)]
 pub struct Client {
     id: String,
+    key: String,
 }
 
 impl Client {
@@ -27,21 +26,20 @@ impl Client {
         Ok(client)
     }
 
-    pub async fn create(state: &AppState) -> Result<String, AppError> {
+    pub async fn create(state: &AppState, id: &str, key: &str) -> Result<(), AppError> {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let values = SqlxValues(1).to_query(bn);
-        let query = format!("INSERT INTO clients (id) {values}");
+        let values = SqlxValues(2).to_query(bn);
+        let query = format!("INSERT INTO clients (id, key) {values}");
 
-        let uid = Uuid::new_v4();
-        let id = uid.to_string();
+        sqlx::query(&query)
+            .bind(&id)
+            .bind(key)
+            .execute(&conn)
+            .await?;
 
-        sqlx::query(&query).bind(&id).execute(&conn).await?;
-
-        tracing::info!("client created successfully!");
-
-        Ok(id)
+        Ok(())
     }
 
     pub fn id(&self) -> &str {
