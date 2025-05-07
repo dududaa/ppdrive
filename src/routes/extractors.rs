@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
@@ -81,7 +79,7 @@ where
                 }))
             }
             None => Err(AppError::AuthorizationError(
-                "missing 'x-ppd-user' header".to_string(),
+                "authorization header required".to_string(),
             )),
         }
     }

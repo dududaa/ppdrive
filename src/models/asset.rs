@@ -10,7 +10,7 @@ use crate::{
     utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
 };
 
-use super::permission::{Permission, PermissionGroup};
+use super::permission::{AssetPermission, Permission};
 
 #[derive(Default, Deserialize)]
 pub enum AssetType {
@@ -21,36 +21,10 @@ pub enum AssetType {
 
 #[derive(sqlx::FromRow)]
 pub struct Asset {
-    pub asset_path: String,
-    pub user_id: i32,
-    pub public: bool,
-}
-
-#[derive(Deserialize)]
-pub struct AssetSharing {
-    pub user_id: String,
-    pub permission_group: PermissionGroup,
-    pub permissions: Option<Vec<Permission>>,
-}
-
-#[derive(Default, Deserialize)]
-pub struct CreateAssetOptions {
-    /// Destination path where asset should be created
-    pub path: String,
-
-    /// The type of asset - whether it's a file or folder
-    pub asset_type: AssetType,
-
-    /// Asset's visibility. Public assets can be read/accessed by everyone. Private assets can be
-    /// viewed ONLY by permission.
-    pub public: Option<bool>,
-
-    /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
-    /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.
-    pub create_parents: Option<bool>,
-
-    /// Users to share this asset with. This can only be set if `public` option is false
-    pub sharing: Vec<AssetSharing>,
+    id: i32,
+    asset_path: String,
+    user_id: i32,
+    public: bool,
 }
 
 impl Asset {
@@ -123,7 +97,7 @@ impl Asset {
         let is_public = is_public.unwrap_or_default();
 
         // try to create asset record if it doesn't exist. If exists, update
-        match Self::get_by_path(state, &path).await {
+        let asset: Asset = match Self::get_by_path(state, &path).await {
             Ok(exists) => {
                 if &exists.user_id == user.id() {
                     let sf = SqlxFilters::new("public").to_query(bn);
@@ -135,11 +109,13 @@ impl Asset {
                         .bind(exists.user_id)
                         .execute(&conn)
                         .await?;
+
+                    Ok(exists)
                 } else {
                     tokio::fs::remove_file(&path).await?;
-                    return Err(AppError::AuthorizationError(
+                    Err(AppError::AuthorizationError(
                         "user has no permission to update asset".to_string(),
-                    ));
+                    ))
                 }
             }
             Err(_) => {
@@ -151,10 +127,62 @@ impl Asset {
                     .bind(user.id())
                     .execute(&conn)
                     .await?;
+
+                let asset = Asset::get_by_path(&state, &path).await?;
+                Ok(asset)
+            }
+        }?;
+
+        // create asset sharing as specified in options
+        if !is_public {
+            if let Some(sharing) = sharing {
+                for opt in sharing {
+                    let fellow = User::get_by_pid(&state, &opt.user_id).await;
+
+                    if let Err(err) = fellow {
+                        tracing::error!("error getting user to share asset with: {err}");
+                        continue;
+                    }
+
+                    let fellow = fellow?;
+                    let fellow_id = fellow.id();
+
+                    if opt.permissions.is_empty() {
+                        tracing::error!("permissions list must be specifed for a sharing option");
+                        continue;
+                    }
+
+                    for permission in opt.permissions {
+                        AssetPermission::create(&state, fellow_id, &asset.user_id, permission)
+                            .await?;
+                    }
+                }
             }
         }
 
         Ok(path)
+    }
+
+    pub async fn delete(state: &AppState, asset_path: &str) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
+
+        let filters = SqlxFilters::new("asset_path").to_query(bn);
+        let asset = sqlx::query_as::<_, Asset>(&format!("SELECT * FROM assets WHERE {filters}"))
+            .bind(asset_path)
+            .fetch_one(&conn)
+            .await?;
+
+        // delete asset permissions
+        AssetPermission::delete_for_asset(state, &asset.id).await?;
+
+        // delete asset
+        sqlx::query(&format!("DELETE FROM assets WHERE {filters}"))
+            .bind(asset_path)
+            .execute(&conn)
+            .await?;
+
+        Ok(())
     }
 
     pub async fn delete_for_user(
@@ -182,6 +210,9 @@ impl Asset {
         let query = format!("DELETE FROM assets WHERE {filters}");
         sqlx::query(&query).bind(user_id).execute(&conn).await?;
 
+        // delete all asset permissions for user
+        AssetPermission::delete_for_user(&state, user_id).await?;
+
         Ok(())
     }
 
@@ -195,4 +226,38 @@ impl Asset {
 
         Ok(())
     }
+
+    pub fn public(&self) -> &bool {
+        &self.public
+    }
+
+    pub fn path(&self) -> &str {
+        &self.asset_path
+    }
+}
+
+#[derive(Deserialize)]
+pub struct AssetSharing {
+    pub user_id: String,
+    pub permissions: Vec<Permission>,
+}
+
+#[derive(Default, Deserialize)]
+pub struct CreateAssetOptions {
+    /// Destination path where asset should be created
+    pub path: String,
+
+    /// The type of asset - whether it's a file or folder
+    pub asset_type: AssetType,
+
+    /// Asset's visibility. Public assets can be read/accessed by everyone. Private assets can be
+    /// viewed ONLY by permission.
+    pub public: Option<bool>,
+
+    /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
+    /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.
+    pub create_parents: Option<bool>,
+
+    /// Users to share this asset with. This can only be set if `public` option is false
+    pub sharing: Option<Vec<AssetSharing>>,
 }

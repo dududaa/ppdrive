@@ -29,7 +29,7 @@ async fn login_user(
     let LoginCredentials { id, exp, .. } = data;
 
     let user = User::get_by_pid(&state, &id).await?;
-    let exp = exp.unwrap_or(18_000);
+    let exp = exp.unwrap_or(18_000); // set default expiration to 5 hours
 
     let config = state.config();
     let token = create_jwt(user.id(), config.jwt_secret(), exp)?;
@@ -48,6 +48,7 @@ async fn delete_user(
     let user_id = id.parse::<i32>().map_err(|err| {
         AppError::InternalServerError(format!("unable to parse user id '{id}': {err}"))
     })?;
+
     let user = User::get(&state, &user_id).await?;
     user.delete(&state).await?;
 
@@ -59,5 +60,5 @@ pub fn client_routes() -> Router<AppState> {
     Router::new()
         .route("/user/register", post(create_user))
         .route("/user/login", post(login_user))
-        .route("/user", delete(delete_user))
+        .route("/user/:id", delete(delete_user))
 }

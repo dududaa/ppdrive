@@ -1,6 +1,6 @@
 use axum::{
     extract::{Multipart, Path, State},
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use axum_macros::debug_handler;
@@ -84,9 +84,20 @@ async fn create_asset(
     }
 }
 
+#[debug_handler]
+async fn delete_asset(
+    Path(asset_path): Path<String>,
+    State(state): State<AppState>,
+) -> Result<String, AppError> {
+    Asset::delete(&state, &asset_path).await?;
+
+    Ok("operation successful".to_string())
+}
+
 /// Routes accessible to creators
 pub fn creator_routes() -> Router<AppState> {
     Router::new()
         .route("/user", get(get_user))
         .route("/asset", post(create_asset))
+        .route("/asset", delete(delete_asset))
 }

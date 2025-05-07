@@ -1,63 +1,27 @@
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 
-use crate::errors::AppError;
+use crate::{
+    errors::AppError,
+    state::AppState,
+    utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
+};
 
 #[derive(Deserialize, Serialize, PartialEq)]
 pub enum Permission {
-    // write
-    CreateFile,
-    CreateFolder,
-    RenameFolder,
-    RenameFile,
-    ReplaceFile,
-
-    // read
-    ReadFile,
-    ReadFolder,
-
-    // delete
-    DeleteFile,
-    DeleteFolder,
-}
-
-impl Permission {
-    /// Checks if [Permission] provides read capacities by default
-    pub fn default_read(&self) -> bool {
-        [Self::ReadFile, Self::ReadFolder].contains(self)
-    }
-
-    /// Checks if [Permission] provides write capacities by default
-    pub fn default_write(&self) -> bool {
-        [
-            Self::CreateFile,
-            Self::CreateFolder,
-            Self::RenameFile,
-            Self::RenameFolder,
-            Self::ReplaceFile,
-            Self::ReadFile,
-            Self::ReadFolder,
-        ]
-        .contains(self)
-    }
-
-    /// Checks if [Permission] provides delete capacities by default
-    pub fn default_delete(&self) -> bool {
-        [Self::DeleteFile, Self::DeleteFolder].contains(self)
-    }
+    Create,
+    Read,
+    Update,
+    Delete,
 }
 
 impl From<Permission> for i16 {
     fn from(value: Permission) -> Self {
         match value {
-            Permission::CreateFile => 0,
-            Permission::CreateFolder => 1,
-            Permission::ReadFile => 2,
-            Permission::ReadFolder => 3,
-            Permission::RenameFile => 4,
-            Permission::RenameFolder => 5,
-            Permission::ReplaceFile => 6,
-            Permission::DeleteFile => 7,
-            Permission::DeleteFolder => 8,
+            Permission::Create => 0,
+            Permission::Read => 1,
+            Permission::Update => 2,
+            Permission::Delete => 3,
         }
     }
 }
@@ -67,15 +31,10 @@ impl TryFrom<i16> for Permission {
 
     fn try_from(value: i16) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(Permission::CreateFile),
-            1 => Ok(Permission::CreateFolder),
-            2 => Ok(Permission::ReadFile),
-            3 => Ok(Permission::ReadFolder),
-            4 => Ok(Permission::RenameFile),
-            5 => Ok(Permission::RenameFolder),
-            6 => Ok(Permission::ReplaceFile),
-            7 => Ok(Permission::DeleteFile),
-            8 => Ok(Permission::DeleteFolder),
+            0 => Ok(Permission::Create),
+            1 => Ok(Permission::Read),
+            2 => Ok(Permission::Update),
+            3 => Ok(Permission::Delete),
             _ => Err(AppError::ParsingError(format!(
                 "'{value}' is invalid permission."
             ))),
@@ -83,77 +42,61 @@ impl TryFrom<i16> for Permission {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
-pub enum PermissionGroup {
-    Full,
-    Read,
-    Write,
-    Delete,
-    Custom,
-    Null,
+#[derive(FromRow)]
+pub struct AssetPermission {
+    user_id: i32,
+    asset_id: i32,
+
+    #[sqlx(try_from = "i16")]
+    permission: Permission,
 }
 
-impl PermissionGroup {
-    pub fn default_permissions(&self) -> Option<Vec<Permission>> {
-        match self {
-            PermissionGroup::Read => Some(vec![Permission::ReadFile, Permission::ReadFolder]),
-            PermissionGroup::Write => Some(vec![
-                Permission::ReadFile,
-                Permission::ReadFolder,
-                Permission::CreateFile,
-                Permission::CreateFolder,
-                Permission::RenameFile,
-                Permission::RenameFolder,
-                Permission::ReplaceFile,
-            ]),
-            PermissionGroup::Delete => Some(vec![Permission::DeleteFile, Permission::DeleteFolder]),
-            _ => None,
-        }
+impl AssetPermission {
+    pub async fn create(
+        state: &AppState,
+        fellow_id: &i32,
+        asset_id: &i32,
+        permission: Permission,
+    ) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
+
+        let values = SqlxValues(3).to_query(bn);
+        let query =
+            format!("INSERT INTO asset_permissions (user_id, asset_id, permission) {values}");
+
+        let permission = i16::from(permission);
+        sqlx::query(&query)
+            .bind(fellow_id)
+            .bind(asset_id)
+            .bind(permission)
+            .execute(&conn)
+            .await?;
+
+        Ok(())
     }
 
-    /// Checks if [PermissionGroup] provides read capacities by default
-    pub fn default_read(&self) -> bool {
-        [Self::Full, Self::Read].contains(self)
+    pub async fn delete_for_asset(state: &AppState, asset_id: &i32) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
+
+        let filters = SqlxFilters::new("asset_id").to_query(bn);
+        let query = format!("DELETE FROM asset_permissions WHERE {filters}");
+
+        sqlx::query(&query).bind(asset_id).execute(&conn).await?;
+
+        Ok(())
     }
 
-    /// Checks if [PermissionGroup] provides write capacities by default
-    pub fn default_write(&self) -> bool {
-        [Self::Full, Self::Write].contains(self)
-    }
+    pub async fn delete_for_user(state: &AppState, user_id: &i32) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
 
-    /// Checks if [PermissionGroup] provides delete capacities by default
-    pub fn default_delete(&self) -> bool {
-        [Self::Full, Self::Delete].contains(self)
-    }
-}
+        let filters = SqlxFilters::new("user_id").to_query(bn);
+        let query = format!("DELETE FROM asset_permissions WHERE {filters}");
 
-impl From<PermissionGroup> for i16 {
-    fn from(value: PermissionGroup) -> Self {
-        match value {
-            PermissionGroup::Full => 0,
-            PermissionGroup::Read => 1,
-            PermissionGroup::Write => 2,
-            PermissionGroup::Delete => 3,
-            PermissionGroup::Custom => 4,
-            PermissionGroup::Null => 5,
-        }
-    }
-}
+        sqlx::query(&query).bind(user_id).execute(&conn).await?;
 
-impl TryFrom<i16> for PermissionGroup {
-    type Error = AppError;
-
-    fn try_from(value: i16) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(PermissionGroup::Full),
-            1 => Ok(PermissionGroup::Read),
-            2 => Ok(PermissionGroup::Write),
-            3 => Ok(PermissionGroup::Delete),
-            4 => Ok(PermissionGroup::Custom),
-            5 => Ok(PermissionGroup::Null),
-            _ => Err(AppError::ParsingError(format!(
-                "'{value}' is invalid permission group"
-            ))),
-        }
+        Ok(())
     }
 }
