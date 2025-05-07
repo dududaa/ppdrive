@@ -1,27 +1,46 @@
 use std::env::set_var;
 
 use chacha20poly1305::{aead::OsRng, AeadCore, KeyInit, XChaCha20Poly1305};
+use tokio::io::AsyncWriteExt;
 
 use crate::errors::AppError;
 
-pub const SECRET_KEY: &str = "PPDRIVE_SECRET";
-pub const NONCE_KEY: &str = "PPDRIVE_NONCE";
-pub const JWT_KEY: &str = "PPDRIVE_JWT_SECRET";
 pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
+pub const SECRET_FILE: &str = ".ppdrive_secret";
 
-pub fn secret_generator() -> Result<(), AppError> {
+pub async fn secret_generator() -> Result<(), AppError> {
     let secret_key = XChaCha20Poly1305::generate_key(&mut OsRng);
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
-    let secret_api = XChaCha20Poly1305::generate_key(&mut OsRng);
+    let jwt_secret = XChaCha20Poly1305::generate_key(&mut OsRng);
 
-    let secret_key = String::from_utf8(secret_key.to_vec())?;
-    let nonce = String::from_utf8(nonce.to_vec())?;
-    let secret_api = String::from_utf8(secret_api.to_vec())?;
+    let mut secrets = tokio::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(SECRET_FILE)
+        .await?;
 
-    set_var(SECRET_KEY, secret_key);
-    set_var(NONCE_KEY, nonce);
-    set_var(JWT_KEY, secret_api);
+    secrets.write_all(secret_key.as_slice()).await?;
+    secrets.write_all(nonce.as_slice()).await?;
+    secrets.write_all(jwt_secret.as_slice()).await?;
+
     set_var(BEARER_KEY, "Bearer");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{errors::AppError, utils::tools::keygen::secret_generator};
+
+    #[tokio::test]
+    async fn test_client_keygen() -> Result<(), AppError> {
+        let keygen = secret_generator().await;
+
+        if let Err(err) = &keygen {
+            println!("keygen err: {err}")
+        }
+
+        assert!(keygen.is_ok());
+        Ok(())
+    }
 }

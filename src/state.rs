@@ -42,7 +42,7 @@ impl AppState {
         let db = Arc::new(Mutex::new(pool));
 
         let backend_name = conn.backend_name().try_into()?;
-        let config = Arc::new(AppConfig::build()?);
+        let config = Arc::new(AppConfig::build().await?);
         let s = Self {
             db,
             backend_name,

@@ -1,10 +1,8 @@
-use crate::{
-    errors::AppError,
-    utils::{
-        get_env,
-        tools::keygen::{JWT_KEY, NONCE_KEY, SECRET_KEY},
-    },
-};
+use std::io::SeekFrom;
+
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
+
+use crate::{errors::AppError, utils::tools::keygen::SECRET_FILE};
 
 /// App configurations sharable across [AppState](crate::AppState).
 pub struct AppConfig {
@@ -14,20 +12,25 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn build() -> Result<Self, AppError> {
-        let public_key = get_env(SECRET_KEY)?;
-        let public_key = Vec::from(public_key.as_bytes());
+    pub async fn build() -> Result<Self, AppError> {
+        let mut secrets = tokio::fs::File::open(SECRET_FILE).await?;
 
-        let nonce = get_env(NONCE_KEY)?;
-        let nonce = Vec::from(nonce.as_bytes());
+        let mut secret_key = [0; 32];
+        let mut nonce = [0; 24];
+        let mut jwt_secret = [0; 32];
 
-        let jwt_secret = get_env(JWT_KEY)?;
-        let jwt_secret = Vec::from(jwt_secret.as_bytes());
+        secrets.read_exact(&mut secret_key).await?;
+        secrets.seek(SeekFrom::Start(32)).await?;
+
+        secrets.read_exact(&mut nonce).await?;
+        secrets.seek(SeekFrom::Start(32 + 24)).await?;
+
+        secrets.read_exact(&mut jwt_secret).await?;
 
         Ok(Self {
-            secret_key: public_key.to_vec(),
-            secret_nonce: nonce.to_vec(),
-            jwt_secret,
+            secret_key: Vec::from(secret_key),
+            secret_nonce: Vec::from(nonce),
+            jwt_secret: Vec::from(jwt_secret),
         })
     }
 
@@ -41,5 +44,24 @@ impl AppConfig {
 
     pub fn jwt_secret(&self) -> &[u8] {
         self.jwt_secret.as_slice()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{config::AppConfig, errors::AppError};
+
+    #[tokio::test]
+    async fn test_config_build() -> Result<(), AppError> {
+        let config = AppConfig::build().await?;
+
+        let secret_key = config.secret_key();
+        let nonce = config.nonce();
+        let jwt = config.jwt_secret();
+
+        assert_eq!((secret_key.len(), nonce.len(), jwt.len()), (32, 24, 32));
+        assert!(secret_key != jwt);
+
+        Ok(())
     }
 }
