@@ -41,7 +41,7 @@ async fn main() -> Result<(), AppError> {
         }
 
         if a1 == "keygen" {
-            secret_generator()?;
+            secret_generator().await?;
             tracing::info!("secret keys generated and saved!");
         }
 
