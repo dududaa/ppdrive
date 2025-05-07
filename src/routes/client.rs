@@ -5,7 +5,12 @@ use axum::{
 };
 use axum_macros::debug_handler;
 
-use crate::{errors::AppError, models::user::User, state::AppState, utils::jwt::create_jwt};
+use crate::{
+    errors::AppError,
+    models::user::{User, UserRole},
+    state::AppState,
+    utils::jwt::create_jwt,
+};
 
 use super::{extractors::ClientRoute, CreateUserRequest, LoginCredentials, LoginToken};
 
@@ -50,9 +55,15 @@ async fn delete_user(
     })?;
 
     let user = User::get(&state, &user_id).await?;
-    user.delete(&state).await?;
-
-    Ok("operation successful".to_string())
+    match user.role() {
+        UserRole::Admin => Err(AppError::AuthorizationError(
+            "client cannot delete admin".to_string(),
+        )),
+        _ => {
+            user.delete(&state).await?;
+            Ok("operation successful".to_string())
+        }
+    }
 }
 
 /// Routes to be requested by PPDRIVE [Client].

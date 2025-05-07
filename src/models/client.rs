@@ -7,7 +7,7 @@ use crate::{
 #[derive(sqlx::FromRow)]
 pub struct Client {
     id: String,
-    key: String,
+    client_key: String,
 }
 
 impl Client {
@@ -31,7 +31,7 @@ impl Client {
         let bn = state.backend_name();
 
         let values = SqlxValues(2).to_query(bn);
-        let query = format!("INSERT INTO clients (id, key) {values}");
+        let query = format!("INSERT INTO clients (id, client_key) {values}");
 
         sqlx::query(&query)
             .bind(&id)
