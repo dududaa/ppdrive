@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
@@ -8,22 +10,80 @@ use crate::{
     errors::AppError,
     models::user::{User, UserRole},
     state::AppState,
-    utils::{jwt::decode_jwt, tools::client::verify_client},
+    utils::{fs::check_folder_size, jwt::decode_jwt, tools::client::verify_client},
 };
 
 pub struct CurrentUser {
     id: i32,
     role: UserRole,
+    root_folder: Option<String>,
+    folder_max_size: Option<i64>,
 }
 
 impl CurrentUser {
     /// Checks if [CurrentUser] can create assets
     pub fn can_create(&self) -> bool {
-        matches!(self.role, UserRole::Creator)
+        !matches!(self.role, UserRole::Basic)
     }
 
     pub fn id(&self) -> &i32 {
         &self.id
+    }
+
+    pub fn folder_max_size(&self) -> &Option<i64> {
+        &self.folder_max_size
+    }
+
+    pub async fn current_folder_size(&self) -> Result<Option<u64>, AppError> {
+        let mut size = None;
+        if let Some(folder) = &self.root_folder {
+            let mut folder_size = 0;
+
+            check_folder_size(folder, &mut folder_size).await?;
+            size = Some(folder_size)
+        }
+
+        Ok(size)
+    }
+}
+
+/// A user that client is making request for. This extractor MUST be added
+/// after [ClientRoute] to ensure that the client is valid.
+pub struct ExtractUser(pub CurrentUser);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for ExtractUser
+where
+    AppState: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        match parts.headers.get(AUTHORIZATION) {
+            Some(x_user) => {
+                let state = AppState::from_ref(state);
+                let config = state.config();
+
+                let claims = decode_jwt(x_user, config.jwt_secret())?;
+                let user = User::get(&state, &claims.sub).await?;
+
+                let id = user.id().to_owned();
+                let role = user.role().clone();
+                let root_folder = user.root_folder().clone();
+                let folder_max_size = user.folder_max_size().clone();
+
+                Ok(ExtractUser(CurrentUser {
+                    id,
+                    role,
+                    root_folder,
+                    folder_max_size,
+                }))
+            }
+            None => Err(AppError::AuthorizationError(
+                "missing 'x-ppd-user' header".to_string(),
+            )),
+        }
     }
 }
 
@@ -58,38 +118,6 @@ where
             }
             _ => Err(AppError::AuthorizationError(
                 "missing 'x-client-key' headers".to_string(),
-            )),
-        }
-    }
-}
-
-/// A user that client is making request for. This extractor MUST be added
-/// after [ClientRoute] to ensure that the client is valid.
-pub struct ExtractUser(pub CurrentUser);
-
-#[async_trait]
-impl<S> FromRequestParts<S> for ExtractUser
-where
-    AppState: FromRef<S>,
-    S: Send + Sync,
-{
-    type Rejection = AppError;
-
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        match parts.headers.get(AUTHORIZATION) {
-            Some(x_user) => {
-                let state = AppState::from_ref(state);
-                let config = state.config();
-
-                let claims = decode_jwt(x_user, config.jwt_secret())?;
-                let user = User::get(&state, &claims.sub).await?;
-
-                let id = user.id().to_owned();
-                let role = user.role().clone();
-                Ok(ExtractUser(CurrentUser { id, role }))
-            }
-            None => Err(AppError::AuthorizationError(
-                "missing 'x-ppd-user' header".to_string(),
             )),
         }
     }

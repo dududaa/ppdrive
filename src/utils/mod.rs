@@ -1,3 +1,4 @@
+pub mod fs;
 pub mod jwt;
 pub mod sqlx_ext;
 pub mod sqlx_utils;

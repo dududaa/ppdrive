@@ -221,6 +221,10 @@ impl User {
     pub fn role(&self) -> &UserRole {
         &self.role
     }
+
+    pub fn folder_max_size(&self) -> &Option<i64> {
+        &self.folder_max_size
+    }
 }
 
 #[derive(FromRow)]
