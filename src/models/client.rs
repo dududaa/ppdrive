@@ -15,7 +15,7 @@ impl Client {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("id").to_query(bn);
+        let filters = SqlxFilters::new("id", 1).to_query(bn);
         let query = format!("SELECT * FROM clients WHERE {filters}");
 
         let client = sqlx::query_as::<_, Client>(&query)
@@ -30,7 +30,7 @@ impl Client {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let values = SqlxValues(2).to_query(bn);
+        let values = SqlxValues(2, 1).to_query(bn);
         let query = format!("INSERT INTO clients (id, name) {values}");
 
         sqlx::query(&query)

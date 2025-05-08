@@ -38,7 +38,7 @@ impl User {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("id").to_query(bn);
+        let filters = SqlxFilters::new("id", 1).to_query(bn);
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
@@ -54,7 +54,7 @@ impl User {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("pid").to_query(bn);
+        let filters = SqlxFilters::new("pid", 1).to_query(bn);
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
@@ -70,7 +70,7 @@ impl User {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("root_folder").to_query(bn);
+        let filters = SqlxFilters::new("root_folder", 1).to_query(bn);
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
@@ -102,7 +102,7 @@ impl User {
         let created_at = Utc::now().naive_local();
 
         let bn = state.backend_name();
-        let values = SqlxValues(5).to_query(bn);
+        let values = SqlxValues(5, 1).to_query(bn);
 
         let query = format!(
             "INSERT INTO users (pid, root_folder, folder_max_size, role, created_at) {values}"
@@ -135,7 +135,7 @@ impl User {
             }
         });
 
-        let filters = SqlxFilters::new("id").to_query(bn);
+        let filters = SqlxFilters::new("id", 1).to_query(bn);
         let query = format!("DELETE from users WHERE {filters}");
 
         sqlx::query(&query).bind(self.id).execute(&conn).await?;

@@ -71,7 +71,7 @@ async fn main() -> Result<(), AppError> {
         .ok()
         .unwrap_or(DEFAULT_PORT.to_string());
 
-    let router = create_app().await?;
+    let app = create_app().await?;
 
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await {
         Ok(listener) => {
@@ -79,7 +79,7 @@ async fn main() -> Result<(), AppError> {
                 tracing::info!("listening on {addr}");
             }
 
-            axum::serve(listener, router)
+            axum::serve(listener, app)
                 .await
                 .map_err(|err| AppError::InitError(err.to_string()))?;
         }

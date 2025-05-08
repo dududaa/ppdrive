@@ -65,8 +65,8 @@ where
 
                 let claims = decode_jwt(x_user, config.jwt_secret())?;
                 let user = User::get(&state, &claims.sub).await?;
-
                 let id = user.id().to_owned();
+
                 let role = user.role().clone();
                 let root_folder = user.root_folder().clone();
                 let folder_max_size = user.folder_max_size().clone();
