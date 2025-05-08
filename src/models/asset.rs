@@ -32,7 +32,7 @@ impl Asset {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("asset_path").to_query(bn);
+        let filters = SqlxFilters::new("asset_path", 1).to_query(bn);
         let query = format!("SELECT * FROM assets WHERE {filters}");
 
         let asset = sqlx::query_as::<_, Asset>(&query)
@@ -100,16 +100,18 @@ impl Asset {
         let asset: Asset = match Self::get_by_path(state, &path).await {
             Ok(exists) => {
                 if &exists.user_id == user.id() {
-                    let sf = SqlxFilters::new("public").to_query(bn);
-                    let ff = SqlxFilters::new("user_id").to_query(bn);
+                    let sf = SqlxFilters::new("public", 1).to_query(bn);
+                    let ff = SqlxFilters::new("user_id", 2).to_query(bn);
                     let query = format!("UPDATE assets SET {sf} WHERE {ff}");
 
+                    tracing::info!("query {query} {is_public} {}", exists.user_id);
                     sqlx::query(&query)
                         .bind(is_public)
                         .bind(exists.user_id)
                         .execute(&conn)
                         .await?;
 
+                    tracing::info!("asset created/updated");
                     Ok(exists)
                 } else {
                     tokio::fs::remove_file(&path).await?;
@@ -119,7 +121,7 @@ impl Asset {
                 }
             }
             Err(_) => {
-                let values = SqlxValues(3).to_query(bn);
+                let values = SqlxValues(3, 1).to_query(bn);
                 let query = format!("INSERT INTO assets (asset_path, public, user_id) {values}");
                 sqlx::query(&query)
                     .bind(&path)
@@ -167,7 +169,7 @@ impl Asset {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("asset_path").to_query(bn);
+        let filters = SqlxFilters::new("asset_path", 1).to_query(bn);
         let asset = sqlx::query_as::<_, Asset>(&format!("SELECT * FROM assets WHERE {filters}"))
             .bind(asset_path)
             .fetch_one(&conn)
@@ -193,7 +195,7 @@ impl Asset {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("user_id").to_query(bn);
+        let filters = SqlxFilters::new("user_id", 1).to_query(bn);
 
         if remove_files {
             let query = format!("SELECT * FROM assets WHERE {filters}");

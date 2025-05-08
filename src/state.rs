@@ -18,8 +18,8 @@ pub async fn create_db_pool() -> Result<AnyPool, AppError> {
 
     install_default_drivers();
     let connection_url = get_env("DATABASE_URL")?;
+
     let pool = AnyPoolOptions::new()
-        .max_connections(100)
         .connect(&connection_url)
         .await
         .map_err(|err| AppError::InitError(err.to_string()))?;

@@ -61,7 +61,7 @@ impl AssetPermission {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let values = SqlxValues(3).to_query(bn);
+        let values = SqlxValues(3, 1).to_query(bn);
         let query =
             format!("INSERT INTO asset_permissions (user_id, asset_id, permission) {values}");
 
@@ -80,7 +80,7 @@ impl AssetPermission {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("asset_id").to_query(bn);
+        let filters = SqlxFilters::new("asset_id", 1).to_query(bn);
         let query = format!("DELETE FROM asset_permissions WHERE {filters}");
 
         sqlx::query(&query).bind(asset_id).execute(&conn).await?;
@@ -92,7 +92,7 @@ impl AssetPermission {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("user_id").to_query(bn);
+        let filters = SqlxFilters::new("user_id", 1).to_query(bn);
         let query = format!("DELETE FROM asset_permissions WHERE {filters}");
 
         sqlx::query(&query).bind(user_id).execute(&conn).await?;

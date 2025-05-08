@@ -4,6 +4,9 @@ use std::fmt::Display;
 /// Generates compatible SQL string for defined Sqlx types
 pub trait ToQuery {
     fn to_query(&self, bn: &BackendName) -> String;
+    fn offset(&self) -> &u8 {
+        &1
+    }
 }
 
 #[derive(Clone)]
@@ -60,12 +63,14 @@ impl Display for Filter<'_> {
 /// ```
 pub struct SqlxFilters<'a> {
     items: Vec<Filter<'a>>,
+    offset: u8,
 }
 
 impl<'a> SqlxFilters<'a> {
-    pub fn new(col: &'a str) -> Self {
+    pub fn new(col: &'a str, offset: u8) -> Self {
         SqlxFilters {
             items: Vec::from([Filter::Base(col)]),
+            offset,
         }
     }
 
@@ -81,13 +86,17 @@ impl<'a> SqlxFilters<'a> {
 }
 
 impl ToQuery for SqlxFilters<'_> {
+    fn offset(&self) -> &u8 {
+        &self.offset
+    }
+
     fn to_query(&self, bn: &BackendName) -> String {
         let output: Vec<String> = self
             .items
             .iter()
             .enumerate()
             .map(|(i, s)| match bn {
-                BackendName::Postgres => format!("{} = ${}", s, i + 1),
+                BackendName::Postgres => format!("{} = ${}", s, (i as u8) + self.offset()),
                 _ => format!("{} = ?", s),
             })
             .collect();
@@ -105,14 +114,17 @@ impl ToQuery for SqlxFilters<'_> {
 /// let values = SqlxValues(3);
 /// values.to_query(bn); // VALUES($1, $2, $3)
 /// ```
-pub struct SqlxValues(pub u8);
+pub struct SqlxValues(pub u8, pub u8);
 impl ToQuery for SqlxValues {
+    fn offset(&self) -> &u8 {
+        &self.1
+    }
     fn to_query(&self, bn: &BackendName) -> String {
         let mut values = Vec::with_capacity(self.0 as usize);
 
         for i in 0..self.0 {
             match bn {
-                BackendName::Postgres => values.push(format!("${}", i + 1)),
+                BackendName::Postgres => values.push(format!("${}", (i as u8) + self.offset())),
                 _ => values.push("?".to_string()),
             }
         }
@@ -130,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_sqlx_filters_pg() {
-        let filters = SqlxFilters::new("id");
+        let filters = SqlxFilters::new("id", 1);
         let bn = BackendName::Postgres;
 
         assert_eq!(&filters.to_query(&bn), "id = $1");
@@ -141,18 +153,18 @@ mod tests {
 
     #[test]
     fn test_sqlx_values_pg() {
-        let values = SqlxValues(1);
+        let values = SqlxValues(1, 1);
         let bn = BackendName::Postgres;
 
         assert_eq!(&values.to_query(&bn), "VALUES($1)");
 
-        let values = SqlxValues(3);
+        let values = SqlxValues(3, 1);
         assert_eq!(&values.to_query(&bn), "VALUES($1, $2, $3)");
     }
 
     #[test]
     fn test_sqlx_filters_mysql() {
-        let filters = SqlxFilters::new("id");
+        let filters = SqlxFilters::new("id", 1);
         let bn = BackendName::Mysql;
 
         assert_eq!(&filters.to_query(&bn), "id = ?");
@@ -163,12 +175,12 @@ mod tests {
 
     #[test]
     fn test_sqlx_values_mysql() {
-        let values = SqlxValues(1);
+        let values = SqlxValues(1, 1);
         let bn = BackendName::Mysql;
 
         assert_eq!(&values.to_query(&bn), "VALUES(?)");
 
-        let values = SqlxValues(3);
+        let values = SqlxValues(3, 1);
         assert_eq!(&values.to_query(&bn), "VALUES(?, ?, ?)");
     }
 }
