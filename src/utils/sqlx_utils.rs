@@ -124,7 +124,7 @@ impl ToQuery for SqlxValues {
 
         for i in 0..self.0 {
             match bn {
-                BackendName::Postgres => values.push(format!("${}", (i as u8) + self.offset())),
+                BackendName::Postgres => values.push(format!("${}", i + self.offset())),
                 _ => values.push("?".to_string()),
             }
         }

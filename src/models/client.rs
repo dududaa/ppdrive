@@ -34,7 +34,7 @@ impl Client {
         let query = format!("INSERT INTO clients (id, name) {values}");
 
         sqlx::query(&query)
-            .bind(&id)
+            .bind(id)
             .bind(name)
             .execute(&conn)
             .await?;

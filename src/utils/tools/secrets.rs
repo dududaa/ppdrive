@@ -14,6 +14,7 @@ pub async fn generate() -> Result<(), AppError> {
 
     let mut secrets = tokio::fs::OpenOptions::new()
         .create(true)
+        .truncate(true)
         .write(true)
         .open(SECRET_FILE)
         .await?;
