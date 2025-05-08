@@ -20,10 +20,8 @@ pub async fn check_folder_size(folder_path: &str, size: &mut u64) -> Result<(), 
         if path.is_file() {
             let m = path.metadata()?;
             *size += m.len()
-        } else {
-            if let Some(folder) = path.to_str() {
-                Box::pin(check_folder_size(folder, size)).await?;
-            }
+        } else if let Some(folder) = path.to_str() {
+            Box::pin(check_folder_size(folder, size)).await?;
         }
     }
 

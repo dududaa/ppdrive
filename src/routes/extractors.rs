@@ -69,7 +69,7 @@ where
 
                 let role = user.role().clone();
                 let root_folder = user.root_folder().clone();
-                let folder_max_size = user.folder_max_size().clone();
+                let folder_max_size = *user.folder_max_size();
 
                 Ok(ExtractUser(CurrentUser {
                     id,

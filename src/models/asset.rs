@@ -104,14 +104,12 @@ impl Asset {
                     let ff = SqlxFilters::new("user_id", 2).to_query(bn);
                     let query = format!("UPDATE assets SET {sf} WHERE {ff}");
 
-                    tracing::info!("query {query} {is_public} {}", exists.user_id);
                     sqlx::query(&query)
                         .bind(is_public)
                         .bind(exists.user_id)
                         .execute(&conn)
                         .await?;
 
-                    tracing::info!("asset created/updated");
                     Ok(exists)
                 } else {
                     tokio::fs::remove_file(&path).await?;
@@ -130,7 +128,7 @@ impl Asset {
                     .execute(&conn)
                     .await?;
 
-                let asset = Asset::get_by_path(&state, &path).await?;
+                let asset = Asset::get_by_path(state, &path).await?;
                 Ok(asset)
             }
         }?;
@@ -139,7 +137,7 @@ impl Asset {
         if !is_public {
             if let Some(sharing) = sharing {
                 for opt in sharing {
-                    let fellow = User::get_by_pid(&state, &opt.user_id).await;
+                    let fellow = User::get_by_pid(state, &opt.user_id).await;
 
                     if let Err(err) = fellow {
                         tracing::error!("error getting user to share asset with: {err}");
@@ -155,7 +153,7 @@ impl Asset {
                     }
 
                     for permission in opt.permissions {
-                        AssetPermission::create(&state, fellow_id, &asset.user_id, permission)
+                        AssetPermission::create(state, fellow_id, &asset.user_id, permission)
                             .await?;
                     }
                 }
@@ -213,7 +211,7 @@ impl Asset {
         sqlx::query(&query).bind(user_id).execute(&conn).await?;
 
         // delete all asset permissions for user
-        AssetPermission::delete_for_user(&state, user_id).await?;
+        AssetPermission::delete_for_user(state, user_id).await?;
 
         Ok(())
     }
