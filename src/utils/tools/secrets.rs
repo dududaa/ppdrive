@@ -1,14 +1,13 @@
-use std::env::set_var;
-
 use chacha20poly1305::{aead::OsRng, AeadCore, KeyInit, XChaCha20Poly1305};
 use tokio::io::AsyncWriteExt;
 
 use crate::errors::AppError;
 
 pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
+pub const BEARER_VALUE: &str = "Bearer";
 pub const SECRET_FILE: &str = ".ppdrive_secret";
 
-pub async fn secret_generator() -> Result<(), AppError> {
+pub async fn generate() -> Result<(), AppError> {
     let secret_key = XChaCha20Poly1305::generate_key(&mut OsRng);
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
     let jwt_secret = XChaCha20Poly1305::generate_key(&mut OsRng);
@@ -23,18 +22,16 @@ pub async fn secret_generator() -> Result<(), AppError> {
     secrets.write_all(nonce.as_slice()).await?;
     secrets.write_all(jwt_secret.as_slice()).await?;
 
-    set_var(BEARER_KEY, "Bearer");
-
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{errors::AppError, utils::tools::keygen::secret_generator};
+    use crate::{errors::AppError, utils::tools::secrets::generate};
 
     #[tokio::test]
     async fn test_client_keygen() -> Result<(), AppError> {
-        let keygen = secret_generator().await;
+        let keygen = generate().await;
 
         if let Err(err) = &keygen {
             println!("keygen err: {err}")

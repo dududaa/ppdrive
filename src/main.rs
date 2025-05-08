@@ -1,3 +1,5 @@
+use std::env::set_var;
+
 use crate::app::create_app;
 use dotenv::dotenv;
 use errors::AppError;
@@ -5,7 +7,10 @@ use state::AppState;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::{
     get_env,
-    tools::{client::create_client, keygen::secret_generator},
+    tools::{
+        client::{create_client, regenerate_token},
+        secrets::{generate, BEARER_KEY, BEARER_VALUE},
+    },
 };
 
 mod app;
@@ -20,6 +25,7 @@ const DEFAULT_PORT: &str = "5000";
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
+    set_var(BEARER_KEY, BEARER_VALUE);
     dotenv().ok();
 
     tracing_subscriber::registry()
@@ -34,17 +40,26 @@ async fn main() -> Result<(), AppError> {
 
     // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
-        if a1 == "create_client" {
+        if ["create_client", "new_token"].contains(&a1.as_str()) {
+            let is_new = a1 == "create_client";
             match args.get(2) {
-                Some(name) => {
+                Some(spec) => {
                     let state = AppState::new().await?;
-                    let key = create_client(&state, name).await?;
-                    tracing::info!("ADMIN_KEY: {key}");
+                    let token = if is_new {
+                        create_client(&state, spec).await?
+                    } else {
+                        regenerate_token(&state, spec)?
+                    };
+
+                    tracing::info!("ADMIN_KEY: {token}");
                 }
-                None => tracing::error!("client creation failed: please specify client name."),
+                None => {
+                    let spec = if is_new { "name" } else { "id" };
+                    tracing::error!("client creation failed: please specify client {spec}.")
+                }
             }
-        } else if a1 == "keygen" {
-            secret_generator().await?;
+        } else if a1 == "xgen" {
+            generate().await?;
             tracing::info!("secret keys generated and saved!");
         }
 
