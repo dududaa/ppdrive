@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::AppError;
 
-use super::{get_env, tools::keygen::BEARER_KEY};
+use super::{get_env, tools::secrets::BEARER_KEY};
 
 #[derive(Deserialize, Serialize)]
 pub struct Claims {

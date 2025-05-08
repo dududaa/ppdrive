@@ -2,7 +2,7 @@ use std::io::SeekFrom;
 
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-use crate::{errors::AppError, utils::tools::keygen::SECRET_FILE};
+use crate::{errors::AppError, utils::tools::secrets::SECRET_FILE};
 
 /// App configurations sharable across [AppState](crate::AppState).
 pub struct AppConfig {

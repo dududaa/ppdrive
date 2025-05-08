@@ -3,10 +3,8 @@ use uuid::Uuid;
 
 use crate::{errors::AppError, models::client::Client, state::AppState};
 
-pub async fn create_client(state: &AppState, name: &str) -> Result<String, AppError> {
-    let client_id = Uuid::new_v4();
-    let client_id = client_id.to_string();
-
+/// generate a token for client's id
+fn generate_token(state: &AppState, client_id: &str) -> Result<String, AppError> {
     let config = state.config();
     let key = config.secret_key();
     let nonce_key = config.nonce();
@@ -17,14 +15,23 @@ pub async fn create_client(state: &AppState, name: &str) -> Result<String, AppEr
     let encrypt = cipher.encrypt(nonce, client_id.as_bytes())?;
     let encode = hex::encode(&encrypt);
 
-    Client::create(state, &client_id, name).await?;
-
     Ok(encode)
 }
 
-pub async fn verify_client(state: &AppState, payload: &str) -> Result<bool, AppError> {
-    let decode =
-        hex::decode(payload).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
+/// creates a new client and returns the client's key
+pub async fn create_client(state: &AppState, name: &str) -> Result<String, AppError> {
+    let client_id = Uuid::new_v4();
+    let client_id = client_id.to_string();
+
+    let token = generate_token(state, &client_id)?;
+    Client::create(state, &client_id, name).await?;
+
+    Ok(token)
+}
+
+/// validates a client token
+pub async fn verify_client(state: &AppState, token: &str) -> Result<bool, AppError> {
+    let decode = hex::decode(token).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
 
     let config = state.config();
     let key = config.secret_key();
@@ -38,6 +45,10 @@ pub async fn verify_client(state: &AppState, payload: &str) -> Result<bool, AppE
         String::from_utf8(decrypt).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
     let ok = Client::get(state, &id).await.is_ok();
     Ok(ok)
+}
+
+pub fn regenerate_token(state: &AppState, client_id: &str) -> Result<String, AppError> {
+    generate_token(state, client_id)
 }
 
 #[cfg(test)]
