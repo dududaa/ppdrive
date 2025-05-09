@@ -89,7 +89,9 @@ components:
 
         root_folder:
           type: string
-          description: specify root folder user.
+          description: |
+            Folder name where user's assets are stored. If this is not specified,
+            user's assets will be stored in application root folder.
 
         folder_max_size:
           type: integer
