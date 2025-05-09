@@ -20,9 +20,14 @@ async fn create_user(
     ClientRoute: ClientRoute,
     Json(data): Json<CreateUserRequest>,
 ) -> Result<String, AppError> {
-    let user_id = User::create(&state, data).await?;
+    match data.role {
+        UserRole::Admin => Err(AppError::InternalServerError("client cannot create admin user".to_string())),
+        _ => {
+            let user_id = User::create(&state, data).await?;
+            Ok(user_id.to_string())
+        }
+    }
 
-    Ok(user_id.to_string())
 }
 
 #[debug_handler]

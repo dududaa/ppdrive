@@ -51,7 +51,7 @@ async fn main() -> Result<(), AppError> {
                         regenerate_token(&state, spec)?
                     };
 
-                    tracing::info!("ADMIN_KEY: {token}");
+                    tracing::info!("CLIENT_TOKEN: {token}");
                 }
                 None => {
                     let spec = if is_new { "name" } else { "id" };
