@@ -19,10 +19,13 @@ Are you creating or working on an application that needs manage files? **PPDRIVE
 - File Conversion: Convert files from one format to another.
 - Async Upload: Upload large files in the background.
 - File Streaming: Enable file streaming (for video and audio streaming platforms)
+
 ---
 
 ## Getting Started
 Please see the [Getting Started](https://prodbyola.github.io/ppdrive/#/) section of the docs.
+
+---
 
 ## Contributing
 We welcome contributions to PPDRIVE! Here’s how you can help:
@@ -50,6 +53,6 @@ PPDRIVE is open-source software licensed under the MIT License.
 - Basable: PPDRIVE is part of our ongoing Basable community project. You can [find us on Discord](https://discord.gg/BeVPFS7wkp).
 - Rust: The systems programming language used to build PPDRIVE.
 - Axum: A Rust-based web application framework that focuses on ergonomics and modularity.
-- Diesel: Rust ORM crate that offers a high level query builder and lets you think about your problems in Rust, not SQL 😊.
+- Sqlx: The async SQL toolkit for Rust, built with ❤️ by the LaunchBadge team.
 - Docker: For containerizing the service.
 - Community: Thanks to the open-source community for their valuable contributions!
