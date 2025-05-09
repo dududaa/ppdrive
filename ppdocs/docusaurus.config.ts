@@ -10,7 +10,7 @@ const config: Config = {
   favicon: "img/ppdrive.png",
 
   // Set the production url of your site here
-  url: "https://ppdrive.github.io",
+  url: "https://prodbyola.github.io/ppdrive",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: "/",
