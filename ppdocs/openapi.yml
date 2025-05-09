@@ -1,0 +1,105 @@
+openapi: 3.1.0
+
+info:
+  title: PPDRIVE
+  version: 0.26.71
+  summary: Intgratable and Secure File Manager
+  description: |
+    PPDRIVE is a powerful, standalone file manager written in Rust,
+    designed for seamless integration into other applications
+    via a RESTful API.
+
+servers:
+  - url: http://localhost:5000
+    description: A local demo server
+
+security:
+  - clientKey: []
+  - userAuth: []
+
+paths:
+  /{asset_path}:
+    get:
+      deprecated: false
+      summary: Get Asset
+      description: |
+        Serve an asset (file or folder) from the provided asset path.
+      parameters:
+        - in: path
+          name: asset_path
+          schema:
+            type: string
+          description: |
+            This either the asset's original path or a custom_path set when
+            the asset was created.
+          required: true
+
+  /client/user/register:
+    post:
+      deprecated: false
+      summary: Create User
+      description: Register a new user
+      tags:
+        - Client
+      security:
+        - clientKey: []
+
+      requestBody:
+        description: Options for creating a new user
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserOptions"
+
+tags:
+  - client:
+    name: Client
+    description: |
+      Client routes are accesible only to a verifiable PPDRIVE `Client`.
+      A client is an external application capable of authorizing users
+      and managing assets on PPDRIVE.
+
+      To access these routes, you need to provide your client's `token`
+      by adding the token to `x-ppd-client` header of your requests.
+      You can generate a client token by running `ppdrive create_client
+      {client_name}` or via the Admin UI.
+
+components:
+  securitySchemes:
+    clientKey:
+      type: apiKey
+      scheme: https
+      in: header
+      name: x-ppd-client
+
+    userAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Bearer
+
+  schemas:
+    CreateUserOptions:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [Basic, Creator]
+          description: the user's role
+
+        root_folder:
+          type: string
+          description: specify root folder user.
+
+        folder_max_size:
+          type: integer
+          description: |
+            Max size (in bytes) to be assiged to the user. This should be set
+            only if `root_folder` is set. Otherwise, it would be ignored.
+
+      example:
+        role: Creator
+        root_folder: prodbyola
+
+      required:
+        - role
