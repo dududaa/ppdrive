@@ -55,12 +55,14 @@ async fn main() -> Result<(), AppError> {
                 }
                 None => {
                     let spec = if is_new { "name" } else { "id" };
-                    tracing::error!("client creation failed: please specify client {spec}.")
+                    panic!("client creation failed: please specify client {spec}.")
                 }
             }
         } else if a1 == "xgen" {
             generate().await?;
             tracing::info!("secret keys generated and saved!");
+        } else {
+            panic!("unknown command {}", a1)
         }
 
         return Ok(());
