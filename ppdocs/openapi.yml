@@ -3,7 +3,7 @@ openapi: 3.1.0
 info:
   title: PPDRIVE
   version: 0.26.71
-  summary: Intgratable and Secure File Manager
+  summary: PPDRIVE - an integratable and secure file manager
   description: |
     PPDRIVE is a powerful, standalone file manager written in Rust,
     designed for seamless integration into other applications
