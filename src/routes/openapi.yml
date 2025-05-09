@@ -13,7 +13,8 @@ paths:
   /{asset_path}:
     get:
       deprecated: false
-      summary: Serve an asset (file or folder) from the provided asset path.
+      summary: Get Asset
+      description: Serve an asset (file or folder) from the provided asset path.
       parameters:
         - in: path
           name: asset_path
@@ -26,7 +27,8 @@ paths:
   /client/user/register:
     post:
       deprecated: false
-      summary: Register a new user
+      summary: Create User
+      description: Register a new user
       tags:
         - client
 
