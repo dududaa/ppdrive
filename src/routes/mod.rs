@@ -53,6 +53,16 @@ pub async fn get_asset(
 ) -> Result<Response<Body>, AppError> {
     let asset = Asset::get_by_path(&state, &asset_path).await?;
 
+    // if asset has custom path and custom path is not provided in url,
+    // we return an error. The purpose of custom path is to conceal the
+    // original path
+    if let Some(custom_path) = asset.custom_path() {
+        if custom_path != &asset_path {
+            return Err(AppError::NotFound("asset not found".to_string()));
+        }
+    }
+
+    // find and serve asset
     if *asset.public() {
         let path = StdPath::new(asset.path());
 

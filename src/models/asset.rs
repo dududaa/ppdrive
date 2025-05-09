@@ -7,7 +7,7 @@ use crate::{
     errors::AppError,
     models::user::User,
     state::AppState,
-    utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
+    utils::sqlx_utils::{SqlxFilters, SqlxSetters, SqlxValues, ToQuery},
 };
 
 use super::permission::{AssetPermission, Permission};
@@ -23,6 +23,7 @@ pub enum AssetType {
 pub struct Asset {
     id: i32,
     asset_path: String,
+    custom_path: Option<String>,
     user_id: i32,
     public: bool,
 }
@@ -32,7 +33,9 @@ impl Asset {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("asset_path", 1).to_query(bn);
+        let filters = SqlxFilters::new("asset_path", 1)
+            .or("custom_path")
+            .to_query(bn);
         let query = format!("SELECT * FROM assets WHERE {filters}");
 
         let asset = sqlx::query_as::<_, Asset>(&query)
@@ -53,9 +56,21 @@ impl Asset {
             path,
             public: is_public,
             asset_type,
+            custom_path,
             create_parents,
             sharing,
         } = opts;
+
+        if let Some(custom_path) = &custom_path {
+            let exist = Self::get_by_path(state, custom_path).await;
+            if let Ok(exist) = exist {
+                if exist.asset_path != path {
+                    return Err(AppError::InternalServerError(format!(
+                        r#"asset with custom_path "{custom_path}" already exists."#
+                    )));
+                }
+            }
+        }
 
         let conn = state.db_pool().await;
         let user = User::get(state, user_id).await?;
@@ -100,12 +115,15 @@ impl Asset {
         let asset: Asset = match Self::get_by_path(state, &path).await {
             Ok(exists) => {
                 if &exists.user_id == user.id() {
-                    let sf = SqlxFilters::new("public", 1).to_query(bn);
-                    let ff = SqlxFilters::new("user_id", 2).to_query(bn);
+                    let sf = SqlxSetters::new("public", 1)
+                        .add("custom_path")
+                        .to_query(bn);
+                    let ff = SqlxFilters::new("user_id", 3).to_query(bn);
                     let query = format!("UPDATE assets SET {sf} WHERE {ff}");
 
                     sqlx::query(&query)
                         .bind(is_public)
+                        .bind(custom_path)
                         .bind(exists.user_id)
                         .execute(&conn)
                         .await?;
@@ -119,11 +137,14 @@ impl Asset {
                 }
             }
             Err(_) => {
-                let values = SqlxValues(3, 1).to_query(bn);
-                let query = format!("INSERT INTO assets (asset_path, public, user_id) {values}");
+                let values = SqlxValues(4, 1).to_query(bn);
+                let query = format!(
+                    "INSERT INTO assets (asset_path, public, custom_path, user_id) {values}"
+                );
                 sqlx::query(&query)
                     .bind(&path)
                     .bind(is_public)
+                    .bind(custom_path)
                     .bind(user.id())
                     .execute(&conn)
                     .await?;
@@ -234,6 +255,10 @@ impl Asset {
     pub fn path(&self) -> &str {
         &self.asset_path
     }
+
+    pub fn custom_path(&self) -> &Option<String> {
+        &self.custom_path
+    }
 }
 
 #[derive(Deserialize)]
@@ -253,6 +278,14 @@ pub struct CreateAssetOptions {
     /// Asset's visibility. Public assets can be read/accessed by everyone. Private assets can be
     /// viewed ONLY by permission.
     pub public: Option<bool>,
+
+    /// Set a custom path for your asset instead of the one auto-generated from
+    /// from `path`. This useful if you'd like to conceal your original asset path.
+    /// Custom path must be available in that no other asset is already using it in the entire app.
+    ///
+    /// Your original asset path makes url look like this `https://mydrive.com/images/somewhere/my-image.png/`.
+    /// Using custom path, you can conceal the original path: `https://mydrive.com/some/hidden-path`
+    pub custom_path: Option<String>,
 
     /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
     /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.

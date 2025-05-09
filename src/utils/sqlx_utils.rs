@@ -4,9 +4,6 @@ use std::fmt::Display;
 /// Generates compatible SQL string for defined Sqlx types
 pub trait ToQuery {
     fn to_query(&self, bn: &BackendName) -> String;
-    fn offset(&self) -> &u8 {
-        &1
-    }
 }
 
 #[derive(Clone)]
@@ -86,17 +83,13 @@ impl<'a> SqlxFilters<'a> {
 }
 
 impl ToQuery for SqlxFilters<'_> {
-    fn offset(&self) -> &u8 {
-        &self.offset
-    }
-
     fn to_query(&self, bn: &BackendName) -> String {
         let output: Vec<String> = self
             .items
             .iter()
             .enumerate()
             .map(|(i, s)| match bn {
-                BackendName::Postgres => format!("{} = ${}", s, (i as u8) + self.offset()),
+                BackendName::Postgres => format!("{} = ${}", s, (i as u8) + self.offset),
                 _ => format!("{} = ?", s),
             })
             .collect();
@@ -116,21 +109,53 @@ impl ToQuery for SqlxFilters<'_> {
 /// ```
 pub struct SqlxValues(pub u8, pub u8);
 impl ToQuery for SqlxValues {
-    fn offset(&self) -> &u8 {
-        &self.1
-    }
     fn to_query(&self, bn: &BackendName) -> String {
         let mut values = Vec::with_capacity(self.0 as usize);
 
         for i in 0..self.0 {
             match bn {
-                BackendName::Postgres => values.push(format!("${}", i + self.offset())),
+                BackendName::Postgres => values.push(format!("${}", i + self.1)),
                 _ => values.push("?".to_string()),
             }
         }
 
         let values = values.join(", ");
         format!("VALUES({values})")
+    }
+}
+
+pub struct SqlxSetters<'a> {
+    items: Vec<&'a str>,
+    offset: u8,
+}
+
+impl<'a> SqlxSetters<'a> {
+    pub fn new(col: &'a str, offset: u8) -> Self {
+        Self {
+            items: vec![col],
+            offset,
+        }
+    }
+
+    pub fn add(mut self, col: &'a str) -> Self {
+        self.items.push(col);
+        self
+    }
+}
+
+impl ToQuery for SqlxSetters<'_> {
+    fn to_query(&self, bn: &BackendName) -> String {
+        let out: Vec<String> = self
+            .items
+            .iter()
+            .enumerate()
+            .map(|(i, col)| match bn {
+                BackendName::Postgres => format!("{col} = {}", (i as u8) + self.offset),
+                _ => format!("{col} = ?"),
+            })
+            .collect();
+
+        out.join(", ")
     }
 }
 
