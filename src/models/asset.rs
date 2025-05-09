@@ -181,6 +181,7 @@ impl Asset {
             }
         }
 
+        let path = asset.custom_path.unwrap_or(asset.asset_path);
         Ok(path)
     }
 
