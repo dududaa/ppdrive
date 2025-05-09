@@ -1,25 +1,24 @@
 # PPDRIVE
 
-Are you creating or working on an application where you need to upload and manage files? **PPDRIVE** is a self-hosted, self-contained and pluggable service for digital assets management. It allows you to seamlessly upload, manage, store, and access your application files or assets while providing flexibile integration into various environments.
+Are you creating or working on an application that needs manage files? **PPDRIVE** is a powerful, standalone file manager written in Rust, designed for seamless integration into other applications via a RESTful API. Whether you're building a complex backend system or need a standalone file server with authentication and file-level permissions, PPDRIVE provides a robust, secure, and extensible solution.
 
 ---
 
-## Features
-- **Asset Upload and Retrieval**: Upload files and attachments from your applications with ease. Privately or publicly retrieve your assets via browser compatible API endpoints.
-- **Self-Hosted**: Set up and run your own instance of PPDrive on your server.
-- **Self-Contained**: Everything you need is packaged together into a single executable program, reducing external dependencies.
-- **Pluggable**: Easily integrate PPDRIVE into your existing applications and favorite frameworks.
-- **Secure**: Provides robust security features (JWT authentication support, user permissions...etc) to keep your assets safe.
-- **Framework Agnostic**: PPDRIVE works with any programming language or framework that can send REST API requests 😉.
-- **Scalable**: Designed for scalability, making it suitable for both small and large projects.
-- **REST API**: Access your assets programmatically through a simple and well-documented REST API.
+## 🚀 Features
+
+- ⚙️ **REST API Interface** — Interact with the file system programmatically from any external application.
+- 🔐 **Authentication & Authorization** — Built-in support for user authentication and per-file permissions.
+- 🧩 **Pluggable Integration** — Easily integrate into existing backends or operate as a standalone executable.
+- 📦 **Prebuilt Executables** — Install and run with no setup required.
+- 🧾 **File & Directory Operations** — Upload, download, rename, delete, and move files or folders.
+- 🔒 **Secure by Default** — Runs with secure configurations and minimal surface area.
 
 #### Features (Roadmap)
-- Admin Ui
-- File Compression
-- File Conversion
-- Async Upload
-- File Streaming
+- Admin UI: Administrative client for managing your drive visually.
+- File Compression: Compress files on the fly or any convenient time.
+- File Conversion: Convert files from one format to another.
+- Async Upload: Upload large files in the background.
+- File Streaming: Enable file streaming (for video and audio streaming platforms)
 ---
 
 ## Getting Started
