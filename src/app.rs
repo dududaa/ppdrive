@@ -45,7 +45,7 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
         .allow_methods(Any);
 
     let router = Router::new()
-        .route("/*asset_path", get(get_asset))
+        .route("/:asset_type/*asset_path", get(get_asset))
         .nest("/client", client_routes())
         .nest("/manager", manager_routes())
         .layer(

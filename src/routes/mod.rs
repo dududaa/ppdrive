@@ -72,10 +72,11 @@ pub struct CreateAssetOptions {
 
 #[debug_handler]
 pub async fn get_asset(
-    Path(asset_path): Path<String>,
+    Path((asset_type, asset_path)): Path<(String, String)>,
     State(state): State<AppState>,
 ) -> Result<Response<Body>, AppError> {
-    let asset = Asset::get_by_path(&state, &asset_path).await?;
+    let asset_type: AssetType = serde_json::from_str(&asset_type)?;
+    let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
 
     // if asset has custom path and custom path is not provided in url,
     // we return an error. The purpose of custom path is to conceal the

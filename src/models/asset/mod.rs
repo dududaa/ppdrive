@@ -25,6 +25,35 @@ pub enum AssetType {
     Folder,
 }
 
+impl TryFrom<i16> for AssetType {
+    type Error = AppError;
+
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        use AssetType::*;
+
+        if value == 0 {
+            Ok(File)
+        } else if value == 1 {
+            Ok(Folder)
+        } else {
+            Err(AppError::ParsingError(format!(
+                "invalid asset_type {value}"
+            )))
+        }
+    }
+}
+
+impl From<&AssetType> for i16 {
+    fn from(value: &AssetType) -> Self {
+        use AssetType::*;
+
+        match value {
+            File => 0,
+            Folder => 1,
+        }
+    }
+}
+
 #[derive(sqlx::FromRow)]
 pub struct Asset {
     id: i32,
@@ -32,20 +61,33 @@ pub struct Asset {
     custom_path: Option<String>,
     user_id: i32,
     public: bool,
+
+    #[sqlx(try_from = "i16")]
+    asset_type: AssetType,
 }
 
 impl Asset {
-    pub async fn get_by_path(state: &AppState, path: &str) -> Result<Self, AppError> {
+    pub async fn get_by_path(
+        state: &AppState,
+        path: &str,
+        asset_type: &AssetType,
+    ) -> Result<Self, AppError> {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
+        let asset_type: i16 = asset_type.into();
+
         let filters = SqlxFilters::new("asset_path", 1)
             .or("custom_path")
+            .and("asset_type")
             .to_query(bn);
+
         let query = format!("SELECT * FROM assets WHERE {filters}");
 
         let asset = sqlx::query_as::<_, Asset>(&query)
             .bind(path)
+            .bind(path)
+            .bind(asset_type)
             .fetch_one(&conn)
             .await?;
 
@@ -69,7 +111,7 @@ impl Asset {
 
         // validate custom_path
         if let Some(custom_path) = &custom_path {
-            validate_custom_path(state, custom_path, &path, &tmp).await?;
+            validate_custom_path(state, custom_path, &path, asset_type, &tmp).await?;
         }
 
         let user = User::get(state, user_id).await?;
@@ -103,6 +145,7 @@ impl Asset {
             is_public: &Some(is_public),
             custom_path: &custom_path,
             user_id: user.id(),
+            asset_type,
         };
 
         let asset = create_or_update_asset(state, opts, &tmp).await?;
@@ -120,13 +163,22 @@ impl Asset {
         Ok(path)
     }
 
-    pub async fn delete(state: &AppState, asset_path: &str) -> Result<(), AppError> {
+    pub async fn delete(
+        state: &AppState,
+        asset_path: &str,
+        asset_type: &AssetType,
+    ) -> Result<(), AppError> {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("asset_path", 1).to_query(bn);
+        let asset_type: i16 = asset_type.into();
+        let filters = SqlxFilters::new("asset_path", 1)
+            .and("asset_type")
+            .to_query(bn);
+
         let asset = sqlx::query_as::<_, Asset>(&format!("SELECT * FROM assets WHERE {filters}"))
             .bind(asset_path)
+            .bind(&asset_type)
             .fetch_one(&conn)
             .await?;
 
