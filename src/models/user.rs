@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     errors::AppError,
-    routes::CreateUserRequest,
+    routes::CreateUserOptions,
     state::AppState,
     utils::{
         sqlx_ext::AnyDateTime,
@@ -82,7 +82,7 @@ impl User {
         user.ok()
     }
 
-    pub async fn create(state: &AppState, data: CreateUserRequest) -> Result<String, AppError> {
+    pub async fn create(state: &AppState, data: CreateUserOptions) -> Result<String, AppError> {
         let conn = state.db_pool().await;
 
         // check if someone already owns root folder
@@ -212,13 +212,13 @@ mod tests {
         errors::AppError,
         main_test::pretest,
         models::user::{User, UserRole},
-        routes::CreateUserRequest,
+        routes::CreateUserOptions,
     };
 
     #[tokio::test]
     async fn test_create_user() -> Result<(), AppError> {
         let state = pretest().await?;
-        let data = CreateUserRequest {
+        let data = CreateUserOptions {
             root_folder: Some("test_user".to_string()),
             folder_max_size: None,
             role: UserRole::Basic,
@@ -252,7 +252,7 @@ pub enum UserRole {
     Basic,
 
     /// full asset management
-    Creator,
+    Manager,
 
     /// full application management
     Admin,
@@ -267,7 +267,7 @@ impl TryFrom<i16> for UserRole {
         if value == 0 {
             Ok(Basic)
         } else if value == 1 {
-            Ok(Creator)
+            Ok(Manager)
         } else if value == 2 {
             Ok(Admin)
         } else {
@@ -284,7 +284,7 @@ impl From<UserRole> for i16 {
 
         match value {
             Basic => 0,
-            Creator => 1,
+            Manager => 1,
             Admin => 2,
         }
     }

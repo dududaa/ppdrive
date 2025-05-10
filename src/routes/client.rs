@@ -12,22 +12,23 @@ use crate::{
     utils::jwt::create_jwt,
 };
 
-use super::{extractors::ClientRoute, CreateUserRequest, LoginCredentials, LoginToken};
+use super::{extractors::ClientRoute, CreateUserOptions, LoginCredentials, LoginToken};
 
 #[debug_handler]
 async fn create_user(
     State(state): State<AppState>,
     ClientRoute: ClientRoute,
-    Json(data): Json<CreateUserRequest>,
+    Json(data): Json<CreateUserOptions>,
 ) -> Result<String, AppError> {
     match data.role {
-        UserRole::Admin => Err(AppError::InternalServerError("client cannot create admin user".to_string())),
+        UserRole::Admin => Err(AppError::InternalServerError(
+            "client cannot create admin user".to_string(),
+        )),
         _ => {
             let user_id = User::create(&state, data).await?;
             Ok(user_id.to_string())
         }
     }
-
 }
 
 #[debug_handler]
