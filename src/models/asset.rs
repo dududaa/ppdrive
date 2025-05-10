@@ -74,7 +74,7 @@ impl Asset {
 
         let conn = state.db_pool().await;
         let user = User::get(state, user_id).await?;
-
+create_parents
         let folder = user.root_folder().as_deref();
         let path = folder.map_or(path.clone(), |rf| format!("{rf}/{path}"));
 

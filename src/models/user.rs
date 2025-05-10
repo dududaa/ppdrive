@@ -24,8 +24,8 @@ pub struct User {
     #[sqlx(try_from = "i16")]
     role: UserRole,
 
-    root_folder: Option<String>,
-    folder_max_size: Option<i64>,
+    partition: Option<String>,
+    partition_size: Option<i64>,
     email: Option<String>,
     password: Option<String>,
 
@@ -86,10 +86,10 @@ impl User {
         let conn = state.db_pool().await;
 
         // check if someone already owns root folder
-        if let Some(folder) = &data.root_folder {
+        if let Some(folder) = &data.partition {
             if User::get_by_root_folder(state, folder).await.is_some() {
                 return Err(AppError::InternalServerError(
-                        format!("user with root_folder: '{folder}' already exists. please provide unique folder name")
+                        format!("user with partition_name: '{folder}' already exists. please provide unique folder name")
                     ));
             }
 
@@ -105,13 +105,13 @@ impl User {
         let values = SqlxValues(5, 1).to_query(bn);
 
         let query = format!(
-            "INSERT INTO users (pid, root_folder, folder_max_size, role, created_at) {values}"
+            "INSERT INTO users (pid, partition, partition_size, role, created_at) {values}"
         );
 
         sqlx::query(&query)
             .bind(pid.to_string())
-            .bind(&data.root_folder)
-            .bind(data.folder_max_size)
+            .bind(&data.partition)
+            .bind(data.partition_size)
             .bind(user_role)
             .bind(created_at.to_string())
             .execute(&conn)
@@ -161,7 +161,7 @@ impl User {
     }
 
     pub fn root_folder(&self) -> &Option<String> {
-        &self.root_folder
+        &self.partition
     }
 
     pub fn id(&self) -> &i32 {
@@ -173,7 +173,7 @@ impl User {
     }
 
     pub fn folder_max_size(&self) -> &Option<i64> {
-        &self.folder_max_size
+        &self.partition_size
     }
 }
 
@@ -181,7 +181,9 @@ impl User {
 pub struct UserSerializer {
     id: String,
     email: Option<String>,
-    password: Option<String>,
+    role: UserRole,
+    partition: Option<String>,
+    partition_size: Option<i64>,
     created_at: String,
 }
 
@@ -192,7 +194,9 @@ impl IntoSerializer for User {
         let User {
             pid: id,
             email,
-            password,
+            role,
+            partition,
+            partition_size,
             created_at,
             ..
         } = self;
@@ -200,7 +204,9 @@ impl IntoSerializer for User {
         Ok(UserSerializer {
             id,
             email,
-            password,
+            role,
+            partition,
+            partition_size,
             created_at: created_at.to_string(),
         })
     }
@@ -219,8 +225,8 @@ mod tests {
     async fn test_create_user() -> Result<(), AppError> {
         let state = pretest().await?;
         let data = CreateUserOptions {
-            root_folder: Some("test_user".to_string()),
-            folder_max_size: None,
+            partition: Some("test_user".to_string()),
+            partition_size: None,
             role: UserRole::Basic,
         };
 
@@ -246,7 +252,7 @@ mod tests {
     }
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 pub enum UserRole {
     /// can only read assets
     Basic,
