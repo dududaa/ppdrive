@@ -91,13 +91,11 @@ async fn create_asset(
 
 #[debug_handler]
 async fn delete_asset(
-    Path((asset_type, asset_path)): Path<(String, String)>,
+    Path((asset_type, asset_path)): Path<(AssetType, String)>,
     State(state): State<AppState>,
     ExtractUser(user): ExtractUser,
     ManagerRoute: ManagerRoute,
 ) -> Result<String, AppError> {
-    let asset_type: AssetType = serde_json::from_str(&asset_type)?;
-
     let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
     if asset.user_id() == user.id() {
         Asset::delete(&state, &asset_path, &asset_type).await?;

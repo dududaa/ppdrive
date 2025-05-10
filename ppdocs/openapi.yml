@@ -18,15 +18,25 @@ security:
   - userAuth: []
 
 paths:
-  /{asset_path}:
+  /{asset_type}/{asset_path}:
     get:
       deprecated: false
       summary: Get Asset
       description: |
         Serve an asset (file or folder) from the provided asset path.
       parameters:
-        - in: path
-          name: asset_path
+        - name: asset_type
+          in: path
+          schema:
+            type: string
+            enum: [File, Folder]
+          description: |
+            This is the type of asset you're trying to retrieve. Set to `File`
+            if you're trying to get a file and `Folder` if you're trying to get a folder
+          required: true
+
+        - name: asset_path
+          in: path
           schema:
             type: string
           description: |
@@ -262,6 +272,7 @@ components:
         token:
           type: string
           description: The user's JWT for subsequent authorization.
+
         exp:
           type: integer
           description: Token expiration (in seconds).
