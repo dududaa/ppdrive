@@ -68,8 +68,8 @@ where
                 let id = user.id().to_owned();
 
                 let role = user.role().clone();
-                let root_folder = user.root_folder().clone();
-                let folder_max_size = *user.folder_max_size();
+                let root_folder = user.partition().clone();
+                let folder_max_size = *user.partition_size();
 
                 Ok(ExtractUser(CurrentUser {
                     id,

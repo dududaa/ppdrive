@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::AppError,
-    models::{asset::Asset, user::UserRole},
+    models::{
+        asset::{Asset, AssetSharing, AssetType},
+        user::UserRole,
+    },
     state::AppState,
 };
 
@@ -37,6 +40,34 @@ pub struct LoginCredentials {
 pub struct LoginToken {
     token: String,
     exp: i64,
+}
+
+#[derive(Default, Deserialize)]
+pub struct CreateAssetOptions {
+    /// Destination path where asset should be created
+    pub path: String,
+
+    /// The type of asset - whether it's a file or folder
+    pub asset_type: AssetType,
+
+    /// Asset's visibility. Public assets can be read/accessed by everyone. Private assets can be
+    /// viewed ONLY by permission.
+    pub public: Option<bool>,
+
+    /// Set a custom path for your asset instead of the one auto-generated from
+    /// from `path`. This useful if you'd like to conceal your original asset path.
+    /// Custom path must be available in that no other asset is already using it in the entire app.
+    ///
+    /// Your original asset path makes url look like this `https://mydrive.com/images/somewhere/my-image.png/`.
+    /// Using custom path, you can conceal the original path: `https://mydrive.com/some/hidden-path`
+    pub custom_path: Option<String>,
+
+    /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
+    /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.
+    pub create_parents: Option<bool>,
+
+    /// Users to share this asset with. This can only be set if `public` option is false
+    pub sharing: Option<Vec<AssetSharing>>,
 }
 
 #[debug_handler]

@@ -127,7 +127,7 @@ impl User {
 
         let ss = state.clone();
         let user_id = self.id;
-        let root_folder = self.root_folder().clone();
+        let root_folder = self.partition().clone();
 
         tokio::task::spawn(async move {
             if let Err(err) = User::clean_up(&ss, &user_id, &root_folder).await {
@@ -160,7 +160,7 @@ impl User {
         Ok(())
     }
 
-    pub fn root_folder(&self) -> &Option<String> {
+    pub fn partition(&self) -> &Option<String> {
         &self.partition
     }
 
@@ -172,7 +172,7 @@ impl User {
         &self.role
     }
 
-    pub fn folder_max_size(&self) -> &Option<i64> {
+    pub fn partition_size(&self) -> &Option<i64> {
         &self.partition_size
     }
 }
