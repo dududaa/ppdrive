@@ -7,7 +7,7 @@ use crate::{
     utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
 };
 
-#[derive(Deserialize, Serialize, PartialEq)]
+#[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub enum Permission {
     Create,
     Read,
@@ -54,8 +54,8 @@ pub struct AssetPermission {
 impl AssetPermission {
     pub async fn create(
         state: &AppState,
-        fellow_id: &i32,
         asset_id: &i32,
+        fellow_id: &i32,
         permission: Permission,
     ) -> Result<(), AppError> {
         let conn = state.db_pool().await;

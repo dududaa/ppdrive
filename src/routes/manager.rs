@@ -10,14 +10,17 @@ use uuid::Uuid;
 use crate::{
     errors::AppError,
     models::{
-        asset::{Asset, CreateAssetOptions},
+        asset::Asset,
         user::{User, UserSerializer},
         IntoSerializer,
     },
     state::AppState,
 };
 
-use super::extractors::{ExtractUser, ManagerRoute};
+use super::{
+    extractors::{ExtractUser, ManagerRoute},
+    CreateAssetOptions,
+};
 
 #[debug_handler]
 async fn get_user(
