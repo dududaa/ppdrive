@@ -47,7 +47,7 @@ paths:
       deprecated: false
       summary: Create User
       description: |
-        Register a new user.
+        Register a new user. \
         If you're connecting PPDRIVE to an exisiting app (likely a reason to
         use clients), it's perfect to call this route before/after you've
         registered your user and bind the returned `id` to your app's user.
@@ -132,6 +132,53 @@ paths:
                 description: a message that indicates the operation was successful.
                 example: operation successful
 
+  /manager/user:
+    get:
+      deprecated: false
+      summary: Get Current User
+      description: Retrieve details about the currently logged user.
+      tags:
+        - Manager Routes
+      security:
+        - userAuth: []
+
+      responses:
+        200:
+          description: Current user details.
+          content:
+            appplication/json:
+              schema:
+                $ref: "#/components/schemas/UserDetails"
+
+  /manager/asset:
+    post:
+      deprecated: false
+      summary: Create/Upload an asset
+      description: |
+        Create/edit an asser. \
+
+      tags:
+        - Manager Routes
+      security:
+        - userAuth: []
+
+      requestBody:
+        description: Options for creating a new user
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserOptions"
+
+      responses:
+        200:
+          description: |
+            User's login details, including the token and expiration.
+          content:
+            appplication/json:
+              schema:
+                $ref: "#/components/schemas/LoginToken"
+
 components:
   securitySchemes:
     clientKey:
@@ -144,6 +191,8 @@ components:
       type: http
       scheme: bearer
       bearerFormat: Bearer
+      in: header
+      name: authorization
 
   schemas:
     CreateUserOptions:
@@ -154,22 +203,24 @@ components:
           enum: [Basic, Manager]
           description: The user's role
 
-        root_folder:
+        partition:
           type: string
           description: |
-            Folder name where user's assets are stored. If this is not
-            specified, user's assets will be stored in application root
-            folder.
+            Create a dedicated partition for the user named by value provided.
+            If this is not specified, user's assets will be stored in application's
+            root partition. Partition name must be unique for every user. If the
+            value is already take, this call will return an error.
 
-        folder_max_size:
+        partition_size:
           type: integer
           description: |
-            Max size (in bytes) to be assiged to the user. This should be set
-            only if `root_folder` is set. Otherwise, it would be ignored.
+            Max size (in bytes) to be assiged to the user's partition. This
+            should be set only if `partition` is set. Otherwise, it would be
+            ignored.
 
       example:
         role: Creator
-        root_folder: prodbyola
+        partition: prodbyola
 
       required:
         - role
@@ -210,6 +261,79 @@ components:
           type: integer
           description: Token expiration (in seconds).
 
+    UserDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        partition:
+          type: string
+        partition_size:
+          type: integer
+        created_at:
+          type: string
+
+    # /// Destination path where asset should be created
+    # pub path: String,
+
+    # /// The type of asset - whether it's a file or folder
+    # pub asset_type: AssetType,
+
+    # /// Asset's visibility. Public assets can be read/accessed by everyone. Private assets can be
+    # /// viewed ONLY by permission.
+    # pub public: Option<bool>,
+
+    # /// Set a custom path for your asset instead of the one auto-generated from
+    # /// from `path`. This useful if you'd like to conceal your original asset path.
+    # /// Custom path must be available in that no other asset is already using it in the entire app.
+    # ///
+    # /// Your original asset path makes url look like this `https://mydrive.com/images/somewhere/my-image.png/`.
+    # /// Using custom path, you can conceal the original path: `https://mydrive.com/some/hidden-path`
+    # pub custom_path: Option<String>,
+
+    # /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
+    # /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.
+    # pub create_parents: Option<bool>,
+
+    # /// Users to share this asset with. This can only be set if `public` option is false
+    # pub sharing: Option<Vec<AssetSharing>>,
+    CreateAssetOptions:
+      type: object
+      properties:
+        path:
+          type: string,
+          description: The relative path where we save user's asset.
+
+        asset_type:
+          type: string
+          description: The type of asset - whether it's a file or folder
+          enum: [File, Folder]
+
+        public:
+          type: boolean
+          description: |
+            Asset's visibility. \
+            Public assets can be accessed by everyone. Private assets
+            can only be accessed by users with `Read` permission.
+
+        custom_path:
+          type: string
+          description: |
+            Set a custom path for your asset instead of the one auto-generated
+            from `path`. This useful if you'd like to conceal your original asset
+            path. `custom_path` is unique to each asset and is available if no other
+            asset is already using it in the entire app.
+
+            Your original asset path makes asset url look like this
+            `https://mydrive.com/images/somewhere/my-image.png/`. Using
+            custom path, you can conceal the original path:
+            `https://mydrive.com/custom-path`
+
+      create_parents:
+        type: boolean
+
 tags:
   - client:
     name: Client Routes
@@ -237,3 +361,8 @@ tags:
       Manager Routes are accesible only to a user with `Manage` or `Admin`
       role. The `user_role` is assigned when a client or admin [creates a new
       user](/#tag/Client-Routes/paths/~1client~1user~1register/post).
+
+      The `Manager` must be logged in before they can access this route. Call
+      client's [login route](#tag/Client-Routes/paths/~1client~1user~1login/post)
+      to get a user's Bearer Token and pass the token to `Authorization` header
+      of your request in the format `Bearer {token}`.
