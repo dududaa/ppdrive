@@ -20,7 +20,7 @@ pub mod creator;
 mod extractors;
 
 #[derive(Deserialize)]
-pub struct CreateUserRequest {
+pub struct CreateUserOptions {
     /// folder name where user's assets are stored.
     /// If this is not specified, user's assets will be stored in application root folder.
     pub root_folder: Option<String>,

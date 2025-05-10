@@ -22,8 +22,8 @@ Are you creating or working on an application that needs manage files? **PPDRIVE
 
 ---
 
-## Getting Started
-Please see the [Getting Started](https://prodbyola.github.io/ppdrive/#/) section of the docs.
+## API Documentation
+See our [API DOC](https://prodbyola.github.io/ppdrive/) to learn how to connect to your PPDRIVE instance.
 
 ---
 
