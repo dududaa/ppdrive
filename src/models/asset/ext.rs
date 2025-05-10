@@ -8,13 +8,14 @@ use crate::{
     utils::sqlx_utils::{SqlxFilters, SqlxSetters, SqlxValues, ToQuery},
 };
 
-use super::{Asset, AssetSharing};
+use super::{Asset, AssetSharing, AssetType};
 
 pub(super) struct SaveAssetOpts<'a> {
     pub path: &'a str,
     pub is_public: &'a Option<bool>,
     pub custom_path: &'a Option<String>,
     pub user_id: &'a i32,
+    pub asset_type: &'a AssetType,
 }
 
 pub(super) async fn save_asset<'a>(
@@ -26,18 +27,23 @@ pub(super) async fn save_asset<'a>(
         is_public,
         custom_path,
         user_id,
+        asset_type,
     } = opts;
 
     let conn = state.db_pool().await;
     let bn = state.backend_name();
+    let asset_type: i16 = asset_type.into();
 
     let values = SqlxValues(4, 1).to_query(bn);
-    let query = format!("INSERT INTO assets (asset_path, public, custom_path, user_id) {values}");
+    let query = format!(
+        "INSERT INTO assets (asset_path, public, custom_path, user_id, asset_type) {values}"
+    );
     sqlx::query(&query)
         .bind(path)
         .bind(is_public)
         .bind(custom_path)
         .bind(user_id)
+        .bind(asset_type)
         .execute(&conn)
         .await?;
 
@@ -75,9 +81,10 @@ pub(super) async fn validate_custom_path(
     state: &AppState,
     custom_path: &str,
     path: &str,
+    asset_type: &AssetType,
     tmp: &Option<PathBuf>,
 ) -> Result<(), AppError> {
-    let exist = Asset::get_by_path(state, custom_path).await;
+    let exist = Asset::get_by_path(state, custom_path, asset_type).await;
     if let Ok(exist) = exist {
         if exist.asset_path != path {
             if let Some(tmp) = tmp {
@@ -104,6 +111,7 @@ pub(super) async fn create_asset_parents(
     let CreateAssetOptions {
         public: is_public,
         custom_path,
+        asset_type,
         ..
     } = opt;
 
@@ -112,7 +120,7 @@ pub(super) async fn create_asset_parents(
     if let Some(parent) = parent {
         while let Some(path) = parent.ancestors().next() {
             if let Some(path) = path.to_str() {
-                let exist = Asset::get_by_path(state, path).await;
+                let exist = Asset::get_by_path(state, path, asset_type).await;
                 if let Ok(exist) = exist {
                     if exist.user_id() == user_id {
                         tracing::info!("parent '{path}' already exists. skipping...");
@@ -129,6 +137,7 @@ pub(super) async fn create_asset_parents(
                     is_public,
                     custom_path,
                     user_id,
+                    asset_type,
                 };
 
                 save_asset(state, opts).await?;
@@ -192,9 +201,10 @@ pub(super) async fn create_or_update_asset<'a>(
         custom_path,
         user_id,
         path,
+        asset_type,
     } = opts;
 
-    match Asset::get_by_path(state, path).await {
+    match Asset::get_by_path(state, path, asset_type).await {
         Ok(exists) => {
             if &exists.user_id == user_id {
                 update_asset(state, &exists.id, is_public, custom_path).await?;
@@ -211,9 +221,23 @@ pub(super) async fn create_or_update_asset<'a>(
         }
         Err(_) => {
             save_asset(state, opts).await?;
-            let asset = Asset::get_by_path(state, path).await?;
+            let asset = Asset::get_by_path(state, path, asset_type).await?;
 
             Ok(asset)
         }
     }
+}
+
+#[tokio::test]
+async fn test_rust_folders() -> Result<(), AppError> {
+    let path = Path::new("/start/middle/end");
+    let parents: Vec<&str> = path.ancestors().map(|p| p.to_str()).flatten().collect();
+
+    parents
+        .iter()
+        .rev()
+        .filter(|p| !p.is_empty() && *p != &"/")
+        .for_each(|p| println!("{p}"));
+
+    Ok(())
 }

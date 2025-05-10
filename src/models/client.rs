@@ -41,8 +41,4 @@ impl Client {
 
         Ok(())
     }
-
-    pub fn id(&self) -> &str {
-        &self.id
-    }
 }

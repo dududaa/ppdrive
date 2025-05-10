@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::{
     errors::AppError,
     models::{
-        asset::Asset,
+        asset::{Asset, AssetType},
         user::{User, UserSerializer},
         IntoSerializer,
     },
@@ -91,14 +91,16 @@ async fn create_asset(
 
 #[debug_handler]
 async fn delete_asset(
-    Path(asset_path): Path<String>,
+    Path((asset_type, asset_path)): Path<(String, String)>,
     State(state): State<AppState>,
     ExtractUser(user): ExtractUser,
     ManagerRoute: ManagerRoute,
 ) -> Result<String, AppError> {
-    let asset = Asset::get_by_path(&state, &asset_path).await?;
+    let asset_type: AssetType = serde_json::from_str(&asset_type)?;
+
+    let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
     if asset.user_id() == user.id() {
-        Asset::delete(&state, &asset_path).await?;
+        Asset::delete(&state, &asset_path, &asset_type).await?;
         Ok("operation successful".to_string())
     } else {
         Err(AppError::AuthorizationError(
@@ -112,5 +114,5 @@ pub fn manager_routes() -> Router<AppState> {
     Router::new()
         .route("/user", get(get_user))
         .route("/asset", post(create_asset))
-        .route("/asset", delete(delete_asset))
+        .route("/asset/:asset_type/:asset_path", delete(delete_asset))
 }

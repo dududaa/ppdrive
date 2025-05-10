@@ -153,9 +153,14 @@ paths:
   /manager/asset:
     post:
       deprecated: false
-      summary: Create/Upload an asset
+      summary: Create or Upload Asset
       description: |
-        Create/edit an asser. \
+        Create a new asset. If the asset already exists, it will be updated. \
+
+        By default this route traverses the asset `path` provided in `options`,
+        if no record is found for any of its parent folder, we create the
+        parent folder and the respective record. If you don't want this behaviour,
+        set `options.create_parents` to false.
 
       tags:
         - Manager Routes
@@ -163,12 +168,12 @@ paths:
         - userAuth: []
 
       requestBody:
-        description: Options for creating a new user
+        description: Options for creating the new asset
         required: true
         content:
-          application/json:
+          application/multipart:
             schema:
-              $ref: "#/components/schemas/CreateUserOptions"
+              $ref: "#/components/schemas/CreateAssetOptions"
 
       responses:
         200:
@@ -333,6 +338,8 @@ components:
 
       create_parents:
         type: boolean
+        description: |
+          This route traverses path and create asset parents if they
 
 tags:
   - client:
