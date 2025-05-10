@@ -33,14 +33,27 @@ paths:
             This either the asset's original path or a custom_path set when
             the asset was created.
           required: true
+      responses:
+        200:
+          description: |
+            If the asset is a folder, we return browser-compatible html content
+            rendering a list of folder contents.
+
+            If the asset is a file, we return the file raw data with its
+            respective mime type in `Content-Type` header for browser rendering.
 
   /client/user/register:
     post:
       deprecated: false
       summary: Create User
-      description: Register a new user
+      description: |
+        Register a new user.
+        If you're connecting PPDRIVE to an exisiting app (likely a reason to
+        use clients), it's perfect to call this route before/after you've
+        registered your user and bind the returned `id` to your app's user.
+        See responses.200
       tags:
-        - Client
+        - Client Routes
       security:
         - clientKey: []
 
@@ -52,18 +65,72 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateUserOptions"
 
-tags:
-  - client:
-    name: Client
-    description: |
-      Client routes are accesible only to a verifiable PPDRIVE `Client`.
-      A client is an external application capable of authorizing users
-      and managing assets on PPDRIVE.
+      responses:
+        200:
+          description: |
+            User's login details, including the token and expiration.
+          content:
+            appplication/json:
+              schema:
+                $ref: "#/components/schemas/LoginToken"
 
-      To access these routes, you need to provide your client's `token`
-      by adding the token to `x-ppd-client` header of your requests.
-      You can generate a client token by running `ppdrive create_client
-      {client_name}` or via the Admin UI.
+  /client/user/login:
+    post:
+      deprecated: false
+      summary: Login User
+      description: |
+        Authenticate a user and get their JWT.
+        `password` field is not required for this route.
+      tags:
+        - Client Routes
+      security:
+        - clientKey: []
+
+      requestBody:
+        description: Options for creating a new user
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginCredentials"
+
+      responses:
+        200:
+          description: User's login details, including the token and expiration.
+          content:
+            appplication/json:
+              schema:
+                type: string
+                description: id of the new user.
+                example: 3e7d53b-dd7f-464e-a3b9-7b1ec2d71ce5
+
+  /client/user/{id}:
+    delete:
+      deprecated: false
+      summary: Delete User
+      description: Delete a user with the provided `id`.
+      tags:
+        - Client Routes
+      security:
+        - clientKey: []
+
+      parameters:
+        - required: false
+          in: path
+          name: id
+          schema:
+            type: string
+            decription: ID of the user to be deleted.
+
+      responses:
+        200:
+          description: Operation success message.
+          content:
+            appplication/json:
+              schema:
+                type: string
+                description: a message that indicates the operation was successful.
+                example: operation successful
 
 components:
   securitySchemes:
@@ -84,14 +151,15 @@ components:
       properties:
         role:
           type: string
-          enum: [Basic, Creator]
-          description: the user's role
+          enum: [Basic, Manager]
+          description: The user's role
 
         root_folder:
           type: string
           description: |
-            Folder name where user's assets are stored. If this is not specified,
-            user's assets will be stored in application root folder.
+            Folder name where user's assets are stored. If this is not
+            specified, user's assets will be stored in application root
+            folder.
 
         folder_max_size:
           type: integer
@@ -105,3 +173,60 @@ components:
 
       required:
         - role
+
+    LoginCredentials:
+      type: object
+      properties:
+        id:
+          type: string
+          description: This could be the user's id or email address.
+        password:
+          type: string
+          description: |
+            The user's password. Password is optional if you're not coming
+            though a Client Route.
+        exp:
+          type: integer
+          description: |
+            Optional expiration period for user's token (in seconds). This
+            defaults to 5 hours if not set. We're working on making the default
+            value configurable.
+
+      example:
+        id: 3e7d53b-dd7f-464e-a3b9-7b1ec2d71ce5
+        password: "MyUserPassword"
+        exp: 5600
+
+      required:
+        - id
+
+    LoginToken:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The user's JWT for subsequent authorization.
+        exp:
+          type: integer
+          description: Token expiration (in seconds).
+
+tags:
+  - client:
+    name: Client Routes
+    description: |
+      Client Routes are accesible only to a verifiable PPDRIVE `Client`.
+      A client is an external application capable of authorizing users
+      and managing assets on PPDRIVE.
+
+      To access these routes, you need to provide your client's `token`
+      by adding the token to `x-ppd-client` header of your requests.
+      You can generate a client token by running `ppdrive create_client
+      {client_name}` or via the Admin UI.
+
+      <b style="color:red;">IMPORTANT!</b> Client tokens give administrative
+      access to anyone who possesses it. *So, always keep your client tokens
+      secret*. Don't share them on user-facing clients. This means you should
+      ONLY access client routes from your server.
+
+      If your client token is compromised (or for any other reason), you can
+      regenerate a client token by running `ppdrive new_token {client_id}`.
