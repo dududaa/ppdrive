@@ -260,6 +260,10 @@ impl Asset {
     pub fn custom_path(&self) -> &Option<String> {
         &self.custom_path
     }
+
+    pub fn user_id(&self) -> &i32 {
+        &self.user_id
+    }
 }
 
 #[derive(Deserialize)]
