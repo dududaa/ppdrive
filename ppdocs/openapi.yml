@@ -230,3 +230,10 @@ tags:
 
       If your client token is compromised (or for any other reason), you can
       regenerate a client token by running `ppdrive new_token {client_id}`.
+
+  - manager:
+    name: Manager Routes
+    description: |
+      Manager Routes are accesible only to a user with `Manage` or `Admin`
+      role. The `user_role` is assigned when a client or admin [creates a new
+      user](/#tag/Client-Routes/paths/~1client~1user~1register/post).

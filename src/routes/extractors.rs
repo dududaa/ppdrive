@@ -20,7 +20,7 @@ pub struct CurrentUser {
 
 impl CurrentUser {
     /// Checks if [CurrentUser] can create assets
-    pub fn can_create(&self) -> bool {
+    pub fn can_manage(&self) -> bool {
         !matches!(self.role, UserRole::Basic)
     }
 
@@ -118,5 +118,28 @@ where
                 "missing 'x-client-key' headers".to_string(),
             )),
         }
+    }
+}
+
+pub struct ManagerRoute;
+#[async_trait]
+impl<S> FromRequestParts<S> for ManagerRoute
+where
+    AppState: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let user_ext = ExtractUser::from_request_parts(parts, state).await?;
+        let user = user_ext.0;
+
+        if !user.can_manage() {
+            return Err(AppError::AuthorizationError(
+                "user does not have permission to manage".to_string(),
+            ));
+        }
+
+        Ok(ManagerRoute)
     }
 }

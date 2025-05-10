@@ -16,8 +16,8 @@ use crate::{
 use std::path::Path as StdPath;
 
 pub mod client;
-pub mod creator;
 mod extractors;
+pub mod manager;
 
 #[derive(Deserialize)]
 pub struct CreateUserOptions {
