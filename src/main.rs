@@ -48,7 +48,7 @@ async fn main() -> Result<(), AppError> {
                     let token = if is_new {
                         create_client(&state, spec).await?
                     } else {
-                        regenerate_token(&state, spec)?
+                        regenerate_token(&state, spec).await?
                     };
 
                     tracing::info!("CLIENT_TOKEN: {token}");
