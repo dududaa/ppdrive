@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use chacha20poly1305::{aead::OsRng, AeadCore, KeyInit, XChaCha20Poly1305};
 use tokio::io::AsyncWriteExt;
 
@@ -7,7 +9,7 @@ pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
 pub const BEARER_VALUE: &str = "Bearer";
 pub const SECRET_FILE: &str = ".ppdrive_secret";
 
-pub async fn generate() -> Result<(), AppError> {
+pub async fn generate_secret() -> Result<(), AppError> {
     let secret_key = XChaCha20Poly1305::generate_key(&mut OsRng);
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
     let jwt_secret = XChaCha20Poly1305::generate_key(&mut OsRng);
@@ -26,13 +28,24 @@ pub async fn generate() -> Result<(), AppError> {
     Ok(())
 }
 
+/// If app secret file does not exist, generate it. Mostly useful
+/// on app initialization.
+pub async fn generate_secrets_init() -> Result<(), AppError> {
+    let path = Path::new(SECRET_FILE);
+    if !path.is_file() {
+        generate_secret().await?;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{errors::AppError, utils::tools::secrets::generate};
+    use crate::{errors::AppError, utils::tools::secrets::generate_secret};
 
     #[tokio::test]
     async fn test_client_keygen() -> Result<(), AppError> {
-        let keygen = generate().await;
+        let keygen = generate_secret().await;
 
         if let Err(err) = &keygen {
             println!("keygen err: {err}")

@@ -9,7 +9,7 @@ use utils::{
     get_env,
     tools::{
         client::{create_client, regenerate_token},
-        secrets::{generate, BEARER_KEY, BEARER_VALUE},
+        secrets::{generate_secret, generate_secrets_init, BEARER_KEY, BEARER_VALUE},
     },
 };
 
@@ -59,7 +59,7 @@ async fn main() -> Result<(), AppError> {
                 }
             }
         } else if a1 == "xgen" {
-            generate().await?;
+            generate_secret().await?;
             tracing::info!("secret keys generated and saved!");
         } else {
             panic!("unknown command {}", a1)
@@ -69,6 +69,7 @@ async fn main() -> Result<(), AppError> {
     }
 
     // start ppdrive app
+    generate_secrets_init().await?;
     let port = get_env("PPDRIVE_PORT")
         .ok()
         .unwrap_or(DEFAULT_PORT.to_string());
