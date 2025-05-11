@@ -56,11 +56,7 @@ async fn delete_user(
     ClientRoute: ClientRoute,
     State(state): State<AppState>,
 ) -> Result<String, AppError> {
-    let user_id = id.parse::<i32>().map_err(|err| {
-        AppError::InternalServerError(format!("unable to parse user id '{id}': {err}"))
-    })?;
-
-    let user = User::get(&state, &user_id).await?;
+    let user = User::get_by_pid(&state, &id).await?;
     match user.role() {
         UserRole::Admin => Err(AppError::AuthorizationError(
             "client cannot delete admin".to_string(),
