@@ -12,13 +12,13 @@ use tokio::sync::Mutex;
 
 pub async fn create_db_pool() -> Result<AnyPool, AppError> {
     let debug_mode = get_env("DEBUG_MODE")?;
+    let connection_url = get_env("DATABASE_URL")?;
+
     if &debug_mode != "true" {
         // run_migrations().await?;
     }
 
     install_default_drivers();
-    let connection_url = get_env("DATABASE_URL")?;
-
     let pool = AnyPoolOptions::new()
         .connect(&connection_url)
         .await

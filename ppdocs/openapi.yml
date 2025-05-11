@@ -55,7 +55,7 @@ paths:
   /client/user/register:
     post:
       deprecated: false
-      summary: Create User
+      summary: Register User
       description: |
         Register a new user. \
         If you're connecting PPDRIVE to an exisiting app (likely a reason to
@@ -366,9 +366,9 @@ tags:
       {client_name}` or via the Admin UI.
 
       <b style="color:red;">IMPORTANT!</b> Client tokens give administrative
-      access to anyone who possesses it. *So, always keep your client tokens
-      secret*. Don't share them on user-facing clients. This means you should
-      ONLY access client routes from your server.
+      access to anyone who possesses it. **DO NOT SHARE YOUR CLIENT TOKEN**.
+      This means you should ONLY access client routes from your application
+      server.
 
       If your client token is compromised (or for any other reason), you can
       regenerate a client token by running `ppdrive new_token {client_id}`.

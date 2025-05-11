@@ -47,8 +47,9 @@ pub async fn verify_client(state: &AppState, token: &str) -> Result<bool, AppErr
     Ok(ok)
 }
 
-pub fn regenerate_token(state: &AppState, client_id: &str) -> Result<String, AppError> {
-    generate_token(state, client_id)
+pub async fn regenerate_token(state: &AppState, client_id: &str) -> Result<String, AppError> {
+    let client = Client::get(state, client_id).await?;
+    generate_token(state, client.id())
 }
 
 #[cfg(test)]
