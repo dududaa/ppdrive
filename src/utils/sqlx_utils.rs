@@ -14,6 +14,18 @@ pub enum BackendName {
     Sqlite,
 }
 
+impl BackendName {
+    pub fn to_query(&self, index: u8) -> String {
+        use BackendName::*;
+
+        match self {
+            Postgres => format!("${}", index),
+            Sqlite => format!("?{}", index),
+            Mysql => "?".to_string(),
+        }
+    }
+}
+
 impl<'a> TryFrom<&'a str> for BackendName {
     type Error = AppError;
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
