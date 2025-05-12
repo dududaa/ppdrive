@@ -47,7 +47,7 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
         .nest("/client", client_routes())
-        .nest("/manager", manager_routes())
+        .nest("/", manager_routes())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 // Log the matched route's path (with placeholders not filled in).

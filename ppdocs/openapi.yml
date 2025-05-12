@@ -148,7 +148,7 @@ paths:
       summary: Get Current User
       description: Retrieve details about the currently logged user.
       tags:
-        - Manager Routes
+        - Protected Routes
       security:
         - userAuth: []
 
@@ -160,7 +160,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserDetails"
 
-  /manager/asset:
+  /asset:
     post:
       deprecated: false
       summary: Create or Upload Asset
@@ -173,7 +173,7 @@ paths:
         set `options.create_parents` to false.
 
       tags:
-        - Manager Routes
+        - Protected Routes
       security:
         - userAuth: []
 
@@ -374,13 +374,13 @@ tags:
       regenerate a client token by running `ppdrive new_token {client_id}`.
 
   - manager:
-    name: Manager Routes
+    name: Protected Routes
     description: |
-      Manager Routes are accesible only to a user with `Manage` or `Admin`
+      Protected Routes are accesible only to a user with `Manage` or `Admin`
       role. The `user_role` is assigned when a client or admin [creates a new
       user](/#tag/Client-Routes/paths/~1client~1user~1register/post).
 
-      The `Manager` must be logged in before they can access this route. Call
+      The `Protected` must be logged in before they can access this route. Call
       client's [login route](#tag/Client-Routes/paths/~1client~1user~1login/post)
       to get a user's Bearer Token and pass the token to `Authorization` header
       of your request in the format `Bearer {token}`.
