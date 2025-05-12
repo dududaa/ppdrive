@@ -1,7 +1,7 @@
 use crate::{
     config::AppConfig,
     errors::AppError,
-    utils::{get_env, sqlx_utils::BackendName},
+    utils::{get_env, sqlx::sqlx_utils::BackendName},
 };
 use sqlx::{
     any::{install_default_drivers, AnyPoolOptions},

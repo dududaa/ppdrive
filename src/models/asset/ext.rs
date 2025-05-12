@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    asset_batch_save,
     errors::AppError,
     models::{permission::AssetPermission, user::User},
+    sqlx_binder,
     state::AppState,
-    utils::sqlx_utils::{SqlxFilters, SqlxSetters, SqlxValues, ToQuery},
+    utils::sqlx::sqlx_utils::{SqlxFilters, SqlxSetters, SqlxValues, ToQuery},
 };
 
 use super::{Asset, AssetSharing, AssetType};
@@ -159,7 +159,7 @@ pub(super) async fn create_asset_parents(
         // save records
         let is_public = is_public.unwrap_or_default();
         let conn = state.db_pool().await;
-        asset_batch_save!(
+        sqlx_binder!(
             conn,
             &query,
             is_public, user_id, asset_type;
@@ -188,17 +188,21 @@ pub(super) async fn share_asset(
     state: &AppState,
     sharing: &Vec<AssetSharing>,
     asset_id: &i32,
+    user_id: &i32,
 ) -> Result<(), AppError> {
     for opt in sharing {
-        let fellow = User::get_by_pid(state, &opt.user_id).await;
-
-        if let Err(err) = fellow {
+        let get_fellow = User::get_by_pid(state, &opt.user_id).await;
+        if let Err(err) = get_fellow {
             tracing::error!("error getting user to share asset with: {err}");
             continue;
         }
 
-        let fellow = fellow?;
+        let fellow = get_fellow?;
         let fellow_id = fellow.id();
+        if user_id == fellow_id {
+            tracing::error!("you cannot share asset {asset_id} with it's owner");
+            continue;
+        }
 
         if opt.permissions.is_empty() {
             tracing::error!("permissions list must be specifed for a sharing option");

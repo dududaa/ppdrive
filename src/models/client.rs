@@ -1,7 +1,7 @@
 use crate::{
     errors::AppError,
     state::AppState,
-    utils::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
+    utils::sqlx::sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
 };
 
 #[derive(sqlx::FromRow)]

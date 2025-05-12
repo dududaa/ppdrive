@@ -173,9 +173,7 @@ impl ToQuery for SqlxSetters<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::sqlx_utils::{SqlxValues, ToQuery};
-
-    use super::{BackendName, SqlxFilters};
+    use super::{BackendName, SqlxFilters, SqlxValues, ToQuery};
 
     #[test]
     fn test_sqlx_filters_pg() {
