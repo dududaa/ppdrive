@@ -112,10 +112,26 @@ pub(super) async fn create_asset_parents(
 
     if let Some(parent) = parent {
         let parents: Vec<&str> = parent.ancestors().map(|p| p.to_str()).flatten().collect();
-        let mut reversed = parents.iter().rev().filter(|p| !p.is_empty() && *p != &"/");
+        let paths: Vec<&&str> = parents
+            .iter()
+            .rev()
+            .filter(|p| !p.is_empty())
+            .filter(|p| p != &&"/")
+            .collect();
 
-        // check if parent folder
-        while let Some(path) = reversed.next() {
+        if let Some(first) = paths.first() {
+            if first.starts_with("/") {
+                return Err(AppError::InternalServerError(
+                    "asset path cannot start with an '/'".to_string(),
+                ));
+            }
+        }
+
+        let bn = state.backend_name();
+        let mut values = Vec::with_capacity(parents.len());
+
+        for (index, path) in paths.iter().enumerate() {
+            // check if parent folders
             if let Ok(exist) = Asset::get_by_path(state, path, &AssetType::Folder).await {
                 if exist.user_id() != user_id {
                     let msg = "you're attempting to create a folder that already beolngs to someone else.";
@@ -123,34 +139,25 @@ pub(super) async fn create_asset_parents(
                     return Err(AppError::InternalServerError(msg.to_string()));
                 }
             }
+
+            // build query values
+            let pbq = bn.to_query(1);
+            let uq = bn.to_query(2);
+            let tq = bn.to_query(3);
+            let pq = bn.to_query((index as u8) + 4);
+
+            values.push(format!("({}, {}, {}, {})", pbq, uq, tq, pq));
         }
 
-        // create records
-        let bn = state.backend_name();
+        // build query
         let asset_type = i16::from(&AssetType::Folder);
-        let mut values = Vec::with_capacity(parents.len());
-
-        let paths: Vec<&&str> = reversed
-            .enumerate()
-            .map(|(i, path)| {
-                let pbq = bn.to_query(1);
-                let uq = bn.to_query(2);
-                let tq = bn.to_query(3);
-                let pq = bn.to_query((i as u8) + 4);
-                values.push(format!("({}, {}, {}, {})", pbq, uq, tq, pq));
-
-                path
-            })
-            .collect();
-
         let query = format!(
-            "
-            INSERT INTO assets (public, user_id, asset_type, asset_path)
-            VALUES {}
-        ",
-            values.join(", ")
+            "INSERT INTO assets (public, user_id, asset_type, asset_path) \nVALUES \n{}",
+            values.join(",\n")
         );
 
+        // save records
+        let is_public = is_public.unwrap_or_default();
         let conn = state.db_pool().await;
         asset_batch_save!(
             conn,
@@ -167,7 +174,7 @@ pub(super) async fn create_asset_parents(
 
 pub(super) async fn move_file(src: &PathBuf, dest: &Path) -> Result<(), AppError> {
     if let Err(err) = tokio::fs::File::create(dest).await {
-        tracing::info!("unble to create file: {err}");
+        tracing::info!("unable to create destination file: {err}");
         return Err(AppError::IOError(err.to_string()));
     }
 
@@ -243,16 +250,23 @@ pub(super) async fn create_or_update_asset<'a>(
     }
 }
 
-#[tokio::test]
-async fn test_rust_folders() -> Result<(), AppError> {
-    let path = Path::new("/start/middle/end");
-    let parents: Vec<&str> = path.ancestors().map(|p| p.to_str()).flatten().collect();
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
 
-    parents
-        .iter()
-        .rev()
-        .filter(|p| !p.is_empty() && *p != &"/")
-        .for_each(|p| println!("{p}"));
+    use crate::{errors::AppError, main_test::pretest, models::asset::create_asset_parents};
 
-    Ok(())
+    #[tokio::test]
+    async fn test_rust_folders() -> Result<(), AppError> {
+        let state = pretest().await?;
+        let path = Path::new("start/middle/end/filename");
+        let create = create_asset_parents(&state, path, &3, &None).await;
+        if let Err(err) = &create {
+            println!("{err}")
+        }
+
+        assert!(create.is_ok());
+
+        Ok(())
+    }
 }
