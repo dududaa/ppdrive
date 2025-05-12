@@ -17,6 +17,7 @@ use crate::{
 use super::permission::{AssetPermission, Permission};
 
 mod ext;
+mod macros;
 
 #[derive(Default, Deserialize)]
 pub enum AssetType {
@@ -121,7 +122,7 @@ impl Asset {
 
         // create asset parents (when they don't exist)
         if let Some(true) = create_parents {
-            create_asset_parents(state, &path, user_id, &opts).await?;
+            create_asset_parents(state, &path, user_id, public).await?;
         }
 
         // create the asset

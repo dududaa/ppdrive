@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
+    asset_batch_save,
     errors::AppError,
     models::{permission::AssetPermission, user::User},
-    routes::CreateAssetOptions,
     state::AppState,
     utils::sqlx_utils::{SqlxFilters, SqlxSetters, SqlxValues, ToQuery},
 };
@@ -100,49 +100,64 @@ pub(super) async fn validate_custom_path(
     Ok(())
 }
 
-/// Traverses asset path, create each parent dir and their respective records
-/// where they don't exist.
+/// Traverses asset path, create each parent dir and their respective
+/// records where they don't exist.
 pub(super) async fn create_asset_parents(
     state: &AppState,
     path: &Path,
     user_id: &i32,
-    opt: &CreateAssetOptions,
+    is_public: &Option<bool>,
 ) -> Result<(), AppError> {
-    let CreateAssetOptions {
-        public: is_public,
-        custom_path,
-        asset_type,
-        ..
-    } = opt;
-
     let parent = path.parent();
 
     if let Some(parent) = parent {
-        while let Some(path) = parent.ancestors().next() {
-            if let Some(path) = path.to_str() {
-                let exist = Asset::get_by_path(state, path, asset_type).await;
-                if let Ok(exist) = exist {
-                    if exist.user_id() == user_id {
-                        tracing::info!("parent '{path}' already exists. skipping...");
-                        continue;
-                    } else {
-                        return Err(AppError::InternalServerError(
-                            "you don't have access to asset parent: {path}".to_string(),
-                        ));
-                    }
+        let parents: Vec<&str> = parent.ancestors().map(|p| p.to_str()).flatten().collect();
+        let mut reversed = parents.iter().rev().filter(|p| !p.is_empty() && *p != &"/");
+
+        // check if parent folder
+        while let Some(path) = reversed.next() {
+            if let Ok(exist) = Asset::get_by_path(state, path, &AssetType::Folder).await {
+                if exist.user_id() != user_id {
+                    let msg = "you're attempting to create a folder that already beolngs to someone else.";
+                    tracing::error!(msg);
+                    return Err(AppError::InternalServerError(msg.to_string()));
                 }
-
-                let opts = SaveAssetOpts {
-                    path,
-                    is_public,
-                    custom_path,
-                    user_id,
-                    asset_type,
-                };
-
-                save_asset(state, opts).await?;
             }
         }
+
+        // create records
+        let bn = state.backend_name();
+        let asset_type = i16::from(&AssetType::Folder);
+        let mut values = Vec::with_capacity(parents.len());
+
+        let paths: Vec<&&str> = reversed
+            .enumerate()
+            .map(|(i, path)| {
+                let pbq = bn.to_query(1);
+                let uq = bn.to_query(2);
+                let tq = bn.to_query(3);
+                let pq = bn.to_query((i as u8) + 4);
+                values.push(format!("({}, {}, {}, {})", pbq, uq, tq, pq));
+
+                path
+            })
+            .collect();
+
+        let query = format!(
+            "
+            INSERT INTO assets (public, user_id, asset_type, asset_path)
+            VALUES {}
+        ",
+            values.join(", ")
+        );
+
+        let conn = state.db_pool().await;
+        asset_batch_save!(
+            conn,
+            &query,
+            is_public, user_id, asset_type;
+            paths
+        );
 
         tokio::fs::create_dir_all(parent).await?;
     }
