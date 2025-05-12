@@ -11,13 +11,12 @@ use crate::{
     models::user::User,
     routes::CreateAssetOptions,
     state::AppState,
-    utils::sqlx_utils::{SqlxFilters, ToQuery},
+    utils::sqlx::sqlx_utils::{SqlxFilters, ToQuery},
 };
 
 use super::permission::{AssetPermission, Permission};
 
 mod ext;
-mod macros;
 
 #[derive(Default, Deserialize)]
 pub enum AssetType {
@@ -155,7 +154,7 @@ impl Asset {
         if !is_public {
             if let Some(sharing) = sharing {
                 if !sharing.is_empty() {
-                    share_asset(state, sharing, &asset.id).await?;
+                    share_asset(state, sharing, &asset.id, user_id).await?;
                 }
             }
         }

@@ -4,7 +4,7 @@ use crate::{
     errors::AppError,
     routes::CreateUserOptions,
     state::AppState,
-    utils::{
+    utils::sqlx::{
         sqlx_ext::AnyDateTime,
         sqlx_utils::{SqlxFilters, SqlxValues, ToQuery},
     },
