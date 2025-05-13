@@ -165,13 +165,13 @@ paths:
       deprecated: false
       summary: Create or Upload Asset
       description: |
-        Create a new asset. If the asset already exists, it will be updated. \
+        Create a new asset. If the asset already exists, it will be updated.
 
-        It's important for PPDRIVE to keep a record of every asset and their
-        ancestors from the filesystem. Therefore, this route traverses the asset
+        It's important for PPDRIVE to keep record of every asset and their
+        ancestors in the filesystem. Therefore, this route traverses the asset
         `path` provided in `options`, if no record is found for any of its
         parent within the file hierarchy, we create the record and the respective
-        asset. If you can disable this behavior by settting `options.create_parents`
+        asset. You can disable this behavior by settting `options.create_parents`
         to false.
 
       tags:
@@ -293,30 +293,6 @@ components:
         created_at:
           type: string
 
-    # /// Destination path where asset should be created
-    # pub path: String,
-
-    # /// The type of asset - whether it's a file or folder
-    # pub asset_type: AssetType,
-
-    # /// Asset's visibility. Public assets can be read/accessed by everyone. Private assets can be
-    # /// viewed ONLY by permission.
-    # pub public: Option<bool>,
-
-    # /// Set a custom path for your asset instead of the one auto-generated from
-    # /// from `path`. This useful if you'd like to conceal your original asset path.
-    # /// Custom path must be available in that no other asset is already using it in the entire app.
-    # ///
-    # /// Your original asset path makes url look like this `https://mydrive.com/images/somewhere/my-image.png/`.
-    # /// Using custom path, you can conceal the original path: `https://mydrive.com/some/hidden-path`
-    # pub custom_path: Option<String>,
-
-    # /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
-    # /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.
-    # pub create_parents: Option<bool>,
-
-    # /// Users to share this asset with. This can only be set if `public` option is false
-    # pub sharing: Option<Vec<AssetSharing>>,
     CreateAssetOptions:
       type: object
       properties:
@@ -349,12 +325,31 @@ components:
             custom path, you can conceal the original path:
             `https://mydrive.com/custom-path`
 
-      create_parents:
-        type: boolean
-        description: |
-          This route traverses path and create parent assets if they do
-          do not exist.
+        create_parents:
+          type: boolean
+          description: |
+            Whether to traverse path and create parent assets if they do
+            do not exist.
 
+        sharing:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssetSharing"
+          description: |
+            Users to share this asset with. This can only be set if `public`
+            option is `false`. Otherwise, it'll be ignored. Also, you cannot
+            share asset with asset owner. This will also be ignored.
+
+    AssetSharing:
+      type: object
+      properties:
+        user_id:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+            enum: [Create, Read, Update, Delete]
 tags:
   - client:
     name: Client Routes
