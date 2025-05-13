@@ -19,8 +19,8 @@
 !migrations/
 !migrations/**
 
-!ppdocs/
-!ppdocs/**
+!docs/
+!docs/**
 
 !.github
 !.github/**
