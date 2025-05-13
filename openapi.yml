@@ -10,9 +10,9 @@ info:
     via a RESTful API.
 
     These API endpoints are grouped into:
-      - [Client Routes](/#/#client-routes)
-      - [Protected Routes](/#/#protected-routes)
-      - [Unprotected Routes](/#/#unprotected-routes)
+      - [Client Routes](#/#client-routes)
+      - [Protected Routes](#/#protected-routes)
+      - [Unprotected Routes](#/#unprotected-routes)
 
     ### Client Routes
     Client Routes are accesible only to a verifiable PPDRIVE `Client`.
@@ -40,10 +40,10 @@ info:
     ### Protect Routes
     Protected Routes are accesible only to a user with `Manage` or `Admin`
     role. The `user_role` is assigned when a client or admin [creates a new
-    user](/#/operations/clientRegisterUser).
+    user](#/operations/clientRegisterUser).
 
     The `Protected` must be logged in before they can access this route. Call
-    client's [login route](/#/operations/clientLoginUser)
+    client's [login route](#/operations/clientLoginUser)
     to get a user's Bearer Token and pass the token to `Authorization` header
     of your request in the format `Bearer {token}`.
 
@@ -449,7 +449,7 @@ tags:
     description: |
       Protected Routes are accesible only to a user with `Manage` or `Admin`
       role. The `user_role` is assigned when a client or admin [creates a new
-      user](/#tag/Client-Routes/paths/~1client~1user~1register/post).
+      user](#tag/Client-Routes/paths/~1client~1user~1register/post).
 
       The `Protected` must be logged in before they can access this route. Call
       client's [login route](#tag/Client-Routes/paths/~1client~1user~1login/post)
