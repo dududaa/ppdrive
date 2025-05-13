@@ -19,6 +19,34 @@ info:
     without authorization. Even if you find some kind of authentications
     in our examples for unprotected routes, feel free to ignore them.
 
+    ### Protect Routes
+    Protected Routes are accesible only to a user with `Manage` or `Admin`
+    role. The `user_role` is assigned when a client or admin [creates a new
+    user](/#tag/Client-Routes/paths/~1client~1user~1register/post).
+
+    The `Protected` must be logged in before they can access this route. Call
+    client's [login route](#tag/Client-Routes/paths/~1client~1user~1login/post)
+    to get a user's Bearer Token and pass the token to `Authorization` header
+    of your request in the format `Bearer {token}`.
+
+    ### Client Routes
+    Client Routes are accesible only to a verifiable PPDRIVE `Client`.
+    A client is an external application capable of authorizing users
+    and managing assets on PPDRIVE.
+
+    To access these routes, you need to provide your client's `token`
+    by adding the token to `x-ppd-client` header of your requests.
+    You can generate a client token by running `ppdrive create_client
+    {client_name}` or via the Admin UI.
+
+    <b style="color:red;">IMPORTANT!</b> Client tokens give administrative
+    access to anyone who possesses it. **DO NOT SHARE YOUR CLIENT TOKEN**.
+    This means you should ONLY access client routes from your application
+    server.
+
+    If your client token is compromised (or for any other reason), you can
+    regenerate a client token by running `ppdrive new_token {client_id}`.
+
   contact:
     name: Ajayi Olamide
     url: https://github.com/prodbyola
@@ -52,8 +80,9 @@ paths:
           description: |
             This is the type of asset you're trying to retrieve. Set to `File`
             if you're trying to get a file and `Folder` if you're trying to get a folder
+          tags:
+            - Unprotected Routes
           required: true
-
         - name: asset_path
           in: path
           schema:
@@ -210,7 +239,16 @@ paths:
         content:
           application/multipart:
             schema:
-              $ref: "#/components/schemas/CreateAssetOptions"
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+
+                options:
+                  required: true
+                  type: object
+                  $ref: "#/components/schemas/CreateAssetOptions"
 
       responses:
         200:
@@ -363,6 +401,10 @@ components:
             option is `false`. Otherwise, it'll be ignored. Also, you cannot
             share asset with asset owner. This will also be ignored.
 
+      required:
+        - path
+        - asset_type
+
     AssetSharing:
       type: object
       properties:
@@ -373,6 +415,9 @@ components:
           items:
             type: string
             enum: [Create, Read, Update, Delete]
+      required:
+        - user_id
+        - permissions
 
 tags:
   - name: Unprotected Routes
