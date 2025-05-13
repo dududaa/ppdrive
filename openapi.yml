@@ -71,6 +71,8 @@ paths:
       summary: Get Asset
       description: |
         Serve an asset (file or folder) from the provided asset path.
+      tags:
+        - Unprotected Routes
       parameters:
         - name: asset_type
           in: path
@@ -80,8 +82,6 @@ paths:
           description: |
             This is the type of asset you're trying to retrieve. Set to `File`
             if you're trying to get a file and `Folder` if you're trying to get a folder
-          tags:
-            - Unprotected Routes
           required: true
         - name: asset_path
           in: path
