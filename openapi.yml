@@ -10,24 +10,9 @@ info:
     via a RESTful API.
 
     These API endpoints are grouped into:
-      - Protected Routes
-      - Unprotected Routes
-      - Client Routes
-
-    ### Unprotected Routes
-    These routes require no authentication. You can access them with or
-    without authorization. Even if you find some kind of authentications
-    in our examples for unprotected routes, feel free to ignore them.
-
-    ### Protect Routes
-    Protected Routes are accesible only to a user with `Manage` or `Admin`
-    role. The `user_role` is assigned when a client or admin [creates a new
-    user](/#tag/Client-Routes/paths/~1client~1user~1register/post).
-
-    The `Protected` must be logged in before they can access this route. Call
-    client's [login route](#tag/Client-Routes/paths/~1client~1user~1login/post)
-    to get a user's Bearer Token and pass the token to `Authorization` header
-    of your request in the format `Bearer {token}`.
+      - [Client Routes](/#/#client-routes)
+      - [Protected Routes](/#/#protected-routes)
+      - [Unprotected Routes](/#/#unprotected-routes)
 
     ### Client Routes
     Client Routes are accesible only to a verifiable PPDRIVE `Client`.
@@ -46,6 +31,21 @@ info:
 
     If your client token is compromised (or for any other reason), you can
     regenerate a client token by running `ppdrive new_token {client_id}`.
+
+    ### Unprotected Routes
+    These routes require no authentication. You can access them with or
+    without authorization. Even if you find some kind of authentications
+    in our examples for unprotected routes, feel free to ignore them.
+
+    ### Protect Routes
+    Protected Routes are accesible only to a user with `Manage` or `Admin`
+    role. The `user_role` is assigned when a client or admin [creates a new
+    user](/#/operations/clientRegisterUser).
+
+    The `Protected` must be logged in before they can access this route. Call
+    client's [login route](/#/operations/clientLoginUser)
+    to get a user's Bearer Token and pass the token to `Authorization` header
+    of your request in the format `Bearer {token}`.
 
   contact:
     name: Ajayi Olamide
@@ -420,23 +420,6 @@ components:
         - permissions
 
 tags:
-  - name: Unprotected Routes
-    description: |
-      These routes require no authentication. You can access them with or
-      without authorization. Even if you find some kind of authentications
-      in our examples for unprotected routes, feel free to ignore them.
-
-  - name: Protected Routes
-    description: |
-      Protected Routes are accesible only to a user with `Manage` or `Admin`
-      role. The `user_role` is assigned when a client or admin [creates a new
-      user](/#tag/Client-Routes/paths/~1client~1user~1register/post).
-
-      The `Protected` must be logged in before they can access this route. Call
-      client's [login route](#tag/Client-Routes/paths/~1client~1user~1login/post)
-      to get a user's Bearer Token and pass the token to `Authorization` header
-      of your request in the format `Bearer {token}`.
-
   - name: Client Routes
     description: |
       Client Routes are accesible only to a verifiable PPDRIVE `Client`.
@@ -455,3 +438,20 @@ tags:
 
       If your client token is compromised (or for any other reason), you can
       regenerate a client token by running `ppdrive new_token {client_id}`.
+
+  - name: Unprotected Routes
+    description: |
+      These routes require no authentication. You can access them with or
+      without authorization. Even if you find some kind of authentications
+      in our examples for unprotected routes, feel free to ignore them.
+
+  - name: Protected Routes
+    description: |
+      Protected Routes are accesible only to a user with `Manage` or `Admin`
+      role. The `user_role` is assigned when a client or admin [creates a new
+      user](/#tag/Client-Routes/paths/~1client~1user~1register/post).
+
+      The `Protected` must be logged in before they can access this route. Call
+      client's [login route](#tag/Client-Routes/paths/~1client~1user~1login/post)
+      to get a user's Bearer Token and pass the token to `Authorization` header
+      of your request in the format `Bearer {token}`.
