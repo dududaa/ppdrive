@@ -11,6 +11,7 @@
 !compose.yml
 !.env.example
 !LICENSE
+!openapi.yml
 
 !src/
 !src/**
