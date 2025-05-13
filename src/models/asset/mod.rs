@@ -120,7 +120,8 @@ impl Asset {
         let path = Path::new(&dest);
 
         // create asset parents (when they don't exist)
-        if let Some(true) = create_parents {
+        let create_parents = create_parents.unwrap_or(true);
+        if create_parents {
             create_asset_parents(state, &path, user_id, public).await?;
         }
 

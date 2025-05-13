@@ -142,7 +142,7 @@ paths:
                 description: a message that indicates the operation was successful.
                 example: operation successful
 
-  /manager/user:
+  /user:
     get:
       deprecated: false
       summary: Get Current User
@@ -167,10 +167,12 @@ paths:
       description: |
         Create a new asset. If the asset already exists, it will be updated. \
 
-        By default this route traverses the asset `path` provided in `options`,
-        if no record is found for any of its parent folder, we create the
-        parent folder and the respective record. If you don't want this behaviour,
-        set `options.create_parents` to false.
+        It's important for PPDRIVE to keep a record of every asset and their
+        ancestors from the filesystem. Therefore, this route traverses the asset
+        `path` provided in `options`, if no record is found for any of its
+        parent within the file hierarchy, we create the record and the respective
+        asset. If you can disable this behavior by settting `options.create_parents`
+        to false.
 
       tags:
         - Protected Routes
@@ -350,7 +352,8 @@ components:
       create_parents:
         type: boolean
         description: |
-          This route traverses path and create asset parents if they
+          This route traverses path and create parent assets if they do
+          do not exist.
 
 tags:
   - client:

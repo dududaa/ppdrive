@@ -102,6 +102,9 @@ pub(super) async fn validate_custom_path(
 
 /// Traverses asset path, create each parent dir and their respective
 /// records where they don't exist.
+///
+/// Does not check if user exists. Caller is responsible for validating
+/// `user_id`.
 pub(super) async fn create_asset_parents(
     state: &AppState,
     path: &Path,
