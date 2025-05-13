@@ -250,6 +250,12 @@ paths:
                   type: object
                   $ref: "#/components/schemas/CreateAssetOptions"
 
+                example:
+                  file: "binary data"
+                  options:
+                    path: "path/where/file-is/saved/filename.png"
+                    asset_type: File
+
       responses:
         200:
           description: |
