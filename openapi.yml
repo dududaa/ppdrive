@@ -250,12 +250,6 @@ paths:
                   type: object
                   $ref: "#/components/schemas/CreateAssetOptions"
 
-                example:
-                  file: "binary data"
-                  options:
-                    path: "path/where/file-is/saved/filename.png"
-                    asset_type: File
-
       responses:
         200:
           description: |
@@ -264,6 +258,26 @@ paths:
             appplication/json:
               schema:
                 $ref: "#/components/schemas/LoginToken"
+
+    delete:
+      operationId: authDeleteAsset
+      deprecated: false
+      summary: Delete Asset
+      parameters:
+        - name: asset_type
+          in: path
+          description: type of the asset to delete
+          required: true
+          schema:
+            type: string
+            enum: [File, Folder]
+
+        - name: asset_path
+          description: path of the asset to delete
+          in: path
+          required: true
+          schema:
+            type: string
 
 components:
   securitySchemes:
@@ -315,11 +329,13 @@ components:
         id:
           type: string
           description: This could be the user's id or email address.
+
         password:
           type: string
           description: |
             The user's password. Password is optional if you're not coming
             though a Client Route.
+
         exp:
           type: integer
           description: |
@@ -410,6 +426,10 @@ components:
       required:
         - path
         - asset_type
+
+      example:
+        path: some/path-to-a/filename.png
+        asset_type: File
 
     AssetSharing:
       type: object
