@@ -8,6 +8,10 @@ info:
     PPDRIVE is a powerful, standalone file manager written in Rust,
     designed for seamless integration into other applications
     via a RESTful API.
+  contact:
+    name: Ajayi Olamide
+    url: https://github.com/prodbyola
+    email: prodbyola
 
 servers:
   - url: http://localhost:5000
@@ -20,6 +24,7 @@ security:
 paths:
   /{asset_type}/{asset_path}:
     get:
+      operationId: getAsset
       deprecated: false
       summary: Get Asset
       description: |
@@ -54,6 +59,7 @@ paths:
 
   /client/user/register:
     post:
+      operationId: clientRegisterUser
       deprecated: false
       summary: Register User
       description: |
@@ -86,6 +92,7 @@ paths:
 
   /client/user/login:
     post:
+      operationId: clientLoginUser
       deprecated: false
       summary: Login User
       description: |
@@ -116,6 +123,7 @@ paths:
 
   /client/user/{id}:
     delete:
+      operationId: clientDeleteUser
       deprecated: false
       summary: Delete User
       description: Delete a user with the provided `id`.
@@ -125,7 +133,7 @@ paths:
         - clientKey: []
 
       parameters:
-        - required: false
+        - required: true
           in: path
           name: id
           schema:
@@ -144,6 +152,7 @@ paths:
 
   /user:
     get:
+      operationId: getAuthUser
       deprecated: false
       summary: Get Current User
       description: Retrieve details about the currently logged user.
@@ -162,6 +171,7 @@ paths:
 
   /asset:
     post:
+      operationId: authCreateAsset
       deprecated: false
       summary: Create or Upload Asset
       description: |
@@ -200,7 +210,6 @@ components:
   securitySchemes:
     clientKey:
       type: apiKey
-      scheme: https
       in: header
       name: x-ppd-client
 
@@ -208,8 +217,6 @@ components:
       type: http
       scheme: bearer
       bearerFormat: Bearer
-      in: header
-      name: authorization
 
   schemas:
     CreateUserOptions:
@@ -236,8 +243,9 @@ components:
             ignored.
 
       example:
-        role: Creator
+        role: Manager
         partition: prodbyola
+        partition_size: 1024
 
       required:
         - role
@@ -351,8 +359,7 @@ components:
             type: string
             enum: [Create, Read, Update, Delete]
 tags:
-  - client:
-    name: Client Routes
+  - name: Client Routes
     description: |
       Client Routes are accesible only to a verifiable PPDRIVE `Client`.
       A client is an external application capable of authorizing users
@@ -371,8 +378,7 @@ tags:
       If your client token is compromised (or for any other reason), you can
       regenerate a client token by running `ppdrive new_token {client_id}`.
 
-  - manager:
-    name: Protected Routes
+  - name: Protected Routes
     description: |
       Protected Routes are accesible only to a user with `Manage` or `Admin`
       role. The `user_role` is assigned when a client or admin [creates a new
