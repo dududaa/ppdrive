@@ -12,6 +12,9 @@ info:
     name: Ajayi Olamide
     url: https://github.com/prodbyola
     email: prodbyola
+  license:
+    name: MIT License
+    url: https://github.com/prodbyola/ppdrive/blob/main/LICENSE
 
 servers:
   - url: http://localhost:5000
@@ -136,6 +139,7 @@ paths:
         - required: true
           in: path
           name: id
+          description: ID of the user to be deleted.
           schema:
             type: string
             decription: ID of the user to be deleted.
