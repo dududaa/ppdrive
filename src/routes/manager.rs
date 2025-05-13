@@ -112,5 +112,5 @@ pub fn manager_routes() -> Router<AppState> {
     Router::new()
         .route("/user", get(get_user))
         .route("/asset", post(create_asset))
-        .route("/asset/:asset_type/:asset_path", delete(delete_asset))
+        .route("/asset/:asset_type/:id", delete(delete_asset))
 }
