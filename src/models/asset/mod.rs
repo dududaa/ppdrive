@@ -127,20 +127,14 @@ impl Asset {
 
         // create the asset
         match asset_type {
-            AssetType::File => match &tmp {
-                Some(tmp) => move_file(tmp, path).await?,
-                None => {
-                    return Err(AppError::InternalServerError(
-                        "asset_type was set to 'File' but no file was provided.".to_string(),
-                    ));
-                }
-            },
+            AssetType::File => move_file(&tmp, path).await?,
             AssetType::Folder => tokio::fs::create_dir(path).await?,
         }
 
         let is_public = public.unwrap_or_default();
 
-        // try to create asset record if it doesn't exist. If exists, update
+        // try to create asset record if it doesn't exist. If exists,
+        // update.
         let opts = SaveAssetOpts {
             path: &dest,
             is_public: &Some(is_public),

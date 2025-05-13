@@ -175,14 +175,16 @@ pub(super) async fn create_asset_parents(
     Ok(())
 }
 
-pub(super) async fn move_file(src: &PathBuf, dest: &Path) -> Result<(), AppError> {
+pub(super) async fn move_file(src: &Option<PathBuf>, dest: &Path) -> Result<(), AppError> {
     if let Err(err) = tokio::fs::File::create(dest).await {
         tracing::info!("unable to create destination file: {err}");
         return Err(AppError::IOError(err.to_string()));
     }
 
-    tokio::fs::copy(&src, dest).await?;
-    tokio::fs::remove_file(&src).await?;
+    if let Some(src) = src {
+        tokio::fs::copy(&src, dest).await?;
+        tokio::fs::remove_file(&src).await?;
+    }
 
     Ok(())
 }
