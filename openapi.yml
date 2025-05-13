@@ -3,11 +3,22 @@ openapi: 3.1.0
 info:
   title: PPDRIVE
   version: 0.26.71
-  summary: PPDRIVE - an integratable and secure file manager
+  summary: PPDRIVE - an integrated and secure file manager
   description: |
     PPDRIVE is a powerful, standalone file manager written in Rust,
     designed for seamless integration into other applications
     via a RESTful API.
+
+    These API endpoints are grouped into:
+      - Protected Routes
+      - Unprotected Routes
+      - Client Routes
+
+    ### Unprotected Routes
+    These routes require no authentication. You can access them with or
+    without authorization. Even if you find some kind of authentications
+    in our examples for unprotected routes, feel free to ignore them.
+
   contact:
     name: Ajayi Olamide
     url: https://github.com/prodbyola
@@ -60,12 +71,6 @@ paths:
             If the asset is a file, we return the file raw data with its
             respective mime type in `Content-Type` header for browser rendering.
 
-      x-codeSamples:
-        - lang: "cURL"
-          label: "CLI"
-          source: |
-            curl --request \
-            --url 'http://localhost:5000/File/prodbyola/demo.png \
   /client/user/register:
     post:
       operationId: clientRegisterUser
@@ -368,7 +373,25 @@ components:
           items:
             type: string
             enum: [Create, Read, Update, Delete]
+
 tags:
+  - name: Unprotected Routes
+    description: |
+      These routes require no authentication. You can access them with or
+      without authorization. Even if you find some kind of authentications
+      in our examples for unprotected routes, feel free to ignore them.
+
+  - name: Protected Routes
+    description: |
+      Protected Routes are accesible only to a user with `Manage` or `Admin`
+      role. The `user_role` is assigned when a client or admin [creates a new
+      user](/#tag/Client-Routes/paths/~1client~1user~1register/post).
+
+      The `Protected` must be logged in before they can access this route. Call
+      client's [login route](#tag/Client-Routes/paths/~1client~1user~1login/post)
+      to get a user's Bearer Token and pass the token to `Authorization` header
+      of your request in the format `Bearer {token}`.
+
   - name: Client Routes
     description: |
       Client Routes are accesible only to a verifiable PPDRIVE `Client`.
@@ -387,14 +410,3 @@ tags:
 
       If your client token is compromised (or for any other reason), you can
       regenerate a client token by running `ppdrive new_token {client_id}`.
-
-  - name: Protected Routes
-    description: |
-      Protected Routes are accesible only to a user with `Manage` or `Admin`
-      role. The `user_role` is assigned when a client or admin [creates a new
-      user](/#tag/Client-Routes/paths/~1client~1user~1register/post).
-
-      The `Protected` must be logged in before they can access this route. Call
-      client's [login route](#tag/Client-Routes/paths/~1client~1user~1login/post)
-      to get a user's Bearer Token and pass the token to `Authorization` header
-      of your request in the format `Bearer {token}`.
