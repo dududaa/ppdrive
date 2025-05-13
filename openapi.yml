@@ -259,10 +259,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/LoginToken"
 
+  /asset/{asset_type}/{asset_path}:
     delete:
       operationId: authDeleteAsset
       deprecated: false
       summary: Delete Asset
+      description: |
+        Delete an asset with the given `asset_type` and `asset_path`. The
+        asset must exist and must be owned by the currently logged user.
+        Otherwise we return an error.
       parameters:
         - name: asset_type
           in: path
@@ -278,6 +283,8 @@ paths:
           required: true
           schema:
             type: string
+      tags:
+        - Protected Routes
 
 components:
   securitySchemes:
