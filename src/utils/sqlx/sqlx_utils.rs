@@ -100,9 +100,9 @@ impl ToQuery for SqlxFilters<'_> {
             .items
             .iter()
             .enumerate()
-            .map(|(i, s)| match bn {
-                BackendName::Postgres => format!("{} = ${}", s, (i as u8) + self.offset),
-                _ => format!("{} = ?", s),
+            .map(|(i, col)| {
+                let bq = bn.to_query(i as u8 + self.offset);
+                format!("{col} = {bq}")
             })
             .collect();
 
@@ -125,10 +125,8 @@ impl ToQuery for SqlxValues {
         let mut values = Vec::with_capacity(self.0 as usize);
 
         for i in 0..self.0 {
-            match bn {
-                BackendName::Postgres => values.push(format!("${}", i + self.1)),
-                _ => values.push("?".to_string()),
-            }
+            let bq = bn.to_query(i + self.1);
+            values.push(bq);
         }
 
         let values = values.join(", ");
@@ -161,9 +159,9 @@ impl ToQuery for SqlxSetters<'_> {
             .items
             .iter()
             .enumerate()
-            .map(|(i, col)| match bn {
-                BackendName::Postgres => format!("{col} = {}", (i as u8) + self.offset),
-                _ => format!("{col} = ?"),
+            .map(|(i, col)| {
+                let bq = bn.to_query(i as u8 + self.offset);
+                format!("{col} = {bq}")
             })
             .collect();
 
