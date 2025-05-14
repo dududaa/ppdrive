@@ -160,7 +160,7 @@ pub async fn get_asset(
                 }
 
                 let content = if filenames.is_empty() {
-                    format!("<p>No content found.</p>")
+                    "<p>No content found.</p>".to_string()
                 } else {
                     format!(r#"<ul>{}</ul>"#, filenames.join("\n"))
                 };
