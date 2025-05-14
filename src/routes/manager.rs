@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Multipart, Path, State},
+    extract::{DefaultBodyLimit, Multipart, Path, State},
     routing::{delete, get, post},
     Json, Router,
 };
@@ -15,6 +15,7 @@ use crate::{
         IntoSerializer,
     },
     state::AppState,
+    utils::{get_env, mb_to_bytes},
 };
 
 use super::{
@@ -54,7 +55,7 @@ async fn create_asset(
     let mut tmp_file = None;
     let mut filesize = None;
 
-    while let Some(mut field) = multipart.next_field().await? {
+    while let Some(field) = multipart.next_field().await? {
         let name = field.name().unwrap_or("").to_string();
 
         if name == "options" {
@@ -66,9 +67,9 @@ async fn create_asset(
             tmp_path.push(tmp_name);
 
             let mut file = File::create(&tmp_path).await?;
-            while let Some(chunk) = field.chunk().await? {
-                file.write_all(&chunk).await?;
-            }
+
+            let data = field.bytes().await?;
+            file.write_all(&data).await?;
 
             filesize = Some(file.metadata().await?.len());
             tmp_file = Some(tmp_path);
@@ -78,7 +79,7 @@ async fn create_asset(
     let cfz = user.current_folder_size().await?;
     if let (Some(ufz), Some(filesize), Some(max_size)) = (cfz, filesize, user.folder_max_size()) {
         let total_size = ufz + filesize;
-        if total_size > (*max_size as u64) {
+        if total_size > mb_to_bytes(*max_size as usize) as u64 {
             return Err(AppError::InternalServerError(
                 "the total partition size assigned to this user is exceeded.".to_string(),
             ));
@@ -108,9 +109,19 @@ async fn delete_asset(
 }
 
 /// Routes accessible to creators
-pub fn manager_routes() -> Router<AppState> {
-    Router::new()
+pub fn manager_routes() -> Result<Router<AppState>, AppError> {
+    let max_upload_size = get_env("PPDRIVE_MAX_UPLOAD_SIZE")?;
+    let max = max_upload_size
+        .parse::<usize>()
+        .map_err(|err| AppError::InitError(err.to_string()))?;
+
+    let limit = mb_to_bytes(max);
+
+    let router = Router::new()
         .route("/user", get(get_user))
         .route("/asset", post(create_asset))
-        .route("/asset/:asset_type/:id", delete(delete_asset))
+        .layer(DefaultBodyLimit::max(limit))
+        .route("/asset/:asset_type/:id", delete(delete_asset));
+
+    Ok(router)
 }

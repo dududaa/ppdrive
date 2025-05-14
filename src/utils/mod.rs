@@ -11,3 +11,7 @@ pub fn get_env(key: &str) -> Result<String, AppError> {
         err.into()
     })
 }
+
+pub fn mb_to_bytes(value: usize) -> usize {
+    value * 1024 * 1000
+}
