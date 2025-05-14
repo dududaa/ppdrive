@@ -242,6 +242,10 @@ paths:
               type: object
               properties:
                 file:
+                  description: |
+                    Optional file content we write to `asset_path` if the asset
+                    we're creating is a `File` type. Ignore this option
+                    if you're creating a folder.
                   type: string
                   format: binary
 
@@ -386,7 +390,7 @@ components:
     CreateAssetOptions:
       type: object
       properties:
-        path:
+        asset_path:
           type: string,
           description: The relative path where we save user's asset.
 
@@ -399,8 +403,10 @@ components:
           type: boolean
           description: |
             Asset's visibility. \
-            Public assets can be accessed by everyone. Private assets
-            can only be accessed by users with `Read` permission.
+            When set to true, asset is `public`. When set to false, asset
+            is `private`. Public assets can be accessed by everyone.
+            Private assets can only be accessed by asset owner and users
+            with `Read` permission.
 
         custom_path:
           type: string
