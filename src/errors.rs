@@ -12,6 +12,7 @@ pub enum AppError {
     IOError(String),
     NotImplemented(String),
     NotFound(String),
+    PermissionDenied(String),
 }
 
 impl Display for AppError {
@@ -25,6 +26,7 @@ impl Display for AppError {
             AppError::IOError(msg) => write!(f, "{msg}"),
             AppError::NotImplemented(msg) => write!(f, "{msg}"),
             AppError::NotFound(msg) => write!(f, "{msg}"),
+            AppError::PermissionDenied(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -70,6 +72,7 @@ impl IntoResponse for AppError {
         let resp = match self {
             AppError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::PermissionDenied(msg) => (StatusCode::FORBIDDEN, msg),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
 

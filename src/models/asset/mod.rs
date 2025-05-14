@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 use ext::{
     create_asset_parents, create_or_update_asset, move_file, share_asset, validate_custom_path,
@@ -23,6 +26,19 @@ pub enum AssetType {
     #[default]
     File,
     Folder,
+}
+
+impl Display for AssetType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use AssetType::*;
+
+        let value = match self {
+            File => "File",
+            Folder => "Folder",
+        };
+
+        write!(f, "{value}")
+    }
 }
 
 impl TryFrom<i16> for AssetType {
@@ -229,6 +245,10 @@ impl Asset {
         }
 
         Ok(())
+    }
+
+    pub fn id(&self) -> &i32 {
+        &self.id
     }
 
     pub fn public(&self) -> &bool {

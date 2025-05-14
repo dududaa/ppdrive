@@ -5,6 +5,7 @@ use axum::{
     response::Response,
 };
 use axum_macros::debug_handler;
+use extractors::{CurrentUser, ExtractUser};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -74,6 +75,7 @@ pub struct CreateAssetOptions {
 pub async fn get_asset(
     Path((asset_type, asset_path)): Path<(AssetType, String)>,
     State(state): State<AppState>,
+    user_extractor: Option<ExtractUser>,
 ) -> Result<Response<Body>, AppError> {
     let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
 
@@ -86,31 +88,49 @@ pub async fn get_asset(
         }
     }
 
-    // find and serve asset
-    if *asset.public() {
-        let path = StdPath::new(asset.path());
+    // check if current user has read permission
+    if !asset.public() {
+        match user_extractor {
+            Some(extractor) => {
+                let current_user = extractor.0;
+                let can_read = current_user.can_read_asset(&state, asset.id()).await;
 
-        if path.exists() {
-            if path.is_file() {
-                let content = tokio::fs::read(path).await?;
-                let mime_type = mime_guess::from_path(path).first_or_octet_stream();
-                let resp = Response::builder()
-                    .header(CONTENT_TYPE, mime_type.to_string())
-                    .body(Body::from(content))
-                    .map_err(|err| AppError::InternalServerError(err.to_string()))?;
-
-                Ok(resp)
-            } else {
-                Err(AppError::NotImplemented(
-                    "folder view yet to be implemented".to_string(),
-                ))
+                if (current_user.id() != asset.user_id()) && can_read.is_err() {
+                    return Err(AppError::PermissionDenied("permission denied".to_string()));
+                }
             }
-        } else {
-            Err(AppError::NotFound(format!(
-                "asset '{asset_path}' not found"
-            )))
+            None => {
+                return Err(AppError::PermissionDenied("permission denied".to_string()));
+            }
         }
-    } else {
-        Err(AppError::InternalServerError("access denied".to_string()))
+    }
+
+    let path = StdPath::new(asset.path());
+    match asset_type {
+        AssetType::File => {
+            if path.exists() {
+                if path.is_file() {
+                    let content = tokio::fs::read(path).await?;
+                    let mime_type = mime_guess::from_path(path).first_or_octet_stream();
+                    let resp = Response::builder()
+                        .header(CONTENT_TYPE, mime_type.to_string())
+                        .body(Body::from(content))
+                        .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+
+                    Ok(resp)
+                } else {
+                    Err(AppError::NotImplemented(
+                        "folder view yet to be implemented".to_string(),
+                    ))
+                }
+            } else {
+                Err(AppError::NotFound(format!(
+                    "asset record found but path '{asset_path}' does not exist if filesystem for '{asset_type}'."
+                )))
+            }
+        }
+        AssetType::Folder => Err(AppError::NotImplemented(
+            "folder view yet to be implemented".to_string(),
+        )),
     }
 }
