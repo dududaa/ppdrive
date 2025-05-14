@@ -31,7 +31,7 @@ pub(super) async fn save_asset(state: &AppState, opts: SaveAssetOpts<'_>) -> Res
     let bn = state.backend_name();
     let asset_type: i16 = asset_type.into();
 
-    let values = SqlxValues(4, 1).to_query(bn);
+    let values = SqlxValues(5, 1).to_query(bn);
     let query = format!(
         "INSERT INTO assets (asset_path, public, custom_path, user_id, asset_type) {values}"
     );
@@ -60,8 +60,11 @@ pub(super) async fn update_asset(
         .add("custom_path")
         .to_query(bn);
 
+    let is_public = is_public.unwrap_or_default();
     let ff = SqlxFilters::new("id", 3).to_query(bn);
     let query = format!("UPDATE assets SET {sf} WHERE {ff}");
+
+    tracing::info!("query: {query}");
 
     sqlx::query(&query)
         .bind(is_public)
@@ -138,7 +141,7 @@ pub(super) async fn create_asset_parents(
                     tracing::error!(msg);
                     return Err(AppError::InternalServerError(msg.to_string()));
                 } else {
-                    tracing::info!("path {path} already exists. skipping... ");
+                    tracing::warn!("path {path} already exists. skipping... ");
                     continue;
                 }
             }
@@ -152,7 +155,7 @@ pub(super) async fn create_asset_parents(
             values.push(format!("({}, {}, {}, {})", pbq, uq, tq, pq));
         }
 
-        if !paths.is_empty() {
+        if !values.is_empty() {
             // build query
             let asset_type = i16::from(&AssetType::Folder);
             let query = format!(
@@ -183,12 +186,8 @@ pub(super) async fn move_file(src: &Option<PathBuf>, dest: &Path) -> Result<(), 
         return Err(AppError::IOError(err.to_string()));
     }
 
-    tracing::info!("dest created");
     if let Some(src) = src {
-        tracing::info!("copying {src:?} to {dest:?}");
         tokio::fs::copy(&src, dest).await?;
-
-        tracing::info!("copied");
         tokio::fs::remove_file(&src).await?;
     }
 

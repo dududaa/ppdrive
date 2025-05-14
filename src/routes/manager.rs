@@ -91,23 +91,19 @@ async fn create_asset(
     }
 
     if opts.asset_path.is_empty() {
-        if let Some(tmp_file) = tmp_file {
-            tokio::fs::remove_file(tmp_file).await?;
-        }
-
         return Err(AppError::InternalServerError(
             "asset_path field is required".to_string(),
         ));
     }
 
-    let path = Asset::create_or_update(&state, user_id, opts, &tmp_file).await;
-    if path.is_err() {
-        if let Some(tmp_file) = tmp_file {
-            tokio::fs::remove_file(tmp_file).await?;
+    let path = Asset::create_or_update(&state, user_id, opts, &tmp_file).await?;
+    if let Some(tmp_file) = &tmp_file {
+        if let Err(err) = tokio::fs::remove_file(tmp_file).await {
+            tracing::info!("unable to remove {tmp_file:?}: {err}")
         }
     }
 
-    path
+    Ok(path)
 }
 
 #[debug_handler]
