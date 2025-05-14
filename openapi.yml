@@ -256,12 +256,11 @@ paths:
 
       responses:
         200:
-          description: |
-            User's login details, including the token and expiration.
+          description: The new asset path.
           content:
             appplication/json:
               schema:
-                $ref: "#/components/schemas/LoginToken"
+                type: string
 
   /asset/{asset_type}/{asset_path}:
     delete:
@@ -309,7 +308,9 @@ components:
         role:
           type: string
           enum: [Basic, Manager]
-          description: The user's role
+          description: |
+            The user's role. `Basic` only has read access to assets.
+            `Manager` can manage assets.
 
         partition:
           type: string
@@ -322,9 +323,9 @@ components:
         partition_size:
           type: integer
           description: |
-            Max size (in bytes) to be assiged to the user's partition. This
-            should be set only if `partition` is set. Otherwise, it would be
-            ignored.
+            Max size in megabytes (MB) to be assiged to the user's partition. This
+            should be provided only if `partition` is set. Otherwise, the value
+            would be ignored.
 
       example:
         role: Manager
