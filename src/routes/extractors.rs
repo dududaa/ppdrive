@@ -11,12 +11,7 @@ use crate::{
         user::{User, UserRole},
     },
     state::AppState,
-    utils::{
-        fs::check_folder_size,
-        jwt::decode_jwt,
-        sqlx::sqlx_utils::{SqlxFilters, ToQuery},
-        tools::client::verify_client,
-    },
+    utils::{fs::check_folder_size, jwt::decode_jwt, tools::client::verify_client},
 };
 
 pub struct CurrentUser {

@@ -5,7 +5,7 @@ use axum::{
     response::Response,
 };
 use axum_macros::debug_handler;
-use extractors::{CurrentUser, ExtractUser};
+use extractors::ExtractUser;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -78,6 +78,7 @@ pub async fn get_asset(
     user_extractor: Option<ExtractUser>,
 ) -> Result<Response<Body>, AppError> {
     let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
+    let current_user = user_extractor.map(|ext| ext.0);
 
     // if asset has custom path and custom path is not provided in url,
     // we return an error. The purpose of custom path is to conceal the
@@ -90,9 +91,8 @@ pub async fn get_asset(
 
     // check if current user has read permission
     if !asset.public() {
-        match user_extractor {
-            Some(extractor) => {
-                let current_user = extractor.0;
+        match &current_user {
+            Some(current_user) => {
                 let can_read = current_user.can_read_asset(&state, asset.id()).await;
 
                 if (current_user.id() != asset.user_id()) && can_read.is_err() {
@@ -108,29 +108,82 @@ pub async fn get_asset(
     let path = StdPath::new(asset.path());
     match asset_type {
         AssetType::File => {
-            if path.exists() {
-                if path.is_file() {
-                    let content = tokio::fs::read(path).await?;
-                    let mime_type = mime_guess::from_path(path).first_or_octet_stream();
-                    let resp = Response::builder()
-                        .header(CONTENT_TYPE, mime_type.to_string())
-                        .body(Body::from(content))
-                        .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+            if path.exists() && path.is_file() {
+                let content = tokio::fs::read(path).await?;
+                let mime_type = mime_guess::from_path(path).first_or_octet_stream();
+                let resp = Response::builder()
+                    .header(CONTENT_TYPE, mime_type.to_string())
+                    .body(Body::from(content))
+                    .map_err(|err| AppError::InternalServerError(err.to_string()))?;
 
-                    Ok(resp)
-                } else {
-                    Err(AppError::NotImplemented(
-                        "folder view yet to be implemented".to_string(),
-                    ))
-                }
+                Ok(resp)
             } else {
                 Err(AppError::NotFound(format!(
                     "asset record found but path '{asset_path}' does not exist if filesystem for '{asset_type}'."
                 )))
             }
         }
-        AssetType::Folder => Err(AppError::NotImplemented(
-            "folder view yet to be implemented".to_string(),
-        )),
+        AssetType::Folder => {
+            if path.exists() && path.is_dir() {
+                let mut contents = tokio::fs::read_dir(path).await?;
+                let mut filenames = Vec::new();
+
+                // let's attempt to read folder contents, checking for
+                // asset ownership all along
+                while let Ok(Some(entry)) = contents.next_entry().await {
+                    let path = entry.path();
+                    let filename = entry.file_name();
+
+                    if let (Some(path_str), Some(filename)) = (path.to_str(), filename.to_str()) {
+                        let asset_type = if path.is_file() {
+                            AssetType::File
+                        } else {
+                            AssetType::Folder
+                        };
+
+                        let asset = Asset::get_by_path(&state, path_str, &asset_type).await;
+                        if let Ok(asset) = asset {
+                            let html = format!("<li>{filename}</li>");
+
+                            if *asset.public() {
+                                filenames.push(html);
+                            } else {
+                                if let Some(auth) = &current_user {
+                                    let can_read = auth.can_read_asset(&state, asset.id()).await;
+                                    if (auth.id() == asset.user_id()) || can_read.is_ok() {
+                                        filenames.push(html);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let content = if filenames.is_empty() {
+                    format!("<p>No content found.</p>")
+                } else {
+                    format!(r#"<ul>{}</ul>"#, filenames.join("\n"))
+                };
+
+                let body = format!(
+                    r#"
+                    <DOCTYPE! html>
+                    <html>
+                        {content}
+                    </html>
+                "#
+                );
+                let resp = Response::builder()
+                    .header(CONTENT_TYPE, "application/html")
+                    .body(Body::from(body))
+                    .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+
+                Ok(resp)
+            } else {
+                Err(AppError::NotFound(format!(
+                    "asset record found but path '{asset_path}' does not exist if filesystem for '{asset_type}'."
+                )))
+            }
+        }
     }
 }
