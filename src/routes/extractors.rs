@@ -6,9 +6,17 @@ use axum::{
 
 use crate::{
     errors::AppError,
-    models::user::{User, UserRole},
+    models::{
+        permission::{AssetPermission, Permission},
+        user::{User, UserRole},
+    },
     state::AppState,
-    utils::{fs::check_folder_size, jwt::decode_jwt, tools::client::verify_client},
+    utils::{
+        fs::check_folder_size,
+        jwt::decode_jwt,
+        sqlx::sqlx_utils::{SqlxFilters, ToQuery},
+        tools::client::verify_client,
+    },
 };
 
 pub struct CurrentUser {
@@ -42,6 +50,11 @@ impl CurrentUser {
         }
 
         Ok(size)
+    }
+
+    /// checks if user has read permission for the given asset
+    pub async fn can_read_asset(&self, state: &AppState, asset_id: &i32) -> Result<(), AppError> {
+        AssetPermission::check(state, self.id(), asset_id, Permission::Read).await
     }
 }
 
