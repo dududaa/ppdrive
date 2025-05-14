@@ -73,10 +73,14 @@ pub struct CreateAssetOptions {
 
 #[debug_handler]
 pub async fn get_asset(
-    Path((asset_type, asset_path)): Path<(AssetType, String)>,
+    Path((asset_type, mut asset_path)): Path<(AssetType, String)>,
     State(state): State<AppState>,
     user_extractor: Option<ExtractUser>,
 ) -> Result<Response<Body>, AppError> {
+    if asset_path.ends_with("/") {
+        asset_path = asset_path.trim_end_matches("/").to_string();
+    }
+
     let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
     let current_user = user_extractor.map(|ext| ext.0);
 
@@ -143,7 +147,9 @@ pub async fn get_asset(
 
                         let asset = Asset::get_by_path(&state, path_str, &asset_type).await;
                         if let Ok(asset) = asset {
-                            let html = format!("<li>{filename}</li>");
+                            let default_path = format!("{asset_type}/{}", asset.path());
+                            let url_path = asset.custom_path().as_ref().unwrap_or(&default_path);
+                            let html = format!("<li><a href='/{url_path}'>{filename}</a></li>");
 
                             if *asset.public() {
                                 filenames.push(html);
