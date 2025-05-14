@@ -127,7 +127,7 @@ impl Asset {
 
         // validate custom_path
         if let Some(custom_path) = &custom_path {
-            validate_custom_path(state, custom_path, &asset_path, asset_type, &tmp).await?;
+            validate_custom_path(state, custom_path, asset_path, asset_type, &tmp).await?;
         }
 
         let user = User::get(state, user_id).await?;
@@ -138,7 +138,7 @@ impl Asset {
         // create asset parents (when they don't exist)
         let create_parents = create_parents.unwrap_or(true);
         if create_parents {
-            create_asset_parents(state, &path, user_id, public).await?;
+            create_asset_parents(state, path, user_id, public).await?;
         }
 
         // create the asset
@@ -154,7 +154,7 @@ impl Asset {
         let opts = SaveAssetOpts {
             path: &dest,
             is_public: &Some(is_public),
-            custom_path: &custom_path,
+            custom_path: custom_path,
             user_id: user.id(),
             asset_type,
         };
@@ -189,7 +189,7 @@ impl Asset {
 
         let asset = sqlx::query_as::<_, Asset>(&format!("SELECT * FROM assets WHERE {filters}"))
             .bind(asset_path)
-            .bind(&asset_type)
+            .bind(asset_type)
             .fetch_one(&conn)
             .await?;
 
