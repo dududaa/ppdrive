@@ -114,7 +114,7 @@ impl Asset {
         state: &AppState,
         user_id: &i32,
         opts: CreateAssetOptions,
-        tmp: Option<PathBuf>,
+        tmp: &Option<PathBuf>,
     ) -> Result<String, AppError> {
         let CreateAssetOptions {
             asset_path,
@@ -127,7 +127,7 @@ impl Asset {
 
         // validate custom_path
         if let Some(custom_path) = &custom_path {
-            validate_custom_path(state, custom_path, asset_path, asset_type, &tmp).await?;
+            validate_custom_path(state, custom_path, asset_path, asset_type, tmp).await?;
         }
 
         let user = User::get(state, user_id).await?;
@@ -143,7 +143,7 @@ impl Asset {
 
         // create the asset
         match asset_type {
-            AssetType::File => move_file(&tmp, path).await?,
+            AssetType::File => move_file(tmp, path).await?,
             AssetType::Folder => tokio::fs::create_dir(path).await?,
         }
 
@@ -159,7 +159,7 @@ impl Asset {
             asset_type,
         };
 
-        let asset = create_or_update_asset(state, opts, &tmp).await?;
+        let asset = create_or_update_asset(state, opts, tmp).await?;
 
         // create asset sharing as specified in options
         if !is_public {

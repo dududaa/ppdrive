@@ -80,14 +80,24 @@ async fn create_asset(
     if let (Some(ufz), Some(filesize), Some(max_size)) = (cfz, filesize, user.folder_max_size()) {
         let total_size = ufz + filesize;
         if total_size > mb_to_bytes(*max_size as usize) as u64 {
+            if let Some(tmp_file) = tmp_file {
+                tokio::fs::remove_file(tmp_file).await?;
+            }
+
             return Err(AppError::InternalServerError(
                 "the total partition size assigned to this user is exceeded.".to_string(),
             ));
         }
     }
 
-    let path = Asset::create_or_update(&state, user_id, opts, tmp_file).await?;
-    Ok(path)
+    let path = Asset::create_or_update(&state, user_id, opts, &tmp_file).await;
+    if path.is_err() {
+        if let Some(tmp_file) = tmp_file {
+            tokio::fs::remove_file(tmp_file).await?;
+        }
+    }
+
+    path
 }
 
 #[debug_handler]
