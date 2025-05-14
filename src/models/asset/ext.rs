@@ -128,7 +128,7 @@ pub(super) async fn create_asset_parents(
         }
 
         let bn = state.backend_name();
-        let mut values = Vec::with_capacity(parents.len());
+        let mut values = Vec::with_capacity(paths.len());
 
         for (index, path) in paths.iter().enumerate() {
             // check if parent folders
@@ -137,6 +137,9 @@ pub(super) async fn create_asset_parents(
                     let msg = "you're attempting to create a folder that already beolngs to someone else.";
                     tracing::error!(msg);
                     return Err(AppError::InternalServerError(msg.to_string()));
+                } else {
+                    tracing::info!("path {path} already exists. skipping... ");
+                    continue;
                 }
             }
 
@@ -149,22 +152,24 @@ pub(super) async fn create_asset_parents(
             values.push(format!("({}, {}, {}, {})", pbq, uq, tq, pq));
         }
 
-        // build query
-        let asset_type = i16::from(&AssetType::Folder);
-        let query = format!(
-            "INSERT INTO assets (public, user_id, asset_type, asset_path) \nVALUES \n{}",
-            values.join(",\n")
-        );
+        if !paths.is_empty() {
+            // build query
+            let asset_type = i16::from(&AssetType::Folder);
+            let query = format!(
+                "INSERT INTO assets (public, user_id, asset_type, asset_path) \nVALUES \n{}",
+                values.join(",\n")
+            );
 
-        // save records
-        let is_public = is_public.unwrap_or_default();
-        let conn = state.db_pool().await;
-        sqlx_binder!(
-            conn,
-            &query,
-            is_public, user_id, asset_type;
-            paths
-        );
+            // save records
+            let is_public = is_public.unwrap_or_default();
+            let conn = state.db_pool().await;
+            sqlx_binder!(
+                conn,
+                &query,
+                is_public, user_id, asset_type;
+                paths
+            );
+        }
 
         tokio::fs::create_dir_all(parent).await?;
     }
@@ -178,8 +183,12 @@ pub(super) async fn move_file(src: &Option<PathBuf>, dest: &Path) -> Result<(), 
         return Err(AppError::IOError(err.to_string()));
     }
 
+    tracing::info!("dest created");
     if let Some(src) = src {
+        tracing::info!("copying {src:?} to {dest:?}");
         tokio::fs::copy(&src, dest).await?;
+
+        tracing::info!("copied");
         tokio::fs::remove_file(&src).await?;
     }
 
