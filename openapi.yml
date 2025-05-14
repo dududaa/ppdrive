@@ -391,12 +391,12 @@ components:
       type: object
       properties:
         asset_path:
-          type: string,
+          type: string
           description: The relative path where we save user's asset.
 
         asset_type:
           type: string
-          description: The type of asset - whether it's a file or folder
+          description: The type of asset - whether it's a file or folder.
           enum: [File, Folder]
 
         public:
@@ -437,12 +437,8 @@ components:
             share asset with asset owner. This will also be ignored.
 
       required:
-        - path
+        - asset_path
         - asset_type
-
-      example:
-        path: some/path-to-a/filename.png
-        asset_type: File
 
     AssetSharing:
       type: object
