@@ -147,9 +147,8 @@ pub async fn get_asset(
 
                         let asset = Asset::get_by_path(&state, path_str, &asset_type).await;
                         if let Ok(asset) = asset {
-                            let default_path = format!("{asset_type}/{}", asset.path());
-                            let url_path = asset.custom_path().as_ref().unwrap_or(&default_path);
-                            let html = format!("<li><a href='/{url_path}'>{filename}</a></li>");
+                            let html =
+                                format!("<li><a href='/{}'>{filename}</a></li>", asset.url_path());
 
                             if *asset.public() {
                                 filenames.push(html);

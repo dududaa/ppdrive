@@ -266,6 +266,12 @@ impl Asset {
     pub fn user_id(&self) -> &i32 {
         &self.user_id
     }
+
+    pub fn url_path(&self) -> String {
+        let default_path = format!("{}/{}", self.asset_type, self.asset_path);
+        let up = self.custom_path.as_ref().unwrap_or(&default_path);
+        up.to_string()
+    }
 }
 
 #[derive(Deserialize)]
