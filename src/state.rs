@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 
 pub async fn create_db_pool() -> Result<AnyPool, AppError> {
     let debug_mode = get_env("DEBUG_MODE")?;
-    let connection_url = get_env("DATABASE_URL")?;
+    let connection_url = get_env("PPDRIVE_DATABASE_URL")?;
 
     if &debug_mode != "true" {
         // run_migrations().await?;

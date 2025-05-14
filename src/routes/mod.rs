@@ -174,7 +174,7 @@ pub async fn get_asset(
                 "#
                 );
                 let resp = Response::builder()
-                    .header(CONTENT_TYPE, "application/html")
+                    .header(CONTENT_TYPE, "text/html")
                     .body(Body::from(body))
                     .map_err(|err| AppError::InternalServerError(err.to_string()))?;
 
