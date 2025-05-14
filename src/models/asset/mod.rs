@@ -101,7 +101,7 @@ impl Asset {
         tmp: Option<PathBuf>,
     ) -> Result<String, AppError> {
         let CreateAssetOptions {
-            path,
+            asset_path,
             public,
             asset_type,
             custom_path,
@@ -111,12 +111,12 @@ impl Asset {
 
         // validate custom_path
         if let Some(custom_path) = &custom_path {
-            validate_custom_path(state, custom_path, &path, asset_type, &tmp).await?;
+            validate_custom_path(state, custom_path, &asset_path, asset_type, &tmp).await?;
         }
 
         let user = User::get(state, user_id).await?;
         let partition = user.partition().as_deref();
-        let dest = partition.map_or(path.clone(), |rf| format!("{rf}/{path}"));
+        let dest = partition.map_or(asset_path.clone(), |rf| format!("{rf}/{asset_path}"));
         let path = Path::new(&dest);
 
         // create asset parents (when they don't exist)

@@ -45,7 +45,7 @@ pub struct LoginToken {
 #[derive(Default, Deserialize)]
 pub struct CreateAssetOptions {
     /// Destination path where asset should be created
-    pub path: String,
+    pub asset_path: String,
 
     /// The type of asset - whether it's a file or folder
     pub asset_type: AssetType,
