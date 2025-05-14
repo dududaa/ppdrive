@@ -18,10 +18,7 @@ pub(super) struct SaveAssetOpts<'a> {
     pub asset_type: &'a AssetType,
 }
 
-pub(super) async fn save_asset<'a>(
-    state: &AppState,
-    opts: SaveAssetOpts<'a>,
-) -> Result<(), AppError> {
+pub(super) async fn save_asset(state: &AppState, opts: SaveAssetOpts<'_>) -> Result<(), AppError> {
     let SaveAssetOpts {
         path,
         is_public,
@@ -114,7 +111,7 @@ pub(super) async fn create_asset_parents(
     let parent = path.parent();
 
     if let Some(parent) = parent {
-        let parents: Vec<&str> = parent.ancestors().map(|p| p.to_str()).flatten().collect();
+        let parents: Vec<&str> = parent.ancestors().filter_map(|p| p.to_str()).collect();
         let paths: Vec<&&str> = parents
             .iter()
             .rev()
@@ -222,9 +219,9 @@ pub(super) async fn share_asset(
     Ok(())
 }
 
-pub(super) async fn create_or_update_asset<'a>(
+pub(super) async fn create_or_update_asset(
     state: &AppState,
-    opts: SaveAssetOpts<'a>,
+    opts: SaveAssetOpts<'_>,
     tmp: &Option<PathBuf>,
 ) -> Result<Asset, AppError> {
     let SaveAssetOpts {
