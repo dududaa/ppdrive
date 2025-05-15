@@ -1,6 +1,6 @@
 # PPDRIVE
 
-Are you creating or working on an application that needs manage files? **PPDRIVE** is a powerful, standalone file manager written in Rust, designed for seamless integration into other applications via a RESTful API. Whether you're building a complex backend system or need a standalone file server with authentication and file-level permissions, PPDRIVE provides a robust, secure, and extensible solution.
+*PPDRIVE** is a powerful, standalone file manager written in Rust, designed for seamless integration into other applications via a RESTful API. Whether you're building a complex backend system or need a standalone file server with authentication and file-level permissions, PPDRIVE provides a robust, secure, and extensible solution.
 
 ---
 

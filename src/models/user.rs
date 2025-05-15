@@ -66,16 +66,16 @@ impl User {
         Ok(user)
     }
 
-    pub async fn get_by_root_folder(state: &AppState, root_folder: &str) -> Option<Self> {
+    pub async fn get_by_partition_name(state: &AppState, partition_name: &str) -> Option<Self> {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("root_folder", 1).to_query(bn);
+        let filters = SqlxFilters::new("partition", 1).to_query(bn);
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
         let user = sqlx::query_as::<_, User>(&query)
-            .bind(root_folder)
+            .bind(partition_name)
             .fetch_one(&conn)
             .await;
 
@@ -86,14 +86,17 @@ impl User {
         let conn = state.db_pool().await;
 
         // check if someone already owns root folder
-        if let Some(folder) = &data.partition {
-            if User::get_by_root_folder(state, folder).await.is_some() {
+        if let Some(partition) = &data.partition {
+            if User::get_by_partition_name(state, partition)
+                .await
+                .is_some()
+            {
                 return Err(AppError::InternalServerError(
-                        format!("user with partition_name: '{folder}' already exists. please provide unique folder name")
+                        format!("user with partition_name: '{partition}' already exists. please provide unique folder name")
                     ));
             }
 
-            let path = Path::new(folder);
+            let path = Path::new(partition);
             tokio::fs::create_dir_all(path).await?;
         }
 
