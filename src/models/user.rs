@@ -152,16 +152,16 @@ impl User {
     async fn clean_up(
         state: &AppState,
         user_id: &i32,
-        root_folder: &Option<String>,
+        partition: &Option<String>,
     ) -> Result<(), AppError> {
         // delete root_folder
-        if let Some(root_folder) = root_folder {
+        if let Some(root_folder) = partition {
             let path = Path::new(root_folder);
-            tokio::fs::remove_dir(path).await?;
+            tokio::fs::remove_dir_all(path).await?;
         }
 
         AssetPermission::delete_for_user(state, user_id).await?;
-        Asset::delete_for_user(state, user_id, root_folder.is_none()).await?;
+        Asset::delete_for_user(state, user_id, partition.is_none()).await?;
         Ok(())
     }
 
