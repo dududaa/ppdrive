@@ -15,7 +15,7 @@ use crate::{
         IntoSerializer,
     },
     state::AppState,
-    utils::{get_env, mb_to_bytes},
+    utils::{get_env, mb_to_bytes, tools::secrets::SECRET_FILE},
 };
 
 use super::{
@@ -96,6 +96,12 @@ async fn create_asset(
         ));
     }
 
+    if &opts.asset_path == SECRET_FILE {
+        return Err(AppError::AuthorizationError(
+            "asset_path '{SECRET_FILE}' is reserved. please choose another name.".to_string(),
+        ));
+    }
+
     let path = Asset::create_or_update(&state, user_id, opts, &tmp_file).await?;
     if let Some(tmp_file) = &tmp_file {
         if let Err(err) = tokio::fs::remove_file(tmp_file).await {
@@ -125,7 +131,7 @@ async fn delete_asset(
 }
 
 /// Routes accessible to creators
-pub fn manager_routes() -> Result<Router<AppState>, AppError> {
+pub fn protected_routes() -> Result<Router<AppState>, AppError> {
     let max_upload_size = get_env("PPDRIVE_MAX_UPLOAD_SIZE")?;
     let max = max_upload_size
         .parse::<usize>()

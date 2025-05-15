@@ -15,7 +15,7 @@ use tracing::info_span;
 
 use crate::routes::client::client_routes;
 use crate::routes::get_asset;
-use crate::routes::manager::manager_routes;
+use crate::routes::protected::protected_routes;
 use crate::{errors::AppError, state::AppState, utils::get_env};
 
 pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
@@ -47,7 +47,7 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
         .nest("/client", client_routes())
-        .nest("/", manager_routes()?)
+        .nest("/", protected_routes()?)
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 // Log the matched route's path (with placeholders not filled in).
