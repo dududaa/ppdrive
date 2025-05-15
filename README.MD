@@ -6,16 +6,17 @@
 
 ## 🚀 Features
 
-- ⚙️ **REST API Interface** — Interact with the file system programmatically from any external application.
-- 🔐 **Authentication & Authorization** — Built-in support for user authentication and per-file permissions.
-- 🧩 **Pluggable Integration** — Easily integrate into existing backends or operate as a standalone executable.
-- 📦 **Prebuilt Executables** — Install and run with no setup required.
-- 🧾 **File & Directory Operations** — Upload, download, rename, delete, and move files or folders.
-- 🔒 **Secure by Default** — Runs with secure configurations and minimal surface area.
+- ⚙️ **REST API Interface**: Interact with the file system programmatically from any external application.
+- 🔐 **Authentication & Authorization**: Built-in support for user authentication and per-file permissions. We support peer-to-peer file sharing through asset-level permissions.
+- 🧩 **Pluggable Integration**: Easily integrate into existing backends or operate as a standalone executable.
+- 📦 **Prebuilt Executables**: Install and run with no setup required.
+- 🧾 **File & Directory Operations**: Upload, download, rename, delete, and move files or folders.
+- 🔒 **Secure by Default**: Runs with secure configurations and minimal surface area.
+- 🛢 **Cross Database Support**: Supports Postgres, MySQL and SQLite database backends. Thanks to Sqlx's [Any](https://docs.rs/sqlx/latest/sqlx/any/index.html) feature.
 
 #### Features (Roadmap)
 - Admin UI: Administrative client for managing your drive visually.
-- File Compression: Compress files on the fly or any convenient time.
+- File Compression: Compress files on the fly or at any convenient time.
 - File Conversion: Convert files from one format to another.
 - Async Upload: Upload large files in the background.
 - File Streaming: Enable file streaming (for video and audio streaming platforms)

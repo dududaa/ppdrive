@@ -92,12 +92,11 @@ impl User {
                 .is_some()
             {
                 return Err(AppError::InternalServerError(
-                        format!("user with partition_name: '{partition}' already exists. please provide unique folder name")
+                        format!("user with partition_name: '{partition}' already exists. please provide unique partition name")
                     ));
             }
 
-            let path = Path::new(partition);
-            tokio::fs::create_dir_all(path).await?;
+            tokio::fs::create_dir_all(partition).await?;
         }
 
         let user_role: i16 = data.role.into();
