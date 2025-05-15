@@ -38,7 +38,7 @@ impl User {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("id", 1).to_query(bn);
+        let filters = SqlxFilters::new("id", 1).to_query(bn)?;
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
@@ -54,7 +54,7 @@ impl User {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("pid", 1).to_query(bn);
+        let filters = SqlxFilters::new("pid", 1).to_query(bn)?;
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
@@ -70,7 +70,10 @@ impl User {
         let conn = state.db_pool().await;
 
         let bn = state.backend_name();
-        let filters = SqlxFilters::new("partition", 1).to_query(bn);
+        let filters = SqlxFilters::new("partition", 1)
+            .to_query(bn)
+            .ok()
+            .unwrap_or("filter error".to_string());
 
         let query = format!("SELECT * FROM users WHERE {filters}");
 
@@ -137,7 +140,7 @@ impl User {
             }
         });
 
-        let filters = SqlxFilters::new("id", 1).to_query(bn);
+        let filters = SqlxFilters::new("id", 1).to_query(bn)?;
         let query = format!("DELETE from users WHERE {filters}");
 
         sqlx::query(&query).bind(self.id).execute(&conn).await?;

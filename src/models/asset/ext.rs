@@ -61,7 +61,7 @@ pub(super) async fn update_asset(
         .to_query(bn);
 
     let is_public = is_public.unwrap_or_default();
-    let ff = SqlxFilters::new("id", 3).to_query(bn);
+    let ff = SqlxFilters::new("id", 3).to_query(bn)?;
     let query = format!("UPDATE assets SET {sf} WHERE {ff}");
 
     tracing::info!("query: {query}");
