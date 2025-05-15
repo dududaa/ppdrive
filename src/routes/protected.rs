@@ -25,21 +25,14 @@ use super::{
 
 #[debug_handler]
 async fn get_user(
-    Path(id): Path<String>,
     State(state): State<AppState>,
     ExtractUser(user): ExtractUser,
     ManagerRoute: ManagerRoute,
 ) -> Result<Json<UserSerializer>, AppError> {
-    let user_model = User::get_by_pid(&state, &id).await?;
+    let user_model = User::get(&state, user.id()).await?;
+    let data = user_model.into_serializer(&state).await?;
 
-    if user.id() == user_model.id() {
-        let data = user_model.into_serializer(&state).await?;
-        Ok(Json(data))
-    } else {
-        Err(AppError::AuthorizationError(
-            "permission denied".to_string(),
-        ))
-    }
+    Ok(Json(data))
 }
 
 #[debug_handler]
