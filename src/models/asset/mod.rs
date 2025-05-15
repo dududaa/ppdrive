@@ -10,11 +10,8 @@ use ext::{
 use serde::Deserialize;
 
 use crate::{
-    errors::AppError,
-    models::user::User,
-    routes::CreateAssetOptions,
-    state::AppState,
-    utils::sqlx::sqlx_utils::{SqlxFilters, ToQuery},
+    errors::AppError, models::user::User, routes::CreateAssetOptions, state::AppState,
+    utils::sqlx::sqlx_utils::SqlxFilters,
 };
 
 use super::permission::{AssetPermission, Permission};
@@ -174,6 +171,8 @@ impl Asset {
     }
 
     pub async fn delete(&self, state: &AppState) -> Result<(), AppError> {
+        use AssetType::*;
+
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
@@ -187,9 +186,40 @@ impl Asset {
             .execute(&conn)
             .await?;
 
+        // delete objects
+        if let Err(err) = self.delete_object().await {
+            tracing::error!("unable to remove {} from fs: {err}", self.asset_path)
+        }
+
+        if let AssetType::Folder = &self.asset_type {
+            if let Ok(mut entries) = tokio::fs::read_dir(&self.asset_path).await {
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    let path = entry.path();
+                    let asset_type = if path.is_dir() { Folder } else { File };
+
+                    if let Some(path) = path.to_str() {
+                        if let Ok(asset) = Asset::get_by_path(state, path, &asset_type).await {
+                            if asset.id == self.id {
+                                let delete = Box::pin(asset.delete(state)).await;
+                                if let Err(err) = delete {
+                                    tracing::error!(
+                                        "unable to delete asset {} from record: {err}",
+                                        asset.asset_path
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
+    /// Delete assets for a specific user. Designed to handle bulk delete
+    /// compared to `delete` method which handle delete for a specific
+    /// asset.
     pub async fn delete_for_user(
         state: &AppState,
         user_id: &i32,
@@ -208,7 +238,9 @@ impl Asset {
                 .await?;
 
             for asset in assets {
-                asset.delete_object().await?;
+                if let Err(err) = asset.delete_object().await {
+                    tracing::error!("unable to delete asset from {} fs: {err}", asset.asset_path)
+                }
             }
         }
 
@@ -226,7 +258,7 @@ impl Asset {
         if path.is_file() {
             tokio::fs::remove_file(path).await?;
         } else if path.is_dir() {
-            tokio::fs::remove_dir(path).await?;
+            tokio::fs::remove_dir_all(path).await?;
         }
 
         Ok(())
