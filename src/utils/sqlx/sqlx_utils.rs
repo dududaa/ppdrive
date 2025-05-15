@@ -1,5 +1,7 @@
-use crate::errors::AppError;
+use crate::{errors::AppError, utils::sqlx::filter::filter_parser};
 use std::fmt::Display;
+
+use super::filter::filter_to_query;
 
 /// Generates compatible SQL string for defined Sqlx types
 pub trait ToQuery {
@@ -44,11 +46,13 @@ impl<'a> TryFrom<&'a str> for BackendName {
 }
 
 /// For generating compatible filter (WHERE) SQL string
-enum Filter<'a> {
+pub(super) enum Filter<'a> {
     Base(&'a str),
     And(&'a str),
     Or(&'a str),
     Group(Vec<Filter<'a>>),
+    AndGroup(Box<Filter<'a>>),
+    OrGroup(Box<Filter<'a>>),
 }
 
 impl Display for Filter<'_> {
@@ -59,10 +63,7 @@ impl Display for Filter<'_> {
             Base(col) => write!(f, "{col}"),
             And(col) => write!(f, "AND {col}"),
             Or(col) => write!(f, "OR {col}"),
-            Group(items) => {
-                let ss: Vec<String> = items.iter().map(|i| i.to_string()).collect();
-                write!(f, "{}", ss.join(" "))
-            }
+            _ => write!(f, ""),
         }
     }
 }
@@ -70,53 +71,7 @@ impl Display for Filter<'_> {
 impl<'a> TryFrom<&'a str> for Filter<'a> {
     type Error = AppError;
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        use Filter::*;
-
-        let items: Vec<&str> = value.split(" ").collect();
-
-        if let Some(first) = items.first() {
-            if items.len() == 1 {
-                Ok(Base(first))
-            } else {
-                if ["AND", "OR"].contains(first) {
-                    let col = items
-                        .get(1)
-                        .ok_or(AppError::ParsingError("missing column".to_string()))?;
-
-                    let f = if first == &"AND" { And(col) } else { Or(col) };
-                    Ok(f)
-                } else {
-                    if items.len() < 3 {
-                        Err(AppError::ParsingError(
-                            "unable to parse filter input".to_string(),
-                        ))
-                    } else {
-                        let col1 = items
-                            .get(0)
-                            .ok_or(AppError::ParsingError("missing column1".to_string()))?;
-                        let op = items
-                            .get(1)
-                            .ok_or(AppError::ParsingError("missing operator".to_string()))?;
-                        let col2 = items
-                            .get(2)
-                            .ok_or(AppError::ParsingError("missing column2".to_string()))?;
-
-                        if ["AND", "OR"].contains(op) {
-                            let f2 = if op == &"AND" { And(col2) } else { Or(col2) };
-                            Ok(Group(vec![Base(col1), f2]))
-                        } else {
-                            Err(AppError::ParsingError(
-                                "invalid filter operator".to_string(),
-                            ))
-                        }
-                    }
-                }
-            }
-        } else {
-            return Err(AppError::ParsingError(
-                "filter input cannot be empty".to_string(),
-            ));
-        }
+        filter_parser(value)
     }
 }
 
@@ -149,41 +104,7 @@ impl<'a> SqlxFilters<'a> {
     }
 
     pub fn to_query(&self, bn: &BackendName) -> Result<String, AppError> {
-        use Filter::*;
-
-        let len = &self.items.len();
-        let mut filters = Vec::with_capacity(*len);
-
-        let mut index_tracker = self.offset;
-
-        for f in &self.items {
-            let filter = Filter::try_from(*f)?;
-
-            let fs = match filter {
-                Group(items) => {
-                    let ls: Vec<String> = items
-                        .iter()
-                        .map(|col| {
-                            let bq = bn.to_query(index_tracker);
-                            index_tracker += 1;
-
-                            format!("{col} = {bq}")
-                        })
-                        .collect();
-                    format!("({})", ls.join(" "))
-                }
-                _ => {
-                    let bq = bn.to_query(index_tracker);
-                    index_tracker += 1;
-
-                    format!("{filter} = {bq}")
-                }
-            };
-
-            filters.push(fs);
-        }
-
-        Ok(filters.join(" "))
+        filter_to_query(&self.items, &self.offset, bn)
     }
 }
 
@@ -271,6 +192,14 @@ mod tests {
             "(asset_path = $1 OR custom_path = $2) AND asset_type = $3"
         );
 
+        let filters = SqlxFilters::new("asset_type", 1)
+            .add("AND (asset_path OR custom_path)")
+            .to_query(&bn)?;
+
+        assert_eq!(
+            &filters,
+            "asset_type = $1 AND (asset_path = $2 OR custom_path = $3)"
+        );
         Ok(())
     }
 
