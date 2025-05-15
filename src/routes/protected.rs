@@ -113,8 +113,9 @@ async fn delete_asset(
     ManagerRoute: ManagerRoute,
 ) -> Result<String, AppError> {
     let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
+
     if asset.user_id() == user.id() {
-        Asset::delete(&state, &asset_path, &asset_type).await?;
+        asset.delete(&state).await?;
         Ok("operation successful".to_string())
     } else {
         Err(AppError::AuthorizationError(
@@ -136,7 +137,7 @@ pub fn protected_routes() -> Result<Router<AppState>, AppError> {
         .route("/user", get(get_user))
         .route("/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))
-        .route("/asset/:asset_type/:id", delete(delete_asset));
+        .route("/asset/:asset_type/:asset_path", delete(delete_asset));
 
     Ok(router)
 }

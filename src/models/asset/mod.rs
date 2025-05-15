@@ -93,10 +93,9 @@ impl Asset {
 
         let asset_type: i16 = asset_type.into();
 
-        let filters = SqlxFilters::new("asset_path", 1)
-            .or("custom_path")
-            .and("asset_type")
-            .to_query(bn);
+        let filters = SqlxFilters::new("asset_path OR custom_path", 1)
+            .add("AND asset_type")
+            .to_query(bn)?;
 
         let query = format!("SELECT * FROM assets WHERE {filters}");
 
@@ -174,31 +173,17 @@ impl Asset {
         Ok(path)
     }
 
-    pub async fn delete(
-        state: &AppState,
-        asset_path: &str,
-        asset_type: &AssetType,
-    ) -> Result<(), AppError> {
+    pub async fn delete(&self, state: &AppState) -> Result<(), AppError> {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let asset_type: i16 = asset_type.into();
-        let filters = SqlxFilters::new("asset_path", 1)
-            .and("asset_type")
-            .to_query(bn);
-
-        let asset = sqlx::query_as::<_, Asset>(&format!("SELECT * FROM assets WHERE {filters}"))
-            .bind(asset_path)
-            .bind(asset_type)
-            .fetch_one(&conn)
-            .await?;
-
         // delete asset permissions
-        AssetPermission::delete_for_asset(state, &asset.id).await?;
+        let filters = SqlxFilters::new("id", 1).to_query(bn)?;
+        AssetPermission::delete_for_asset(state, &self.id).await?;
 
         // delete asset
         sqlx::query(&format!("DELETE FROM assets WHERE {filters}"))
-            .bind(asset_path)
+            .bind(&self.id)
             .execute(&conn)
             .await?;
 
@@ -213,7 +198,7 @@ impl Asset {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("user_id", 1).to_query(bn);
+        let filters = SqlxFilters::new("user_id", 1).to_query(bn)?;
 
         if remove_files {
             let query = format!("SELECT * FROM assets WHERE {filters}");

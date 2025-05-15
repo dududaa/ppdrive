@@ -15,7 +15,7 @@ impl Client {
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
-        let filters = SqlxFilters::new("id", 1).to_query(bn);
+        let filters = SqlxFilters::new("id", 1).to_query(bn)?;
         let query = format!("SELECT * FROM clients WHERE {filters}");
 
         let client = sqlx::query_as::<_, Client>(&query)
