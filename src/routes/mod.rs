@@ -15,13 +15,14 @@ use crate::{
         user::UserRole,
     },
     state::AppState,
+    utils::tools::secrets::SECRET_FILE,
 };
 
 use std::path::Path as StdPath;
 
 pub mod client;
 mod extractors;
-pub mod manager;
+pub mod protected;
 
 #[derive(Deserialize)]
 pub struct CreateUserOptions {
@@ -79,6 +80,10 @@ pub async fn get_asset(
 ) -> Result<Response<Body>, AppError> {
     if asset_path.ends_with("/") {
         asset_path = asset_path.trim_end_matches("/").to_string();
+    }
+
+    if &asset_path == SECRET_FILE {
+        return Err(AppError::PermissionDenied("access denied".to_string()));
     }
 
     let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
