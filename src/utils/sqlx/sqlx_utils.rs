@@ -175,14 +175,17 @@ mod tests {
 
     #[test]
     fn test_sqlx_filters_pg() -> Result<(), AppError> {
+        // single condition
         let filters = SqlxFilters::new("id", 1);
         let bn = BackendName::Postgres;
 
         assert_eq!(&filters.to_query(&bn)?, "id = $1");
 
+        // multiple conditions
         let filters = filters.add("AND age").add("OR name");
         assert_eq!(&filters.to_query(&bn)?, "id = $1 AND age = $2 OR name = $3");
 
+        // grouped conditions (prefix)
         let filters = SqlxFilters::new("asset_path OR custom_path", 1)
             .add("AND asset_type")
             .to_query(&bn)?;
@@ -192,6 +195,7 @@ mod tests {
             "(asset_path = $1 OR custom_path = $2) AND asset_type = $3"
         );
 
+        // grouped conditions (suffix)
         let filters = SqlxFilters::new("asset_type", 1)
             .add("AND (asset_path OR custom_path)")
             .to_query(&bn)?;
