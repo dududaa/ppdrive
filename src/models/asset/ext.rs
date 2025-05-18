@@ -16,7 +16,7 @@ pub(super) struct SaveAssetOpts<'a> {
     pub custom_path: &'a Option<String>,
     pub user_id: &'a i32,
     pub asset_type: &'a AssetType,
-    pub parent: &'a Option<String>,
+    pub parent: &'a Option<i32>,
 }
 
 pub(super) async fn save_asset(state: &AppState, opts: SaveAssetOpts<'_>) -> Result<(), AppError> {
@@ -34,7 +34,7 @@ pub(super) async fn save_asset(state: &AppState, opts: SaveAssetOpts<'_>) -> Res
     let asset_type: i16 = asset_type.into();
     let values = SqlxValues(6, 1).to_query(bn);
     let query = format!(
-        "INSERT INTO assets (asset_path, public, custom_path, user_id, asset_type, parent) {values}"
+        "INSERT INTO assets (asset_path, public, custom_path, user_id, asset_type, parent_id) {values}"
     );
     sqlx::query(&query)
         .bind(path)
@@ -54,14 +54,14 @@ pub(super) async fn update_asset(
     asset_id: &i32,
     is_public: &Option<bool>,
     custom_path: &Option<String>,
-    parent: &Option<String>,
+    parent: &Option<i32>,
 ) -> Result<(), AppError> {
     let conn = state.db_pool().await;
     let bn = state.backend_name();
 
     let sf = SqlxSetters::new("public", 1)
         .add("custom_path")
-        .add("parent")
+        .add("parent_id")
         .to_query(bn);
 
     let is_public = is_public.unwrap_or_default();
@@ -106,7 +106,8 @@ pub(super) async fn validate_custom_path(
 }
 
 /// Traverses asset path, create each parent dir and their respective
-/// records where they don't exist.
+/// records where they don't exist. Returns the id of the last path created.
+///
 ///
 /// Does not check if user exists. Caller is responsible for validating
 /// `user_id`.
@@ -115,7 +116,7 @@ pub(super) async fn create_asset_parents(
     path: &Path,
     user_id: &i32,
     is_public: &Option<bool>,
-) -> Result<Option<String>, AppError> {
+) -> Result<Option<i32>, AppError> {
     let parent = path.parent();
     let mut last_parent = None;
 
@@ -129,6 +130,7 @@ pub(super) async fn create_asset_parents(
             .collect();
 
         let mut parents = Vec::with_capacity(paths.len());
+        parents.push(None);
 
         if let Some(first) = paths.first() {
             if first.starts_with("/") {
@@ -142,10 +144,13 @@ pub(super) async fn create_asset_parents(
                 if let Some(np) = parent_path.to_str() {
                     if np != "" && np != "/" {
                         let parent_asset = Asset::get_by_path(state, np, &AssetType::Folder).await;
-                        if parent_asset.is_ok() {
-                            parents.push(Some(np));
-                            last_parent = Some(np.to_string())
+                        let parent = parent_asset.ok().map(|asset| asset.id);
+
+                        if let Some(first) = parents.get_mut(0) {
+                            *first = Some(np)
                         }
+
+                        last_parent = parent;
                     }
                 }
             }
@@ -178,9 +183,7 @@ pub(super) async fn create_asset_parents(
                 pub_q, user_q, asset_type_q, path_q
             ));
 
-            if paths.last() == Some(path) {
-                last_parent = Some(path.to_string())
-            } else {
+            if index < (paths.len() - 1) {
                 parents.push(Some(path));
             }
         }
@@ -207,19 +210,31 @@ pub(super) async fn create_asset_parents(
 
             // update path parents
             for (index, path) in paths.iter().enumerate() {
-                let asset = Asset::get_by_path(state, path, &AssetType::Folder).await;
+                let asset = Asset::get_by_path(state, path, &AssetType::Folder).await?;
                 let parent = parents.get(index);
 
-                if let (Ok(asset), Some(parent)) = (asset, parent) {
-                    let setters = SqlxSetters::new("parent", 1).to_query(bn);
+                if let Some(parent_path) = parent {
+                    let mut parent_id = None;
+                    if let Some(parent_path) = parent_path {
+                        let parent =
+                            Asset::get_by_path(state, parent_path, &AssetType::Folder).await?;
+                        parent_id = Some(parent.id().clone());
+                    }
+
+                    let setters = SqlxSetters::new("parent_id", 1).to_query(bn);
                     let filters = SqlxFilters::new("id", 2).to_query(bn)?;
 
-                    let query = format!("UPDATE asset SET {setters} WHERE {filters}");
+                    let query = format!("UPDATE assets SET {setters} WHERE {filters}");
                     sqlx::query(&query)
-                        .bind(parent)
+                        .bind(parent_id)
                         .bind(asset.id())
                         .execute(&conn)
                         .await?;
+                }
+
+                // set last path as last parent
+                if paths.last() == Some(path) {
+                    last_parent = Some(asset.id)
                 }
             }
         }
