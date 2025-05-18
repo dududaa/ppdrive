@@ -133,8 +133,9 @@ impl Asset {
 
         // create asset parents (when they don't exist)
         let create_parents = create_parents.unwrap_or(true);
+        let mut parent = None;
         if create_parents {
-            create_asset_parents(state, path, user_id, public).await?;
+            parent = create_asset_parents(state, path, user_id, public).await?;
         }
 
         // create the asset
@@ -153,6 +154,7 @@ impl Asset {
             custom_path: custom_path,
             user_id: user.id(),
             asset_type,
+            parent: &parent,
         };
 
         let asset = create_or_update_asset(state, opts, tmp).await?;
