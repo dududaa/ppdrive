@@ -173,8 +173,6 @@ impl Asset {
     }
 
     pub async fn delete(&self, state: &AppState) -> Result<(), AppError> {
-        use AssetType::*;
-
         let conn = state.db_pool().await;
         let bn = state.backend_name();
 
@@ -182,39 +180,31 @@ impl Asset {
         let filters = SqlxFilters::new("id", 1).to_query(bn)?;
         AssetPermission::delete_for_asset(state, &self.id).await?;
 
-        // delete asset
+        // delete children records
+        self.delete_children_records(state).await?;
+
+        // delete file/folder objects
+        if let Err(err) = self.delete_object().await {
+            tracing::error!("unable to remove {} from fs: {err}", self.asset_path)
+        }
+
+        // delete asset record
         sqlx::query(&format!("DELETE FROM assets WHERE {filters}"))
             .bind(&self.id)
             .execute(&conn)
             .await?;
 
-        // delete objects
-        if let Err(err) = self.delete_object().await {
-            tracing::error!("unable to remove {} from fs: {err}", self.asset_path)
-        }
+        Ok(())
+    }
 
-        if let AssetType::Folder = &self.asset_type {
-            if let Ok(mut entries) = tokio::fs::read_dir(&self.asset_path).await {
-                while let Ok(Some(entry)) = entries.next_entry().await {
-                    let path = entry.path();
-                    let asset_type = if path.is_dir() { Folder } else { File };
+    async fn delete_children_records(&self, state: &AppState) -> Result<(), AppError> {
+        let conn = state.db_pool().await;
+        let bn = state.backend_name();
 
-                    if let Some(path) = path.to_str() {
-                        if let Ok(asset) = Asset::get_by_path(state, path, &asset_type).await {
-                            if asset.id == self.id {
-                                let delete = Box::pin(asset.delete(state)).await;
-                                if let Err(err) = delete {
-                                    tracing::error!(
-                                        "unable to delete asset {} from record: {err}",
-                                        asset.asset_path
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let filter = SqlxFilters::new("id", 1).to_query(bn)?;
+        let query = format!("DELETE from assets WHERE {filter}");
+
+        sqlx::query(&query).bind(&self.id).execute(&conn).await?;
 
         Ok(())
     }
@@ -240,6 +230,10 @@ impl Asset {
                 .await?;
 
             for asset in assets {
+                if let Err(err) = asset.delete_children_records(state).await {
+                    tracing::error!("unable to delete children records for asset: {err}",)
+                }
+
                 if let Err(err) = asset.delete_object().await {
                     tracing::error!("unable to delete asset from {} fs: {err}", asset.asset_path)
                 }
