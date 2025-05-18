@@ -168,6 +168,7 @@ pub(super) async fn create_asset_parents(
                     return Err(AppError::InternalServerError(msg.to_string()));
                 } else {
                     tracing::warn!("path {path} already exists. skipping... ");
+                    last_parent = Some(exist.id);
                     continue;
                 }
             }
