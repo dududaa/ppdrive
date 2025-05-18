@@ -98,7 +98,7 @@ async fn create_asset(
     let path = Asset::create_or_update(&state, user_id, opts, &tmp_file).await?;
     if let Some(tmp_file) = &tmp_file {
         if let Err(err) = tokio::fs::remove_file(tmp_file).await {
-            tracing::info!("unable to remove {tmp_file:?}: {err}")
+            tracing::error!("unable to remove {tmp_file:?}: {err}")
         }
     }
 
