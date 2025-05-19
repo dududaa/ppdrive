@@ -39,7 +39,11 @@ jobs:
       - name: Rename Binary
         run: |
           mkdir dist
-          cp target/${{ matrix.target }}/release/* dist/${{ matrix.artifact_name }}
+          BIN_NAME=ppdrive
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            BIN_NAME=ppdrive.exe
+          fi
+          cp target/${{ matrix.target }}/release/$BIN_NAME dist/${{ matrix.artifact_name }}
         shell: bash
 
       - name: Upload Artifact
