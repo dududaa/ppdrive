@@ -60,7 +60,7 @@ impl From<sqlx::Error> for AppError {
         use sqlx::Error::*;
         match value {
             RowNotFound => {
-                AppError::NotFound("error getting the request resource from database".to_string())
+                AppError::NotFound("error getting the requested resource from database".to_string())
             }
             _ => AppError::DatabaseError(value.to_string()),
         }
