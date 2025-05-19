@@ -12,6 +12,7 @@
 !.env.example
 !LICENSE
 !openapi.yml
+!install.sh
 
 !src/
 !src/**
