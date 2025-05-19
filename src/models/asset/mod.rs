@@ -198,13 +198,22 @@ impl Asset {
     }
 
     async fn delete_children_records(&self, state: &AppState) -> Result<(), AppError> {
-        let conn = state.db_pool().await;
-        let bn = state.backend_name();
+        if let &AssetType::Folder = &self.asset_type {
+            let mut entries = tokio::fs::read_dir(&self.asset_path).await?;
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let path = entry.path();
+                let asset_type = if path.is_file() {
+                    AssetType::File
+                } else {
+                    AssetType::Folder
+                };
 
-        let filter = SqlxFilters::new("id", 1).to_query(bn)?;
-        let query = format!("DELETE from assets WHERE {filter}");
-
-        sqlx::query(&query).bind(&self.id).execute(&conn).await?;
+                if let Some(path) = path.to_str() {
+                    let child = Asset::get_by_path(state, path, &asset_type).await?;
+                    Box::pin(child.delete(state)).await?;
+                }
+            }
+        }
 
         Ok(())
     }

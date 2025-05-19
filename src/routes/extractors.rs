@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
@@ -17,7 +19,7 @@ use crate::{
 pub struct CurrentUser {
     id: i32,
     role: UserRole,
-    root_folder: Option<String>,
+    partition: Option<String>,
     folder_max_size: Option<i64>,
 }
 
@@ -35,12 +37,18 @@ impl CurrentUser {
         &self.folder_max_size
     }
 
-    pub async fn current_folder_size(&self) -> Result<Option<u64>, AppError> {
+    pub async fn partition_size(&self) -> Result<Option<u64>, AppError> {
         let mut size = None;
-        if let Some(folder) = &self.root_folder {
+        if let Some(partition) = &self.partition {
             let mut folder_size = 0;
 
-            check_folder_size(folder, &mut folder_size).await?;
+            let dir = Path::new(partition);
+            if !dir.exists() {
+                tokio::fs::create_dir_all(dir).await?;
+                return Ok(Some(folder_size));
+            }
+
+            check_folder_size(partition, &mut folder_size).await?;
             size = Some(folder_size)
         }
 
@@ -76,13 +84,13 @@ where
                 let id = user.id().to_owned();
 
                 let role = user.role().clone();
-                let root_folder = user.partition().clone();
+                let partition = user.partition().clone();
                 let folder_max_size = *user.partition_size();
 
                 Ok(ExtractUser(CurrentUser {
                     id,
                     role,
-                    root_folder,
+                    partition,
                     folder_max_size,
                 }))
             }
