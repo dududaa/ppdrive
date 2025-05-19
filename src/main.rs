@@ -3,14 +3,10 @@ use std::env::set_var;
 use crate::app::create_app;
 use dotenv::dotenv;
 use errors::AppError;
-use state::AppState;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::{
-    get_env,
-    tools::{
-        client::{create_client, regenerate_token},
-        secrets::{generate_secret, generate_secrets_init, BEARER_KEY, BEARER_VALUE},
-    },
+    get_env, run_args,
+    tools::secrets::{generate_secrets_init, BEARER_KEY, BEARER_VALUE},
 };
 
 mod app;
@@ -37,35 +33,8 @@ async fn main() -> Result<(), AppError> {
         .init();
 
     let args: Vec<String> = std::env::args().collect();
-
-    // if specified, run ppdrive extra tools
-    if let Some(a1) = args.get(1) {
-        if ["create_client", "new_token"].contains(&a1.as_str()) {
-            let is_new = a1 == "create_client";
-            match args.get(2) {
-                Some(spec) => {
-                    let state = AppState::new().await?;
-                    let token = if is_new {
-                        create_client(&state, spec).await?
-                    } else {
-                        regenerate_token(&state, spec).await?
-                    };
-
-                    tracing::info!("CLIENT_TOKEN: {token}");
-                }
-                None => {
-                    let spec = if is_new { "name" } else { "id" };
-                    panic!("client creation failed: please specify client {spec}.")
-                }
-            }
-        } else if a1 == "xgen" {
-            generate_secret().await?;
-            tracing::info!("secret keys generated and saved!");
-        } else {
-            panic!("unknown command {}", a1)
-        }
-
-        return Ok(());
+    if args.get(1).is_some() {
+        return run_args(args).await;
     }
 
     // start ppdrive app
