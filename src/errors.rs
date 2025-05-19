@@ -57,7 +57,13 @@ impl From<MultipartError> for AppError {
 
 impl From<sqlx::Error> for AppError {
     fn from(value: sqlx::Error) -> Self {
-        AppError::DatabaseError(value.to_string())
+        use sqlx::Error::*;
+        match value {
+            RowNotFound => {
+                AppError::NotFound("error getting the request resource from database".to_string())
+            }
+            _ => AppError::DatabaseError(value.to_string()),
+        }
     }
 }
 
