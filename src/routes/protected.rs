@@ -69,7 +69,7 @@ async fn create_asset(
         }
     }
 
-    let cfz = user.current_folder_size().await?;
+    let cfz = user.partition_size().await?;
     if let (Some(ufz), Some(filesize), Some(max_size)) = (cfz, filesize, user.folder_max_size()) {
         let total_size = ufz + filesize;
         if total_size > mb_to_bytes(*max_size as usize) as u64 {
