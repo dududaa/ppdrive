@@ -53,12 +53,14 @@ chmod +x "$INSTALL_DIR/$BINARY_NAME"
 mkdir -p "$LINK_DIR"
 ln -sf "$INSTALL_DIR/$BINARY_NAME" "$LINK_DIR/$BINARY_NAME"
 
+# export variables
+export PPDRIVE_PORT=$port
+export PPDRIVE_DATABASE_URL=$db_url
+export PPDRIVE_ALLOWED_ORIGINS=$allowed_origins
+export PPDRIVE_MAX_UPLOAD_SIZE=$max_upload_size
+
+export PATH=$PATH:$LINK_DIR
+
 echo "✅ Installed to $INSTALL_DIR"
 echo "🔗 Symlinked to $LINK_DIR/$APP_NAME"
-
-# Check if LINK_DIR is in PATH
-if [[ ":$PATH:" != *":$LINK_DIR:"* ]]; then
-  echo "⚠️  $LINK_DIR is not in your PATH."
-  echo "    Add this to your shell profile:"
-  echo "    export PATH=\"\$PATH:$LINK_DIR\""
-fi
+echo "check with ppdrive -v"
