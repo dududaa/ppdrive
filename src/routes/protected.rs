@@ -42,6 +42,7 @@ async fn create_asset(
     ManagerRoute: ManagerRoute,
     mut multipart: Multipart,
 ) -> Result<String, AppError> {
+    println!("request received...");
     let user_id = user.id();
 
     let mut opts = CreateAssetOptions::default();

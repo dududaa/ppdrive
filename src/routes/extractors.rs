@@ -75,11 +75,11 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         match parts.headers.get(AUTHORIZATION) {
-            Some(x_user) => {
+            Some(auth) => {
                 let state = AppState::from_ref(state);
                 let config = state.config();
 
-                let claims = decode_jwt(x_user, config.jwt_secret())?;
+                let claims = decode_jwt(auth, config.jwt_secret())?;
                 let user = User::get(&state, &claims.sub).await?;
                 let id = user.id().to_owned();
 
