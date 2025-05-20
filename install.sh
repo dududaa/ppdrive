@@ -24,7 +24,7 @@ TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/$ASSET_NAME"
 
 echo "📥 Downloading $ASSET_NAME (version $TAG)..."
-curl -L --fail "$DOWNLOAD_URL" -o "$INSTALL_DIR/$BINARY_NAME" || {
+sudo curl -L --fail "$DOWNLOAD_URL" -o "$INSTALL_DIR/$BINARY_NAME" || {
   echo "❌ Failed to download the binary."
   exit 1
 }
