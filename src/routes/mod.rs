@@ -15,7 +15,7 @@ use crate::{
         user::UserRole,
     },
     state::AppState,
-    utils::tools::secrets::SECRET_FILE,
+    utils::tools::secrets::SECRETS_FILENAME,
 };
 
 use std::path::Path as StdPath;
@@ -82,7 +82,7 @@ pub async fn get_asset(
         asset_path = asset_path.trim_end_matches("/").to_string();
     }
 
-    if &asset_path == SECRET_FILE {
+    if &asset_path == SECRETS_FILENAME {
         return Err(AppError::PermissionDenied("access denied".to_string()));
     }
 

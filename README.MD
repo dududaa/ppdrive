@@ -23,6 +23,14 @@
 
 ---
 
+## Installation
+You can install PPDRIVE by running:
+```bash
+curl -s https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/install.sh | sudo bash
+```
+
+---
+
 ## API Documentation
 See our [API DOC](https://prodbyola.github.io/ppdrive/) to learn how to connect to your PPDRIVE instance.
 

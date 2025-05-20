@@ -13,6 +13,7 @@
 !LICENSE
 !openapi.yml
 !install.sh
+!ppd_config.toml
 
 !src/
 !src/**

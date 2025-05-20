@@ -2,18 +2,19 @@ use std::io::SeekFrom;
 
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-use crate::{errors::AppError, utils::tools::secrets::SECRET_FILE};
+use crate::{errors::AppError, utils::tools::secrets::SECRETS_FILENAME};
 
-/// App configurations sharable across [AppState](crate::AppState).
-pub struct AppConfig {
+/// App secrets sharable across [AppState](crate::AppState).
+pub struct AppSecrets {
     secret_key: Vec<u8>,
     secret_nonce: Vec<u8>,
     jwt_secret: Vec<u8>,
 }
 
-impl AppConfig {
-    pub async fn build() -> Result<Self, AppError> {
-        let mut secrets = tokio::fs::File::open(SECRET_FILE).await?;
+impl AppSecrets {
+    /// Read app secrets from secret file
+    pub async fn read() -> Result<Self, AppError> {
+        let mut secrets = tokio::fs::File::open(SECRETS_FILENAME).await?;
 
         let mut secret_key = [0; 32];
         let mut nonce = [0; 24];
@@ -49,11 +50,11 @@ impl AppConfig {
 
 #[cfg(test)]
 mod test {
-    use crate::{config::AppConfig, errors::AppError};
+    use crate::{config::secrets::AppSecrets, errors::AppError};
 
     #[tokio::test]
     async fn test_config_build() -> Result<(), AppError> {
-        let config = AppConfig::build().await?;
+        let config = AppSecrets::read().await?;
 
         let secret_key = config.secret_key();
         let nonce = config.nonce();

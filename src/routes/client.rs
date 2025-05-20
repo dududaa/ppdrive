@@ -9,7 +9,7 @@ use crate::{
     errors::AppError,
     models::user::{User, UserRole},
     state::AppState,
-    utils::{jwt::create_jwt, tools::secrets::SECRET_FILE},
+    utils::{jwt::create_jwt, tools::secrets::SECRETS_FILENAME},
 };
 
 use super::{extractors::ClientRoute, CreateUserOptions, LoginCredentials, LoginToken};
@@ -21,7 +21,7 @@ async fn create_user(
     Json(data): Json<CreateUserOptions>,
 ) -> Result<String, AppError> {
     if let Some(partition) = &data.partition {
-        if partition == SECRET_FILE {
+        if partition == SECRETS_FILENAME {
             return Err(AppError::PermissionDenied(
                 "partition name {SECRET_FILE} is not allowed".to_string(),
             ));

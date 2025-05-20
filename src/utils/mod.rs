@@ -8,7 +8,7 @@ use tools::{
     secrets::generate_secret,
 };
 
-use crate::{errors::AppError, state::AppState};
+use crate::{config::AppConfig, errors::AppError, state::AppState};
 
 pub fn get_env(key: &str) -> Result<String, AppError> {
     std::env::var(key).map_err(|err| {
@@ -21,7 +21,7 @@ pub fn mb_to_bytes(value: usize) -> usize {
     value * 1024 * 1000
 }
 
-pub async fn run_args(args: Vec<String>) -> Result<(), AppError> {
+pub async fn run_args(args: Vec<String>, config: &AppConfig) -> Result<(), AppError> {
     // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
         let a1 = &a1.as_str();
@@ -35,7 +35,7 @@ pub async fn run_args(args: Vec<String>) -> Result<(), AppError> {
 
             match args.get(2) {
                 Some(spec) => {
-                    let state = AppState::new().await?;
+                    let state = AppState::new(config).await?;
                     let token = if is_new {
                         create_client(&state, spec).await?
                     } else {

@@ -7,7 +7,7 @@ use crate::errors::AppError;
 
 pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
 pub const BEARER_VALUE: &str = "Bearer";
-pub const SECRET_FILE: &str = ".ppdrive_secret";
+pub const SECRETS_FILENAME: &str = ".ppdrive_secret";
 
 pub async fn generate_secret() -> Result<(), AppError> {
     let secret_key = XChaCha20Poly1305::generate_key(&mut OsRng);
@@ -18,7 +18,7 @@ pub async fn generate_secret() -> Result<(), AppError> {
         .create(true)
         .truncate(true)
         .write(true)
-        .open(SECRET_FILE)
+        .open(SECRETS_FILENAME)
         .await?;
 
     secrets.write_all(secret_key.as_slice()).await?;
@@ -31,7 +31,7 @@ pub async fn generate_secret() -> Result<(), AppError> {
 /// If app secret file does not exist, generate it. Mostly useful
 /// on app initialization.
 pub async fn generate_secrets_init() -> Result<(), AppError> {
-    let path = Path::new(SECRET_FILE);
+    let path = Path::new(SECRETS_FILENAME);
     if !path.is_file() {
         generate_secret().await?;
     }
