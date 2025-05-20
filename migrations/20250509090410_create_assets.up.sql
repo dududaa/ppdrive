@@ -5,6 +5,5 @@ CREATE TABLE IF NOT EXISTS assets (
     public BOOLEAN DEFAULT FALSE NOT NULL,
     custom_path VARCHAR(3000),
     asset_type SMALLINT CHECK (asset_type BETWEEN 0 AND 2) NOT NULL,
-    parent_id INTEGER,
     UNIQUE (user_id, asset_path, asset_type)
 )
