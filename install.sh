@@ -50,6 +50,7 @@ mkdir -p "$LINK_DIR"
 ln -sf "$INSTALL_DIR/$BINARY_NAME" "$LINK_DIR/$BINARY_NAME"
 
 # export variable(s)
+export PATH=$PATH:$INSTALL_DIR
 export PATH=$PATH:$LINK_DIR
 
 echo "✅ Installed to $INSTALL_DIR"
