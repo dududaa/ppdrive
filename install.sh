@@ -14,19 +14,33 @@ case "$OS" in
   *)        echo "Unsupported OS: $OS"; exit 1 ;;
 esac
 
+# Create Install DIR
+echo "Creating install dir..."
+mkdir -p "$INSTALL_DIR"
+
 # Fetch the latest release tag from GitHub API
 TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | cut -d '"' -f4)
 
-# Compose download URL
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/$ASSET_NAME"
 
 # Download the binary
+DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/$ASSET_NAME"
+
 echo "📥 Downloading $ASSET_NAME (version $TAG)..."
-mkdir -p "$INSTALL_DIR"
 curl -L --fail "$DOWNLOAD_URL" -o "$INSTALL_DIR/$BINARY_NAME" || {
   echo "❌ Failed to download the binary."
   exit 1
 }
+
+# Download default config
+CONFIG_FILENAME=ppd_config.toml
+CONFIG_SRC=https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/$CONFIG_FILENAME
+
+echo "📥 Downloading default config..."
+curl -L --fail "$CONFIG_SRC" -o "$INSTALL_DIR/$CONFIG_FILENAME" || {
+  echo "❌ Failed to download default config."
+  exit 1
+}
+
 
 chmod +x "$INSTALL_DIR/$BINARY_NAME"
 
@@ -39,4 +53,4 @@ export PATH=$PATH:$LINK_DIR
 
 echo "✅ Installed to $INSTALL_DIR"
 echo "🔗 Symlinked to $LINK_DIR/$APP_NAME"
-echo "check with ppdrive -v"
+ppdrive configure
