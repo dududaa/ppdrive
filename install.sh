@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env sh
+set -eu
+
 REPO="prodbyola/ppdrive"
 BINARY_NAME="ppdrive"
 INSTALL_DIR="/opt/ppdrive"
