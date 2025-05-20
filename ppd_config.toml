@@ -1,6 +1,6 @@
 [base]
 port = 5000
-allowed_origins = "http://localhost:3000"
+allowed_origins = ""
 database_url = "postgres://ppdrive_user:Plug&PlayDrive2025@127.0.0.1:5432/ppdrive"
 debug_mode = true
 
