@@ -6,6 +6,8 @@ BINARY_NAME="ppdrive"
 INSTALL_DIR=$HOME/.local/ppdrive
 LINK_DIR="$HOME/.local/bin"
 
+rm -rf $INSTALL_DIR
+
 # Detect OS and set the correct asset name
 OS=$(uname -s)
 case "$OS" in
@@ -46,7 +48,6 @@ chmod +x "$INSTALL_DIR/$BINARY_NAME"
 # Optionally create symlink to a folder in PATH
 mkdir -p "$LINK_DIR"
 ln -sf "$INSTALL_DIR/$BINARY_NAME" "$LINK_DIR/$BINARY_NAME"
-ln -sf "$INSTALL_DIR/$CONFIG_FILENAME" "$LINK_DIR/$CONFIG_FILENAME"
 
 # export variable(s)
 export PATH=$PATH:$LINK_DIR
