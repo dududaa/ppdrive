@@ -1,4 +1,40 @@
 #!/bin/bash
+add_path_to_shell_config() {
+    local shell_name config_file
+
+    shell_name=$(basename "$SHELL")
+
+    case "$shell_name" in
+    bash)
+        config_file="$HOME/.bashrc"
+        ;;
+    zsh)
+        config_file="$HOME/.zshrc"
+        ;;
+    fish)
+        config_file="$HOME/.config/fish/config.fish"
+        ;;
+    *)
+        echo "⚠️ Unknown shell: $shell_name. Please add $LINK_DIR to your PATH manually."
+        return
+        ;;
+    esac
+
+    if [ "$shell_name" = "fish" ]; then
+    # For fish, use universal variable (safe and doesn't modify config.fish directly)
+    if ! fish -c 'echo $PATH' | grep -q "$LINK_DIR"; then
+        echo "Adding $LINK_DIR to PATH using fish universal variable..."
+        fish -c "set -U fish_user_paths $LINK_DIR \$fish_user_paths"
+    fi
+    else
+    # For bash/zsh
+    if ! grep -q "$LINK_DIR" "$config_file" 2>/dev/null; then
+        echo "Adding $LINK_DIR to PATH in $config_file"
+        echo "export PATH=\"$LINK_DIR:\$PATH\"" >> "$config_file"
+    fi
+    fi
+}
+
 REPO="prodbyola/ppdrive"
 BINARY_NAME="ppdrive"
 INSTALL_DIR="/opt/ppdrive"
@@ -52,39 +88,3 @@ echo "✅ Installed to $INSTALL_DIR"
 echo "🔗 Symlinked to $LINK_DIR/$APP_NAME"
 
 add_path_to_shell_config
-
-add_path_to_shell_config() {
-  local shell_name config_file
-
-  shell_name=$(basename "$SHELL")
-
-  case "$shell_name" in
-    bash)
-      config_file="$HOME/.bashrc"
-      ;;
-    zsh)
-      config_file="$HOME/.zshrc"
-      ;;
-    fish)
-      config_file="$HOME/.config/fish/config.fish"
-      ;;
-    *)
-      echo "⚠️ Unknown shell: $shell_name. Please add $LINK_DIR to your PATH manually."
-      return
-      ;;
-  esac
-
-  if [ "$shell_name" = "fish" ]; then
-    # For fish, use universal variable (safe and doesn't modify config.fish directly)
-    if ! fish -c 'echo $PATH' | grep -q "$LINK_DIR"; then
-      echo "Adding $LINK_DIR to PATH using fish universal variable..."
-      fish -c "set -U fish_user_paths $LINK_DIR \$fish_user_paths"
-    fi
-  else
-    # For bash/zsh
-    if ! grep -q "$LINK_DIR" "$config_file" 2>/dev/null; then
-      echo "Adding $LINK_DIR to PATH in $config_file"
-      echo "export PATH=\"$LINK_DIR:\$PATH\"" >> "$config_file"
-    fi
-  fi
-}
