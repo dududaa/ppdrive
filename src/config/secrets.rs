@@ -2,7 +2,7 @@ use std::io::SeekFrom;
 
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-use crate::{errors::AppError, utils::tools::secrets::SECRETS_FILENAME};
+use crate::{errors::AppError, utils::tools::secrets::secret_filename};
 
 /// App secrets sharable across [AppState](crate::AppState).
 pub struct AppSecrets {
@@ -14,7 +14,8 @@ pub struct AppSecrets {
 impl AppSecrets {
     /// Read app secrets from secret file
     pub async fn read() -> Result<Self, AppError> {
-        let mut secrets = tokio::fs::File::open(SECRETS_FILENAME).await?;
+        let secret_file = secret_filename()?;
+        let mut secrets = tokio::fs::File::open(&secret_file).await?;
 
         let mut secret_key = [0; 32];
         let mut nonce = [0; 24];

@@ -14,7 +14,6 @@ mod utils;
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    tracing::info!("main thread started");
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -23,7 +22,6 @@ async fn main() -> Result<(), AppError> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    tracing::info!("building config...");
     let config = AppConfig::build().await?;
 
     tracing::info!("config built");
