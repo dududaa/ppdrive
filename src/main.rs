@@ -1,13 +1,8 @@
-use std::env::set_var;
-
 use crate::app::create_app;
 use config::AppConfig;
 use errors::AppError;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utils::{
-    run_args,
-    tools::secrets::{generate_secrets_init, BEARER_KEY, BEARER_VALUE},
-};
+use utils::{args_runner, tools::secrets::generate_secrets_init};
 
 mod app;
 mod config;
@@ -19,8 +14,6 @@ mod utils;
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    set_var(BEARER_KEY, BEARER_VALUE);
-
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -32,7 +25,7 @@ async fn main() -> Result<(), AppError> {
     let config = AppConfig::build().await?;
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).is_some() {
-        return run_args(args, &config).await;
+        return args_runner(args, &config).await;
     }
 
     // start ppdrive app

@@ -1,3 +1,5 @@
+use std::env::set_var;
+
 use axum::http::header::{
     ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
 };
@@ -16,6 +18,7 @@ use crate::config::AppConfig;
 use crate::routes::client::client_routes;
 use crate::routes::get_asset;
 use crate::routes::protected::protected_routes;
+use crate::utils::tools::secrets::{BEARER_KEY, BEARER_VALUE};
 use crate::{errors::AppError, state::AppState};
 
 pub async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, AppError> {
@@ -33,6 +36,8 @@ pub async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>
             HeaderName::from_static("x-ppd-client"),
         ])
         .allow_methods(Any);
+
+    set_var(BEARER_KEY, BEARER_VALUE);
 
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))

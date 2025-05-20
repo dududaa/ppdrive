@@ -1,15 +1,18 @@
 use axum::http::HeaderValue;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::errors::AppError;
 
+pub mod configor;
 pub mod secrets;
 
-#[derive(Deserialize)]
+pub(super) const CONFIG_FILENAME: &str = "ppd_config.toml";
+
+#[derive(Deserialize, Serialize)]
 pub struct BaseConfig {
-    port: u16,
-    allowed_origins: String,
-    database_url: String,
+    pub(super) port: u16,
+    pub(super) allowed_origins: String,
+    pub(super) database_url: String,
     debug_mode: bool,
 }
 
@@ -40,9 +43,9 @@ impl BaseConfig {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct FileUploadConfig {
-    max_upload_size: usize,
+    pub(super) max_upload_size: usize,
 }
 
 impl FileUploadConfig {
@@ -51,15 +54,15 @@ impl FileUploadConfig {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct AppConfig {
-    base: BaseConfig,
+    pub(super) base: BaseConfig,
     file_upload: FileUploadConfig,
 }
 
 impl AppConfig {
     pub async fn build() -> Result<Self, AppError> {
-        let config_str = tokio::fs::read_to_string("ppd_config.toml").await?;
+        let config_str = tokio::fs::read_to_string(CONFIG_FILENAME).await?;
         let config: Self =
             toml::from_str(&config_str).map_err(|err| AppError::InitError(err.to_string()))?;
 

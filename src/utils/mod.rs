@@ -8,7 +8,11 @@ use tools::{
     secrets::generate_secret,
 };
 
-use crate::{config::AppConfig, errors::AppError, state::AppState};
+use crate::{
+    config::{configor::run_configor, AppConfig},
+    errors::AppError,
+    state::AppState,
+};
 
 pub fn get_env(key: &str) -> Result<String, AppError> {
     std::env::var(key).map_err(|err| {
@@ -21,7 +25,7 @@ pub fn mb_to_bytes(value: usize) -> usize {
     value * 1024 * 1000
 }
 
-pub async fn run_args(args: Vec<String>, config: &AppConfig) -> Result<(), AppError> {
+pub async fn args_runner(args: Vec<String>, config: &AppConfig) -> Result<(), AppError> {
     // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
         let a1 = &a1.as_str();
@@ -49,9 +53,11 @@ pub async fn run_args(args: Vec<String>, config: &AppConfig) -> Result<(), AppEr
                     panic!("client creation failed: please specify client {spec}.");
                 }
             }
-        } else if a1 == &"xgen" {
+        } else if *a1 == "xgen" {
             generate_secret().await?;
             tracing::info!("secret keys generated and saved!");
+        } else if *a1 == "configure" {
+            run_configor().await?;
         } else {
             panic!("unknown command {}", a1);
         }
