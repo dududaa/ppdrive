@@ -4,8 +4,8 @@ FROM rust:1.83 AS builder
 # Set the working directory
 WORKDIR /app
 
-# Copy the Cargo.toml and Cargo.lock
-COPY Cargo.toml ./
+# Copy the Cargo.toml, Cargo.lock and default config
+COPY Cargo.toml Cargo.lock ppd_config.toml ./
 
 # Copy the source code
 COPY . .
@@ -28,4 +28,4 @@ WORKDIR /app
 COPY --from=builder /app/target/release/ppdrive .
 
 # Set the default command to run the application
-CMD ["./ppdrive"]
+CMD ["./ppdrive configure"]

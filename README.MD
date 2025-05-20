@@ -1,18 +1,18 @@
 # PPDRIVE
 
-*PPDRIVE** is a powerful, standalone file manager written in Rust, designed for seamless integration into other applications via a RESTful API. Whether you're building a complex backend system or need a standalone file server with authentication and file-level permissions, PPDRIVE provides a robust, secure, and extensible solution.
+**PPDRIVE** is a powerful, standalone file manager written in Rust, designed for seamless integration into other applications via a RESTful API. Whether you're building a complex backend system or need a standalone file server with authentication and file-level permissions, PPDRIVE provides a robust, secure, and extensible solution.
 
 ---
 
 ## 🚀 Features
 
 - ⚙️ **REST API Interface**: Interact with the file system programmatically from any external application.
-- 🔐 **Authentication & Authorization**: Built-in support for user authentication and per-file permissions. We support peer-to-peer file sharing through asset-level permissions.
+- 🔐 **Authentication & Authorization**: Built-in support for user authentication and per-file permissions. PPDRIVE supports peer-to-peer file sharing through asset-level permissions.
 - 🧩 **Pluggable Integration**: Easily integrate into existing backends or operate as a standalone executable.
 - 📦 **Prebuilt Executables**: Install and run with no setup required.
 - 🧾 **File & Directory Operations**: Upload, download, rename, delete, and move files or folders.
 - 🔒 **Secure by Default**: Runs with secure configurations and minimal surface area.
-- 🛢 **Cross Database Support**: Supports Postgres, MySQL and SQLite database backends. Thanks to Sqlx's [Any](https://docs.rs/sqlx/latest/sqlx/any/index.html) feature.
+- 🛢 **Cross Database Support**: Support for Postgres, MySQL and SQLite database backends. Thanks to Sqlx's [Any](https://docs.rs/sqlx/latest/sqlx/any/index.html) feature.
 
 #### Features (Roadmap)
 - Admin UI: Administrative client for managing your drive visually.
@@ -24,7 +24,7 @@
 ---
 
 ## Installation
-You can install PPDRIVE by running:
+For Linux and MacOS:
 ```bash
 curl -s https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/install.sh | sudo bash
 ```
@@ -32,7 +32,7 @@ curl -s https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/inst
 ---
 
 ## API Documentation
-See our [API DOC](https://prodbyola.github.io/ppdrive/) to learn how to connect to your PPDRIVE instance.
+See [API DOC](https://prodbyola.github.io/ppdrive/) to learn how to connect to your PPDRIVE instance.
 
 ---
 
