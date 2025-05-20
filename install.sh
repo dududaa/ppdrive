@@ -34,17 +34,17 @@ CONFIG_FILENAME=ppd_config.toml
 CONFIG_SRC=https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/$CONFIG_FILENAME
 
 echo "📥 Downloading default config..."
-curl -L --fail "$CONFIG_SRC" -o "$INSTALL_DIR/$CONFIG_FILENAME" || {
+sudo curl -L --fail "$CONFIG_SRC" -o "$INSTALL_DIR/$CONFIG_FILENAME" || {
   echo "❌ Failed to download default config."
   exit 1
 }
 
 
-chmod +x "$INSTALL_DIR/$BINARY_NAME"
+sudo chmod +x "$INSTALL_DIR/$BINARY_NAME"
 
 # Optionally create symlink to a folder in PATH
-mkdir -p "$LINK_DIR"
-ln -sf "$INSTALL_DIR/$BINARY_NAME" "$LINK_DIR/$BINARY_NAME"
+sudo mkdir -p "$LINK_DIR"
+sudo ln -sf "$INSTALL_DIR/$BINARY_NAME" "$LINK_DIR/$BINARY_NAME"
 
 # export variable(s)
 export PATH=$PATH:$LINK_DIR
