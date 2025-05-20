@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Download binary
 REPO="prodbyola/ppdrive"
 BINARY_NAME="ppdrive"
 INSTALL_DIR="/opt/ppdrive"
@@ -20,7 +19,6 @@ mkdir -p "$INSTALL_DIR"
 
 # Fetch the latest release tag from GitHub API
 TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | cut -d '"' -f4)
-
 
 # Download the binary
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/$ASSET_NAME"

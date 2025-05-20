@@ -22,12 +22,6 @@ services:
     container_name: ppdrive_app
     restart: unless-stopped
     image: prodbyola/ppdrive:latest
-    environment:
-      PPDRIVE_DATABASE_URL: postgres://${PPDRIVE_DB_USER}:${PPDRIVE_DB_PASSWORD}@ppdrive_db:5432/${PPDRIVE_DB_NAME}
-      PPDRIVE_PORT: ${PPDRIVE_PORT}
-      PPDRIVE_ALLOWED_ORIGINS: ${PPDRIVE_ALLOWED_ORIGINS}
-      PPDRIVE_MAX_UPLOAD_SIZE: ${PPDRIVE_MAX_UPLOAD_SIZE}
-      DEBUG_MODE: false
 
     depends_on:
       - ppdrive_db
