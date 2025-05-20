@@ -46,9 +46,10 @@ chmod +x "$INSTALL_DIR/$BINARY_NAME"
 # Optionally create symlink to a folder in PATH
 mkdir -p "$LINK_DIR"
 ln -sf "$INSTALL_DIR/$BINARY_NAME" "$LINK_DIR/$BINARY_NAME"
+ln -sf "$INSTALL_DIR/$CONFIG_FILENAME" "$LINK_DIR/$CONFIG_FILENAME"
 
 # export variable(s)
 export PATH=$PATH:$LINK_DIR
 
 echo "✅ Installed to $INSTALL_DIR"
-echo "🔗 Symlinked to $LINK_DIR/$APP_NAME"
+echo "🔗 Symlinked to $LINK_DIR/$BINARY_NAME"
