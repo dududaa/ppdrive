@@ -1,24 +1,5 @@
 #!/bin/bash
 
-# collect configurations
-read -p "port [default: 5000]:" port
-port=${port:-5000}
-
-while true; do
-    read -p "database url: " db_url
-    if [[ -n "$db_url" ]]; then
-        break
-    else
-        echo "Please provide a valid database url."
-    fi
-done
-
-read -p "allowed origins [default: *]: " allowed_origins
-allowed_origins=${allowed_origins:-*}
-
-read -p "max upload size (in mb) [default: 10]: " max_upload_size
-max_upload_size=${max_upload_size=-10}
-
 # Download binary
 REPO="prodbyola/ppdrive"
 BINARY_NAME="ppdrive"
@@ -53,12 +34,7 @@ chmod +x "$INSTALL_DIR/$BINARY_NAME"
 mkdir -p "$LINK_DIR"
 ln -sf "$INSTALL_DIR/$BINARY_NAME" "$LINK_DIR/$BINARY_NAME"
 
-# export variables
-export PPDRIVE_PORT=$port
-export PPDRIVE_DATABASE_URL=$db_url
-export PPDRIVE_ALLOWED_ORIGINS=$allowed_origins
-export PPDRIVE_MAX_UPLOAD_SIZE=$max_upload_size
-
+# export variable(s)
 export PATH=$PATH:$LINK_DIR
 
 echo "✅ Installed to $INSTALL_DIR"
