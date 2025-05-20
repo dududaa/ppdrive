@@ -11,10 +11,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub async fn create_db_pool(config: &AppConfig) -> Result<AnyPool, AppError> {
-    let debug_mode = config.base().debug_mode();
     let connection_url = config.base().database_url();
 
-    if *debug_mode {
+    if !cfg!(debug_assertions) {
         // run_migrations().await?;
     }
 

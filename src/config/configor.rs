@@ -4,7 +4,7 @@ use tokio::io::{self, AsyncBufReadExt, BufReader, Stdin};
 
 use crate::errors::AppError;
 
-use super::{AppConfig, CONFIG_FILENAME};
+use super::AppConfig;
 
 pub async fn run_configor() -> Result<(), AppError> {
     let mut config = AppConfig::build().await?;
@@ -52,7 +52,9 @@ pub async fn run_configor() -> Result<(), AppError> {
     let updated =
         toml::to_string_pretty(&config).map_err(|err| AppError::InitError(err.to_string()))?;
 
-    tokio::fs::write(CONFIG_FILENAME, updated).await?;
+    let config_path = AppConfig::config_path()?;
+
+    tokio::fs::write(&config_path, updated).await?;
     Ok(())
 }
 

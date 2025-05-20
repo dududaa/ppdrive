@@ -1,7 +1,9 @@
+use std::path::PathBuf;
+
 use axum::http::HeaderValue;
 use serde::{Deserialize, Serialize};
 
-use crate::errors::AppError;
+use crate::{errors::AppError, utils::install_dir};
 
 pub mod configor;
 pub mod secrets;
@@ -13,7 +15,6 @@ pub struct BaseConfig {
     pub(super) port: u16,
     pub(super) allowed_origins: String,
     pub(super) database_url: String,
-    debug_mode: bool,
 }
 
 impl BaseConfig {
@@ -37,10 +38,6 @@ impl BaseConfig {
     pub fn database_url(&self) -> &str {
         &self.database_url
     }
-
-    pub fn debug_mode(&self) -> &bool {
-        &self.debug_mode
-    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -62,11 +59,23 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub async fn build() -> Result<Self, AppError> {
-        let config_str = tokio::fs::read_to_string(CONFIG_FILENAME).await?;
+        let config_path = Self::config_path()?;
+
+        let config_str = tokio::fs::read_to_string(&config_path).await?;
         let config: Self =
             toml::from_str(&config_str).map_err(|err| AppError::InitError(err.to_string()))?;
 
         Ok(config)
+    }
+
+    pub fn config_path() -> Result<PathBuf, AppError> {
+        let path = if cfg!(debug_assertions) {
+            CONFIG_FILENAME.into()
+        } else {
+            install_dir()?.join(CONFIG_FILENAME)
+        };
+
+        Ok(path)
     }
 
     pub fn base(&self) -> &BaseConfig {

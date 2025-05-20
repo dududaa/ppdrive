@@ -3,6 +3,8 @@ pub mod jwt;
 pub mod sqlx;
 pub mod tools;
 
+use std::path::PathBuf;
+
 use tools::{
     client::{create_client, regenerate_token},
     secrets::generate_secret,
@@ -23,6 +25,15 @@ pub fn get_env(key: &str) -> Result<String, AppError> {
 
 pub fn mb_to_bytes(value: usize) -> usize {
     value * 1024 * 1000
+}
+
+pub fn install_dir() -> Result<PathBuf, AppError> {
+    let exec_path = std::env::current_exe()?;
+    let path = exec_path
+        .parent()
+        .ok_or(AppError::IOError("unable to get install dir".to_string()))?;
+
+    Ok(path.to_owned())
 }
 
 pub async fn args_runner(args: Vec<String>, config: &AppConfig) -> Result<(), AppError> {
