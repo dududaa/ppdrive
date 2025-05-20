@@ -26,7 +26,7 @@
 ## Installation
 For Linux and MacOS:
 ```bash
-curl -s https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/install.sh | sudo bash
+curl -f https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/install.sh | sh
 ```
 
 ---

@@ -3,7 +3,7 @@ set -eu
 
 REPO="prodbyola/ppdrive"
 BINARY_NAME="ppdrive"
-INSTALL_DIR="/opt/ppdrive"
+INSTALL_DIR=$HOME/.local/ppdrive
 LINK_DIR="$HOME/.local/bin"
 
 # Detect OS and set the correct asset name
