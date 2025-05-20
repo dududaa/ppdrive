@@ -26,7 +26,7 @@
 ## Installation
 For Linux and MacOS:
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/prodbyola/ppdrive/main/install.sh)"
+curl -s https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/install.sh | sudo bash
 ```
 
 ---
