@@ -35,6 +35,8 @@ add_path_to_shell_config() {
     fi
 }
 
+add_path_to_shell_config
+
 REPO="prodbyola/ppdrive"
 BINARY_NAME="ppdrive"
 INSTALL_DIR="/opt/ppdrive"
