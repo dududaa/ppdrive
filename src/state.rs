@@ -1,7 +1,7 @@
 use crate::{
-    config::AppConfig,
+    config::{secrets::AppSecrets, AppConfig},
     errors::AppError,
-    utils::{get_env, sqlx::sqlx_utils::BackendName},
+    utils::sqlx::sqlx_utils::BackendName,
 };
 use sqlx::{
     any::{install_default_drivers, AnyPoolOptions},
@@ -10,11 +10,11 @@ use sqlx::{
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub async fn create_db_pool() -> Result<AnyPool, AppError> {
-    let debug_mode = get_env("DEBUG_MODE")?;
-    let connection_url = get_env("PPDRIVE_DATABASE_URL")?;
+pub async fn create_db_pool(config: &AppConfig) -> Result<AnyPool, AppError> {
+    let debug_mode = config.base().debug_mode();
+    let connection_url = config.base().database_url();
 
-    if &debug_mode != "true" {
+    if *debug_mode {
         // run_migrations().await?;
     }
 
@@ -30,19 +30,19 @@ pub async fn create_db_pool() -> Result<AnyPool, AppError> {
 #[derive(Clone)]
 pub struct AppState {
     db: Arc<Mutex<AnyPool>>,
-    config: Arc<AppConfig>,
+    config: Arc<AppSecrets>,
     backend_name: BackendName,
 }
 
 impl AppState {
-    pub async fn new() -> Result<Self, AppError> {
-        let pool = create_db_pool().await?;
+    pub async fn new(config: &AppConfig) -> Result<Self, AppError> {
+        let pool = create_db_pool(config).await?;
 
         let conn = pool.acquire().await?;
         let db = Arc::new(Mutex::new(pool));
 
         let backend_name = conn.backend_name().try_into()?;
-        let config = Arc::new(AppConfig::build().await?);
+        let config = Arc::new(AppSecrets::read().await?);
         let s = Self {
             db,
             backend_name,
@@ -60,7 +60,7 @@ impl AppState {
         &self.backend_name
     }
 
-    pub fn config(&self) -> Arc<AppConfig> {
+    pub fn config(&self) -> Arc<AppSecrets> {
         self.config.clone()
     }
 }

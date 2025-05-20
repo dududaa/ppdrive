@@ -1,11 +1,11 @@
 use std::env::set_var;
 
 use crate::app::create_app;
-use dotenv::dotenv;
+use config::AppConfig;
 use errors::AppError;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::{
-    get_env, run_args,
+    run_args,
     tools::secrets::{generate_secrets_init, BEARER_KEY, BEARER_VALUE},
 };
 
@@ -17,12 +17,9 @@ mod routes;
 mod state;
 mod utils;
 
-const DEFAULT_PORT: &str = "5000";
-
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     set_var(BEARER_KEY, BEARER_VALUE);
-    dotenv().ok();
 
     tracing_subscriber::registry()
         .with(
@@ -32,20 +29,17 @@ async fn main() -> Result<(), AppError> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    let config = AppConfig::build().await?;
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).is_some() {
-        return run_args(args).await;
+        return run_args(args, &config).await;
     }
 
     // start ppdrive app
     generate_secrets_init().await?;
-    let port = get_env("PPDRIVE_PORT")
-        .ok()
-        .unwrap_or(DEFAULT_PORT.to_string());
+    let app = create_app(&config).await?;
 
-    let app = create_app().await?;
-
-    match tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await {
+    match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.base().port())).await {
         Ok(listener) => {
             if let Ok(addr) = listener.local_addr() {
                 tracing::info!("listening on {addr}");
@@ -66,11 +60,11 @@ async fn main() -> Result<(), AppError> {
 
 #[cfg(test)]
 pub mod main_test {
-    use crate::{errors::AppError, state::AppState};
+    use crate::{config::AppConfig, errors::AppError, state::AppState};
 
     /// load .env creates and app state
     pub async fn pretest() -> Result<AppState, AppError> {
-        dotenv::dotenv().ok();
-        AppState::new().await
+        let config = AppConfig::build().await?;
+        AppState::new(&config).await
     }
 }

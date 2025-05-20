@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # collect configurations
 read -p "port [default: 5000]:" port
@@ -17,7 +17,7 @@ read -p "allowed origins [default: *]: " allowed_origins
 allowed_origins=${allowed_origins:-*}
 
 read -p "max upload size (in mb) [default: 10]: " max_upload_size
-max_upload_size=${max_upload_size=10}
+max_upload_size=${max_upload_size=-10}
 
 # Download binary
 REPO="prodbyola/ppdrive"

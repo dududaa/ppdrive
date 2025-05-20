@@ -1,6 +1,5 @@
 use axum::http::header::{
-    HeaderValue, ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION,
-    CONTENT_TYPE,
+    ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
 };
 use axum::http::HeaderName;
 use axum::{
@@ -13,24 +12,15 @@ use tower_http::cors::Any;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
 
+use crate::config::AppConfig;
 use crate::routes::client::client_routes;
 use crate::routes::get_asset;
 use crate::routes::protected::protected_routes;
-use crate::{errors::AppError, state::AppState, utils::get_env};
+use crate::{errors::AppError, state::AppState};
 
-pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
-    let state = AppState::new().await?;
-
-    let whitelist = get_env("PPDRIVE_ALLOWED_ORIGINS")?;
-    let origins: Vec<HeaderValue> = whitelist.split(",").flat_map(|o| {
-        match o.parse::<HeaderValue>() {
-            Ok(h) => Some(h),
-            Err(err) => {
-                tracing::warn!("unable to parse origin {o}. Origin will not be whitelisted. \nmore info: {err}");
-                None
-            }
-        }
-    }).collect();
+pub async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, AppError> {
+    let state = AppState::new(config).await?;
+    let origins = config.base().allowed_origins();
 
     let cors = CorsLayer::new()
         .allow_origin(origins)
@@ -47,7 +37,7 @@ pub async fn create_app() -> Result<IntoMakeService<Router<()>>, AppError> {
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
         .nest("/client", client_routes())
-        .nest("/", protected_routes()?)
+        .nest("/", protected_routes(config)?)
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 // Log the matched route's path (with placeholders not filled in).

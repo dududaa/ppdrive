@@ -8,6 +8,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
 use crate::{
+    config::AppConfig,
     errors::AppError,
     models::{
         asset::{Asset, AssetType},
@@ -15,7 +16,7 @@ use crate::{
         IntoSerializer,
     },
     state::AppState,
-    utils::{get_env, mb_to_bytes, tools::secrets::SECRET_FILE},
+    utils::{mb_to_bytes, tools::secrets::SECRETS_FILENAME},
 };
 
 use super::{
@@ -90,7 +91,7 @@ async fn create_asset(
         ));
     }
 
-    if &opts.asset_path == SECRET_FILE {
+    if &opts.asset_path == SECRETS_FILENAME {
         return Err(AppError::AuthorizationError(
             "asset_path '{SECRET_FILE}' is reserved. please choose another name.".to_string(),
         ));
@@ -126,13 +127,10 @@ async fn delete_asset(
 }
 
 /// Routes accessible to creators
-pub fn protected_routes() -> Result<Router<AppState>, AppError> {
-    let max_upload_size = get_env("PPDRIVE_MAX_UPLOAD_SIZE")?;
-    let max = max_upload_size
-        .parse::<usize>()
-        .map_err(|err| AppError::InitError(err.to_string()))?;
+pub fn protected_routes(config: &AppConfig) -> Result<Router<AppState>, AppError> {
+    let max = config.file_upload().max_upload_size();
 
-    let limit = mb_to_bytes(max);
+    let limit = mb_to_bytes(*max);
 
     let router = Router::new()
         .route("/user", get(get_user))
