@@ -69,6 +69,7 @@ export PATH=$PATH:$LINK_DIR
 echo "✅ Installed to $INSTALL_DIR"
 echo "🔗 Symlinked to $LINK_DIR/$BINARY_NAME"
 
-echo "\nNEXT STEPS:"
+echo
+echo "NEXT STEPS:"
 echo "⚙️ Configure: run 'ppdrive --configure' to configure PPDRIVE"
 echo "🚀 Service started: run 'systemctl --user start ppdrive' to start PPDRIVE"
