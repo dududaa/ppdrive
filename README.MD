@@ -45,7 +45,7 @@ systemctl --user start ppdrive
 ```
 
 #### Docker Compose
-If you have docker compose, you can use our [compose template](https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/compose.yml) for full installation (database included). Copy and modify this [compose template](https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/compose.yml) to suit your need. Take note to update `ppdrive_db` service environments and `PPDRIVE_DATABASE_URL` in `ppdrive` service.
+If you have docker compose, you can use our [compose template](https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/compose.yml) for full installation (database included). Copy and modify the [compose template](https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/compose.yml) to suit your need. Take note to update `ppdrive_db` service environments and `PPDRIVE_DATABASE_URL` in `ppdrive` service.
 
 - Build: Build docker containers
 ```sh

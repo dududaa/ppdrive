@@ -16,12 +16,9 @@ services:
       - app_network
 
   ppdrive:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: prodbyola/ppdrive:latest
     container_name: ppdrive_app
     restart: unless-stopped
-    image: prodbyola/ppdrive:latest
     environment:
       PPDRIVE_DATABASE_URL: postgres://ppdrive_user:Plug&PlayDrive2025@127.0.0.1:5432/ppdrive
 
