@@ -36,8 +36,8 @@ pub fn install_dir() -> Result<PathBuf, AppError> {
     Ok(path.to_owned())
 }
 
+/// if specified, run ppdrive extra args
 pub async fn args_runner(args: Vec<String>, config: &AppConfig) -> Result<(), AppError> {
-    // if specified, run ppdrive extra tools
     if let Some(a1) = args.get(1) {
         let a1 = &a1.as_str();
         if ["--version", "-v"].contains(a1) {
@@ -67,7 +67,7 @@ pub async fn args_runner(args: Vec<String>, config: &AppConfig) -> Result<(), Ap
         } else if *a1 == "xgen" {
             generate_secret().await?;
             tracing::info!("secret keys generated and saved!");
-        } else if *a1 == "configure" {
+        } else if ["--configure", "-c"].contains(a1) {
             run_configor().await?;
         } else {
             panic!("unknown command {}", a1);

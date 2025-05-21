@@ -6,7 +6,7 @@ BINARY_NAME="ppdrive"
 INSTALL_DIR=$HOME/.local/ppdrive
 LINK_DIR="$HOME/.local/bin"
 
-rm -rf $INSTALL_DIR
+rm $INSTALL_DIR/$BINARY_NAME
 
 # Detect OS and set the correct asset name
 OS=$(uname -s)
