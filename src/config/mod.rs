@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use axum::http::HeaderValue;
 use serde::{Deserialize, Serialize};
+use tower_http::cors::AllowOrigin;
 
 use crate::{errors::AppError, utils::install_dir};
 
@@ -22,17 +23,23 @@ impl BaseConfig {
         &self.port
     }
 
-    pub fn allowed_origins(&self) -> Vec<HeaderValue> {
+    pub fn allowed_origins(&self) -> AllowOrigin {
         let origins = &self.allowed_origins;
-        origins.split(",").flat_map(|o| {
-            match o.parse::<HeaderValue>() {
-                Ok(h) => Some(h),
-                Err(err) => {
-                    tracing::warn!("unable to parse origin {o}. Origin will not be whitelisted. \nmore info: {err}");
-                    None
+        if origins == "*" {
+            AllowOrigin::any()
+        } else {
+            let list: Vec<HeaderValue> = origins.split(",").flat_map(|o| {
+                match o.parse::<HeaderValue>() {
+                    Ok(h) => Some(h),
+                    Err(err) => {
+                        tracing::warn!("unable to parse origin {o}. Origin will not be whitelisted. \nmore info: {err}");
+                        None
+                    }
                 }
-            }
-        }).collect()
+            }).collect();
+
+            list.into()
+        }
     }
 
     pub fn database_url(&self) -> &str {
