@@ -23,9 +23,8 @@ async fn main() -> Result<(), AppError> {
         .init();
 
     let config = AppConfig::build().await?;
-
-    tracing::info!("config built");
     let args: Vec<String> = std::env::args().collect();
+
     if args.get(1).is_some() {
         return args_runner(args, &config).await;
     }

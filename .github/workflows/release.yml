@@ -6,11 +6,11 @@ on:
       - "v*" # Trigger only on version tags like v1.0.0
 
 permissions:
-  contents: write # Required to create releases
+  contents: write
 
 jobs:
   build:
-    name: Build and Release
+    name: Build and Package
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -18,13 +18,16 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: ppdrive-linux
+            artifact_name: ppdrive-linux.tar.gz
+            bin_name: ppdrive
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: ppdrive-windows.exe
+            artifact_name: ppdrive-windows.zip
+            bin_name: ppdrive.exe
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: ppdrive-macos
+            artifact_name: ppdrive-macos.tar.gz
+            bin_name: ppdrive
 
     steps:
       - uses: actions/checkout@v4
@@ -39,14 +42,21 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Rename Binary
+      - name: Prepare Release Package
         run: |
-          mkdir dist
-          BIN_NAME=ppdrive
+          mkdir -p package
+
+          cp target/${{ matrix.target }}/release/${{ matrix.bin_name }} package/
+          cp -r migrations package/
+          cp ppd_config.toml package/
+
+          mkdir -p dist
+
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            BIN_NAME=ppdrive.exe
+            powershell -Command "Compress-Archive -Path package\\* -DestinationPath dist\\${{ matrix.artifact_name }}"
+          else
+            tar -czvf dist/${{ matrix.artifact_name }} -C package .
           fi
-          cp target/${{ matrix.target }}/release/$BIN_NAME dist/${{ matrix.artifact_name }}
         shell: bash
 
       - name: Upload Artifact
@@ -68,6 +78,6 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/**/*
+          files: dist/**/*.{tar.gz,zip}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

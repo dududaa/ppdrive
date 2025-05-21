@@ -24,9 +24,20 @@
 ---
 
 ## Installation
-For Linux and MacOS:
+#### For Linux and MacOS:
+- Install:
 ```bash
 curl -f https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/install.sh | sh
+```
+
+- Configure:
+```bash
+ppdrive --configure
+```
+
+- Start
+```bash
+sudo systemctl start ppdrive
 ```
 
 ---
