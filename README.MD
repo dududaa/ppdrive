@@ -24,7 +24,11 @@
 ---
 
 ## Installation
-#### For Linux and MacOS:
+#### Linux and MacOS
+**Prequisite**: Please make sure you have created a database for PPDRIVE to save records. You'll need to add the database URL after installation, during configuration. We support Postgres, MySQL and SQLite databases.
+
+Once your database is ready, kindly proceed to the following steps:
+
 - Install:
 ```bash
 curl -f https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/install.sh | sh
@@ -40,10 +44,30 @@ ppdrive --configure
 systemctl --user start ppdrive
 ```
 
+#### Docker Compose
+If you have docker compose, you can use our [compose template](https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/compose.yml) for full installation (database included). Copy and modify this [compose template](https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/compose.yml) to suit your need. Take note to update `ppdrive_db` service environments and `PPDRIVE_DATABASE_URL` in `ppdrive` service.
+
+- Build: Build docker containers
+```sh
+docker-compose up --build -d
+```
+
+- Configure: Open `ppdrive` container terminal and run the configuration command.
+```sh
+docker-compose exec ppdrive sh
+
+ppdrive --configure
+```
+
+- Restart: Now restart the containers
+```sh
+docker-compose restart
+```
+
 ---
 
 ## API Documentation
-See [API DOC](https://prodbyola.github.io/ppdrive/) to learn how to connect to your PPDRIVE instance.
+Once your PPDRIVE is pu and running, check out [API DOC](https://prodbyola.github.io/ppdrive/) to learn how to connect and use your PPDRIVE instance.
 
 ---
 
@@ -65,7 +89,7 @@ We welcome contributions to PPDRIVE! Here’s how you can help:
 ---
 
 ## License
-PPDRIVE is open-source software licensed under the MIT License.
+PPDRIVE is open-source software licensed under the [MIT License](#/LICENSE).
 
 ---
 

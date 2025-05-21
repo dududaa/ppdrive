@@ -6,6 +6,18 @@ use crate::errors::AppError;
 
 use super::AppConfig;
 
+/// update [AppConfig]'s database url. Mostly needed for docker runtime.
+pub async fn update_db_url(config: &mut AppConfig, url: String) -> Result<(), AppError> {
+    config.base.database_url = url;
+    let config_path = AppConfig::config_path()?;
+    let updated =
+        toml::to_string_pretty(&config).map_err(|err| AppError::InitError(err.to_string()))?;
+
+    tokio::fs::write(&config_path, &updated).await?;
+    Ok(())
+}
+
+/// run service --configure arg
 pub async fn run_configor() -> Result<(), AppError> {
     let mut config = AppConfig::build().await?;
 

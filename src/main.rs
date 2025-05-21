@@ -1,8 +1,8 @@
 use crate::app::create_app;
-use config::AppConfig;
+use config::{configor::update_db_url, AppConfig};
 use errors::AppError;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utils::{args_runner, tools::secrets::generate_secrets_init};
+use utils::{args_runner, get_env, tools::secrets::generate_secrets_init};
 
 mod app;
 mod config;
@@ -22,9 +22,12 @@ async fn main() -> Result<(), AppError> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let config = AppConfig::build().await?;
-    let args: Vec<String> = std::env::args().collect();
+    let mut config = AppConfig::build().await?;
+    if let Ok(url) = get_env("PPDRIVE_DATABASE_URL") {
+        update_db_url(&mut config, url).await?;
+    }
 
+    let args: Vec<String> = std::env::args().collect();
     if args.get(1).is_some() {
         return args_runner(args, &config).await;
     }
