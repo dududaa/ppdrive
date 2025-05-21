@@ -13,15 +13,18 @@ use tokio::sync::Mutex;
 pub async fn create_db_pool(config: &AppConfig) -> Result<AnyPool, AppError> {
     let connection_url = config.base().database_url();
 
-    if !cfg!(debug_assertions) {
-        // run_migrations().await?;
-    }
-
     install_default_drivers();
     let pool = AnyPoolOptions::new()
         .connect(&connection_url)
         .await
         .map_err(|err| AppError::InitError(err.to_string()))?;
+
+    if !cfg!(debug_assertions) {
+        sqlx::migrate!()
+            .run(&pool)
+            .await
+            .map_err(|err| AppError::InitError(err.to_string()))?;
+    }
 
     Ok(pool)
 }
