@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: PPDRIVE
-  version: 0.26.71
+  version: 0.27.20
   summary: PPDRIVE - an integrated and secure file manager
   description: |
     PPDRIVE is a powerful, standalone file manager written in Rust,
@@ -21,7 +21,7 @@ info:
 
     To access these routes, you need to provide your client's `token`
     by adding the token to `x-ppd-client` header of your requests.
-    You can generate a client token by running `ppdrive create_client
+    You can generate a client token by running `ppdrive --create_client
     {client_name}` or via the Admin UI.
 
     <b style="color:red;">IMPORTANT!</b> Client tokens give administrative
@@ -30,7 +30,7 @@ info:
     server.
 
     If your client token is compromised (or for any other reason), you can
-    regenerate a client token by running `ppdrive new_token {client_id}`.
+    regenerate a client token by running `ppdrive --token {client_id}`.
 
     ### Unprotected Routes
     These routes require no authentication. You can access them with or

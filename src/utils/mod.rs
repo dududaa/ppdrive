@@ -45,8 +45,8 @@ pub async fn args_runner(args: Vec<String>, config: &AppConfig) -> Result<(), Ap
             let v = std::env::var("CARGO_PKG_VERSION")?;
 
             println!("{n}: {v}");
-        } else if ["create_client", "new_token"].contains(a1) {
-            let is_new = a1 == &"create_client";
+        } else if ["--create_client", "--token"].contains(a1) {
+            let is_new = a1 == &"--create_client";
 
             match args.get(2) {
                 Some(spec) => {
@@ -57,7 +57,7 @@ pub async fn args_runner(args: Vec<String>, config: &AppConfig) -> Result<(), Ap
                         regenerate_token(&state, spec).await?
                     };
 
-                    tracing::info!("CLIENT_TOKEN: {token}");
+                    println!("CLIENT_TOKEN: {token}");
                 }
                 None => {
                     let spec = if is_new { "name" } else { "id" };
