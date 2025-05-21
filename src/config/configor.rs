@@ -39,7 +39,7 @@ pub async fn run_configor() -> Result<(), AppError> {
     println!("Input * to allow all origins");
     println!("current: {}", config.base.allowed_origins);
 
-    let origins = parse_int(&mut reader, config.base.allowed_origins).await?;
+    let origins = parse_str(&mut reader, &config.base.allowed_origins).await?;
     config.base.allowed_origins = origins;
 
     // max upload size
