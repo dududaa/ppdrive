@@ -37,7 +37,7 @@ ppdrive --configure
 
 - Start
 ```bash
-sudo systemctl start ppdrive
+systemctl --user start ppdrive
 ```
 
 ---
