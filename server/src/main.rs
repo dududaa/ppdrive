@@ -7,7 +7,6 @@ use utils::{args_runner, get_env, tools::secrets::generate_secrets_init};
 mod app;
 mod config;
 mod errors;
-mod models;
 mod routes;
 mod state;
 mod utils;

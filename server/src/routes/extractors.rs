@@ -8,19 +8,20 @@ use axum::{
 
 use crate::{
     errors::AppError,
-    models::{
-        permission::{AssetPermission, Permission},
-        user::{User, UserRole},
-    },
     state::AppState,
     utils::{fs::check_folder_size, jwt::decode_jwt, tools::client::verify_client},
 };
 
+use ppdrive_core::models::{
+    permission::{AssetPermission, Permission},
+    user::{User, UserRole},
+};
+
 pub struct CurrentUser {
-    id: i32,
+    id: u64,
     role: UserRole,
     partition: Option<String>,
-    folder_max_size: Option<i64>,
+    folder_max_size: Option<u64>,
 }
 
 impl CurrentUser {
@@ -29,11 +30,11 @@ impl CurrentUser {
         !matches!(self.role, UserRole::Basic)
     }
 
-    pub fn id(&self) -> &i32 {
+    pub fn id(&self) -> &u64 {
         &self.id
     }
 
-    pub fn folder_max_size(&self) -> &Option<i64> {
+    pub fn folder_max_size(&self) -> &Option<u64> {
         &self.folder_max_size
     }
 
@@ -56,8 +57,11 @@ impl CurrentUser {
     }
 
     /// checks if user has read permission for the given asset
-    pub async fn can_read_asset(&self, state: &AppState, asset_id: &i32) -> Result<(), AppError> {
-        AssetPermission::check(state, self.id(), asset_id, Permission::Read).await
+    pub async fn can_read_asset(&self, state: &AppState, asset_id: &u64) -> Result<(), AppError> {
+        let db = state.db();
+
+        AssetPermission::exists(db, self.id(), asset_id, Permission::Read).await?;
+        Ok(())
     }
 }
 
@@ -78,12 +82,13 @@ where
             Some(auth) => {
                 let state = AppState::from_ref(state);
                 let config = state.config();
+                let db = state.db();
 
                 let claims = decode_jwt(auth, config.jwt_secret())?;
-                let user = User::get(&state, &claims.sub).await?;
+                let user = User::get(db, &claims.sub).await?;
                 let id = user.id().to_owned();
 
-                let role = user.role().clone();
+                let role = user.role()?;
                 let partition = user.partition().clone();
                 let folder_max_size = *user.partition_size();
 

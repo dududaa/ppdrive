@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::errors::CoreError;
 
 use crate::CoreResult;
+
+use super::check_model;
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub enum Permission {
     Create,
@@ -74,6 +76,19 @@ impl AssetPermission {
 
     pub async fn delete_for_user(rb: &RBatis, user_id: &u64) -> CoreResult<()> {
         AssetPermission::delete_by_column(rb, "user_id", user_id).await?;
+        Ok(())
+    }
+
+    pub async fn exists(
+        rb: &RBatis,
+        user_id: &u64,
+        asset_id: &u64,
+        permission: Permission,
+    ) -> CoreResult<()> {
+        let pd = u8::from(permission);
+        let perm = AssetPermission::check(rb, user_id, asset_id, &pd).await?;
+
+        check_model(perm, "permission does not exist")?;
         Ok(())
     }
 }

@@ -1,7 +1,8 @@
 use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce};
+use ppdrive_core::models::client::Client;
 use uuid::Uuid;
 
-use crate::{errors::AppError, models::client::Client, state::AppState};
+use crate::{errors::AppError, state::AppState};
 
 /// generate a token for client's id
 fn generate_token(state: &AppState, client_id: &str) -> Result<String, AppError> {
@@ -20,11 +21,12 @@ fn generate_token(state: &AppState, client_id: &str) -> Result<String, AppError>
 
 /// creates a new client and returns the client's key
 pub async fn create_client(state: &AppState, name: &str) -> Result<String, AppError> {
+    let db = state.db();
     let client_id = Uuid::new_v4();
     let client_id = client_id.to_string();
 
     let token = generate_token(state, &client_id)?;
-    Client::create(state, &client_id, name).await?;
+    Client::create(db, client_id, name.to_string()).await?;
 
     Ok(token)
 }
@@ -41,14 +43,17 @@ pub async fn verify_client(state: &AppState, token: &str) -> Result<bool, AppErr
     let nonce = XNonce::from_slice(nonce_key);
 
     let decrypt = cipher.decrypt(nonce, decode.as_slice())?;
+
+    let db = state.db();
     let id =
         String::from_utf8(decrypt).map_err(|err| AppError::AuthorizationError(err.to_string()))?;
-    let ok = Client::get(state, &id).await.is_ok();
+    let ok = Client::get(db, &id).await.is_ok();
     Ok(ok)
 }
 
 pub async fn regenerate_token(state: &AppState, client_id: &str) -> Result<String, AppError> {
-    let client = Client::get(state, client_id).await?;
+    let db = state.db();
+    let client = Client::get(db, client_id).await?;
     generate_token(state, client.id())
 }
 

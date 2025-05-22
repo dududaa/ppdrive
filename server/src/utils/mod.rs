@@ -1,6 +1,5 @@
 pub mod fs;
 pub mod jwt;
-pub mod sqlx;
 pub mod tools;
 
 use std::path::PathBuf;

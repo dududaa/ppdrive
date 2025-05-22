@@ -8,28 +8,15 @@ use axum_macros::debug_handler;
 use extractors::ExtractUser;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    errors::AppError,
-    models::{
-        asset::{Asset, AssetSharing, AssetType},
-        user::UserRole,
-    },
-    state::AppState,
-    utils::tools::secrets::SECRETS_FILENAME,
-};
+use crate::{errors::AppError, state::AppState, utils::tools::secrets::SECRETS_FILENAME};
+
+use ppdrive_core::models::asset::{Asset, AssetType};
 
 use std::path::Path as StdPath;
 
 pub mod client;
 mod extractors;
 pub mod protected;
-
-#[derive(Deserialize)]
-pub struct CreateUserOptions {
-    pub partition: Option<String>,
-    pub partition_size: Option<i64>,
-    pub role: UserRole,
-}
 
 #[derive(Deserialize)]
 pub struct LoginCredentials {
@@ -42,34 +29,6 @@ pub struct LoginCredentials {
 pub struct LoginToken {
     token: String,
     exp: i64,
-}
-
-#[derive(Default, Deserialize)]
-pub struct CreateAssetOptions {
-    /// Destination path where asset should be created
-    pub asset_path: String,
-
-    /// The type of asset - whether it's a file or folder
-    pub asset_type: AssetType,
-
-    /// Asset's visibility. Public assets can be read/accessed by everyone. Private assets can be
-    /// viewed ONLY by permission.
-    pub public: Option<bool>,
-
-    /// Set a custom path for your asset instead of the one auto-generated from
-    /// from `path`. This useful if you'd like to conceal your original asset path.
-    /// Custom path must be available in that no other asset is already using it in the entire app.
-    ///
-    /// Your original asset path makes url look like this `https://mydrive.com/images/somewhere/my-image.png/`.
-    /// Using custom path, you can conceal the original path: `https://mydrive.com/some/hidden-path`
-    pub custom_path: Option<String>,
-
-    /// If `asset_type` is [AssetType::Folder], we determine whether we should force-create it's parents folder if they
-    /// don't exist. Asset creation will result in error if `create_parents` is `false` and folder parents don't exist.
-    pub create_parents: Option<bool>,
-
-    /// Users to share this asset with. This can only be set if `public` option is false
-    pub sharing: Option<Vec<AssetSharing>>,
 }
 
 #[debug_handler]
@@ -86,7 +45,8 @@ pub async fn get_asset(
         return Err(AppError::PermissionDenied("access denied".to_string()));
     }
 
-    let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
+    let db = state.db();
+    let asset = Asset::get_by_path(db, &asset_path, &asset_type).await?;
     let current_user = user_extractor.map(|ext| ext.0);
 
     // if asset has custom path and custom path is not provided in url,
@@ -150,7 +110,7 @@ pub async fn get_asset(
                             AssetType::Folder
                         };
 
-                        let asset = Asset::get_by_path(&state, path_str, &asset_type).await;
+                        let asset = Asset::get_by_path(db, path_str, &asset_type).await;
                         if let Ok(asset) = asset {
                             let html =
                                 format!("<li><a href='/{}'>{filename}</a></li>", asset.url_path());

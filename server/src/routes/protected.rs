@@ -10,19 +10,20 @@ use uuid::Uuid;
 use crate::{
     config::AppConfig,
     errors::AppError,
+    state::AppState,
+    utils::{mb_to_bytes, tools::secrets::SECRETS_FILENAME},
+};
+
+use ppdrive_core::{
     models::{
         asset::{Asset, AssetType},
         user::{User, UserSerializer},
         IntoSerializer,
     },
-    state::AppState,
-    utils::{mb_to_bytes, tools::secrets::SECRETS_FILENAME},
+    options::CreateAssetOptions,
 };
 
-use super::{
-    extractors::{ExtractUser, ManagerRoute},
-    CreateAssetOptions,
-};
+use super::extractors::{ExtractUser, ManagerRoute};
 
 #[debug_handler]
 async fn get_user(
@@ -30,8 +31,9 @@ async fn get_user(
     ExtractUser(user): ExtractUser,
     ManagerRoute: ManagerRoute,
 ) -> Result<Json<UserSerializer>, AppError> {
-    let user_model = User::get(&state, user.id()).await?;
-    let data = user_model.into_serializer(&state).await?;
+    let db = state.db();
+    let user_model = User::get(db, user.id()).await?;
+    let data = user_model.into_serializer(db).await?;
 
     Ok(Json(data))
 }
@@ -97,7 +99,8 @@ async fn create_asset(
         ));
     }
 
-    let path = Asset::create_or_update(&state, user_id, opts, &tmp_file).await?;
+    let db = state.db();
+    let path = Asset::create_or_update(db, user_id, opts, &tmp_file).await?;
     if let Some(tmp_file) = &tmp_file {
         if let Err(err) = tokio::fs::remove_file(tmp_file).await {
             tracing::error!("unable to remove {tmp_file:?}: {err}")
@@ -114,10 +117,11 @@ async fn delete_asset(
     ExtractUser(user): ExtractUser,
     ManagerRoute: ManagerRoute,
 ) -> Result<String, AppError> {
-    let asset = Asset::get_by_path(&state, &asset_path, &asset_type).await?;
+    let db = state.db();
+    let asset = Asset::get_by_path(db, &asset_path, &asset_type).await?;
 
     if asset.user_id() == user.id() {
-        asset.delete(&state).await?;
+        asset.delete(db).await?;
         Ok("operation successful".to_string())
     } else {
         Err(AppError::AuthorizationError(

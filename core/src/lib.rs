@@ -1,4 +1,5 @@
 use errors::CoreError;
+pub use rbatis::RBatis;
 
 pub mod db;
 pub mod errors;

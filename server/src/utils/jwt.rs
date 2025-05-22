@@ -11,7 +11,7 @@ use super::{get_env, tools::secrets::BEARER_KEY};
 
 #[derive(Deserialize, Serialize)]
 pub struct Claims {
-    pub sub: i32,
+    pub sub: u64,
     pub exp: i64,
 }
 
@@ -45,7 +45,7 @@ fn extract_jwt(header_value: &HeaderValue) -> Result<String, AppError> {
     ))
 }
 
-pub(crate) fn create_jwt(user_id: &i32, secret: &[u8], exp: i64) -> Result<String, AppError> {
+pub(crate) fn create_jwt(user_id: &u64, secret: &[u8], exp: i64) -> Result<String, AppError> {
     let exp = Utc::now()
         .checked_add_signed(chrono::Duration::seconds(exp))
         .expect("Invalid timestamp")

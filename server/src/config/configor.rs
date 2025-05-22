@@ -8,7 +8,7 @@ use super::AppConfig;
 
 /// update [AppConfig]'s database url. Mostly needed for docker runtime.
 pub async fn update_db_url(config: &mut AppConfig, url: String) -> Result<(), AppError> {
-    config.base.database_url = url;
+    config.base.db_url = url;
     let config_path = AppConfig::config_path()?;
     let updated =
         toml::to_string_pretty(&config).map_err(|err| AppError::InitError(err.to_string()))?;
@@ -34,12 +34,12 @@ pub async fn run_configor() -> Result<(), AppError> {
     // database url
     loop {
         println!("Please specify database URL for PPDRIVE. ENTER to skip");
-        println!("current: {}", config.base.database_url);
+        println!("current: {}", config.base.db_url);
 
-        let url = parse_str(&mut reader, config.base.database_url()).await?;
+        let url = parse_str(&mut reader, config.base.db_url()).await?;
 
         if !url.is_empty() {
-            config.base.database_url = url;
+            config.base.db_url = url;
             break;
         }
     }

@@ -7,12 +7,16 @@ use axum_macros::debug_handler;
 
 use crate::{
     errors::AppError,
-    models::user::{User, UserRole},
     state::AppState,
     utils::{jwt::create_jwt, tools::secrets::SECRETS_FILENAME},
 };
 
-use super::{extractors::ClientRoute, CreateUserOptions, LoginCredentials, LoginToken};
+use ppdrive_core::{
+    models::user::{User, UserRole},
+    options::CreateUserOptions,
+};
+
+use super::{extractors::ClientRoute, LoginCredentials, LoginToken};
 
 #[debug_handler]
 async fn create_user(
@@ -20,6 +24,7 @@ async fn create_user(
     ClientRoute: ClientRoute,
     Json(data): Json<CreateUserOptions>,
 ) -> Result<String, AppError> {
+    let db = state.db();
     if let Some(partition) = &data.partition {
         if partition == SECRETS_FILENAME {
             return Err(AppError::PermissionDenied(
@@ -33,7 +38,7 @@ async fn create_user(
             "client cannot create admin user".to_string(),
         )),
         _ => {
-            let user_id = User::create(&state, data).await?;
+            let user_id = User::create(db, data).await?;
             Ok(user_id.to_string())
         }
     }
@@ -47,7 +52,8 @@ async fn login_user(
 ) -> Result<Json<LoginToken>, AppError> {
     let LoginCredentials { id, exp, .. } = data;
 
-    let user = User::get_by_pid(&state, &id).await?;
+    let db = state.db();
+    let user = User::get_by_pid(db, &id).await?;
     let exp = exp.unwrap_or(18_000); // set default expiration to 5 hours
 
     let config = state.config();
@@ -64,13 +70,14 @@ async fn delete_user(
     ClientRoute: ClientRoute,
     State(state): State<AppState>,
 ) -> Result<String, AppError> {
-    let user = User::get_by_pid(&state, &id).await?;
-    match user.role() {
+    let db = state.db();
+    let user = User::get_by_pid(db, &id).await?;
+    match user.role()? {
         UserRole::Admin => Err(AppError::AuthorizationError(
             "client cannot delete admin".to_string(),
         )),
         _ => {
-            user.delete(&state).await?;
+            user.delete(db).await?;
             Ok("operation successful".to_string())
         }
     }

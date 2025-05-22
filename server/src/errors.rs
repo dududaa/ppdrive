@@ -1,16 +1,15 @@
 use std::{env::VarError, fmt::Display, string::FromUtf8Error};
 
 use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoResponse};
+use ppdrive_core::errors::CoreError;
 
 #[derive(Debug)]
 pub enum AppError {
     InitError(String),
     InternalServerError(String),
-    DatabaseError(String),
+    DatabaseError(CoreError),
     AuthorizationError(String),
-    ParsingError(String),
     IOError(String),
-    NotImplemented(String),
     NotFound(String),
     PermissionDenied(String),
 }
@@ -22,9 +21,7 @@ impl Display for AppError {
             AppError::InternalServerError(msg) => write!(f, "{msg}"),
             AppError::DatabaseError(msg) => write!(f, "{msg}"),
             AppError::AuthorizationError(msg) => write!(f, "{msg}"),
-            AppError::ParsingError(msg) => write!(f, "{msg}"),
             AppError::IOError(msg) => write!(f, "{msg}"),
-            AppError::NotImplemented(msg) => write!(f, "{msg}"),
             AppError::NotFound(msg) => write!(f, "{msg}"),
             AppError::PermissionDenied(msg) => write!(f, "{msg}"),
         }
@@ -55,15 +52,9 @@ impl From<MultipartError> for AppError {
     }
 }
 
-impl From<sqlx::Error> for AppError {
-    fn from(value: sqlx::Error) -> Self {
-        use sqlx::Error::*;
-        match value {
-            RowNotFound => {
-                AppError::NotFound("error getting the requested resource from database".to_string())
-            }
-            _ => AppError::DatabaseError(value.to_string()),
-        }
+impl From<CoreError> for AppError {
+    fn from(value: CoreError) -> Self {
+        AppError::DatabaseError(value)
     }
 }
 

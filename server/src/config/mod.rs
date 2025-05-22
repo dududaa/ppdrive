@@ -13,9 +13,10 @@ pub(super) const CONFIG_FILENAME: &str = "ppd_config.toml";
 
 #[derive(Deserialize, Serialize)]
 pub struct BaseConfig {
-    pub(super) port: u16,
-    pub(super) allowed_origins: String,
-    pub(super) database_url: String,
+    port: u16,
+    allowed_origins: String,
+    db_url: String,
+    db_type: String,
 }
 
 impl BaseConfig {
@@ -42,14 +43,18 @@ impl BaseConfig {
         }
     }
 
-    pub fn database_url(&self) -> &str {
-        &self.database_url
+    pub fn db_url(&self) -> &str {
+        &self.db_url
+    }
+
+    pub fn db_type(&self) -> &str {
+        &self.db_type
     }
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct FileUploadConfig {
-    pub(super) max_upload_size: usize,
+    max_upload_size: usize,
 }
 
 impl FileUploadConfig {
@@ -60,7 +65,7 @@ impl FileUploadConfig {
 
 #[derive(Deserialize, Serialize)]
 pub struct AppConfig {
-    pub(super) base: BaseConfig,
+    base: BaseConfig,
     file_upload: FileUploadConfig,
 }
 
