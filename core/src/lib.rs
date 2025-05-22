@@ -1,5 +1,6 @@
 use errors::CoreError;
 
+pub mod db;
 pub mod errors;
 mod fs;
 pub mod models;
