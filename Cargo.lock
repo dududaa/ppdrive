@@ -1529,7 +1529,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
-name = "ppdrive"
+name = "ppdrive_core"
+version = "0.1.0"
+dependencies = [
+ "rbatis",
+ "rbs",
+ "serde",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ppdrive_rest"
 version = "0.27.20"
 dependencies = [
  "axum",
@@ -1548,18 +1560,6 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "ppdrive_core"
-version = "0.1.0"
-dependencies = [
- "rbatis",
- "rbs",
- "serde",
- "tokio",
- "tracing",
  "uuid",
 ]
 
