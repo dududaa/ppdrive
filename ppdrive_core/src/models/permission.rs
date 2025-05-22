@@ -1,0 +1,79 @@
+use rbatis::{RBatis, crud, impl_select};
+use serde::{Deserialize, Serialize};
+
+use crate::errors::CoreError;
+
+use crate::CoreResult;
+#[derive(Deserialize, Serialize, PartialEq, Clone)]
+pub enum Permission {
+    Create,
+    Read,
+    Update,
+    Delete,
+}
+
+impl From<Permission> for u8 {
+    fn from(value: Permission) -> Self {
+        match value {
+            Permission::Create => 0,
+            Permission::Read => 1,
+            Permission::Update => 2,
+            Permission::Delete => 3,
+        }
+    }
+}
+
+impl TryFrom<u8> for Permission {
+    type Error = CoreError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Permission::Create),
+            1 => Ok(Permission::Read),
+            2 => Ok(Permission::Update),
+            3 => Ok(Permission::Delete),
+            _ => Err(CoreError::ParseError(format!(
+                "'{value}' is invalid permission."
+            ))),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AssetPermission {
+    user_id: u64,
+    asset_id: u64,
+    permission: u8,
+}
+
+crud!(AssetPermission {});
+impl_select!(AssetPermission{ check(user_id: &u64, asset_id: &u64, permission: &u8) -> Option => "`WHERE user_id = #{user_id} AND asset_id = #{user_id}` AND permission = #{permission}" });
+
+impl AssetPermission {
+    pub async fn create(
+        rb: &RBatis,
+        asset_id: &u64,
+        fellow_id: &u64,
+        permission: Permission,
+    ) -> CoreResult<()> {
+        let value = AssetPermission {
+            asset_id: *asset_id,
+            user_id: *fellow_id,
+            permission: permission.into(),
+        };
+
+        AssetPermission::insert(rb, &value).await?;
+
+        Ok(())
+    }
+
+    pub async fn delete_for_asset(rb: &RBatis, asset_id: &u64) -> CoreResult<()> {
+        AssetPermission::delete_by_column(rb, "asset_id", asset_id).await?;
+        Ok(())
+    }
+
+    pub async fn delete_for_user(rb: &RBatis, user_id: &u64) -> CoreResult<()> {
+        AssetPermission::delete_by_column(rb, "user_id", user_id).await?;
+        Ok(())
+    }
+}

@@ -1,0 +1,24 @@
+[package]
+name = "ppdrive_core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rbs = { version = "4.5.51" }
+rbatis = { version = "4.5.51" }
+
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1.35.1", features = ["fs"] }
+tracing = "0.1"
+uuid = { version = "1.16.0", features = ["v4"] }
+
+# rbdc-sqlite = { version = "4.6" }
+# rbdc-mysql = { version = "4.6" }
+# rbdc-pg = { version = "4.6" }
+# rbdc-mssql = { version = "4.6" }
+
+# # Other dependencies (for rbatis)
+# serde = { version = "1", features = ["derive"] }
+# tokio = { version = "1", features = ["full"] }
+# log = "0.4"
+# fast_log = "1.6"
