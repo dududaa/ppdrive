@@ -1,7 +1,7 @@
 [base]
 port = 5000
 allowed_origins = "*"
-db_url = "sqlite://ppdrive_user:Plug&PlayDrive2025@127.0.0.1:5432/ppdrive"
+db_url = "sqlite://db.sqlite"
 
 [file_upload]
 max_upload_size = 10
