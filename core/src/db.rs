@@ -3,19 +3,25 @@ use rbdc_mssql::MssqlDriver;
 use rbdc_mysql::MysqlDriver;
 use rbdc_pg::PgDriver;
 use rbdc_sqlite::SqliteDriver;
+use sqlx::any::AnyPoolOptions;
 
 use crate::{CoreResult, errors::CoreError};
 
-pub fn init_db(url: &str) -> CoreResult<RBatis> {
+pub async fn init_db(url: &str) -> CoreResult<RBatis> {
     use DatabaseType::*;
-    fast_log::init(fast_log::Config::new().console()).expect("rbatis init fail");
-    let db_type = url.try_into()?;
 
+    if !cfg!(debug_assertions) {
+        migrate(url).await?;
+    }
+
+    let db_type = url.try_into()?;
     let rb = RBatis::new();
+
     match db_type {
         Sqlite => rb.init(SqliteDriver {}, url)?,
         MySql => rb.init(MysqlDriver {}, url)?,
         Postgres => rb.init(PgDriver {}, url)?,
+        MsSql => rb.init(MssqlDriver {}, url)?,
     }
 
     Ok(rb)
@@ -25,6 +31,7 @@ enum DatabaseType {
     MySql,
     Postgres,
     Sqlite,
+    MsSql,
 }
 
 impl<'a> TryFrom<&'a str> for DatabaseType {
@@ -39,10 +46,22 @@ impl<'a> TryFrom<&'a str> for DatabaseType {
             Ok(Postgres)
         } else if url.starts_with("sqlite") {
             Ok(Sqlite)
+        } else if url.starts_with("mssql") {
+            Ok(MsSql)
         } else {
             Err(CoreError::ParseError(
                 "unsupported database type".to_string(),
             ))
         }
     }
+}
+
+async fn migrate(url: &str) -> CoreResult<()> {
+    let pool = AnyPoolOptions::new().connect(url).await?;
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .map_err(|err| CoreError::MigrationError(err.into()))?;
+
+    Ok(())
 }

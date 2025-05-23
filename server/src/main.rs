@@ -22,6 +22,7 @@ async fn main() -> Result<(), AppError> {
         .init();
 
     let mut config = AppConfig::build().await?;
+
     if let Ok(url) = get_env("PPDRIVE_DATABASE_URL") {
         update_db_url(&mut config, url).await?;
     }

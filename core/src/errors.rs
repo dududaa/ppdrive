@@ -10,6 +10,7 @@ pub enum CoreError {
     ParseError(String),
     ServerError(String),
     PermissionError(String),
+    MigrationError(sqlx::Error),
 }
 
 impl Display for CoreError {
@@ -20,6 +21,7 @@ impl Display for CoreError {
             CoreError::ParseError(err) => write!(f, "{err}"),
             CoreError::ServerError(err) => write!(f, "{err}"),
             CoreError::PermissionError(err) => write!(f, "{err}"),
+            CoreError::MigrationError(err) => write!(f, "{err}"),
         }
     }
 }
@@ -33,5 +35,11 @@ impl From<DbError> for CoreError {
 impl From<IoError> for CoreError {
     fn from(value: IoError) -> Self {
         CoreError::IoError(value)
+    }
+}
+
+impl From<sqlx::Error> for CoreError {
+    fn from(value: sqlx::Error) -> Self {
+        CoreError::MigrationError(value)
     }
 }

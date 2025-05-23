@@ -6,5 +6,5 @@ CREATE TABLE IF NOT EXISTS users (
     partition_size BIGiNT,
     email VARCHAR(300),
     password VARCHAR(80),
-    created_at VARCHAR(120) NOT NULL
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
