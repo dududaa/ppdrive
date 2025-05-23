@@ -16,7 +16,6 @@ pub struct BaseConfig {
     port: u16,
     allowed_origins: String,
     db_url: String,
-    db_type: String,
 }
 
 impl BaseConfig {
@@ -45,10 +44,6 @@ impl BaseConfig {
 
     pub fn db_url(&self) -> &str {
         &self.db_url
-    }
-
-    pub fn db_type(&self) -> &str {
-        &self.db_type
     }
 }
 

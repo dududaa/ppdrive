@@ -2,7 +2,6 @@
 port = 5000
 allowed_origins = "*"
 db_url = "postgres://ppdrive_user:Plug&PlayDrive2025@127.0.0.1:5432/ppdrive"
-db_type = "postgres"
 
 [file_upload]
 max_upload_size = 10
