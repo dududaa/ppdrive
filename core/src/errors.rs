@@ -11,6 +11,8 @@ pub enum CoreError {
     ServerError(String),
     PermissionError(String),
     MigrationError(sqlx::Error),
+    EncryptionError(chacha20poly1305::Error),
+    AuthorizationError(String),
 }
 
 impl Display for CoreError {
@@ -22,6 +24,8 @@ impl Display for CoreError {
             CoreError::ServerError(err) => write!(f, "{err}"),
             CoreError::PermissionError(err) => write!(f, "{err}"),
             CoreError::MigrationError(err) => write!(f, "{err}"),
+            CoreError::EncryptionError(err) => write!(f, "{err}"),
+            CoreError::AuthorizationError(err) => write!(f, "{err}"),
         }
     }
 }
@@ -41,5 +45,11 @@ impl From<IoError> for CoreError {
 impl From<sqlx::Error> for CoreError {
     fn from(value: sqlx::Error) -> Self {
         CoreError::MigrationError(value)
+    }
+}
+
+impl From<chacha20poly1305::Error> for CoreError {
+    fn from(value: chacha20poly1305::Error) -> Self {
+        CoreError::EncryptionError(value)
     }
 }

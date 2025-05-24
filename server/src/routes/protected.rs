@@ -7,20 +7,17 @@ use axum_macros::debug_handler;
 use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
-use crate::{
-    config::AppConfig,
-    errors::AppError,
-    state::AppState,
-    utils::{mb_to_bytes, tools::secrets::SECRETS_FILENAME},
-};
+use crate::{errors::AppError, state::AppState, utils::mb_to_bytes};
 
 use ppdrive_core::{
+    config::AppConfig,
     models::{
         asset::{Asset, AssetType},
         user::{User, UserSerializer},
         IntoSerializer,
     },
     options::CreateAssetOptions,
+    tools::secrets::SECRETS_FILENAME,
 };
 
 use super::extractors::{ExtractUser, ManagerRoute};
@@ -132,7 +129,7 @@ async fn delete_asset(
 
 /// Routes accessible to creators
 pub fn protected_routes(config: &AppConfig) -> Result<Router<AppState>, AppError> {
-    let max = config.file_upload().max_upload_size();
+    let max = config.server().max_upload_size();
 
     let limit = mb_to_bytes(*max);
 

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{ops::Deref, path::Path};
 
 use axum::{
     async_trait,
@@ -9,12 +9,15 @@ use axum::{
 use crate::{
     errors::AppError,
     state::AppState,
-    utils::{fs::check_folder_size, jwt::decode_jwt, tools::client::verify_client},
+    utils::{fs::check_folder_size, jwt::decode_jwt},
 };
 
-use ppdrive_core::models::{
-    permission::{AssetPermission, Permission},
-    user::{User, UserRole},
+use ppdrive_core::{
+    models::{
+        permission::{AssetPermission, Permission},
+        user::{User, UserRole},
+    },
+    tools::verify_client,
 };
 
 pub struct CurrentUser {
@@ -81,7 +84,7 @@ where
         match parts.headers.get(AUTHORIZATION) {
             Some(auth) => {
                 let state = AppState::from_ref(state);
-                let config = state.config();
+                let config = state.secrets();
                 let db = state.db();
 
                 let claims = decode_jwt(auth, config.jwt_secret())?;
@@ -126,7 +129,9 @@ where
                     .to_str()
                     .map_err(|err| AppError::AuthorizationError(err.to_string()))?;
 
-                let valid = verify_client(&state, client_id).await?;
+                let secrets = state.secrets();
+                let valid = verify_client(state.db(), secrets.deref(), client_id).await?;
+
                 if !valid {
                     return Err(AppError::AuthorizationError(
                         "client authorization failed".to_string(),

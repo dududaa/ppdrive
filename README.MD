@@ -36,7 +36,7 @@ curl -f https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/inst
 
 - Configure:
 ```bash
-ppdrive --configure
+ppdrive configure
 ```
 
 - Start

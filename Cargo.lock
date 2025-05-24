@@ -1625,9 +1625,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
+name = "ppdrive_cli"
+version = "0.1.0"
+dependencies = [
+ "ppdrive_core",
+ "tokio",
+]
+
+[[package]]
 name = "ppdrive_core"
 version = "0.1.0"
 dependencies = [
+ "chacha20poly1305",
+ "hex",
  "log",
  "rbatis",
  "rbdc-mssql",
@@ -1638,6 +1648,7 @@ dependencies = [
  "serde",
  "sqlx",
  "tokio",
+ "toml",
  "tracing",
  "uuid",
 ]
@@ -1648,16 +1659,13 @@ version = "0.27.20"
 dependencies = [
  "axum",
  "axum-macros",
- "chacha20poly1305",
  "chrono",
- "hex",
  "jsonwebtoken",
  "mime_guess",
  "ppdrive_core",
  "serde",
  "serde_json",
  "tokio",
- "toml",
  "tower 0.4.13",
  "tower-http",
  "tracing",

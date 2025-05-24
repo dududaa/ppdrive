@@ -58,12 +58,6 @@ impl From<CoreError> for AppError {
     }
 }
 
-impl From<chacha20poly1305::aead::Error> for AppError {
-    fn from(value: chacha20poly1305::aead::Error) -> Self {
-        AppError::InternalServerError(value.to_string())
-    }
-}
-
 impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
         let resp = match self {

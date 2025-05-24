@@ -1,11 +1,10 @@
 use crate::app::create_app;
-use config::{configor::update_db_url, AppConfig};
 use errors::AppError;
+use ppdrive_core::config::{AppConfig, ConfigUpdater};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utils::{args_runner, get_env, tools::secrets::generate_secrets_init};
+use utils::{get_env, init_secrets};
 
 mod app;
-mod config;
 mod errors;
 mod routes;
 mod state;
@@ -21,22 +20,19 @@ async fn main() -> Result<(), AppError> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let mut config = AppConfig::build().await?;
+    let mut config = AppConfig::load().await?;
 
     if let Ok(url) = get_env("PPDRIVE_DATABASE_URL") {
-        update_db_url(&mut config, url).await?;
-    }
-
-    let args: Vec<String> = std::env::args().collect();
-    if args.get(1).is_some() {
-        return args_runner(args, &config).await;
+        let mut data = ConfigUpdater::default();
+        data.db_url = Some(url);
+        config.update(data).await?;
     }
 
     // start ppdrive app
-    generate_secrets_init().await?;
+    init_secrets().await?;
     let app = create_app(&config).await?;
 
-    match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.base().port())).await {
+    match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.server().port())).await {
         Ok(listener) => {
             if let Ok(addr) = listener.local_addr() {
                 tracing::info!("listening on {addr}");
@@ -57,11 +53,13 @@ async fn main() -> Result<(), AppError> {
 
 #[cfg(test)]
 pub mod main_test {
-    use crate::{config::AppConfig, errors::AppError, state::AppState};
+    use ppdrive_core::config::AppConfig;
+
+    use crate::{errors::AppError, state::AppState};
 
     /// load .env creates and app state
     pub async fn pretest() -> Result<AppState, AppError> {
-        let config = AppConfig::build().await?;
+        let config = AppConfig::load().await?;
         AppState::new(&config).await
     }
 }

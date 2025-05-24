@@ -3,30 +3,51 @@ use std::env::set_var;
 use axum::http::header::{
     ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
 };
-use axum::http::HeaderName;
+use axum::http::{HeaderName, HeaderValue};
 use axum::{
     extract::MatchedPath,
     http::Request,
     routing::{get, IntoMakeService},
     Router,
 };
-use tower_http::cors::Any;
+use ppdrive_core::config::{AppConfig, CorsOriginType};
+use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
 
-use crate::config::AppConfig;
 use crate::routes::client::client_routes;
 use crate::routes::get_asset;
 use crate::routes::protected::protected_routes;
-use crate::utils::tools::secrets::{BEARER_KEY, BEARER_VALUE};
+use crate::utils::jwt::{BEARER_KEY, BEARER_VALUE};
 use crate::{errors::AppError, state::AppState};
+
+fn to_origins(origins: CorsOriginType) -> AllowOrigin {
+    match origins {
+        CorsOriginType::Any => AllowOrigin::any(),
+        CorsOriginType::List(list) => {
+            let headers: Vec<HeaderValue> = list
+                .iter()
+                .map(|s| match s.parse::<HeaderValue>() {
+                    Ok(url) => Some(url),
+                    Err(err) => {
+                        tracing::error!("unable to pass cors origin {s}: {err}");
+                        None
+                    }
+                })
+                .flatten()
+                .collect();
+
+            headers.into()
+        }
+    }
+}
 
 pub async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, AppError> {
     let state = AppState::new(config).await?;
-    let origins = config.base().allowed_origins();
+    let origins = config.server().origins();
 
     let cors = CorsLayer::new()
-        .allow_origin(origins)
+        .allow_origin(to_origins(origins))
         .allow_headers([
             ACCEPT,
             ACCESS_CONTROL_ALLOW_HEADERS,

@@ -60,7 +60,7 @@ EOF
 systemctl --user daemon-reexec || true
 systemctl --user daemon-reload
 systemctl --user enable ppdrive.service
-# systemctl --user start ppdrive.service
+systemctl --user start ppdrive.service
 
 # export variable(s)
 export PATH=$PATH:$INSTALL_DIR
@@ -68,8 +68,3 @@ export PATH=$PATH:$LINK_DIR
 
 echo "✅ Installed to $INSTALL_DIR"
 echo "🔗 Symlinked to $LINK_DIR/$BINARY_NAME"
-
-echo
-echo "NEXT STEPS:"
-echo "⚙️ Configure: run 'ppdrive --configure' to configure PPDRIVE"
-echo "🚀 Service started: run 'systemctl --user start ppdrive' to start PPDRIVE"

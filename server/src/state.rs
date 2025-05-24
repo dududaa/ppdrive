@@ -1,22 +1,22 @@
-use crate::{
-    config::{secrets::AppSecrets, AppConfig},
-    errors::AppError,
-};
-use ppdrive_core::{db::init_db, RBatis};
+use crate::errors::AppError;
+use ppdrive_core::{config::AppConfig, db::init_db, tools::secrets::AppSecrets, RBatis};
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
     db: RBatis,
-    config: Arc<AppSecrets>,
+    secrets: Arc<AppSecrets>,
 }
 
 impl AppState {
     pub async fn new(config: &AppConfig) -> Result<Self, AppError> {
-        let db = init_db(config.base().db_url()).await?;
+        let db = init_db(config.db().url()).await?;
 
         let config = Arc::new(AppSecrets::read().await?);
-        let s = Self { db, config };
+        let s = Self {
+            db,
+            secrets: config,
+        };
 
         Ok(s)
     }
@@ -25,7 +25,7 @@ impl AppState {
         &self.db
     }
 
-    pub fn config(&self) -> Arc<AppSecrets> {
-        self.config.clone()
+    pub fn secrets(&self) -> Arc<AppSecrets> {
+        self.secrets.clone()
     }
 }

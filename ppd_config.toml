@@ -1,7 +1,7 @@
-[base]
+[database]
+url = "sqlite://db.sqlite"
+
+[server]
+max_upload_size = 10
 port = 5000
 allowed_origins = "*"
-db_url = "sqlite://db.sqlite"
-
-[file_upload]
-max_upload_size = 10

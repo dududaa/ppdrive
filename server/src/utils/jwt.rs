@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::AppError;
 
-use super::{get_env, tools::secrets::BEARER_KEY};
+use super::get_env;
+
+pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
+pub const BEARER_VALUE: &str = "Bearer";
 
 #[derive(Deserialize, Serialize)]
 pub struct Claims {

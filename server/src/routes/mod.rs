@@ -8,9 +8,12 @@ use axum_macros::debug_handler;
 use extractors::ExtractUser;
 use serde::{Deserialize, Serialize};
 
-use crate::{errors::AppError, state::AppState, utils::tools::secrets::SECRETS_FILENAME};
+use crate::{errors::AppError, state::AppState};
 
-use ppdrive_core::models::asset::{Asset, AssetType};
+use ppdrive_core::{
+    models::asset::{Asset, AssetType},
+    tools::secrets::SECRETS_FILENAME,
+};
 
 use std::path::Path as StdPath;
 

@@ -5,15 +5,12 @@ use axum::{
 };
 use axum_macros::debug_handler;
 
-use crate::{
-    errors::AppError,
-    state::AppState,
-    utils::{jwt::create_jwt, tools::secrets::SECRETS_FILENAME},
-};
+use crate::{errors::AppError, state::AppState, utils::jwt::create_jwt};
 
 use ppdrive_core::{
     models::user::{User, UserRole},
     options::CreateUserOptions,
+    tools::secrets::SECRETS_FILENAME,
 };
 
 use super::{extractors::ClientRoute, LoginCredentials, LoginToken};
@@ -56,7 +53,7 @@ async fn login_user(
     let user = User::get_by_pid(db, &id).await?;
     let exp = exp.unwrap_or(18_000); // set default expiration to 5 hours
 
-    let config = state.config();
+    let config = state.secrets();
     let token = create_jwt(user.id(), config.jwt_secret(), exp)?;
 
     let data = LoginToken { token, exp };
