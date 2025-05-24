@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{errors::AppError, state::AppState};
 
 use ppdrive_core::{
-    models::asset::{Asset, AssetType},
+    models::asset::{Assets, AssetType},
     tools::secrets::SECRETS_FILENAME,
 };
 
@@ -49,7 +49,7 @@ pub async fn get_asset(
     }
 
     let db = state.db();
-    let asset = Asset::get_by_path(db, &asset_path, &asset_type).await?;
+    let asset = Assets::get_by_path(db, &asset_path, &asset_type).await?;
     let current_user = user_extractor.map(|ext| ext.0);
 
     // if asset has custom path and custom path is not provided in url,
@@ -113,7 +113,7 @@ pub async fn get_asset(
                             AssetType::Folder
                         };
 
-                        let asset = Asset::get_by_path(db, path_str, &asset_type).await;
+                        let asset = Assets::get_by_path(db, path_str, &asset_type).await;
                         if let Ok(asset) = asset {
                             let html =
                                 format!("<li><a href='/{}'>{filename}</a></li>", asset.url_path());

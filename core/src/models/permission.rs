@@ -42,40 +42,40 @@ impl TryFrom<u8> for Permission {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AssetPermission {
+pub struct AssetPermissions {
     user_id: u64,
     asset_id: u64,
     permission: u8,
 }
 
-crud!(AssetPermission {});
-impl_select!(AssetPermission{ check(user_id: &u64, asset_id: &u64, permission: &u8) -> Option => "`WHERE user_id = #{user_id} AND asset_id = #{user_id}` AND permission = #{permission}" });
+crud!(AssetPermissions {});
+impl_select!(AssetPermissions{ check(user_id: &u64, asset_id: &u64, permission: &u8) -> Option => "`WHERE user_id = #{user_id} AND asset_id = #{user_id} AND permission = #{permission}`" });
 
-impl AssetPermission {
+impl AssetPermissions {
     pub async fn create(
         rb: &RBatis,
         asset_id: &u64,
         fellow_id: &u64,
         permission: Permission,
     ) -> CoreResult<()> {
-        let value = AssetPermission {
+        let value = AssetPermissions {
             asset_id: *asset_id,
             user_id: *fellow_id,
             permission: permission.into(),
         };
 
-        AssetPermission::insert(rb, &value).await?;
+        AssetPermissions::insert(rb, &value).await?;
 
         Ok(())
     }
 
     pub async fn delete_for_asset(rb: &RBatis, asset_id: &u64) -> CoreResult<()> {
-        AssetPermission::delete_by_column(rb, "asset_id", asset_id).await?;
+        AssetPermissions::delete_by_column(rb, "asset_id", asset_id).await?;
         Ok(())
     }
 
     pub async fn delete_for_user(rb: &RBatis, user_id: &u64) -> CoreResult<()> {
-        AssetPermission::delete_by_column(rb, "user_id", user_id).await?;
+        AssetPermissions::delete_by_column(rb, "user_id", user_id).await?;
         Ok(())
     }
 
@@ -86,7 +86,7 @@ impl AssetPermission {
         permission: Permission,
     ) -> CoreResult<()> {
         let pd = u8::from(permission);
-        let perm = AssetPermission::check(rb, user_id, asset_id, &pd).await?;
+        let perm = AssetPermissions::check(rb, user_id, asset_id, &pd).await?;
 
         check_model(perm, "permission does not exist")?;
         Ok(())

@@ -8,7 +8,7 @@ use axum_macros::debug_handler;
 use crate::{errors::AppError, state::AppState, utils::jwt::create_jwt};
 
 use ppdrive_core::{
-    models::user::{User, UserRole},
+    models::user::{Users, UserRole},
     options::CreateUserOptions,
     tools::secrets::SECRETS_FILENAME,
 };
@@ -35,7 +35,7 @@ async fn create_user(
             "client cannot create admin user".to_string(),
         )),
         _ => {
-            let user_id = User::create(db, data).await?;
+            let user_id = Users::create(db, data).await?;
             Ok(user_id.to_string())
         }
     }
@@ -50,7 +50,7 @@ async fn login_user(
     let LoginCredentials { id, exp, .. } = data;
 
     let db = state.db();
-    let user = User::get_by_pid(db, &id).await?;
+    let user = Users::get_by_pid(db, &id).await?;
     let exp = exp.unwrap_or(18_000); // set default expiration to 5 hours
 
     let config = state.secrets();
@@ -68,7 +68,7 @@ async fn delete_user(
     State(state): State<AppState>,
 ) -> Result<String, AppError> {
     let db = state.db();
-    let user = User::get_by_pid(db, &id).await?;
+    let user = Users::get_by_pid(db, &id).await?;
     match user.role()? {
         UserRole::Admin => Err(AppError::AuthorizationError(
             "client cannot delete admin".to_string(),

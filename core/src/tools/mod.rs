@@ -5,7 +5,7 @@ use rbatis::RBatis;
 use secrets::AppSecrets;
 use uuid::Uuid;
 
-use crate::{CoreResult, errors::CoreError, models::client::Client};
+use crate::{CoreResult, errors::CoreError, models::client::Clients};
 
 pub mod secrets;
 
@@ -15,7 +15,7 @@ pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> Cor
     let client_id = client_id.to_string();
 
     let token = generate_token(secrets, &client_id)?;
-    Client::create(rb, client_id, name.to_string()).await?;
+    Clients::create(rb, client_id, name.to_string()).await?;
 
     Ok(token)
 }
@@ -49,7 +49,8 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Co
 
     let id =
         String::from_utf8(decrypt).map_err(|err| CoreError::AuthorizationError(err.to_string()))?;
-    let ok = Client::get(rb, &id).await.is_ok();
+
+    let ok = Clients::get(rb, &id).await.is_ok();
     Ok(ok)
 }
 
@@ -59,7 +60,7 @@ pub async fn regenerate_token(
     secrets: &AppSecrets,
     client_id: &str,
 ) -> CoreResult<String> {
-    let client = Client::get(rb, client_id).await?;
+    let client = Clients::get(rb, client_id).await?;
     generate_token(secrets, client.id())
 }
 

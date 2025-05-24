@@ -12,8 +12,8 @@ use crate::{errors::AppError, state::AppState, utils::mb_to_bytes};
 use ppdrive_core::{
     config::AppConfig,
     models::{
-        asset::{Asset, AssetType},
-        user::{User, UserSerializer},
+        asset::{AssetType, Assets},
+        user::{Users, UserSerializer},
         IntoSerializer,
     },
     options::CreateAssetOptions,
@@ -29,7 +29,7 @@ async fn get_user(
     ManagerRoute: ManagerRoute,
 ) -> Result<Json<UserSerializer>, AppError> {
     let db = state.db();
-    let user_model = User::get(db, user.id()).await?;
+    let user_model = Users::get(db, user.id()).await?;
     let data = user_model.into_serializer(db).await?;
 
     Ok(Json(data))
@@ -97,7 +97,7 @@ async fn create_asset(
     }
 
     let db = state.db();
-    let path = Asset::create_or_update(db, user_id, opts, &tmp_file).await?;
+    let path = Assets::create_or_update(db, user_id, opts, &tmp_file).await?;
     if let Some(tmp_file) = &tmp_file {
         if let Err(err) = tokio::fs::remove_file(tmp_file).await {
             tracing::error!("unable to remove {tmp_file:?}: {err}")
@@ -115,7 +115,7 @@ async fn delete_asset(
     ManagerRoute: ManagerRoute,
 ) -> Result<String, AppError> {
     let db = state.db();
-    let asset = Asset::get_by_path(db, &asset_path, &asset_type).await?;
+    let asset = Assets::get_by_path(db, &asset_path, &asset_type).await?;
 
     if asset.user_id() == user.id() {
         asset.delete(db).await?;

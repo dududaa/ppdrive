@@ -14,8 +14,8 @@ use crate::{
 
 use ppdrive_core::{
     models::{
-        permission::{AssetPermission, Permission},
-        user::{User, UserRole},
+        permission::{AssetPermissions, Permission},
+        user::{Users, UserRole},
     },
     tools::verify_client,
 };
@@ -63,7 +63,7 @@ impl CurrentUser {
     pub async fn can_read_asset(&self, state: &AppState, asset_id: &u64) -> Result<(), AppError> {
         let db = state.db();
 
-        AssetPermission::exists(db, self.id(), asset_id, Permission::Read).await?;
+        AssetPermissions::exists(db, self.id(), asset_id, Permission::Read).await?;
         Ok(())
     }
 }
@@ -88,7 +88,7 @@ where
                 let db = state.db();
 
                 let claims = decode_jwt(auth, config.jwt_secret())?;
-                let user = User::get(db, &claims.sub).await?;
+                let user = Users::get(db, &claims.sub).await?;
                 let id = user.id().to_owned();
 
                 let role = user.role()?;

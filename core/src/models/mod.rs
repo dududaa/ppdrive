@@ -9,6 +9,8 @@ pub mod user;
 
 pub trait IntoSerializer {
     type Serializer;
+
+    #[allow(async_fn_in_trait)]
     async fn into_serializer(self, rb: &RBatis) -> Result<Self::Serializer, CoreError>;
 }
 

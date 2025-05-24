@@ -9,7 +9,6 @@ pub enum CliError {
     VarError(std::env::VarError),
     DatabaseError(CoreError),
     IOError(std::io::Error),
-    ParseError(String),
     CommandError(String),
 }
 
@@ -19,7 +18,6 @@ impl Display for CliError {
 
         match self {
             VarError(err) => write!(f, "{err}"),
-            ParseError(err) => write!(f, "{err}"),
             IOError(err) => write!(f, "{err}"),
             DatabaseError(err) => write!(f, "{err}"),
             CommandError(err) => write!(f, "{err}"),

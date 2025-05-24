@@ -5,10 +5,10 @@ use uuid::Uuid;
 
 use crate::{CoreResult, errors::CoreError, options::CreateUserOptions};
 
-use super::{IntoSerializer, asset::Asset, check_model, permission::AssetPermission};
+use super::{IntoSerializer, asset::Assets, check_model, permission::AssetPermissions};
 
 #[derive(Serialize, Deserialize)]
-pub struct User {
+pub struct Users {
     id: u64,
     pid: String,
     role: u8,
@@ -19,29 +19,29 @@ pub struct User {
     created_at: DateTime,
 }
 
-crud!(User {});
-impl_select!(User { get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE #{key} = #{value}` LIMIT 1" });
+crud!(Users {});
+impl_select!(Users { get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE ${key} = #{value} LIMIT 1`" });
 
-impl User {
-    pub async fn get<'a>(rb: &RBatis, user_id: &u64) -> CoreResult<User> {
-        let user = User::get_by_key(rb, "id", user_id).await?;
+impl Users {
+    pub async fn get<'a>(rb: &RBatis, user_id: &u64) -> CoreResult<Users> {
+        let user = Users::get_by_key(rb, "id", user_id).await?;
         check_model(user, "user not found")
     }
 
-    pub async fn get_by_pid(rb: &RBatis, pid: &str) -> CoreResult<User> {
-        let user = User::get_by_key(rb, "pid", pid).await?;
+    pub async fn get_by_pid(rb: &RBatis, pid: &str) -> CoreResult<Users> {
+        let user = Users::get_by_key(rb, "pid", pid).await?;
         check_model(user, "user not found")
     }
 
-    pub async fn get_by_partition_name(rb: &RBatis, partition_name: &str) -> CoreResult<User> {
-        let user = User::get_by_key(rb, "partition", partition_name).await?;
+    pub async fn get_by_partition_name(rb: &RBatis, partition_name: &str) -> CoreResult<Users> {
+        let user = Users::get_by_key(rb, "partition", partition_name).await?;
         check_model(user, "user not found")
     }
 
     pub async fn create(rb: &RBatis, data: CreateUserOptions) -> CoreResult<String> {
         // check if someone already owns root folder
         if let Some(partition) = &data.partition {
-            let exists = User::get_by_partition_name(rb, partition).await;
+            let exists = Users::get_by_partition_name(rb, partition).await;
             if exists.is_ok() {
                 return Err(CoreError::ServerError(format!(
                     "user with partition_name: '{partition}' already exists. please provide unique partition name"
@@ -55,7 +55,7 @@ impl User {
         let pid = Uuid::new_v4().to_string();
         let created_at = DateTime::now();
 
-        let user = User {
+        let user = Users {
             id: 0,
             pid,
             role,
@@ -66,7 +66,7 @@ impl User {
             created_at,
         };
 
-        User::insert(rb, &user).await?;
+        Users::insert(rb, &user).await?;
         Ok(user.pid)
     }
 
@@ -76,12 +76,12 @@ impl User {
         let root_folder = self.partition().clone();
 
         tokio::task::spawn(async move {
-            if let Err(err) = User::clean_up(&ss, &user_id, &root_folder).await {
+            if let Err(err) = Users::clean_up(&ss, &user_id, &root_folder).await {
                 tracing::error!("user clean up failed: {err}")
             }
         });
 
-        User::delete_by_column(rb, "id", &self.id).await?;
+        Users::delete_by_column(rb, "id", &self.id).await?;
 
         Ok(())
     }
@@ -94,8 +94,8 @@ impl User {
             tokio::fs::remove_dir_all(path).await?;
         }
 
-        AssetPermission::delete_for_user(rb, user_id).await?;
-        Asset::delete_for_user(rb, user_id, partition.is_none()).await?;
+        AssetPermissions::delete_for_user(rb, user_id).await?;
+        Assets::delete_for_user(rb, user_id, partition.is_none()).await?;
         Ok(())
     }
 
@@ -126,12 +126,12 @@ pub struct UserSerializer {
     created_at: String,
 }
 
-impl IntoSerializer for User {
+impl IntoSerializer for Users {
     type Serializer = UserSerializer;
 
     async fn into_serializer(self, _: &RBatis) -> CoreResult<Self::Serializer> {
         // let role = &self.role();
-        let User {
+        let Users {
             pid: id,
             email,
             partition,

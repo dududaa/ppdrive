@@ -81,7 +81,7 @@ impl<'a> TryFrom<&'a String> for Command {
         } else if value == "configure" {
             Ok(Configure)
         } else {
-            Err(error::CliError::ParseError(
+            Err(error::CliError::CommandError(
                 "unrecognized command".to_string(),
             ))
         }

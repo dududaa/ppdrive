@@ -6,25 +6,24 @@ use crate::CoreResult;
 use super::check_model;
 
 #[derive(Serialize, Deserialize)]
-pub struct Client {
+pub struct Clients {
     id: String,
     name: String,
 }
 
-crud!(Client {});
-impl_select!(Client { get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE #{key} = #{value}` LIMIT 1" });
+crud!(Clients {});
+impl_select!(Clients { get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE ${key} = #{value} LIMIT 1`" });
 
-impl Client {
+impl Clients {
     pub async fn get(rb: &RBatis, id: &str) -> CoreResult<Self> {
-        let client = Client::get_by_key(rb, "id", id).await?;
-
+        let client = Clients::get_by_key(rb, "id", id).await?;
         check_model(client, "client not found")
     }
 
     pub async fn create(rb: &RBatis, id: String, name: String) -> CoreResult<()> {
-        let value = Client { id, name };
+        let value = Clients { id, name };
 
-        Client::insert(rb, &value).await?;
+        Clients::insert(rb, &value).await?;
         Ok(())
     }
 

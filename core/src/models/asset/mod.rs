@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{CoreResult, errors::CoreError, fs::move_file, options::CreateAssetOptions};
 
-use super::{check_model, permission::AssetPermission, user::User};
+use super::{check_model, permission::AssetPermissions, user::Users};
 
 mod ext;
 
@@ -63,7 +63,7 @@ impl TryFrom<u8> for AssetType {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Asset {
+pub struct Assets {
     id: u64,
     asset_path: String,
     custom_path: Option<String>,
@@ -72,14 +72,14 @@ pub struct Asset {
     asset_type: u8,
 }
 
-crud!(Asset {});
-impl_select!(Asset{ select_by_path(path: &str, asset_type: u8) -> Option => "`WHERE (asset_path = #{path} OR custom_path = #{path}) AND asset_type = #{asset_type} LIMIT 1`" });
-impl_select_page!(Asset { select_by_user(user_id: &u64) => "`WHERE user_id = #{user_id}`" });
+crud!(Assets {});
+impl_select!(Assets{ select_by_path(path: &str, asset_type: u8) -> Option => "`WHERE (asset_path = #{path} OR custom_path = #{path}) AND asset_type = #{asset_type} LIMIT 1`" });
+impl_select_page!(Assets { select_by_user(user_id: &u64) => "`WHERE user_id = #{user_id}`" });
 
-impl Asset {
+impl Assets {
     pub async fn get_by_path(rb: &RBatis, path: &str, asset_type: &AssetType) -> CoreResult<Self> {
         let asset_type: u8 = asset_type.into();
-        let asset = Asset::select_by_path(rb, path, asset_type).await?;
+        let asset = Assets::select_by_path(rb, path, asset_type).await?;
 
         check_model(asset, "asset not found")
     }
@@ -104,7 +104,7 @@ impl Asset {
             validate_custom_path(rb, custom_path, asset_path, asset_type, tmp).await?;
         }
 
-        let user = User::get(rb, user_id).await?;
+        let user = Users::get(rb, user_id).await?;
         let partition = user.partition().as_deref();
         let dest = partition.map_or(asset_path.clone(), |rf| format!("{rf}/{asset_path}"));
         let path = Path::new(&dest);
@@ -149,7 +149,7 @@ impl Asset {
 
     pub async fn delete(&self, rb: &RBatis) -> Result<(), CoreError> {
         // delete asset permissions
-        AssetPermission::delete_for_asset(rb, &self.id).await?;
+        AssetPermissions::delete_for_asset(rb, &self.id).await?;
 
         // delete children records
         self.delete_children_records(rb).await?;
@@ -160,7 +160,7 @@ impl Asset {
         }
 
         // delete asset record
-        Asset::delete_by_column(rb, "id", &self.id).await?;
+        Assets::delete_by_column(rb, "id", &self.id).await?;
 
         Ok(())
     }
@@ -180,7 +180,7 @@ impl Asset {
                 };
 
                 if let Some(path) = path.to_str() {
-                    if let Ok(child) = Asset::get_by_path(rb, path, &child_type).await {
+                    if let Ok(child) = Assets::get_by_path(rb, path, &child_type).await {
                         Box::pin(child.delete(rb)).await?;
                     }
                 }
@@ -200,7 +200,7 @@ impl Asset {
     ) -> Result<(), CoreError> {
         // delete chidren files and associated
         if remove_files {
-            let results = Asset::select_by_user(rb, &PageRequest::default(), user_id).await?;
+            let results = Assets::select_by_user(rb, &PageRequest::default(), user_id).await?;
 
             if results.page_size > 0 {
                 for asset in results.records {
@@ -218,10 +218,10 @@ impl Asset {
             }
         }
 
-        Asset::delete_by_column(rb, "user_id", user_id).await?;
+        Assets::delete_by_column(rb, "user_id", user_id).await?;
 
         // delete all asset permissions for user
-        AssetPermission::delete_for_user(rb, user_id).await?;
+        AssetPermissions::delete_for_user(rb, user_id).await?;
 
         Ok(())
     }

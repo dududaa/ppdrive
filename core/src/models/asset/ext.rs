@@ -5,11 +5,11 @@ use rbatis::RBatis;
 use crate::{
     CoreResult,
     errors::CoreError,
-    models::{permission::AssetPermission, user::User},
+    models::{permission::AssetPermissions, user::Users},
     options::AssetSharing,
 };
 
-use super::{Asset, AssetType};
+use super::{AssetType, Assets};
 
 pub(super) struct SaveAssetOpts<'a> {
     pub path: &'a str,
@@ -27,7 +27,7 @@ pub(super) async fn validate_custom_path(
     asset_type: &AssetType,
     tmp: &Option<PathBuf>,
 ) -> Result<(), CoreError> {
-    let exist = Asset::get_by_path(rb, custom_path, asset_type).await;
+    let exist = Assets::get_by_path(rb, custom_path, asset_type).await;
     if let Ok(exist) = exist {
         if exist.asset_path != path {
             if let Some(tmp) = tmp {
@@ -79,7 +79,7 @@ pub(super) async fn create_asset_parents(
 
         for path in &paths {
             // check if parent folders
-            if let Ok(exist) = Asset::get_by_path(rb, path, &AssetType::Folder).await {
+            if let Ok(exist) = Assets::get_by_path(rb, path, &AssetType::Folder).await {
                 if exist.user_id() != user_id {
                     let msg = "you're attempting to create a folder that already belongs to someone else.";
                     tracing::error!(msg);
@@ -91,7 +91,7 @@ pub(super) async fn create_asset_parents(
             }
 
             // build query values
-            let asset = Asset {
+            let asset = Assets {
                 id: 0,
                 user_id: *user_id,
                 asset_path: path.to_string(),
@@ -104,7 +104,7 @@ pub(super) async fn create_asset_parents(
         }
 
         if !assets.is_empty() {
-            Asset::insert_batch(rb, &assets, assets.len() as u64).await?;
+            Assets::insert_batch(rb, &assets, assets.len() as u64).await?;
         }
 
         tokio::fs::create_dir_all(parent).await?;
@@ -120,7 +120,7 @@ pub(super) async fn share_asset(
     user_id: &u64,
 ) -> CoreResult<()> {
     for opt in sharing {
-        let get_fellow = User::get_by_pid(rb, &opt.user_id).await;
+        let get_fellow = Users::get_by_pid(rb, &opt.user_id).await;
         if let Err(err) = get_fellow {
             tracing::error!("error getting user to share asset with: {err}");
             continue;
@@ -139,7 +139,7 @@ pub(super) async fn share_asset(
         }
 
         for permission in &opt.permissions {
-            AssetPermission::create(rb, asset_id, fellow_id, permission.clone()).await?;
+            AssetPermissions::create(rb, asset_id, fellow_id, permission.clone()).await?;
         }
     }
 
@@ -150,7 +150,7 @@ pub(super) async fn create_or_update_asset(
     rb: &RBatis,
     opts: SaveAssetOpts<'_>,
     tmp: &Option<PathBuf>,
-) -> Result<Asset, CoreError> {
+) -> Result<Assets, CoreError> {
     let SaveAssetOpts {
         is_public,
         custom_path,
@@ -161,16 +161,16 @@ pub(super) async fn create_or_update_asset(
 
     let public = is_public.unwrap_or(false);
 
-    match Asset::get_by_path(rb, path, asset_type).await {
+    match Assets::get_by_path(rb, path, asset_type).await {
         Ok(exists) => {
             if &exists.user_id == user_id {
-                let updated = Asset {
+                let updated = Assets {
                     custom_path: custom_path.clone(),
                     public,
                     ..exists
                 };
 
-                Asset::update_by_column(rb, &updated, "id").await?;
+                Assets::update_by_column(rb, &updated, "id").await?;
                 Ok(updated)
             } else {
                 if let Some(tmp) = tmp {
@@ -183,7 +183,7 @@ pub(super) async fn create_or_update_asset(
             }
         }
         Err(_) => {
-            let mut asset = Asset {
+            let mut asset = Assets {
                 user_id: *user_id,
                 public,
                 asset_path: path.to_string(),
@@ -192,8 +192,8 @@ pub(super) async fn create_or_update_asset(
                 asset_type: u8::from(asset_type),
             };
 
-            Asset::insert(rb, &asset).await?;
-            if let Ok(n) = Asset::get_by_path(rb, path, asset_type).await {
+            Assets::insert(rb, &asset).await?;
+            if let Ok(n) = Assets::get_by_path(rb, path, asset_type).await {
                 asset.id = n.id
             }
 

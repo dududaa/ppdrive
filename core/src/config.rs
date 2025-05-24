@@ -71,7 +71,7 @@ impl ServerConfig {
 
 #[derive(Deserialize, Serialize)]
 pub struct AppConfig {
-    db: DatabaseConfig,
+    database: DatabaseConfig,
     server: ServerConfig,
 }
 
@@ -87,7 +87,7 @@ impl AppConfig {
     }
 
     pub fn db(&self) -> &DatabaseConfig {
-        &self.db
+        &self.database
     }
 
     pub fn server(&self) -> &ServerConfig {
@@ -96,8 +96,8 @@ impl AppConfig {
 
     pub async fn update(&mut self, data: ConfigUpdater) -> CoreResult<()> {
         // database
-        let url = &self.db.url;
-        self.db.url = data.db_url.unwrap_or(url.to_string());
+        let url = &self.database.url;
+        self.database.url = data.db_url.unwrap_or(url.to_string());
 
         // server
         let port = &self.server.port;
