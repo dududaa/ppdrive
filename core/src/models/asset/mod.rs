@@ -64,7 +64,7 @@ impl TryFrom<u8> for AssetType {
 
 #[derive(Serialize, Deserialize)]
 pub struct Assets {
-    id: u64,
+    id: Option<u64>,
     asset_path: String,
     custom_path: Option<String>,
     user_id: u64,
@@ -128,7 +128,7 @@ impl Assets {
             path: &dest,
             is_public: &Some(is_public),
             custom_path: custom_path,
-            user_id: user.id(),
+            user_id: &user.id(),
             asset_type,
         };
 
@@ -138,7 +138,7 @@ impl Assets {
         if !is_public {
             if let Some(sharing) = sharing {
                 if !sharing.is_empty() {
-                    share_asset(rb, sharing, &asset.id, user_id).await?;
+                    share_asset(rb, sharing, &asset.id(), user_id).await?;
                 }
             }
         }
@@ -149,7 +149,7 @@ impl Assets {
 
     pub async fn delete(&self, rb: &RBatis) -> Result<(), CoreError> {
         // delete asset permissions
-        AssetPermissions::delete_for_asset(rb, &self.id).await?;
+        AssetPermissions::delete_for_asset(rb, &self.id()).await?;
 
         // delete children records
         self.delete_children_records(rb).await?;
@@ -237,8 +237,8 @@ impl Assets {
         Ok(())
     }
 
-    pub fn id(&self) -> &u64 {
-        &self.id
+    pub fn id(&self) -> u64 {
+        *&self.id.unwrap_or_default()
     }
 
     pub fn public(&self) -> &bool {

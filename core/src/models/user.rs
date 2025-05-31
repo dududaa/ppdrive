@@ -9,7 +9,7 @@ use super::{IntoSerializer, asset::Assets, check_model, permission::AssetPermiss
 
 #[derive(Serialize, Deserialize)]
 pub struct Users {
-    id: u64,
+    id: Option<u64>,
     pid: String,
     role: u8,
     partition: Option<String>,
@@ -56,7 +56,7 @@ impl Users {
         let created_at = DateTime::now();
 
         let user = Users {
-            id: 0,
+            id: None,
             pid,
             role,
             partition: data.partition,
@@ -72,7 +72,7 @@ impl Users {
 
     pub async fn delete(&self, rb: &RBatis) -> CoreResult<()> {
         let ss = rb.clone();
-        let user_id = self.id;
+        let user_id = self.id();
         let root_folder = self.partition().clone();
 
         tokio::task::spawn(async move {
@@ -103,8 +103,8 @@ impl Users {
         &self.partition
     }
 
-    pub fn id(&self) -> &u64 {
-        &self.id
+    pub fn id(&self) -> u64 {
+        *&self.id.unwrap_or_default()
     }
 
     pub fn role(&self) -> CoreResult<UserRole> {

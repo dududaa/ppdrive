@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{errors::AppError, state::AppState};
 
 use ppdrive_core::{
-    models::asset::{Assets, AssetType},
+    models::asset::{AssetType, Assets},
     tools::secrets::SECRETS_FILENAME,
 };
 
@@ -65,7 +65,7 @@ pub async fn get_asset(
     if !asset.public() {
         match &current_user {
             Some(current_user) => {
-                let can_read = current_user.can_read_asset(&state, asset.id()).await;
+                let can_read = current_user.can_read_asset(&state, &asset.id()).await;
 
                 if (current_user.id() != asset.user_id()) && can_read.is_err() {
                     return Err(AppError::PermissionDenied("permission denied".to_string()));
@@ -122,7 +122,7 @@ pub async fn get_asset(
                                 filenames.push(html);
                             } else {
                                 if let Some(auth) = &current_user {
-                                    let can_read = auth.can_read_asset(&state, asset.id()).await;
+                                    let can_read = auth.can_read_asset(&state, &asset.id()).await;
                                     if (auth.id() == asset.user_id()) || can_read.is_ok() {
                                         filenames.push(html);
                                     }

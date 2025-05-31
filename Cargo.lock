@@ -1638,7 +1638,6 @@ version = "0.1.0"
 dependencies = [
  "chacha20poly1305",
  "hex",
- "log",
  "rbatis",
  "rbdc-mssql",
  "rbdc-mysql",

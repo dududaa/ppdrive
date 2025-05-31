@@ -92,7 +92,7 @@ pub(super) async fn create_asset_parents(
 
             // build query values
             let asset = Assets {
-                id: 0,
+                id: None,
                 user_id: *user_id,
                 asset_path: path.to_string(),
                 custom_path: None,
@@ -127,7 +127,7 @@ pub(super) async fn share_asset(
         }
 
         let fellow = get_fellow?;
-        let fellow_id = fellow.id();
+        let fellow_id = &fellow.id();
         if user_id == fellow_id {
             tracing::error!("you cannot share asset {asset_id} with it's owner");
             continue;
@@ -188,7 +188,7 @@ pub(super) async fn create_or_update_asset(
                 public,
                 asset_path: path.to_string(),
                 custom_path: custom_path.clone(),
-                id: 0,
+                id: None,
                 asset_type: u8::from(asset_type),
             };
 
