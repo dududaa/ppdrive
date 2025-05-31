@@ -11,7 +11,8 @@ COPY Cargo.toml Cargo.lock ./
 COPY . .
 
 # Build the application in release mode
-RUN cargo build --release
+RUN cargo build --bin ppdrive_cli --release
+RUN cargo build --bin ppdrive_server --release
 
 # Use a smaller image for the final application
 FROM debian:bookworm-slim
@@ -25,10 +26,10 @@ ca-certificates
 WORKDIR /app
 
 # Copy release files
-COPY --from=builder /app/target/release/ppdrive .
+COPY --from=builder /app/target/release/ppdrive_cli ./ppdrive
+COPY --from=builder /app/target/release/ppdrive_server .
 COPY --from=builder /app/core/migrations/ .
 COPY --from=builder /app/ppd_config.toml .
 
-
 # Set the default command to run the application
-CMD ["./ppdrive"]
+CMD ["./ppdrive_server"]
