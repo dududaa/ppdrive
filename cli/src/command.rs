@@ -30,7 +30,7 @@ impl Command {
                 println!("{n}: {v}");
             }
             CreateClient | ClientToken => {
-                let next_arg = args.get(1);
+                let next_arg = args.first();
                 let next_arg_name = match self {
                     CreateClient => "name",
                     ClientToken => "id",
