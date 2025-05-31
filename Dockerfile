@@ -26,7 +26,7 @@ WORKDIR /app
 
 # Copy release files
 COPY --from=builder /app/target/release/ppdrive .
-COPY --from=builder /app/migrations/ .
+COPY --from=builder /app/core/migrations/ .
 COPY --from=builder /app/ppd_config.toml .
 
 
