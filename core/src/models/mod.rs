@@ -17,3 +17,19 @@ pub trait IntoSerializer {
 pub(self) fn check_model<M>(model: Option<M>, msg: &str) -> Result<M, CoreError> {
     model.ok_or(CoreError::DbError(DbError::E(msg.to_string())))
 }
+
+#[cfg(test)]
+mod tests {
+    use modeller::Model;
+
+    #[test]
+    fn test_modeller() {
+        #[derive(Model)]
+        struct TestModel {
+            id: u64,
+            country: Option<String>,
+        }
+
+        TestModel::test();
+    }
+}
