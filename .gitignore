@@ -27,6 +27,9 @@
 !server/
 !server/**
 
+!modeller/
+!modeller/**
+
 !migrations/
 !migrations/**
 

@@ -7,6 +7,7 @@ use ext::{
     SaveAssetOpts, create_asset_parents, create_or_update_asset, share_asset, validate_custom_path,
 };
 use rbatis::{PageRequest, RBatis, crud, impl_select, impl_select_page};
+use rbs::value;
 use serde::{Deserialize, Serialize};
 
 use crate::{CoreResult, errors::CoreError, fs::move_file, options::CreateAssetOptions};
@@ -160,7 +161,13 @@ impl Assets {
         }
 
         // delete asset record
-        Assets::delete_by_column(rb, "id", &self.id).await?;
+        Assets::delete_by_map(
+            rb,
+            value! {
+                "id": &self.id
+            },
+        )
+        .await?;
 
         Ok(())
     }
@@ -218,7 +225,13 @@ impl Assets {
             }
         }
 
-        Assets::delete_by_column(rb, "user_id", user_id).await?;
+        Assets::delete_by_map(
+            rb,
+            value! {
+                "user_id": user_id
+            },
+        )
+        .await?;
 
         // delete all asset permissions for user
         AssetPermissions::delete_for_user(rb, user_id).await?;

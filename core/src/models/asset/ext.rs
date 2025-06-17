@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use rbatis::RBatis;
+use rbs::value;
 
 use crate::{
     CoreResult,
@@ -170,7 +171,14 @@ pub(super) async fn create_or_update_asset(
                     ..exists
                 };
 
-                Assets::update_by_column(rb, &updated, "id").await?;
+                Assets::update_by_map(
+                    rb,
+                    &updated,
+                    value! {
+                        "id": updated.id()
+                    },
+                )
+                .await?;
                 Ok(updated)
             } else {
                 if let Some(tmp) = tmp {

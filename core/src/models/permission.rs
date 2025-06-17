@@ -1,4 +1,5 @@
 use rbatis::{RBatis, crud, impl_select};
+use rbs::value;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::CoreError;
@@ -70,12 +71,24 @@ impl AssetPermissions {
     }
 
     pub async fn delete_for_asset(rb: &RBatis, asset_id: &u64) -> CoreResult<()> {
-        AssetPermissions::delete_by_column(rb, "asset_id", asset_id).await?;
+        AssetPermissions::delete_by_map(
+            rb,
+            value! {
+                "asset_id": asset_id
+            },
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn delete_for_user(rb: &RBatis, user_id: &u64) -> CoreResult<()> {
-        AssetPermissions::delete_by_column(rb, "user_id", user_id).await?;
+        AssetPermissions::delete_by_map(
+            rb,
+            value! {
+                "user_id": user_id
+            },
+        )
+        .await?;
         Ok(())
     }
 

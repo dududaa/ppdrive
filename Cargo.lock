@@ -1807,9 +1807,9 @@ dependencies = [
 
 [[package]]
 name = "rbatis"
-version = "4.5.51"
+version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e50762a055712de2a6bf4b9e97f8104c46890cfcd7d4bd922e7c079a2e89ec9"
+checksum = "44302310a64e96cc61820b8b95d829d2211be5264170b6dcca37bcb747d7e7ef"
 dependencies = [
  "async-trait",
  "dark-std",
@@ -1825,14 +1825,13 @@ dependencies = [
  "rbdc-pool-fast",
  "rbs",
  "serde",
- "sql-parser",
 ]
 
 [[package]]
 name = "rbatis-codegen"
-version = "4.5.33"
+version = "4.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21858dc75832a5bc7a34879cb6768b9861eff8e49873ce028193ab15b98feb1a"
+checksum = "e7533b0575e1c7b9261e893d003c9800f421339eb0e6ec56ea786b3a3a22ab3c"
 dependencies = [
  "html_parser",
  "proc-macro2",
@@ -1845,9 +1844,9 @@ dependencies = [
 
 [[package]]
 name = "rbatis-macro-driver"
-version = "4.5.16"
+version = "4.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cf437a0d0a4a389becddbb2df9667d7902a1af17ccfdb785e8c14c116bdee2f"
+checksum = "8de1009344065e1ae5ad2b8a1499a32cb185881121f5e47062c21e6706af5c44"
 dependencies = [
  "dark-std",
  "proc-macro2",
@@ -2524,12 +2523,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sql-parser"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e78870f15f78235f63f260f5a8497edec79048b34995f1dd112f0f316f01bdcf"
-
-[[package]]
 name = "sqlx"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2923,9 +2916,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.45.0"
+version = "1.45.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2513ca694ef9ede0fb23fe71a4ee4107cb102b9dc1930f6d0fd77aae068ae165"
+checksum = "75ef51a33ef1da925cea3e4eb122833cb377c61439ca401b770f54902b806779"
 dependencies = [
  "backtrace",
  "bytes",

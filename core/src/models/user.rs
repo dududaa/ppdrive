@@ -1,4 +1,5 @@
 use rbatis::{RBatis, crud, impl_select, rbdc::DateTime};
+use rbs::value;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use uuid::Uuid;
@@ -81,7 +82,13 @@ impl Users {
             }
         });
 
-        Users::delete_by_column(rb, "id", &self.id).await?;
+        Users::delete_by_map(
+            rb,
+            value! {
+                "id": &self.id
+            },
+        )
+        .await?;
 
         Ok(())
     }
