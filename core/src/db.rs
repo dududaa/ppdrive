@@ -3,16 +3,16 @@ use rbdc_mssql::MssqlDriver;
 use rbdc_mysql::MysqlDriver;
 use rbdc_pg::PgDriver;
 use rbdc_sqlite::SqliteDriver;
-use sqlx::any::{AnyPoolOptions, install_default_drivers};
+// use sqlx::any::{AnyPoolOptions, install_default_drivers};
 
 use crate::{CoreResult, errors::CoreError};
 
 pub async fn init_db(url: &str) -> CoreResult<RBatis> {
     use DatabaseType::*;
 
-    if !cfg!(debug_assertions) {
-        migrate(url).await?;
-    }
+    // if !cfg!(debug_assertions) {
+    //     migrate(url).await?;
+    // }
 
     let db_type = url.try_into()?;
     let rb = RBatis::new();
@@ -56,13 +56,13 @@ impl<'a> TryFrom<&'a str> for DatabaseType {
     }
 }
 
-async fn migrate(url: &str) -> CoreResult<()> {
-    install_default_drivers();
-    let pool = AnyPoolOptions::new().connect(url).await?;
-    sqlx::migrate!()
-        .run(&pool)
-        .await
-        .map_err(|err| CoreError::MigrationError(err.into()))?;
+// async fn migrate(url: &str) -> CoreResult<()> {
+//     install_default_drivers();
+//     let pool = AnyPoolOptions::new().connect(url).await?;
+//     sqlx::migrate!()
+//         .run(&pool)
+//         .await
+//         .map_err(|err| CoreError::MigrationError(err.into()))?;
 
-    Ok(())
-}
+//     Ok(())
+// }

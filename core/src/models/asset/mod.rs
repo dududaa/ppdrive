@@ -1,3 +1,4 @@
+use modeller::{define_models, modeller_parser};
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
@@ -63,17 +64,20 @@ impl TryFrom<u8> for AssetType {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Assets {
-    id: Option<u64>,
-    asset_path: String,
-    custom_path: Option<String>,
-    user_id: u64,
-    public: bool,
-    asset_type: u8,
+define_models! {
+    #[derive(Serialize, Deserialize)]
+    pub struct Assets {
+        id: Option<u64>,
+        asset_path: String,
+        custom_path: Option<String>,
+        user_id: u64,
+        public: bool,
+        asset_type: u8,
+    }
 }
 
 crud!(Assets {});
+
 impl_select!(Assets{ select_by_path(path: &str, asset_type: u8) -> Option => "`WHERE (asset_path = #{path} OR custom_path = #{path}) AND asset_type = #{asset_type} LIMIT 1`" });
 impl_select_page!(Assets { select_by_user(user_id: &u64) => "`WHERE user_id = #{user_id}`" });
 
