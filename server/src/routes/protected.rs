@@ -13,7 +13,7 @@ use ppdrive_core::{
     config::AppConfig,
     models::{
         asset::{AssetType, Assets},
-        user::{Users, UserSerializer},
+        user::{UserSerializer, Users},
         IntoSerializer,
     },
     options::CreateAssetOptions,
@@ -42,7 +42,6 @@ async fn create_asset(
     ManagerRoute: ManagerRoute,
     mut multipart: Multipart,
 ) -> Result<String, AppError> {
-    println!("request received...");
     let user_id = user.id();
 
     let mut opts = CreateAssetOptions::default();
@@ -98,6 +97,7 @@ async fn create_asset(
 
     let db = state.db();
     let path = Assets::create_or_update(db, user_id, opts, &tmp_file).await?;
+
     if let Some(tmp_file) = &tmp_file {
         if let Err(err) = tokio::fs::remove_file(tmp_file).await {
             tracing::error!("unable to remove {tmp_file:?}: {err}")

@@ -9,7 +9,7 @@ use ext::{
 };
 use rbatis::{PageRequest, RBatis, crud, impl_select, impl_select_page};
 use rbs::value;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{CoreResult, errors::CoreError, fs::move_file, options::CreateAssetOptions};
 
@@ -74,6 +74,8 @@ define_models! {
         asset_path: String,
         custom_path: Option<String>,
         user_id: u64,
+
+        #[serde(deserialize_with = "de_sqlite_bool")]
         public: bool,
         asset_type: u8,
     }
@@ -282,4 +284,14 @@ impl Assets {
         let up = self.custom_path.as_ref().unwrap_or(&default_path);
         up.to_string()
     }
+}
+
+/// SQLite does not support boolean value directly. So we
+/// deserialize `i64` to boolean;
+fn de_sqlite_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let v = i64::deserialize(deserializer)?;
+    Ok(v != 0)
 }
