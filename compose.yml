@@ -1,0 +1,43 @@
+services:
+  ppdrive_db:
+    image: postgres:latest
+    container_name: ppdrive_db
+    environment:
+      POSTGRES_USER: ppdrive_user
+      POSTGRES_PASSWORD: Plug&PlayDrive2025
+      POSTGRES_DB: ppdrive
+      PPDRIVE_DB_PORT: 5432
+
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  ppdrive:
+    image: prodbyola/ppdrive:latest
+    container_name: ppdrive_app
+    restart: unless-stopped
+    environment:
+      PPDRIVE_DATABASE_URL: postgres://ppdrive_user:Plug&PlayDrive2025@127.0.0.1:5432/ppdrive
+
+    depends_on:
+      - ppdrive_db
+
+    ports:
+      - 5000:5000
+
+    volumes:
+      - ppdrive_data:/app
+
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+  ppdrive_data:
+
+networks:
+  app_network:
+    driver: bridge
