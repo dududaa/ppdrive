@@ -130,7 +130,6 @@ async fn delete_asset(
 /// Routes accessible to creators
 pub fn protected_routes(config: &AppConfig) -> Result<Router<AppState>, AppError> {
     let max = config.server().max_upload_size();
-
     let limit = mb_to_bytes(*max);
 
     let router = Router::new()

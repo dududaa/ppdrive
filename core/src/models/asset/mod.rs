@@ -280,7 +280,10 @@ impl Assets {
     }
 
     pub fn url_path(&self) -> String {
-        let default_path = format!("{}/{}", self.asset_type, self.asset_path);
+        let t = &self.asset_type;
+        let asset_type = AssetType::try_from(*t).ok().unwrap_or_default();
+
+        let default_path = format!("{}/{}", asset_type, self.asset_path);
         let up = self.custom_path.as_ref().unwrap_or(&default_path);
         up.to_string()
     }
