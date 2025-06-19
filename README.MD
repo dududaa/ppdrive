@@ -20,6 +20,8 @@
 - File Conversion: Convert files from one format to another.
 - Async Upload: Upload large files in the background.
 - File Streaming: Enable file streaming (for video and audio streaming platforms)
+- Buckets: Buckets implementation for clients.
+- Mime Limits: Limit uploads to specified mime types.
 
 ---
 
