@@ -1,4 +1,4 @@
-use modeller::run_modeller;
+use modeller::{config::ConfigBuilder, run_modeller};
 use rbatis::RBatis;
 
 use crate::{
@@ -23,12 +23,14 @@ pub(self) fn check_model<M>(model: Option<M>, msg: &str) -> Result<M, CoreError>
     model.ok_or(CoreError::DbError(DbError::E(msg.to_string())))
 }
 
-pub async fn run_migrations() -> CoreResult<()> {
-    Assets::write_stream().await?;
-    Clients::write_stream().await?;
-    AssetPermissions::write_stream().await?;
-    Users::write_stream().await?;
+pub async fn run_migrations(url: &str) -> CoreResult<()> {
+    let config = ConfigBuilder::new().db_url(url).build();
 
-    run_modeller().await?;
+    Assets::write_stream(&config).await?;
+    Clients::write_stream(&config).await?;
+    AssetPermissions::write_stream(&config).await?;
+    Users::write_stream(&config).await?;
+
+    run_modeller(&config).await?;
     Ok(())
 }

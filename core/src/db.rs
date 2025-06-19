@@ -10,7 +10,7 @@ use crate::{CoreResult, errors::CoreError, models::run_migrations};
 pub async fn init_db(url: &str) -> CoreResult<RBatis> {
     use DatabaseType::*;
 
-    run_migrations().await?;
+    run_migrations(url).await?;
 
     let db_type = url.try_into()?;
     let rb = RBatis::new();
