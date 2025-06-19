@@ -5,14 +5,12 @@ use rbdc_pg::PgDriver;
 use rbdc_sqlite::SqliteDriver;
 // use sqlx::any::{AnyPoolOptions, install_default_drivers};
 
-use crate::{CoreResult, errors::CoreError};
+use crate::{CoreResult, errors::CoreError, models::run_migrations};
 
 pub async fn init_db(url: &str) -> CoreResult<RBatis> {
     use DatabaseType::*;
 
-    // if !cfg!(debug_assertions) {
-    //     migrate(url).await?;
-    // }
+    run_migrations().await?;
 
     let db_type = url.try_into()?;
     let rb = RBatis::new();

@@ -67,7 +67,10 @@ impl TryFrom<u8> for AssetType {
 define_models! {
     #[derive(Serialize, Deserialize)]
     pub struct Assets {
+        #[modeller(serial)]
         id: Option<u64>,
+
+        #[modeller(unique)]
         asset_path: String,
         custom_path: Option<String>,
         user_id: u64,

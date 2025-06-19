@@ -1,3 +1,4 @@
+use modeller::{define_models, modeller_parser};
 use rbatis::{RBatis, crud, impl_select};
 use serde::{Deserialize, Serialize};
 
@@ -5,10 +6,15 @@ use crate::CoreResult;
 
 use super::check_model;
 
-#[derive(Serialize, Deserialize)]
-pub struct Clients {
-    id: String,
-    name: String,
+define_models! {
+    #[derive(Serialize, Deserialize)]
+    pub struct Clients {
+        #[modeller(unique, primary)]
+        id: String,
+
+        #[modeller(length=120)]
+        name: String,
+    }
 }
 
 crud!(Clients {});

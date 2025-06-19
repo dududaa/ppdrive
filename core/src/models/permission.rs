@@ -1,3 +1,4 @@
+use modeller::{define_models, modeller_parser};
 use rbatis::{RBatis, crud, impl_select};
 use rbs::value;
 use serde::{Deserialize, Serialize};
@@ -42,11 +43,14 @@ impl TryFrom<u8> for Permission {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct AssetPermissions {
-    user_id: u64,
-    asset_id: u64,
-    permission: u8,
+define_models! {
+    #[derive(Serialize, Deserialize)]
+    #[unique_together = "user_id,asset_id"]
+    pub struct AssetPermissions {
+        user_id: u64,
+        asset_id: u64,
+        permission: u8,
+    }
 }
 
 crud!(AssetPermissions {});

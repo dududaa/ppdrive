@@ -30,8 +30,8 @@
 !modeller/
 !modeller/**
 
-!migrations/
-!migrations/**
+# !migrations/
+# !migrations/**
 
 !docs/
 !docs/**

@@ -1,3 +1,4 @@
+use modeller::{define_models, modeller_parser};
 use rbatis::{RBatis, crud, impl_select, rbdc::DateTime};
 use rbs::value;
 use serde::{Deserialize, Serialize};
@@ -8,16 +9,21 @@ use crate::{CoreResult, errors::CoreError, options::CreateUserOptions};
 
 use super::{IntoSerializer, asset::Assets, check_model, permission::AssetPermissions};
 
-#[derive(Serialize, Deserialize)]
-pub struct Users {
-    id: Option<u64>,
-    pid: String,
-    role: u8,
-    partition: Option<String>,
-    partition_size: Option<u64>,
-    email: Option<String>,
-    password: Option<String>,
-    created_at: DateTime,
+define_models! {
+    #[derive(Serialize, Deserialize)]
+    pub struct Users {
+        #[modeller(serial)]
+        id: Option<u64>,
+
+        #[modeller(unique)]
+        pid: String,
+        role: u8,
+        partition: Option<String>,
+        partition_size: Option<u64>,
+        email: Option<String>,
+        password: Option<String>,
+        created_at: DateTime,
+    }
 }
 
 crud!(Users {});
