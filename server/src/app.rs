@@ -10,15 +10,18 @@ use axum::{
     routing::{get, IntoMakeService},
     Router,
 };
-use ppdrive_core::config::{AppConfig, CorsOriginType};
+use ppdrive_core::config::{AppConfig, ConfigUpdater, CorsOriginType};
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::routes::client::client_routes;
 use crate::routes::get_asset;
 use crate::routes::protected::protected_routes;
 use crate::utils::jwt::{BEARER_KEY, BEARER_VALUE};
+use crate::utils::{get_env, init_secrets};
 use crate::{errors::AppError, state::AppState};
 
 fn to_origins(origins: CorsOriginType) -> AllowOrigin {
@@ -42,7 +45,7 @@ fn to_origins(origins: CorsOriginType) -> AllowOrigin {
     }
 }
 
-pub async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, AppError> {
+async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, AppError> {
     let state = AppState::new(config).await?;
     let origins = config.server().origins();
 
@@ -86,4 +89,26 @@ pub async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>
         .into_make_service();
 
     Ok(router)
+}
+
+pub async fn initialize_app(
+    config: &mut AppConfig,
+) -> Result<IntoMakeService<Router<()>>, AppError> {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "ppdrive=debug,tower_http=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    if let Ok(url) = get_env("PPDRIVE_DATABASE_URL") {
+        let mut data = ConfigUpdater::default();
+        data.db_url = Some(url);
+        config.update(data).await?;
+    }
+
+    // start ppdrive app
+    init_secrets().await?;
+    create_app(&config).await
 }
