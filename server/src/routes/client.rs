@@ -10,7 +10,6 @@ use crate::{errors::AppError, state::AppState, utils::jwt::create_jwt};
 use ppdrive_core::{
     models::{
         bucket::Buckets,
-        client::Clients,
         user::{UserRole, Users},
     },
     options::{CreateBucketOptions, CreateUserOptions},
@@ -22,7 +21,7 @@ use super::{extractors::ClientRoute, LoginCredentials, LoginToken};
 #[debug_handler]
 async fn create_user(
     State(state): State<AppState>,
-    client_route: ClientRoute,
+    client: ClientRoute,
     Json(data): Json<CreateUserOptions>,
 ) -> Result<String, AppError> {
     let db = state.db();
@@ -39,9 +38,7 @@ async fn create_user(
             "client cannot create admin user".to_string(),
         )),
         _ => {
-            let client = Clients::get(db, client_route.pid()).await?;
-
-            let user_id = Users::create_by_client(db, client.id(), data).await?;
+            let user_id = Users::create_by_client(db, *client.id(), data).await?;
             Ok(user_id.to_string())
         }
     }
@@ -89,7 +86,7 @@ async fn delete_user(
 #[debug_handler]
 async fn create_bucket(
     State(state): State<AppState>,
-    client_route: ClientRoute,
+    client: ClientRoute,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, AppError> {
     let db = state.db();
@@ -101,9 +98,7 @@ async fn create_bucket(
         }
     }
 
-    let client = Clients::get(db, client_route.pid()).await?;
-    let bucket_id = Buckets::create_by_client(db, client.id(), data).await?;
-
+    let bucket_id = Buckets::create_by_client(db, *client.id(), data).await?;
     Ok(bucket_id.to_string())
 }
 

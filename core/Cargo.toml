@@ -25,4 +25,4 @@ sqlx = { version = "0.8", features = [
 chacha20poly1305 = "0.10.1"
 hex = "0.4.3"
 toml = "0.8.22"
-modeller = { git = "https://github.com/prodbyola/modeller", package = "modeller" } # modeller = { path = "../../modeller/modeller" }
+modeller = { path = "../../modeller/modeller" } # modeller = { path = "../../modeller/modeller" }

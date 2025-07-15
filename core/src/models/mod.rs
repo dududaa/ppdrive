@@ -4,7 +4,9 @@ use rbatis::RBatis;
 use crate::{
     CoreResult,
     errors::{CoreError, DbError},
-    models::{asset::Assets, client::Clients, permission::AssetPermissions, user::Users},
+    models::{
+        asset::Assets, bucket::Buckets, client::Clients, permission::AssetPermissions, user::Users,
+    },
 };
 
 pub mod asset;
@@ -31,6 +33,7 @@ pub async fn run_migrations(url: &str) -> CoreResult<()> {
     Clients::write_stream(&config).await?;
     AssetPermissions::write_stream(&config).await?;
     Users::write_stream(&config).await?;
+    Buckets::write_stream(&config).await?;
 
     run_modeller(&config).await?;
     Ok(())

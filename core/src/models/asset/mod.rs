@@ -69,15 +69,17 @@ pub struct Assets {
     #[modeller(serial)]
     id: Option<u64>,
 
-    #[modeller(unique)]
+    #[modeller(unique, length = 3000)]
     asset_path: String,
+
+    #[modeller(length = 3000)]
     custom_path: Option<String>,
 
     #[modeller(foreign_key(rf = "users(id)", on_delete = "cascade"))]
     user_id: u64,
 
     #[serde(deserialize_with = "de_sqlite_bool")]
-    public: bool,
+    is_public: bool,
     asset_type: u8,
 }
 
@@ -264,7 +266,7 @@ impl Assets {
     }
 
     pub fn public(&self) -> &bool {
-        &self.public
+        &self.is_public
     }
 
     pub fn path(&self) -> &str {

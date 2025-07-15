@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::models::{asset::AssetType, permission::Permission, user::UserRole};
 
@@ -43,7 +43,7 @@ pub struct CreateUserOptions {
     pub role: UserRole,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Default)]
 pub struct CreateBucketOptions {
     pub max_size: Option<u64>,
     pub root_folder: Option<String>,

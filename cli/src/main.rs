@@ -1,5 +1,9 @@
 use command::Command;
-use ppdrive_core::{config::AppConfig, db::init_db, tools::secrets::AppSecrets};
+use ppdrive_core::{
+    config::{AppConfig, get_config_path},
+    db::init_db,
+    tools::secrets::AppSecrets,
+};
 
 mod command;
 mod configure;
@@ -7,7 +11,8 @@ mod error;
 
 #[tokio::main]
 async fn main() -> Result<(), error::CliError> {
-    let config = AppConfig::load().await?;
+    let config_path = get_config_path()?;
+    let config = AppConfig::load(config_path).await?;
     let url = config.db().url();
 
     let db = init_db(url).await?;

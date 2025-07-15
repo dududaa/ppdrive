@@ -4,7 +4,7 @@ use rbs::value;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{errors::CoreError, options::CreateBucketOptions};
+use crate::{CoreResult, errors::CoreError, options::CreateBucketOptions};
 
 #[derive(Serialize, Deserialize, Modeller)]
 #[modeller(unique_together(owner_id, owner_type))]
@@ -75,6 +75,11 @@ impl Buckets {
             ))?;
 
         Ok(id)
+    }
+
+    pub async fn delete(db: &RBatis, pid: &str) -> CoreResult<()> {
+        Self::delete_by_map(db, value! { "pid": pid }).await?;
+        Ok(())
     }
 }
 

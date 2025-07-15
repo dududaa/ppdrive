@@ -20,6 +20,8 @@ use std::path::Path as StdPath;
 pub mod client;
 mod extractors;
 pub mod protected;
+
+#[cfg(test)]
 mod tests;
 
 #[derive(Deserialize)]

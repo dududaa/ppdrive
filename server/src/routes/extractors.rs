@@ -109,10 +109,10 @@ where
     }
 }
 
-pub struct ClientRoute(String);
+pub struct ClientRoute(u64);
 
 impl ClientRoute {
-    pub fn pid(&self) -> &str {
+    pub fn id(&self) -> &u64 {
         &self.0
     }
 }
@@ -131,20 +131,14 @@ where
 
         match client_key {
             Some(key) => {
-                let client_id = key
+                let token = key
                     .to_str()
                     .map_err(|err| AppError::AuthorizationError(err.to_string()))?;
 
                 let secrets = state.secrets();
-                let valid = verify_client(state.db(), secrets.deref(), client_id).await?;
+                let id = verify_client(state.db(), secrets.deref(), token).await?;
 
-                if !valid {
-                    return Err(AppError::AuthorizationError(
-                        "client authorization failed".to_string(),
-                    ));
-                }
-
-                Ok(ClientRoute(client_id.to_string()))
+                Ok(ClientRoute(id))
             }
             _ => Err(AppError::AuthorizationError(
                 "missing 'x-client-key' headers".to_string(),

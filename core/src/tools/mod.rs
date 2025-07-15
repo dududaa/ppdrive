@@ -35,7 +35,7 @@ fn generate_token(secrets: &AppSecrets, client_id: &str) -> CoreResult<String> {
 }
 
 /// validate that a given client token exists
-pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> CoreResult<bool> {
+pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> CoreResult<u64> {
     let decode =
         hex::decode(token).map_err(|err| CoreError::AuthorizationError(err.to_string()))?;
 
@@ -50,8 +50,8 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Co
     let id =
         String::from_utf8(decrypt).map_err(|err| CoreError::AuthorizationError(err.to_string()))?;
 
-    let ok = Clients::get(rb, &id).await.is_ok();
-    Ok(ok)
+    let client = Clients::get(rb, &id).await?;
+    Ok(client.id())
 }
 
 /// Regenerate token for a given client

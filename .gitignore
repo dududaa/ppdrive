@@ -26,9 +26,14 @@
 
 !server/
 !server/**
+server/migrations
+server/db.sqlite*
+server/sqlite.db*
+server/.ppdrive_secret
 
-!modeller/
-!modeller/**
+
+!tests/
+!tests/**
 
 # !migrations/
 # !migrations/**

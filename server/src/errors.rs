@@ -7,7 +7,7 @@ use ppdrive_core::errors::CoreError;
 pub enum AppError {
     InitError(String),
     InternalServerError(String),
-    DatabaseError(CoreError),
+    CoreError(CoreError),
     AuthorizationError(String),
     IOError(String),
     NotFound(String),
@@ -19,7 +19,7 @@ impl Display for AppError {
         match self {
             AppError::InitError(msg) => write!(f, "{msg}"),
             AppError::InternalServerError(msg) => write!(f, "{msg}"),
-            AppError::DatabaseError(msg) => write!(f, "{msg}"),
+            AppError::CoreError(msg) => write!(f, "{msg}"),
             AppError::AuthorizationError(msg) => write!(f, "{msg}"),
             AppError::IOError(msg) => write!(f, "{msg}"),
             AppError::NotFound(msg) => write!(f, "{msg}"),
@@ -54,7 +54,7 @@ impl From<MultipartError> for AppError {
 
 impl From<CoreError> for AppError {
     fn from(value: CoreError) -> Self {
-        AppError::DatabaseError(value)
+        AppError::CoreError(value)
     }
 }
 

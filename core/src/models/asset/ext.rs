@@ -98,7 +98,7 @@ pub(super) async fn create_asset_parents(
                 asset_path: path.to_string(),
                 custom_path: None,
                 asset_type: folder_type,
-                public: is_public.unwrap_or(false),
+                is_public: is_public.unwrap_or(false),
             };
 
             assets.push(asset);
@@ -167,7 +167,7 @@ pub(super) async fn create_or_update_asset(
             if &exists.user_id == user_id {
                 let updated = Assets {
                     custom_path: custom_path.clone(),
-                    public,
+                    is_public: public,
                     ..exists
                 };
 
@@ -193,7 +193,7 @@ pub(super) async fn create_or_update_asset(
         Err(_) => {
             let mut asset = Assets {
                 user_id: *user_id,
-                public,
+                is_public: public,
                 asset_path: path.to_string(),
                 custom_path: custom_path.clone(),
                 id: None,

@@ -1,13 +1,14 @@
 use std::str::FromStr;
 
-use ppdrive_core::config::{AppConfig, ConfigUpdater};
+use ppdrive_core::config::{AppConfig, ConfigUpdater, get_config_path};
 
 use crate::error::CliResult;
 use tokio::io::{AsyncBufReadExt, BufReader, Stdin};
 
 /// run tool with --configure arg
 pub async fn run_configor() -> CliResult<()> {
-    let mut config = AppConfig::load().await?;
+    let config_path = get_config_path()?;
+    let mut config = AppConfig::load(config_path).await?;
     let mut data = ConfigUpdater::default();
     let stdin = tokio::io::stdin();
     let mut reader = BufReader::new(stdin);

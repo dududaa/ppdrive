@@ -76,9 +76,7 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub async fn load() -> CoreResult<Self> {
-        let config_path = get_config_path()?;
-
+    pub async fn load(config_path: PathBuf) -> CoreResult<Self> {
         let config_str = tokio::fs::read_to_string(&config_path).await?;
         let config: Self =
             toml::from_str(&config_str).map_err(|err| CoreError::ServerError(err.to_string()))?;

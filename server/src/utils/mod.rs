@@ -16,7 +16,7 @@ pub fn mb_to_bytes(value: usize) -> usize {
 }
 
 /// If app secret file does not exist, generate it. Mostly useful
-/// on app initialization.
+/// for app initialization.
 pub async fn init_secrets() -> Result<(), AppError> {
     let path = secret_filename()?;
     if !path.is_file() {
