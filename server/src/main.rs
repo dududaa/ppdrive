@@ -10,8 +10,8 @@ mod utils;
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    let mut config = AppConfig::load().await?;
-    let app = initialize_app(&mut config).await?;
+    let config = AppConfig::load().await?;
+    let app = initialize_app(&config).await?;
 
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.server().port())).await {
         Ok(listener) => {

@@ -10,7 +10,7 @@ use axum::{
     routing::{get, IntoMakeService},
     Router,
 };
-use ppdrive_core::config::{AppConfig, ConfigUpdater, CorsOriginType};
+use ppdrive_core::config::{AppConfig, CorsOriginType};
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
@@ -20,8 +20,8 @@ use tracing_subscriber::util::SubscriberInitExt;
 use crate::routes::client::client_routes;
 use crate::routes::get_asset;
 use crate::routes::protected::protected_routes;
+use crate::utils::init_secrets;
 use crate::utils::jwt::{BEARER_KEY, BEARER_VALUE};
-use crate::utils::{get_env, init_secrets};
 use crate::{errors::AppError, state::AppState};
 
 fn to_origins(origins: CorsOriginType) -> AllowOrigin {
@@ -91,9 +91,7 @@ async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, A
     Ok(router)
 }
 
-pub async fn initialize_app(
-    config: &mut AppConfig,
-) -> Result<IntoMakeService<Router<()>>, AppError> {
+pub async fn initialize_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, AppError> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -101,12 +99,6 @@ pub async fn initialize_app(
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
-
-    // if let Ok(url) = get_env("PPDRIVE_DATABASE_URL") {
-    //     let mut data = ConfigUpdater::default();
-    //     data.db_url = Some(url);
-    //     config.update(data).await?;
-    // }
 
     // start ppdrive app
     init_secrets().await?;
