@@ -3,7 +3,6 @@ use rbdc_mssql::MssqlDriver;
 use rbdc_mysql::MysqlDriver;
 use rbdc_pg::PgDriver;
 use rbdc_sqlite::SqliteDriver;
-// use sqlx::any::{AnyPoolOptions, install_default_drivers};
 
 use crate::{CoreResult, errors::CoreError, models::run_migrations};
 

@@ -11,8 +11,8 @@ pub struct AppState {
 impl AppState {
     pub async fn new(config: &AppConfig) -> Result<Self, AppError> {
         let db = init_db(config.db().url()).await?;
-
         let config = Arc::new(AppSecrets::read().await?);
+
         let s = Self {
             db,
             secrets: config,

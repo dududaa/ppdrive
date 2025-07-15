@@ -102,11 +102,11 @@ pub async fn initialize_app(
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    if let Ok(url) = get_env("PPDRIVE_DATABASE_URL") {
-        let mut data = ConfigUpdater::default();
-        data.db_url = Some(url);
-        config.update(data).await?;
-    }
+    // if let Ok(url) = get_env("PPDRIVE_DATABASE_URL") {
+    //     let mut data = ConfigUpdater::default();
+    //     data.db_url = Some(url);
+    //     config.update(data).await?;
+    // }
 
     // start ppdrive app
     init_secrets().await?;
