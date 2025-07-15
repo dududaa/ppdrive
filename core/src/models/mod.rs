@@ -1,4 +1,4 @@
-use modeller::{config::ConfigBuilder, run_modeller};
+use modeller::prelude::*;
 use rbatis::RBatis;
 
 use crate::{

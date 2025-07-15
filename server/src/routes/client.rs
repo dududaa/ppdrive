@@ -8,7 +8,10 @@ use axum_macros::debug_handler;
 use crate::{errors::AppError, state::AppState, utils::jwt::create_jwt};
 
 use ppdrive_core::{
-    models::user::{UserRole, Users},
+    models::{
+        client::Clients,
+        user::{UserRole, Users},
+    },
     options::CreateUserOptions,
     tools::secrets::SECRETS_FILENAME,
 };
@@ -18,7 +21,7 @@ use super::{extractors::ClientRoute, LoginCredentials, LoginToken};
 #[debug_handler]
 async fn create_user(
     State(state): State<AppState>,
-    ClientRoute: ClientRoute,
+    client_route: ClientRoute,
     Json(data): Json<CreateUserOptions>,
 ) -> Result<String, AppError> {
     let db = state.db();
@@ -35,7 +38,9 @@ async fn create_user(
             "client cannot create admin user".to_string(),
         )),
         _ => {
-            let user_id = Users::create(db, data).await?;
+            let client = Clients::get(db, client_route.pid()).await?;
+
+            let user_id = Users::create_by_client(db, client.id(), data).await?;
             Ok(user_id.to_string())
         }
     }
@@ -44,7 +49,7 @@ async fn create_user(
 #[debug_handler]
 async fn login_user(
     State(state): State<AppState>,
-    ClientRoute: ClientRoute,
+    _: ClientRoute,
     Json(data): Json<LoginCredentials>,
 ) -> Result<Json<LoginToken>, AppError> {
     let LoginCredentials { id, exp, .. } = data;
@@ -64,7 +69,7 @@ async fn login_user(
 #[debug_handler]
 async fn delete_user(
     Path(id): Path<String>,
-    ClientRoute: ClientRoute,
+    _: ClientRoute,
     State(state): State<AppState>,
 ) -> Result<String, AppError> {
     let db = state.db();

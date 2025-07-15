@@ -1,4 +1,4 @@
-use modeller::{define_models, modeller_parser};
+use modeller::prelude::*;
 use rbatis::{RBatis, crud, impl_select};
 use rbs::value;
 use serde::{Deserialize, Serialize};
@@ -43,14 +43,15 @@ impl TryFrom<u8> for Permission {
     }
 }
 
-define_models! {
-    #[derive(Serialize, Deserialize)]
-    #[unique_together = "user_id,asset_id"]
-    pub struct AssetPermissions {
-        user_id: u64,
-        asset_id: u64,
-        permission: u8,
-    }
+#[derive(Serialize, Deserialize, Modeller)]
+#[modeller(unique_together(user_id, asset_id))]
+pub struct AssetPermissions {
+    #[modeller(foreign_key(rf = "users(id)", on_delete = "cascade"))]
+    user_id: u64,
+
+    #[modeller(foreign_key(rf = "assets(id)", on_delete = "cascade"))]
+    asset_id: u64,
+    permission: u8,
 }
 
 crud!(AssetPermissions {});

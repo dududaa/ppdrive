@@ -1,4 +1,4 @@
-use modeller::{define_models, modeller_parser};
+use modeller::prelude::*;
 use rbatis::{RBatis, crud, impl_select, rbdc::DateTime};
 use rbs::value;
 use serde::{Deserialize, Serialize};
@@ -9,21 +9,20 @@ use crate::{CoreResult, errors::CoreError, options::CreateUserOptions};
 
 use super::{IntoSerializer, asset::Assets, check_model, permission::AssetPermissions};
 
-define_models! {
-    #[derive(Serialize, Deserialize)]
-    pub struct Users {
-        #[modeller(serial)]
-        id: Option<u64>,
+#[derive(Serialize, Deserialize, Modeller)]
+pub struct Users {
+    #[modeller(serial)]
+    id: Option<u64>,
 
-        #[modeller(unique)]
-        pid: String,
-        role: u8,
-        partition: Option<String>,
-        partition_size: Option<u64>,
-        email: Option<String>,
-        password: Option<String>,
-        created_at: DateTime,
-    }
+    #[modeller(unique)]
+    pid: String,
+    role: u8,
+    partition: Option<String>,
+    client: Option<u64>,
+    partition_size: Option<u64>,
+    email: Option<String>,
+    password: Option<String>,
+    created_at: DateTime,
 }
 
 crud!(Users {});
@@ -45,7 +44,11 @@ impl Users {
         check_model(user, "user not found")
     }
 
-    pub async fn create(rb: &RBatis, data: CreateUserOptions) -> CoreResult<String> {
+    pub async fn create_by_client(
+        rb: &RBatis,
+        client_id: u64,
+        data: CreateUserOptions,
+    ) -> CoreResult<String> {
         // check if someone already owns root folder
         if let Some(partition) = &data.partition {
             let exists = Users::get_by_partition_name(rb, partition).await;
@@ -70,6 +73,7 @@ impl Users {
             partition_size: data.partition_size,
             email: None,
             password: None,
+            client: Some(client_id),
             created_at,
         };
 

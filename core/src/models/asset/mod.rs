@@ -1,4 +1,4 @@
-use modeller::{define_models, modeller_parser};
+use modeller::prelude::*;
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
@@ -64,21 +64,21 @@ impl TryFrom<u8> for AssetType {
     }
 }
 
-define_models! {
-    #[derive(Serialize, Deserialize)]
-    pub struct Assets {
-        #[modeller(serial)]
-        id: Option<u64>,
+#[derive(Serialize, Deserialize, Modeller)]
+pub struct Assets {
+    #[modeller(serial)]
+    id: Option<u64>,
 
-        #[modeller(unique)]
-        asset_path: String,
-        custom_path: Option<String>,
-        user_id: u64,
+    #[modeller(unique)]
+    asset_path: String,
+    custom_path: Option<String>,
 
-        #[serde(deserialize_with = "de_sqlite_bool")]
-        public: bool,
-        asset_type: u8,
-    }
+    #[modeller(foreign_key(rf = "users(id)", on_delete = "cascade"))]
+    user_id: u64,
+
+    #[serde(deserialize_with = "de_sqlite_bool")]
+    public: bool,
+    asset_type: u8,
 }
 
 crud!(Assets {});

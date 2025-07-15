@@ -20,6 +20,7 @@ use std::path::Path as StdPath;
 pub mod client;
 mod extractors;
 pub mod protected;
+mod tests;
 
 #[derive(Deserialize)]
 pub struct LoginCredentials {

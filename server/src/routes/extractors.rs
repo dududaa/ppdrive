@@ -15,7 +15,7 @@ use crate::{
 use ppdrive_core::{
     models::{
         permission::{AssetPermissions, Permission},
-        user::{Users, UserRole},
+        user::{UserRole, Users},
     },
     tools::verify_client,
 };
@@ -109,7 +109,13 @@ where
     }
 }
 
-pub struct ClientRoute;
+pub struct ClientRoute(String);
+
+impl ClientRoute {
+    pub fn pid(&self) -> &str {
+        &self.0
+    }
+}
 
 #[async_trait]
 impl<S> FromRequestParts<S> for ClientRoute
@@ -138,7 +144,7 @@ where
                     ));
                 }
 
-                Ok(ClientRoute)
+                Ok(ClientRoute(client_id.to_string()))
             }
             _ => Err(AppError::AuthorizationError(
                 "missing 'x-client-key' headers".to_string(),

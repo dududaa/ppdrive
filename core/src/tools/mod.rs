@@ -61,7 +61,7 @@ pub async fn regenerate_token(
     client_id: &str,
 ) -> CoreResult<String> {
     let client = Clients::get(rb, client_id).await?;
-    generate_token(secrets, client.id())
+    generate_token(secrets, client.pid())
 }
 
 pub fn install_dir() -> CoreResult<PathBuf> {

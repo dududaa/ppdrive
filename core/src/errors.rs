@@ -10,7 +10,7 @@ pub enum CoreError {
     ParseError(String),
     ServerError(String),
     PermissionError(String),
-    MigrationError(modeller::errors::Error),
+    MigrationError(modeller::prelude::Error),
     EncryptionError(chacha20poly1305::Error),
     AuthorizationError(String),
 }
@@ -42,8 +42,8 @@ impl From<IoError> for CoreError {
     }
 }
 
-impl From<modeller::errors::Error> for CoreError {
-    fn from(value: modeller::errors::Error) -> Self {
+impl From<modeller::prelude::Error> for CoreError {
+    fn from(value: modeller::prelude::Error) -> Self {
         CoreError::MigrationError(value)
     }
 }
