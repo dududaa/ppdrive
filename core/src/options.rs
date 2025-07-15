@@ -42,3 +42,10 @@ pub struct CreateUserOptions {
     pub partition_size: Option<u64>,
     pub role: UserRole,
 }
+
+#[derive(Deserialize)]
+pub struct CreateBucketOptions {
+    pub max_size: Option<u64>,
+    pub root_folder: Option<String>,
+    pub accepts: Option<String>,
+}

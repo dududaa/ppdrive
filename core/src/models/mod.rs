@@ -8,6 +8,7 @@ use crate::{
 };
 
 pub mod asset;
+pub mod bucket;
 pub mod client;
 pub mod permission;
 pub mod user;

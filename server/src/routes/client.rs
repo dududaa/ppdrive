@@ -9,10 +9,11 @@ use crate::{errors::AppError, state::AppState, utils::jwt::create_jwt};
 
 use ppdrive_core::{
     models::{
+        bucket::Buckets,
         client::Clients,
         user::{UserRole, Users},
     },
-    options::CreateUserOptions,
+    options::{CreateBucketOptions, CreateUserOptions},
     tools::secrets::SECRETS_FILENAME,
 };
 
@@ -85,10 +86,32 @@ async fn delete_user(
     }
 }
 
+#[debug_handler]
+async fn create_bucket(
+    State(state): State<AppState>,
+    client_route: ClientRoute,
+    Json(data): Json<CreateBucketOptions>,
+) -> Result<String, AppError> {
+    let db = state.db();
+    if let Some(partition) = &data.root_folder {
+        if partition == SECRETS_FILENAME {
+            return Err(AppError::PermissionDenied(
+                "partition name {SECRET_FILE} is not allowed".to_string(),
+            ));
+        }
+    }
+
+    let client = Clients::get(db, client_route.pid()).await?;
+    let bucket_id = Buckets::create_by_client(db, client.id(), data).await?;
+
+    Ok(bucket_id.to_string())
+}
+
 /// Routes to be requested by PPDRIVE [Client].
 pub fn client_routes() -> Router<AppState> {
     Router::new()
         .route("/user/register", post(create_user))
         .route("/user/login", post(login_user))
         .route("/user/:id", delete(delete_user))
+        .route("/bucket", post(create_bucket))
 }
