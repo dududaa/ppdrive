@@ -25,13 +25,6 @@ async fn create_user(
     Json(data): Json<CreateUserOptions>,
 ) -> Result<String, AppError> {
     let db = state.db();
-    if let Some(partition) = &data.partition {
-        if partition == SECRETS_FILENAME {
-            return Err(AppError::PermissionDenied(
-                "partition name {SECRET_FILE} is not allowed".to_string(),
-            ));
-        }
-    }
 
     match data.role {
         UserRole::Admin => Err(AppError::InternalServerError(
