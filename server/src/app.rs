@@ -92,13 +92,16 @@ async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, A
 }
 
 pub async fn initialize_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, AppError> {
-    tracing_subscriber::registry()
+    if let Err(err) = tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "ppdrive=debug,tower_http=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
-        .init();
+        .try_init()
+    {
+        tracing::warn!("{err}")
+    }
 
     // start ppdrive app
     init_secrets().await?;

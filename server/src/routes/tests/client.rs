@@ -4,6 +4,7 @@ use ppdrive_core::{
     models::user::UserRole,
     options::{CreateBucketOptions, CreateUserOptions},
 };
+use serial_test::serial;
 
 use crate::{
     app::initialize_app,
@@ -27,6 +28,7 @@ async fn create_user_request(server: &TestServer, token: &str) -> TestResponse {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_client_create_user() -> AppResult<()> {
     let config = app_config().await?;
 
@@ -47,6 +49,7 @@ async fn test_client_create_user() -> AppResult<()> {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_client_create_bucket() -> AppResult<()> {
     let config = app_config().await?;
 
