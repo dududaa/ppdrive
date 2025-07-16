@@ -13,9 +13,16 @@ pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
 pub const BEARER_VALUE: &str = "Bearer";
 
 #[derive(Deserialize, Serialize)]
+pub enum TokenType {
+    Access,
+    Refresh,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct Claims {
     pub sub: u64,
     pub exp: i64,
+    pub ty: TokenType,
 }
 
 pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Claims, AppError> {
@@ -48,7 +55,12 @@ fn extract_jwt(header_value: &HeaderValue) -> Result<String, AppError> {
     ))
 }
 
-pub(crate) fn create_jwt(user_id: &u64, secret: &[u8], exp: i64) -> Result<String, AppError> {
+pub(crate) fn create_jwt(
+    user_id: &u64,
+    secret: &[u8],
+    exp: i64,
+    ty: TokenType,
+) -> Result<String, AppError> {
     let exp = Utc::now()
         .checked_add_signed(chrono::Duration::seconds(exp))
         .expect("Invalid timestamp")
@@ -57,6 +69,7 @@ pub(crate) fn create_jwt(user_id: &u64, secret: &[u8], exp: i64) -> Result<Strin
     let claims = Claims {
         sub: user_id.to_owned(),
         exp,
+        ty,
     };
 
     let header = Header::new(Algorithm::HS512);

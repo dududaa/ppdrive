@@ -31,28 +31,6 @@ impl CurrentUser {
         &self.id
     }
 
-    // pub fn folder_max_size(&self) -> &Option<u64> {
-    //     &self.folder_max_size
-    // }
-
-    // pub async fn partition_size(&self) -> Result<Option<u64>, AppError> {
-    //     let mut size = None;
-    //     if let Some(partition) = &self.partition {
-    //         let mut folder_size = 0;
-
-    //         let dir = Path::new(partition);
-    //         if !dir.exists() {
-    //             tokio::fs::create_dir_all(dir).await?;
-    //             return Ok(Some(folder_size));
-    //         }
-
-    //         check_folder_size(partition, &mut folder_size).await?;
-    //         size = Some(folder_size)
-    //     }
-
-    //     Ok(size)
-    // }
-
     /// checks if user has read permission for the given asset
     pub async fn can_read_asset(&self, state: &AppState, asset_id: &u64) -> Result<(), AppError> {
         let db = state.db();
@@ -78,16 +56,25 @@ where
         match parts.headers.get(AUTHORIZATION) {
             Some(auth) => {
                 let state = AppState::from_ref(state);
-                let config = state.secrets();
-                let db = state.db();
+                let config = state.config();
 
-                let claims = decode_jwt(auth, config.jwt_secret())?;
-                let user = Users::get(db, &claims.sub).await?;
-                let id = user.id().to_owned();
+                match config.auth().url() {
+                    Some(_url) => {
+                        unimplemented!("external url feature not implemented.")
+                    }
+                    None => {
+                        let secrets = state.secrets();
+                        let db = state.db();
 
-                let role = user.role()?;
+                        let claims = decode_jwt(auth, secrets.jwt_secret())?;
+                        let user = Users::get(db, &claims.sub).await?;
+                        let id = user.id().to_owned();
 
-                Ok(ExtractUser(CurrentUser { id, role }))
+                        let role = user.role()?;
+
+                        Ok(ExtractUser(CurrentUser { id, role }))
+                    }
+                }
             }
             None => Err(AppError::AuthorizationError(
                 "authorization header required".to_string(),

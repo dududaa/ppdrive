@@ -5,7 +5,11 @@ use axum::{
 };
 use axum_macros::debug_handler;
 
-use crate::{errors::AppError, state::AppState, utils::jwt::create_jwt};
+use crate::{
+    errors::AppError,
+    state::AppState,
+    utils::jwt::{create_jwt, TokenType},
+};
 
 use ppdrive_core::{
     models::{
@@ -54,11 +58,22 @@ async fn login_user(
     let secrets = state.secrets();
 
     let user = Users::get_by_pid(db, &id).await?;
-    let access_exp = access_exp.unwrap_or(*config.server().access_exp());
-    let refresh_exp = refresh_exp.unwrap_or(*config.server().refresh_exp());
+    let access_exp = access_exp.unwrap_or(*config.auth().access_exp());
+    let refresh_exp = refresh_exp.unwrap_or(*config.auth().refresh_exp());
 
-    let access_token = create_jwt(&user.id(), secrets.jwt_secret(), access_exp)?;
-    let refresh_token = create_jwt(&user.id(), secrets.jwt_secret(), access_exp)?;
+    let access_token = create_jwt(
+        &user.id(),
+        secrets.jwt_secret(),
+        access_exp,
+        TokenType::Access,
+    )?;
+
+    let refresh_token = create_jwt(
+        &user.id(),
+        secrets.jwt_secret(),
+        access_exp,
+        TokenType::Refresh,
+    )?;
 
     let data = LoginToken {
         access: (access_token, access_exp),

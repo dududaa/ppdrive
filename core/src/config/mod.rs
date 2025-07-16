@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::{CoreResult, errors::CoreError, tools::install_dir};
+use crate::{CoreResult, config::auth::AuthConfig, errors::CoreError, tools::install_dir};
+pub mod auth;
 
 pub const CONFIG_FILENAME: &str = "ppd_config.toml";
 
@@ -36,8 +37,6 @@ pub struct ServerConfig {
     port: u16,
     max_upload_size: usize,
     allowed_origins: String,
-    access_exp: i64,
-    refresh_exp: i64,
 }
 
 impl ServerConfig {
@@ -51,14 +50,6 @@ impl ServerConfig {
 
     pub fn allowed_origins(&self) -> &str {
         &self.allowed_origins
-    }
-
-    pub fn access_exp(&self) -> &i64 {
-        &self.access_exp
-    }
-
-    pub fn refresh_exp(&self) -> &i64 {
-        &self.refresh_exp
     }
 
     pub fn origins(&self) -> CorsOriginType {
@@ -83,6 +74,7 @@ impl ServerConfig {
 pub struct AppConfig {
     database: DatabaseConfig,
     server: ServerConfig,
+    auth: AuthConfig,
 }
 
 impl AppConfig {
@@ -100,6 +92,10 @@ impl AppConfig {
 
     pub fn server(&self) -> &ServerConfig {
         &self.server
+    }
+
+    pub fn auth(&self) -> &AuthConfig {
+        &self.auth
     }
 
     pub async fn update(&mut self, data: ConfigUpdater) -> CoreResult<()> {
