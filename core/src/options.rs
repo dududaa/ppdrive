@@ -39,10 +39,8 @@ pub struct CreateAssetOptions {
     pub bucket: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct CreateUserOptions {
-    pub partition: Option<String>,
-    pub partition_size: Option<u64>,
     pub role: UserRole,
 }
 

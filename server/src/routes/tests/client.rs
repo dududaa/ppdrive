@@ -1,7 +1,7 @@
-use axum_test::TestServer;
+use axum_test::{TestResponse, TestServer};
 use ppdrive_core::{
     db::init_db,
-    models::{bucket::Buckets, user::UserRole},
+    models::user::UserRole,
     options::{CreateBucketOptions, CreateUserOptions},
 };
 
@@ -14,8 +14,20 @@ use crate::{
 
 const HEADER_NAME: &str = "x-ppd-client";
 
+async fn create_user_request(server: &TestServer, token: &str) -> TestResponse {
+    let data = CreateUserOptions {
+        role: UserRole::Basic,
+    };
+
+    server
+        .post("/client/user/register")
+        .json(&data)
+        .add_header(HEADER_NAME, token)
+        .await
+}
+
 #[tokio::test]
-async fn test_create_user() -> AppResult<()> {
+async fn test_client_create_user() -> AppResult<()> {
     let config = app_config().await?;
 
     let url = config.db().url();
@@ -28,23 +40,14 @@ async fn test_create_user() -> AppResult<()> {
         AppError::InternalServerError(format!("unable to create test server: {err}"))
     })?;
 
-    let data = CreateUserOptions {
-        role: UserRole::Basic,
-    };
-
-    let resp = server
-        .post("/client/user/register")
-        .json(&data)
-        .add_header(HEADER_NAME, token)
-        .await;
-
+    let resp = create_user_request(&server, &token).await;
     resp.assert_status_ok();
 
     Ok(())
 }
 
 #[tokio::test]
-async fn test_create_bucket() -> AppResult<()> {
+async fn test_client_create_bucket() -> AppResult<()> {
     let config = app_config().await?;
 
     let url = config.db().url();
@@ -57,16 +60,19 @@ async fn test_create_bucket() -> AppResult<()> {
         AppError::InternalServerError(format!("unable to create test server: {err}"))
     })?;
 
-    let opts = CreateBucketOptions::default();
+    let user = create_user_request(&server, &token).await;
+    let user_id = user.text();
+
+    let opts = CreateBucketOptions {
+        user_id,
+        ..Default::default()
+    };
+
     let resp = server
         .post("/client/bucket")
         .json(&opts)
         .add_header(HEADER_NAME, token)
         .await;
-
-    // clean up
-    let pid = resp.text();
-    Buckets::delete(&db, &pid).await?;
 
     resp.assert_status_ok();
 

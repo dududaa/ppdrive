@@ -16,7 +16,7 @@ pub struct Users {
     #[modeller(unique)]
     pid: String,
     role: u8,
-    client: Option<u64>,
+    client_id: Option<u64>,
     email: Option<String>,
     password: Option<String>,
     created_at: DateTime,
@@ -56,7 +56,7 @@ impl Users {
             role,
             email: None,
             password: None,
-            client: Some(client_id),
+            client_id: Some(client_id),
             created_at,
         };
 
