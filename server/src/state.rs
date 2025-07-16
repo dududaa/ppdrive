@@ -6,16 +6,20 @@ use std::sync::Arc;
 pub struct AppState {
     db: RBatis,
     secrets: Arc<AppSecrets>,
+    config: Arc<AppConfig>,
 }
 
 impl AppState {
     pub async fn new(config: &AppConfig) -> Result<Self, AppError> {
         let db = init_db(config.db().url()).await?;
-        let config = Arc::new(AppSecrets::read().await?);
+        let secrets = Arc::new(AppSecrets::read().await?);
+
+        let config = Arc::new(config.clone());
 
         let s = Self {
             db,
-            secrets: config,
+            secrets,
+            config,
         };
 
         Ok(s)
@@ -27,5 +31,9 @@ impl AppState {
 
     pub fn secrets(&self) -> Arc<AppSecrets> {
         self.secrets.clone()
+    }
+
+    pub fn config(&self) -> Arc<AppConfig> {
+        self.config.clone()
     }
 }

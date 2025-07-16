@@ -25,16 +25,16 @@ pub mod protected;
 mod tests;
 
 #[derive(Deserialize)]
-pub struct LoginCredentials {
+pub struct UserLoginViaClient {
     pub id: String,
-    pub password: Option<String>,
-    pub exp: Option<i64>,
+    pub access_exp: Option<i64>,
+    pub refresh_exp: Option<i64>,
 }
 
 #[derive(Serialize)]
 pub struct LoginToken {
-    token: String,
-    exp: i64,
+    access: (String, i64),
+    refresh: (String, i64),
 }
 
 #[debug_handler]

@@ -20,7 +20,7 @@ pub fn get_config_path() -> CoreResult<PathBuf> {
     Ok(path)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DatabaseConfig {
     url: String,
 }
@@ -31,11 +31,13 @@ impl DatabaseConfig {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ServerConfig {
     port: u16,
     max_upload_size: usize,
     allowed_origins: String,
+    access_exp: i64,
+    refresh_exp: i64,
 }
 
 impl ServerConfig {
@@ -49,6 +51,14 @@ impl ServerConfig {
 
     pub fn allowed_origins(&self) -> &str {
         &self.allowed_origins
+    }
+
+    pub fn access_exp(&self) -> &i64 {
+        &self.access_exp
+    }
+
+    pub fn refresh_exp(&self) -> &i64 {
+        &self.refresh_exp
     }
 
     pub fn origins(&self) -> CorsOriginType {
@@ -69,7 +79,7 @@ impl ServerConfig {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct AppConfig {
     database: DatabaseConfig,
     server: ServerConfig,

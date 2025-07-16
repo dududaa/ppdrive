@@ -16,7 +16,7 @@ use ppdrive_core::{
     tools::secrets::SECRETS_FILENAME,
 };
 
-use super::{extractors::ClientRoute, LoginCredentials, LoginToken};
+use super::{extractors::ClientRoute, LoginToken, UserLoginViaClient};
 
 #[debug_handler]
 async fn create_user(
@@ -41,18 +41,29 @@ async fn create_user(
 async fn login_user(
     State(state): State<AppState>,
     _: ClientRoute,
-    Json(data): Json<LoginCredentials>,
+    Json(data): Json<UserLoginViaClient>,
 ) -> Result<Json<LoginToken>, AppError> {
-    let LoginCredentials { id, exp, .. } = data;
+    let UserLoginViaClient {
+        id,
+        access_exp,
+        refresh_exp,
+    } = data;
 
     let db = state.db();
+    let config = state.config();
+    let secrets = state.secrets();
+
     let user = Users::get_by_pid(db, &id).await?;
-    let exp = exp.unwrap_or(18_000); // set default expiration to 5 hours
+    let access_exp = access_exp.unwrap_or(*config.server().access_exp());
+    let refresh_exp = refresh_exp.unwrap_or(*config.server().refresh_exp());
 
-    let config = state.secrets();
-    let token = create_jwt(&user.id(), config.jwt_secret(), exp)?;
+    let access_token = create_jwt(&user.id(), secrets.jwt_secret(), access_exp)?;
+    let refresh_token = create_jwt(&user.id(), secrets.jwt_secret(), access_exp)?;
 
-    let data = LoginToken { token, exp };
+    let data = LoginToken {
+        access: (access_token, access_exp),
+        refresh: (refresh_token, refresh_exp),
+    };
 
     Ok(Json(data))
 }
