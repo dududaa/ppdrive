@@ -2,7 +2,6 @@ use modeller::prelude::*;
 use rbatis::{RBatis, crud, impl_select, rbdc::DateTime};
 use rbs::value;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use uuid::Uuid;
 
 use crate::{CoreResult, errors::CoreError, options::CreateUserOptions};
@@ -17,9 +16,7 @@ pub struct Users {
     #[modeller(unique)]
     pid: String,
     role: u8,
-    partition: Option<String>,
     client: Option<u64>,
-    partition_size: Option<u64>,
     email: Option<String>,
     password: Option<String>,
     created_at: DateTime,
@@ -49,18 +46,6 @@ impl Users {
         client_id: u64,
         data: CreateUserOptions,
     ) -> CoreResult<String> {
-        // check if someone already owns root folder
-        if let Some(partition) = &data.partition {
-            let exists = Users::get_by_partition_name(rb, partition).await;
-            if exists.is_ok() {
-                return Err(CoreError::ServerError(format!(
-                    "user with partition_name: '{partition}' already exists. please provide unique partition name"
-                )));
-            }
-
-            tokio::fs::create_dir_all(partition).await?;
-        }
-
         let role: u8 = data.role.into();
         let pid = Uuid::new_v4().to_string();
         let created_at = DateTime::now();
@@ -69,8 +54,6 @@ impl Users {
             id: None,
             pid,
             role,
-            partition: data.partition,
-            partition_size: data.partition_size,
             email: None,
             password: None,
             client: Some(client_id),
@@ -82,16 +65,6 @@ impl Users {
     }
 
     pub async fn delete(&self, rb: &RBatis) -> CoreResult<()> {
-        let ss = rb.clone();
-        let user_id = self.id();
-        let root_folder = self.partition().clone();
-
-        tokio::task::spawn(async move {
-            if let Err(err) = Users::clean_up(&ss, &user_id, &root_folder).await {
-                tracing::error!("user clean up failed: {err}")
-            }
-        });
-
         Users::delete_by_map(
             rb,
             value! {
@@ -100,24 +73,16 @@ impl Users {
         )
         .await?;
 
+        self.clean_up(rb).await?;
+
         Ok(())
     }
 
     /// Removes user permissions and assets. To be called inside or after [User::delete].
-    async fn clean_up(rb: &RBatis, user_id: &u64, partition: &Option<String>) -> CoreResult<()> {
-        // delete root_folder
-        if let Some(root_folder) = partition {
-            let path = Path::new(root_folder);
-            tokio::fs::remove_dir_all(path).await?;
-        }
-
-        AssetPermissions::delete_for_user(rb, user_id).await?;
-        Assets::delete_for_user(rb, user_id, partition.is_none()).await?;
+    async fn clean_up(&self, rb: &RBatis) -> CoreResult<()> {
+        AssetPermissions::delete_for_user(rb, &self.id()).await?;
+        Assets::delete_for_user(rb, &self.id(), true).await?;
         Ok(())
-    }
-
-    pub fn partition(&self) -> &Option<String> {
-        &self.partition
     }
 
     pub fn id(&self) -> u64 {
@@ -127,10 +92,6 @@ impl Users {
     pub fn role(&self) -> CoreResult<UserRole> {
         UserRole::try_from(self.role)
     }
-
-    pub fn partition_size(&self) -> &Option<u64> {
-        &self.partition_size
-    }
 }
 
 #[derive(Serialize)]
@@ -138,8 +99,6 @@ pub struct UserSerializer {
     id: String,
     email: Option<String>,
     role: UserRole,
-    partition: Option<String>,
-    partition_size: Option<u64>,
     created_at: String,
 }
 
@@ -151,8 +110,6 @@ impl IntoSerializer for Users {
         let Users {
             pid: id,
             email,
-            partition,
-            partition_size,
             created_at,
             role,
             ..
@@ -163,8 +120,6 @@ impl IntoSerializer for Users {
             id,
             email,
             role,
-            partition,
-            partition_size,
             created_at: created_at.to_string(),
         })
     }

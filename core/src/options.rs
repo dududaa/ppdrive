@@ -34,6 +34,9 @@ pub struct CreateAssetOptions {
 
     /// Users to share this asset with. This can only be set if `public` option is false
     pub sharing: Option<Vec<AssetSharing>>,
+
+    /// The UID of bucket in which to save the asset
+    pub bucket: String,
 }
 
 #[derive(Deserialize)]
@@ -45,7 +48,11 @@ pub struct CreateUserOptions {
 
 #[derive(Deserialize, Serialize, Default)]
 pub struct CreateBucketOptions {
-    pub max_size: Option<u64>,
-    pub root_folder: Option<String>,
+    pub partition: Option<String>,
+
+    /// can be set if there's partition
+    pub partition_size: Option<u64>,
     pub accepts: Option<String>,
+    pub user_id: String,
+    pub label: String,
 }

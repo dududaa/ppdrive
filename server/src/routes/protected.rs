@@ -13,6 +13,7 @@ use ppdrive_core::{
     config::AppConfig,
     models::{
         asset::{AssetType, Assets},
+        bucket::Buckets,
         user::{UserSerializer, Users},
         IntoSerializer,
     },
@@ -69,20 +70,7 @@ async fn create_asset(
         }
     }
 
-    let cfz = user.partition_size().await?;
-    if let (Some(ufz), Some(filesize), Some(max_size)) = (cfz, filesize, user.folder_max_size()) {
-        let total_size = ufz + filesize;
-        if total_size > mb_to_bytes(*max_size as usize) as u64 {
-            if let Some(tmp_file) = tmp_file {
-                tokio::fs::remove_file(tmp_file).await?;
-            }
-
-            return Err(AppError::InternalServerError(
-                "the total partition size assigned to this user is exceeded.".to_string(),
-            ));
-        }
-    }
-
+    // validations
     if opts.asset_path.is_empty() {
         return Err(AppError::InternalServerError(
             "asset_path field is required".to_string(),
@@ -96,8 +84,30 @@ async fn create_asset(
     }
 
     let db = state.db();
-    let path = Assets::create_or_update(db, user_id, opts, &tmp_file).await?;
+    let bucket = Buckets::get_by_pid(db, user_id, &opts.bucket).await?;
 
+    // extract destination path
+    let asset_path = &opts.asset_path;
+    let partition = bucket.partition().as_deref();
+    let dest = partition.map_or(asset_path.to_string(), |rf| format!("{rf}/{asset_path}"));
+    let dest = std::path::Path::new(&dest);
+
+    if let (Some(filesize), Some(max_size)) = (filesize, bucket.partition_size()) {
+        let cfz = bucket.content_size().await?;
+        let total_size = cfz + filesize;
+        if total_size > mb_to_bytes(*max_size as usize) as u64 {
+            if let Some(tmp_file) = tmp_file {
+                tokio::fs::remove_file(tmp_file).await?;
+            }
+
+            return Err(AppError::InternalServerError(
+                "the total partition size assigned to this user is exceeded.".to_string(),
+            ));
+        }
+    }
+
+    // create asset record
+    let path = Assets::create_or_update(db, user_id, &bucket.id(), opts, &tmp_file, dest).await?;
     if let Some(tmp_file) = &tmp_file {
         if let Err(err) = tokio::fs::remove_file(tmp_file).await {
             tracing::error!("unable to remove {tmp_file:?}: {err}")

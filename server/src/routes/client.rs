@@ -86,11 +86,11 @@ async fn delete_user(
 #[debug_handler]
 async fn create_bucket(
     State(state): State<AppState>,
-    client: ClientRoute,
+    _: ClientRoute,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, AppError> {
     let db = state.db();
-    if let Some(partition) = &data.root_folder {
+    if let Some(partition) = &data.partition {
         if partition == SECRETS_FILENAME {
             return Err(AppError::PermissionDenied(
                 "partition name {SECRET_FILE} is not allowed".to_string(),
@@ -98,7 +98,7 @@ async fn create_bucket(
         }
     }
 
-    let bucket_id = Buckets::create_by_client(db, *client.id(), data).await?;
+    let bucket_id = Buckets::create_by_client(db, data).await?;
     Ok(bucket_id.to_string())
 }
 

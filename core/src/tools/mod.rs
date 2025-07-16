@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305, XNonce, aead::Aead};
 use rbatis::RBatis;
@@ -71,4 +71,30 @@ pub fn install_dir() -> CoreResult<PathBuf> {
     ))?;
 
     Ok(path.to_owned())
+}
+
+/// compute total size (in bytes) of a folder.
+pub async fn check_folder_size(folder_path: &str, size: &mut u64) -> Result<(), CoreError> {
+    let path = Path::new(folder_path);
+
+    if path.is_file() {
+        return Err(CoreError::ServerError(
+            "provided path is not a folder path".to_string(),
+        ));
+    }
+
+    let mut rd = tokio::fs::read_dir(path).await?;
+
+    while let Ok(Some(entry)) = rd.next_entry().await {
+        let path = entry.path();
+
+        if path.is_file() {
+            let m = path.metadata()?;
+            *size += m.len()
+        } else if let Some(folder) = path.to_str() {
+            Box::pin(check_folder_size(folder, size)).await?;
+        }
+    }
+
+    Ok(())
 }

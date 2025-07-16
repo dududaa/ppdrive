@@ -54,6 +54,7 @@ pub(super) async fn create_asset_parents(
     rb: &RBatis,
     path: &Path,
     user_id: &u64,
+    bucker_id: &u64,
     is_public: &Option<bool>,
 ) -> CoreResult<()> {
     let parent = path.parent();
@@ -99,6 +100,7 @@ pub(super) async fn create_asset_parents(
                 custom_path: None,
                 asset_type: folder_type,
                 is_public: is_public.unwrap_or(false),
+                bucket_id: *bucker_id,
             };
 
             assets.push(asset);
@@ -147,8 +149,10 @@ pub(super) async fn share_asset(
     Ok(())
 }
 
+/// create asset if it doesn't exist, else update it
 pub(super) async fn create_or_update_asset(
     rb: &RBatis,
+    bucker_id: &u64,
     opts: SaveAssetOpts<'_>,
     tmp: &Option<PathBuf>,
 ) -> Result<Assets, CoreError> {
@@ -198,6 +202,7 @@ pub(super) async fn create_or_update_asset(
                 custom_path: custom_path.clone(),
                 id: None,
                 asset_type: u8::from(asset_type),
+                bucket_id: *bucker_id,
             };
 
             Assets::insert(rb, &asset).await?;

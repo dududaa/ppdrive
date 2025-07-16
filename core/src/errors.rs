@@ -13,6 +13,7 @@ pub enum CoreError {
     MigrationError(modeller::prelude::Error),
     EncryptionError(chacha20poly1305::Error),
     AuthorizationError(String),
+    NotFound(String),
 }
 
 impl Display for CoreError {
@@ -26,6 +27,7 @@ impl Display for CoreError {
             CoreError::MigrationError(err) => write!(f, "{err}"),
             CoreError::EncryptionError(err) => write!(f, "{err}"),
             CoreError::AuthorizationError(err) => write!(f, "{err}"),
+            CoreError::NotFound(err) => write!(f, "{err}"),
         }
     }
 }

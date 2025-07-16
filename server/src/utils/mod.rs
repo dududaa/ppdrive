@@ -1,7 +1,6 @@
 use crate::errors::AppError;
 use ppdrive_core::tools::secrets::{generate_secret_file, secret_filename};
 
-pub mod fs;
 pub mod jwt;
 
 pub fn get_env(key: &str) -> Result<String, AppError> {

@@ -1,4 +1,4 @@
-use std::{ops::Deref, path::Path};
+use std::ops::Deref;
 
 use axum::{
     async_trait,
@@ -6,11 +6,7 @@ use axum::{
     http::{header::AUTHORIZATION, request::Parts},
 };
 
-use crate::{
-    errors::AppError,
-    state::AppState,
-    utils::{fs::check_folder_size, jwt::decode_jwt},
-};
+use crate::{errors::AppError, state::AppState, utils::jwt::decode_jwt};
 
 use ppdrive_core::{
     models::{
@@ -23,8 +19,6 @@ use ppdrive_core::{
 pub struct CurrentUser {
     id: u64,
     role: UserRole,
-    partition: Option<String>,
-    folder_max_size: Option<u64>,
 }
 
 impl CurrentUser {
@@ -37,27 +31,27 @@ impl CurrentUser {
         &self.id
     }
 
-    pub fn folder_max_size(&self) -> &Option<u64> {
-        &self.folder_max_size
-    }
+    // pub fn folder_max_size(&self) -> &Option<u64> {
+    //     &self.folder_max_size
+    // }
 
-    pub async fn partition_size(&self) -> Result<Option<u64>, AppError> {
-        let mut size = None;
-        if let Some(partition) = &self.partition {
-            let mut folder_size = 0;
+    // pub async fn partition_size(&self) -> Result<Option<u64>, AppError> {
+    //     let mut size = None;
+    //     if let Some(partition) = &self.partition {
+    //         let mut folder_size = 0;
 
-            let dir = Path::new(partition);
-            if !dir.exists() {
-                tokio::fs::create_dir_all(dir).await?;
-                return Ok(Some(folder_size));
-            }
+    //         let dir = Path::new(partition);
+    //         if !dir.exists() {
+    //             tokio::fs::create_dir_all(dir).await?;
+    //             return Ok(Some(folder_size));
+    //         }
 
-            check_folder_size(partition, &mut folder_size).await?;
-            size = Some(folder_size)
-        }
+    //         check_folder_size(partition, &mut folder_size).await?;
+    //         size = Some(folder_size)
+    //     }
 
-        Ok(size)
-    }
+    //     Ok(size)
+    // }
 
     /// checks if user has read permission for the given asset
     pub async fn can_read_asset(&self, state: &AppState, asset_id: &u64) -> Result<(), AppError> {
@@ -92,15 +86,8 @@ where
                 let id = user.id().to_owned();
 
                 let role = user.role()?;
-                let partition = user.partition().clone();
-                let folder_max_size = *user.partition_size();
 
-                Ok(ExtractUser(CurrentUser {
-                    id,
-                    role,
-                    partition,
-                    folder_max_size,
-                }))
+                Ok(ExtractUser(CurrentUser { id, role }))
             }
             None => Err(AppError::AuthorizationError(
                 "authorization header required".to_string(),

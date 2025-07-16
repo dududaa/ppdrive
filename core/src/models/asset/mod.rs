@@ -78,6 +78,9 @@ pub struct Assets {
     #[modeller(foreign_key(rf = "users(id)", on_delete = "cascade"))]
     user_id: u64,
 
+    #[modeller(foreign_key(rf = "buckets(id)", on_delete = "cascade"))]
+    bucket_id: u64,
+
     #[serde(deserialize_with = "de_sqlite_bool")]
     is_public: bool,
     asset_type: u8,
@@ -99,8 +102,10 @@ impl Assets {
     pub async fn create_or_update(
         rb: &RBatis,
         user_id: &u64,
+        bucket_id: &u64,
         opts: CreateAssetOptions,
         tmp: &Option<PathBuf>,
+        dest: &Path,
     ) -> Result<String, CoreError> {
         let CreateAssetOptions {
             asset_path,
@@ -109,6 +114,7 @@ impl Assets {
             custom_path,
             create_parents,
             sharing,
+            ..
         } = &opts;
 
         // validate custom_path
@@ -117,34 +123,32 @@ impl Assets {
         }
 
         let user = Users::get(rb, user_id).await?;
-        let partition = user.partition().as_deref();
-        let dest = partition.map_or(asset_path.clone(), |rf| format!("{rf}/{asset_path}"));
-        let path = Path::new(&dest);
 
         // create asset parents (when they don't exist)
         let create_parents = create_parents.unwrap_or(true);
         if create_parents {
-            create_asset_parents(rb, path, user_id, public).await?;
+            create_asset_parents(rb, dest, user_id, bucket_id, public).await?;
         }
 
-        // create the asset
+        // create the asset file/folder
         match asset_type {
-            AssetType::File => move_file(tmp, path).await?,
-            AssetType::Folder => tokio::fs::create_dir(path).await?,
+            AssetType::File => move_file(tmp, dest).await?,
+            AssetType::Folder => tokio::fs::create_dir(dest).await?,
         }
 
         let is_public = public.unwrap_or_default();
+        let path = dest.to_str().unwrap_or("");
 
         // try to create asset record if it doesn't exist. If exists, update.
         let opts = SaveAssetOpts {
-            path: &dest,
+            path,
             is_public: &Some(is_public),
             custom_path: custom_path,
             user_id: &user.id(),
             asset_type,
         };
 
-        let asset = create_or_update_asset(rb, opts, tmp).await?;
+        let asset = create_or_update_asset(rb, bucket_id, opts, tmp).await?;
 
         // create asset sharing as specified in options
         if !is_public {
