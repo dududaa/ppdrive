@@ -6,7 +6,6 @@ use axum::{
 };
 use axum_macros::debug_handler;
 use extractors::ClientUser;
-use serde::{Deserialize, Serialize};
 
 use crate::{errors::AppError, state::AppState};
 
@@ -22,19 +21,6 @@ mod extractors;
 
 #[cfg(test)]
 mod tests;
-
-#[derive(Deserialize)]
-pub struct UserLoginViaClient {
-    pub id: String,
-    pub access_exp: Option<i64>,
-    pub refresh_exp: Option<i64>,
-}
-
-#[derive(Serialize)]
-pub struct LoginToken {
-    access: (String, i64),
-    refresh: (String, i64),
-}
 
 #[debug_handler]
 pub async fn get_asset(
@@ -156,7 +142,7 @@ pub async fn get_asset(
                 Ok(resp)
             } else {
                 Err(AppError::NotFound(format!(
-                    "asset record found but path '{asset_path}' does not exist if filesystem for '{asset_type}'."
+                    "asset record found but path '{asset_path}' does not exist for '{asset_type}'."
                 )))
             }
         }

@@ -21,18 +21,18 @@ use ppdrive_core::{
         bucket::Buckets,
         user::{UserRole, Users},
     },
-    options::{CreateBucketOptions, CreateUserOptions},
+    options::{CreateBucketOptions, CreateUserClient, LoginToken, LoginUserClient},
     tools::secrets::SECRETS_FILENAME,
 };
 
-use super::{extractors::ClientRoute, LoginToken, UserLoginViaClient};
+use super::extractors::ClientRoute;
 mod user;
 
 #[debug_handler]
 async fn create_user(
     State(state): State<AppState>,
     client: ClientRoute,
-    Json(data): Json<CreateUserOptions>,
+    Json(data): Json<CreateUserClient>,
 ) -> Result<String, AppError> {
     let db = state.db();
     let user_id = Users::create_by_client(db, *client.id(), data).await?;
@@ -44,9 +44,9 @@ async fn create_user(
 async fn login_user(
     State(state): State<AppState>,
     _: ClientRoute,
-    Json(data): Json<UserLoginViaClient>,
+    Json(data): Json<LoginUserClient>,
 ) -> Result<Json<LoginToken>, AppError> {
-    let UserLoginViaClient {
+    let LoginUserClient {
         id,
         access_exp,
         refresh_exp,
@@ -85,11 +85,20 @@ async fn login_user(
 #[debug_handler]
 async fn delete_user(
     Path(id): Path<String>,
-    _: ClientRoute,
+    client: ClientRoute,
     State(state): State<AppState>,
 ) -> Result<String, AppError> {
     let db = state.db();
     let user = Users::get_by_pid(db, &id).await?;
+
+    if let Some(client_id) = user.client_id() {
+        if client_id != client.id() {
+            return Err(AppError::PermissionDenied(
+                "client cannot delete this user".to_string(),
+            ));
+        }
+    }
+
     match user.role()? {
         UserRole::Admin => Err(AppError::AuthorizationError(
             "client cannot delete admin".to_string(),
@@ -120,7 +129,7 @@ async fn create_bucket(
     Ok(bucket_id.to_string())
 }
 
-/// Routes to be requested by PPDRIVE [Client].
+/// Routes for external clients.
 pub fn client_routes(config: &AppConfig) -> Router<AppState> {
     let max = config.server().max_upload_size();
     let limit = mb_to_bytes(*max);
@@ -131,11 +140,11 @@ pub fn client_routes(config: &AppConfig) -> Router<AppState> {
         .route("/user/register", post(create_user))
         .route("/user/login", post(login_user))
         .route("/user/:id", delete(delete_user))
+        .route("/bucket", post(create_bucket))
         // Routes accessible to users created/managed by clients. Requests to these routes
         // do not required x-ppd-client header but may require authorization header
         // if config.auth.url is not provided.
         .route("/user", get(get_user))
-        .route("/bucket", post(create_bucket))
         .route("/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))
         .route("/asset/:asset_type/:asset_path", delete(delete_asset))
