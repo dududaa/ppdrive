@@ -5,7 +5,7 @@ use axum::{
     response::Response,
 };
 use axum_macros::debug_handler;
-use extractors::ExtractUser;
+use extractors::ClientUser;
 use serde::{Deserialize, Serialize};
 
 use crate::{errors::AppError, state::AppState};
@@ -19,7 +19,6 @@ use std::path::Path as StdPath;
 
 pub mod client;
 mod extractors;
-pub mod protected;
 
 #[cfg(test)]
 mod tests;
@@ -41,7 +40,7 @@ pub struct LoginToken {
 pub async fn get_asset(
     Path((asset_type, mut asset_path)): Path<(AssetType, String)>,
     State(state): State<AppState>,
-    user_extractor: Option<ExtractUser>,
+    user_extractor: Option<ClientUser>,
 ) -> Result<Response<Body>, AppError> {
     if asset_path.ends_with("/") {
         asset_path = asset_path.trim_end_matches("/").to_string();

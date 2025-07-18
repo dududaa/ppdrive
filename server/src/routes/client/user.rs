@@ -1,7 +1,6 @@
 use axum::{
-    extract::{DefaultBodyLimit, Multipart, Path, State},
-    routing::{delete, get, post},
-    Json, Router,
+    extract::{Multipart, Path, State},
+    Json,
 };
 use axum_macros::debug_handler;
 use tokio::{fs::File, io::AsyncWriteExt};
@@ -10,7 +9,6 @@ use uuid::Uuid;
 use crate::{errors::AppError, state::AppState, utils::mb_to_bytes};
 
 use ppdrive_core::{
-    config::AppConfig,
     models::{
         asset::{AssetType, Assets},
         bucket::Buckets,
@@ -21,12 +19,12 @@ use ppdrive_core::{
     tools::secrets::SECRETS_FILENAME,
 };
 
-use super::extractors::{ExtractUser, ManagerRoute};
+use crate::routes::extractors::{ClientUser, ManagerRoute};
 
 #[debug_handler]
-async fn get_user(
+pub async fn get_user(
     State(state): State<AppState>,
-    ExtractUser(user): ExtractUser,
+    ClientUser(user): ClientUser,
     ManagerRoute: ManagerRoute,
 ) -> Result<Json<UserSerializer>, AppError> {
     let db = state.db();
@@ -37,10 +35,9 @@ async fn get_user(
 }
 
 #[debug_handler]
-async fn create_asset(
+pub async fn create_asset(
     State(state): State<AppState>,
-    ExtractUser(user): ExtractUser,
-    ManagerRoute: ManagerRoute,
+    ClientUser(user): ClientUser,
     mut multipart: Multipart,
 ) -> Result<String, AppError> {
     let user_id = user.id();
@@ -118,11 +115,10 @@ async fn create_asset(
 }
 
 #[debug_handler]
-async fn delete_asset(
+pub async fn delete_asset(
     Path((asset_type, asset_path)): Path<(AssetType, String)>,
     State(state): State<AppState>,
-    ExtractUser(user): ExtractUser,
-    ManagerRoute: ManagerRoute,
+    ClientUser(user): ClientUser,
 ) -> Result<String, AppError> {
     let db = state.db();
     let asset = Assets::get_by_path(db, &asset_path, &asset_type).await?;
@@ -135,18 +131,4 @@ async fn delete_asset(
             "permission denied".to_string(),
         ))
     }
-}
-
-/// Routes accessible to creators
-pub fn protected_routes(config: &AppConfig) -> Result<Router<AppState>, AppError> {
-    let max = config.server().max_upload_size();
-    let limit = mb_to_bytes(*max);
-
-    let router = Router::new()
-        .route("/user", get(get_user))
-        .route("/asset", post(create_asset))
-        .layer(DefaultBodyLimit::max(limit))
-        .route("/asset/:asset_type/:asset_path", delete(delete_asset));
-
-    Ok(router)
 }

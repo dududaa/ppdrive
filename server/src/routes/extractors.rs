@@ -3,10 +3,10 @@ use std::ops::Deref;
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
-    http::{header::AUTHORIZATION, request::Parts},
+    http::{header::AUTHORIZATION, request::Parts, HeaderValue},
 };
 
-use crate::{errors::AppError, state::AppState, utils::jwt::decode_jwt};
+use crate::{errors::AppError, state::AppState, utils::jwt::decode_jwt, AppResult};
 
 use ppdrive_core::{
     models::{
@@ -16,12 +16,12 @@ use ppdrive_core::{
     tools::verify_client,
 };
 
-pub struct CurrentUser {
+pub struct RequestUser {
     id: u64,
     role: UserRole,
 }
 
-impl CurrentUser {
+impl RequestUser {
     /// Checks if [CurrentUser] can create assets
     pub fn can_manage(&self) -> bool {
         !matches!(self.role, UserRole::Basic)
@@ -42,10 +42,10 @@ impl CurrentUser {
 
 /// A user that client is making request for. This extractor MUST be added
 /// after [ClientRoute] to ensure that the client is valid.
-pub struct ExtractUser(pub CurrentUser);
+pub struct ClientUser(pub RequestUser);
 
 #[async_trait]
-impl<S> FromRequestParts<S> for ExtractUser
+impl<S> FromRequestParts<S> for ClientUser
 where
     AppState: FromRef<S>,
     S: Send + Sync,
@@ -63,16 +63,8 @@ where
                         unimplemented!("external url feature not implemented.")
                     }
                     None => {
-                        let secrets = state.secrets();
-                        let db = state.db();
-
-                        let claims = decode_jwt(auth, secrets.jwt_secret())?;
-                        let user = Users::get(db, &claims.sub).await?;
-                        let id = user.id().to_owned();
-
-                        let role = user.role()?;
-
-                        Ok(ExtractUser(CurrentUser { id, role }))
+                        let user = get_local_user(&state, &auth).await?;
+                        Ok(ClientUser(user))
                     }
                 }
             }
@@ -131,7 +123,7 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let user_ext = ExtractUser::from_request_parts(parts, state).await?;
+        let user_ext = ClientUser::from_request_parts(parts, state).await?;
         let user = user_ext.0;
 
         if !user.can_manage() {
@@ -142,4 +134,17 @@ where
 
         Ok(ManagerRoute)
     }
+}
+
+async fn get_local_user(state: &AppState, header: &HeaderValue) -> AppResult<RequestUser> {
+    let secrets = state.secrets();
+    let db = state.db();
+
+    let claims = decode_jwt(header, secrets.jwt_secret())?;
+    let user = Users::get(db, &claims.sub).await?;
+    let id = user.id().to_owned();
+
+    let role = user.role()?;
+
+    Ok(RequestUser { id, role })
 }

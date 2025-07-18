@@ -1,17 +1,22 @@
 use axum::{
-    extract::{Path, State},
-    routing::{delete, post},
+    extract::{DefaultBodyLimit, Path, State},
+    routing::{delete, get, post},
     Json, Router,
 };
 use axum_macros::debug_handler;
+use user::*;
 
 use crate::{
     errors::AppError,
     state::AppState,
-    utils::jwt::{create_jwt, TokenType},
+    utils::{
+        jwt::{create_jwt, TokenType},
+        mb_to_bytes,
+    },
 };
 
 use ppdrive_core::{
+    config::AppConfig,
     models::{
         bucket::Buckets,
         user::{UserRole, Users},
@@ -21,6 +26,7 @@ use ppdrive_core::{
 };
 
 use super::{extractors::ClientRoute, LoginToken, UserLoginViaClient};
+mod user;
 
 #[debug_handler]
 async fn create_user(
@@ -122,10 +128,17 @@ async fn create_bucket(
 }
 
 /// Routes to be requested by PPDRIVE [Client].
-pub fn client_routes() -> Router<AppState> {
+pub fn client_routes(config: &AppConfig) -> Router<AppState> {
+    let max = config.server().max_upload_size();
+    let limit = mb_to_bytes(*max);
+
     Router::new()
         .route("/user/register", post(create_user))
         .route("/user/login", post(login_user))
         .route("/user/:id", delete(delete_user))
+        .route("/user", get(get_user))
         .route("/bucket", post(create_bucket))
+        .route("/asset", post(create_asset))
+        .layer(DefaultBodyLimit::max(limit))
+        .route("/asset/:asset_type/:asset_path", delete(delete_asset))
 }
