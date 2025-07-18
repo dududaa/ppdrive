@@ -43,3 +43,4 @@ server/.ppdrive_secret
 
 !.github
 !.github/**
+!NOTES.MD

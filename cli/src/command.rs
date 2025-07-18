@@ -72,7 +72,7 @@ impl<'a> TryFrom<&'a String> for Command {
         let value = value.as_str();
         if ["--version", "-v"].contains(&value) {
             Ok(Version)
-        } else if value == "create_client" {
+        } else if value == "create-client" {
             Ok(CreateClient)
         } else if value == "token" {
             Ok(ClientToken)

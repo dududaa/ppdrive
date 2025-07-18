@@ -7,7 +7,6 @@ port = 5000
 allowed_origins = "*"
 
 [auth]
-# priority = "Host" # or External
 # url = ""
 access_exp = 900    # 15min
 refresh_exp = 86400 # 24hr
