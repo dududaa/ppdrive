@@ -7,12 +7,11 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    CoreResult, errors::CoreError, models::user::Users, options::CreateBucketOptions,
-    tools::check_folder_size,
+    CoreResult, errors::CoreError, options::CreateBucketOptions, tools::check_folder_size,
 };
 
 #[derive(Serialize, Deserialize, Modeller)]
-#[modeller(unique_together(user_id, label))]
+#[modeller(unique_together(owner_id, label))]
 pub struct Buckets {
     #[modeller(serial)]
     id: Option<u64>,
@@ -20,8 +19,8 @@ pub struct Buckets {
     #[modeller(unique)]
     pid: String,
 
-    #[modeller(foreign_key(rf = "users(id)", on_delete = "cascade"))]
-    user_id: u64,
+    owner_id: u64,
+    owner_type: u8,
 
     #[modeller(length = 256)]
     label: String,
@@ -30,6 +29,8 @@ pub struct Buckets {
     /// can be set if there's partition
     partition_size: Option<u64>,
     accepts: Option<String>,
+
+    public: bool,
 }
 
 crud!(Buckets {});
@@ -41,16 +42,17 @@ impl Buckets {
     pub async fn create_by_client(
         db: &RBatis,
         opts: CreateBucketOptions,
+        client_id: u64,
     ) -> Result<String, CoreError> {
+        let owner_type = u8::from(BucketOwnerType::Client);
         let CreateBucketOptions {
             partition_size,
             partition,
             accepts,
-            user_id,
             label,
+            public,
         } = opts;
 
-        let user = Users::get_by_pid(db, &user_id).await?;
         if let Some(folder) = &partition {
             let b = Buckets::get_by_key(db, "root_folder", folder).await?;
             if b.is_some() {
@@ -70,11 +72,13 @@ impl Buckets {
         let data = Buckets {
             id: None,
             pid,
-            user_id: user.id(),
+            owner_id: client_id,
+            owner_type,
             label,
             partition_size,
             partition,
             accepts,
+            public: public.unwrap_or_default(),
         };
 
         Buckets::insert(db, &data).await?;
@@ -122,6 +126,18 @@ impl Buckets {
         *&self.id.unwrap_or_default()
     }
 
+    pub fn owner_id(&self) -> &u64 {
+        &self.owner_id
+    }
+
+    pub fn owner_type(&self) -> BucketOwnerType {
+        self.owner_type.into()
+    }
+
+    pub fn public(&self) -> bool {
+        self.public
+    }
+
     pub fn partition(&self) -> &Option<String> {
         &self.partition
     }
@@ -144,5 +160,13 @@ impl From<BucketOwnerType> for u8 {
             Client => 0,
             User => 1,
         }
+    }
+}
+
+impl From<u8> for BucketOwnerType {
+    fn from(value: u8) -> Self {
+        use BucketOwnerType::*;
+
+        if value == 0 { Client } else { User }
     }
 }

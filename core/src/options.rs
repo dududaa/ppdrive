@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 use crate::models::{asset::AssetType, permission::Permission};
 
 #[derive(Deserialize)]
+pub struct CreateUserOptions {
+    pub max_bucket: Option<u64>,
+}
+
+#[derive(Deserialize)]
 pub struct AssetSharing {
     pub user_id: String,
     pub permissions: Vec<Permission>,
@@ -46,6 +51,6 @@ pub struct CreateBucketOptions {
     /// can be set if there's partition
     pub partition_size: Option<u64>,
     pub accepts: Option<String>,
-    pub user_id: String,
     pub label: String,
+    pub public: Option<bool>,
 }

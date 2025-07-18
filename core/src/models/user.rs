@@ -4,7 +4,7 @@ use rbs::value;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{CoreResult, errors::CoreError};
+use crate::{CoreResult, errors::CoreError, options::CreateUserOptions};
 
 use super::{IntoSerializer, asset::Assets, check_model, permission::AssetPermissions};
 
@@ -19,6 +19,9 @@ pub struct Users {
     client_id: Option<u64>,
     email: Option<String>,
     password: Option<String>,
+
+    /// maximum bucket user can create
+    max_bucket: Option<u64>,
     created_at: DateTime,
 }
 
@@ -41,10 +44,15 @@ impl Users {
         check_model(user, "user not found")
     }
 
-    pub async fn create_by_client(rb: &RBatis, client_id: u64) -> CoreResult<String> {
+    pub async fn create_by_client(
+        rb: &RBatis,
+        client_id: u64,
+        opts: CreateUserOptions,
+    ) -> CoreResult<String> {
         let role: u8 = UserRole::General.into();
         let pid = Uuid::new_v4().to_string();
         let created_at = DateTime::now();
+        let CreateUserOptions { max_bucket } = opts;
 
         let user = Users {
             id: None,
@@ -53,6 +61,7 @@ impl Users {
             email: None,
             password: None,
             client_id: Some(client_id),
+            max_bucket,
             created_at,
         };
 
@@ -96,6 +105,7 @@ pub struct UserSerializer {
     email: Option<String>,
     role: UserRole,
     created_at: String,
+    max_bucket: Option<u64>,
 }
 
 impl IntoSerializer for Users {
@@ -108,6 +118,7 @@ impl IntoSerializer for Users {
             email,
             created_at,
             role,
+            max_bucket,
             ..
         } = self;
 
@@ -116,6 +127,7 @@ impl IntoSerializer for Users {
             id,
             email,
             role,
+            max_bucket,
             created_at: created_at.to_string(),
         })
     }

@@ -82,7 +82,7 @@ pub struct Assets {
     bucket_id: u64,
 
     #[serde(deserialize_with = "de_sqlite_bool")]
-    is_public: bool,
+    public: bool,
     asset_type: u8,
 }
 
@@ -270,7 +270,7 @@ impl Assets {
     }
 
     pub fn public(&self) -> &bool {
-        &self.is_public
+        &self.public
     }
 
     pub fn path(&self) -> &str {

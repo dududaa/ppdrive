@@ -54,11 +54,7 @@ async fn test_client_create_bucket() -> AppResult<()> {
         AppError::InternalServerError(format!("unable to create test server: {err}"))
     })?;
 
-    let user = create_user_request(&server, &token).await;
-    let user_id = user.text();
-
     let opts = CreateBucketOptions {
-        user_id,
         ..Default::default()
     };
 

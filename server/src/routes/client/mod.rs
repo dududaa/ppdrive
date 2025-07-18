@@ -21,7 +21,7 @@ use ppdrive_core::{
         bucket::Buckets,
         user::{UserRole, Users},
     },
-    options::CreateBucketOptions,
+    options::{CreateBucketOptions, CreateUserOptions},
     tools::secrets::SECRETS_FILENAME,
 };
 
@@ -32,9 +32,10 @@ mod user;
 async fn create_user(
     State(state): State<AppState>,
     client: ClientRoute,
+    Json(data): Json<CreateUserOptions>,
 ) -> Result<String, AppError> {
     let db = state.db();
-    let user_id = Users::create_by_client(db, *client.id()).await?;
+    let user_id = Users::create_by_client(db, *client.id(), data).await?;
 
     Ok(user_id.to_string())
 }
@@ -103,7 +104,7 @@ async fn delete_user(
 #[debug_handler]
 async fn create_bucket(
     State(state): State<AppState>,
-    _: ClientRoute,
+    client: ClientRoute,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, AppError> {
     let db = state.db();
@@ -115,7 +116,7 @@ async fn create_bucket(
         }
     }
 
-    let bucket_id = Buckets::create_by_client(db, data).await?;
+    let bucket_id = Buckets::create_by_client(db, data, *client.id()).await?;
     Ok(bucket_id.to_string())
 }
 

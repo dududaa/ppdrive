@@ -11,7 +11,7 @@ use crate::{errors::AppError, state::AppState, utils::mb_to_bytes};
 use ppdrive_core::{
     models::{
         asset::{AssetType, Assets},
-        bucket::Buckets,
+        bucket::{BucketOwnerType, Buckets},
         user::{UserSerializer, Users},
         IntoSerializer,
     },
@@ -75,12 +75,22 @@ pub async fn create_asset(
 
     if &opts.asset_path == SECRETS_FILENAME {
         return Err(AppError::AuthorizationError(
-            "asset_path '{SECRET_FILE}' is reserved. please choose another name.".to_string(),
+            "asset_path '{SECRET_FILE}' is reserved. please choose another path.".to_string(),
         ));
     }
 
     let db = state.db();
     let bucket = Buckets::get_by_pid(db, user_id, &opts.bucket).await?;
+
+    if !bucket.public() {
+        if let BucketOwnerType::User = bucket.owner_type() {
+            if bucket.owner_id() != user_id {
+                return Err(AppError::PermissionDenied(
+                    "you cannot write to this bucket".to_string(),
+                ));
+            }
+        }
+    }
 
     // extract destination path
     let asset_path = &opts.asset_path;

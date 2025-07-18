@@ -8,7 +8,7 @@ This access type allows you to connect your **existing application** to PPDRIVE.
 ppdrive create-client {client_name}
 ```
 - Then, copy and save the client token securely in your application server.
-- Now pass the token to any client request that requires administrative operations (e.g, create user, login user...etc)
+- Now pass the token to any client request that requires administrative operations (create user, login user...etc)
 
 ###### Authentication and Authorization
 Client Access authenticates and authorizes users in 2 ways:
@@ -19,3 +19,13 @@ Client Access authenticates and authorizes users in 2 ways:
 If you're trying to build your own file manager, cloud storage or anything that doesn't require a `Client`, PPDRIVE gives you direct access with **Host Authentication** as decribed above. No need to create a `Client`.
 - Visit `POST: /user/register` a user.
 - Visit `POST: /user/login` for **Host Authentication**.
+
+---
+
+## BUCKETS
+Buckets is how we manage and protect asset management(file upload, folder creation...etc).
+- Each asset (file or folder) must added to a bucket.
+- A bucket may be created by a `Client` or directly by a user.
+- A user, if allowed, has a maximum bucket they can create.
+- Bucket can be public or private. A public bucket is writable by everyone. A private bucket is writable to only its owner and users with access.
+- When writing to bucket, we check if user is bucket owner. If not, we check if it's a public bucket. If not, the operation fails.
