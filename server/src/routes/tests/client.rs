@@ -8,7 +8,7 @@ use serial_test::serial;
 use crate::{
     app::initialize_app,
     errors::AppError,
-    routes::tests::{app_config, client_token},
+    routes::tests::{app_config, create_client_token},
     AppResult,
 };
 
@@ -31,7 +31,7 @@ async fn test_client_create_user() -> AppResult<()> {
     let url = config.db().url();
     let db = init_db(url).await?;
 
-    let token = client_token(&db).await?;
+    let token = create_client_token(&db).await?;
     let app = initialize_app(&config).await?;
 
     let server = TestServer::new(app).map_err(|err| {
@@ -52,7 +52,7 @@ async fn test_client_login_user() -> AppResult<()> {
     let url = config.db().url();
     let db = init_db(url).await?;
 
-    let token = client_token(&db).await?;
+    let token = create_client_token(&db).await?;
     let app = initialize_app(&config).await?;
 
     let server = TestServer::new(app).map_err(|err| {
@@ -87,7 +87,7 @@ async fn test_client_delete_user() -> AppResult<()> {
     let url = config.db().url();
     let db = init_db(url).await?;
 
-    let token = client_token(&db).await?;
+    let token = create_client_token(&db).await?;
     let app = initialize_app(&config).await?;
 
     let server = TestServer::new(app).map_err(|err| {
@@ -115,7 +115,7 @@ async fn test_client_create_bucket() -> AppResult<()> {
     let url = config.db().url();
     let db = init_db(url).await?;
 
-    let token = client_token(&db).await?;
+    let token = create_client_token(&db).await?;
     let app = initialize_app(&config).await?;
 
     let server = TestServer::new(app).map_err(|err| {

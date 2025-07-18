@@ -17,7 +17,7 @@ async fn app_config() -> AppResult<AppConfig> {
     Ok(config)
 }
 
-async fn client_token(db: &RBatis) -> AppResult<String> {
+async fn create_client_token(db: &RBatis) -> AppResult<String> {
     let secrets = AppSecrets::read().await?;
     let token = create_client(&db, &secrets, "Test Client").await?;
 

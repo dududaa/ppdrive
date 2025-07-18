@@ -92,6 +92,7 @@ async fn delete_user(
     let user = Users::get_by_pid(db, &id).await?;
 
     if let Some(client_id) = user.client_id() {
+        println!("client {}, user-client {}", client.id(), client_id);
         if client_id != client.id() {
             return Err(AppError::PermissionDenied(
                 "client cannot delete this user".to_string(),

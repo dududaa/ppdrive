@@ -1,5 +1,6 @@
 use modeller::prelude::*;
 use rbatis::RBatis;
+use serde::{Deserialize, Deserializer};
 
 use crate::{
     CoreResult,
@@ -37,4 +38,13 @@ pub async fn run_migrations(url: &str) -> CoreResult<()> {
 
     run_modeller(&config).await?;
     Ok(())
+}
+
+/// SQLite does not support boolean value directly. So we deserialize `i64` to boolean;
+pub fn de_sqlite_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let v = i64::deserialize(deserializer)?;
+    Ok(v != 0)
 }

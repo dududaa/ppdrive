@@ -4,7 +4,7 @@ use rbs::value;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{CoreResult, errors::CoreError, options::CreateUserOptions};
+use crate::{CoreResult, errors::CoreError, options::CreateUserClient};
 
 use super::{IntoSerializer, asset::Assets, check_model, permission::AssetPermissions};
 
@@ -47,12 +47,12 @@ impl Users {
     pub async fn create_by_client(
         rb: &RBatis,
         client_id: u64,
-        opts: CreateUserOptions,
+        opts: CreateUserClient,
     ) -> CoreResult<String> {
         let role: u8 = UserRole::General.into();
         let pid = Uuid::new_v4().to_string();
         let created_at = DateTime::now();
-        let CreateUserOptions { max_bucket } = opts;
+        let CreateUserClient { max_bucket } = opts;
 
         let user = Users {
             id: None,
@@ -96,6 +96,10 @@ impl Users {
 
     pub fn role(&self) -> CoreResult<UserRole> {
         UserRole::try_from(self.role)
+    }
+
+    pub fn client_id(&self) -> &Option<u64> {
+        &self.client_id
     }
 }
 

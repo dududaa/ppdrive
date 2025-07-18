@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::models::de_sqlite_bool;
 use modeller::prelude::*;
 use rbatis::{RBatis, crud, impl_select};
 use rbs::value;
@@ -30,6 +31,7 @@ pub struct Buckets {
     partition_size: Option<u64>,
     accepts: Option<String>,
 
+    #[serde(deserialize_with = "de_sqlite_bool")]
     public: bool,
 }
 

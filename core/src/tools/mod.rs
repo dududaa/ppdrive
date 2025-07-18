@@ -16,7 +16,6 @@ pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> Cor
 
     let token = generate_token(secrets, &client_id)?;
     Clients::create(rb, client_id, name.to_string()).await?;
-
     Ok(token)
 }
 
