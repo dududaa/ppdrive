@@ -11,22 +11,16 @@ use crate::{errors::AppError, state::AppState, utils::jwt::decode_jwt, AppResult
 use ppdrive_core::{
     models::{
         permission::{AssetPermissions, Permission},
-        user::{UserRole, Users},
+        user::Users,
     },
     tools::verify_client,
 };
 
 pub struct RequestUser {
     id: u64,
-    role: UserRole,
 }
 
 impl RequestUser {
-    /// Checks if [CurrentUser] can create assets
-    pub fn can_manage(&self) -> bool {
-        !matches!(self.role, UserRole::Basic)
-    }
-
     pub fn id(&self) -> &u64 {
         &self.id
     }
@@ -113,29 +107,6 @@ where
     }
 }
 
-pub struct ManagerRoute;
-#[async_trait]
-impl<S> FromRequestParts<S> for ManagerRoute
-where
-    AppState: FromRef<S>,
-    S: Send + Sync,
-{
-    type Rejection = AppError;
-
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let user_ext = ClientUser::from_request_parts(parts, state).await?;
-        let user = user_ext.0;
-
-        if !user.can_manage() {
-            return Err(AppError::AuthorizationError(
-                "user does not have permission to manage".to_string(),
-            ));
-        }
-
-        Ok(ManagerRoute)
-    }
-}
-
 async fn get_local_user(state: &AppState, header: &HeaderValue) -> AppResult<RequestUser> {
     let secrets = state.secrets();
     let db = state.db();
@@ -144,7 +115,5 @@ async fn get_local_user(state: &AppState, header: &HeaderValue) -> AppResult<Req
     let user = Users::get(db, &claims.sub).await?;
     let id = user.id().to_owned();
 
-    let role = user.role()?;
-
-    Ok(RequestUser { id, role })
+    Ok(RequestUser { id })
 }

@@ -133,9 +133,14 @@ pub fn client_routes(config: &AppConfig) -> Router<AppState> {
     let limit = mb_to_bytes(*max);
 
     Router::new()
+        // Routes used by client for administrative tasks. Requests to these routes
+        // require x-ppd-client header.
         .route("/user/register", post(create_user))
         .route("/user/login", post(login_user))
         .route("/user/:id", delete(delete_user))
+        // Routes accessible to users created/managed by clients. Requests to these routes
+        // do not required x-ppd-client header but may require authorization header
+        // if config.auth.url is not provided.
         .route("/user", get(get_user))
         .route("/bucket", post(create_bucket))
         .route("/asset", post(create_asset))

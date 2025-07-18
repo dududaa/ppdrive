@@ -19,13 +19,12 @@ use ppdrive_core::{
     tools::secrets::SECRETS_FILENAME,
 };
 
-use crate::routes::extractors::{ClientUser, ManagerRoute};
+use crate::routes::extractors::ClientUser;
 
 #[debug_handler]
 pub async fn get_user(
     State(state): State<AppState>,
     ClientUser(user): ClientUser,
-    ManagerRoute: ManagerRoute,
 ) -> Result<Json<UserSerializer>, AppError> {
     let db = state.db();
     let user_model = Users::get(db, user.id()).await?;
