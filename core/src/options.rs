@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::{asset::AssetType, permission::Permission, user::UserRole};
+use crate::models::{asset::AssetType, permission::Permission};
 
 #[derive(Deserialize)]
 pub struct AssetSharing {
@@ -37,11 +37,6 @@ pub struct CreateAssetOptions {
 
     /// The UID of bucket in which to save the asset
     pub bucket: String,
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct CreateUserOptions {
-    pub role: UserRole,
 }
 
 #[derive(Deserialize, Serialize, Default)]

@@ -4,7 +4,7 @@ use rbs::value;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{CoreResult, errors::CoreError, options::CreateUserOptions};
+use crate::{CoreResult, errors::CoreError};
 
 use super::{IntoSerializer, asset::Assets, check_model, permission::AssetPermissions};
 
@@ -41,12 +41,8 @@ impl Users {
         check_model(user, "user not found")
     }
 
-    pub async fn create_by_client(
-        rb: &RBatis,
-        client_id: u64,
-        data: CreateUserOptions,
-    ) -> CoreResult<String> {
-        let role: u8 = data.role.into();
+    pub async fn create_by_client(rb: &RBatis, client_id: u64) -> CoreResult<String> {
+        let role: u8 = UserRole::General.into();
         let pid = Uuid::new_v4().to_string();
         let created_at = DateTime::now();
 
@@ -127,13 +123,7 @@ impl IntoSerializer for Users {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub enum UserRole {
-    /// can only read assets
-    Basic,
-
-    /// full asset management
-    Manager,
-
-    /// full application management
+    General,
     Admin,
 }
 
@@ -144,10 +134,8 @@ impl TryFrom<u8> for UserRole {
         use UserRole::*;
 
         if value == 0 {
-            Ok(Basic)
+            Ok(General)
         } else if value == 1 {
-            Ok(Manager)
-        } else if value == 2 {
             Ok(Admin)
         } else {
             Err(CoreError::ParseError(format!(
@@ -162,9 +150,8 @@ impl From<UserRole> for u8 {
         use UserRole::*;
 
         match value {
-            Basic => 0,
-            Manager => 1,
-            Admin => 2,
+            General => 0,
+            Admin => 1,
         }
     }
 }

@@ -21,7 +21,7 @@ use ppdrive_core::{
         bucket::Buckets,
         user::{UserRole, Users},
     },
-    options::{CreateBucketOptions, CreateUserOptions},
+    options::CreateBucketOptions,
     tools::secrets::SECRETS_FILENAME,
 };
 
@@ -32,19 +32,11 @@ mod user;
 async fn create_user(
     State(state): State<AppState>,
     client: ClientRoute,
-    Json(data): Json<CreateUserOptions>,
 ) -> Result<String, AppError> {
     let db = state.db();
+    let user_id = Users::create_by_client(db, *client.id()).await?;
 
-    match data.role {
-        UserRole::Admin => Err(AppError::InternalServerError(
-            "client cannot create admin user".to_string(),
-        )),
-        _ => {
-            let user_id = Users::create_by_client(db, *client.id(), data).await?;
-            Ok(user_id.to_string())
-        }
-    }
+    Ok(user_id.to_string())
 }
 
 #[debug_handler]

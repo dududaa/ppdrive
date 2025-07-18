@@ -1,9 +1,5 @@
 use axum_test::{TestResponse, TestServer};
-use ppdrive_core::{
-    db::init_db,
-    models::user::UserRole,
-    options::{CreateBucketOptions, CreateUserOptions},
-};
+use ppdrive_core::{db::init_db, options::CreateBucketOptions};
 use serial_test::serial;
 
 use crate::{
@@ -16,13 +12,8 @@ use crate::{
 const HEADER_NAME: &str = "x-ppd-client";
 
 async fn create_user_request(server: &TestServer, token: &str) -> TestResponse {
-    let data = CreateUserOptions {
-        role: UserRole::Basic,
-    };
-
     server
         .post("/client/user/register")
-        .json(&data)
         .add_header(HEADER_NAME, token)
         .await
 }
