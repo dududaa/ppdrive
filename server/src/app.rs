@@ -19,7 +19,6 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::routes::client::client_routes;
 use crate::routes::get_asset;
-use crate::routes::protected::protected_routes;
 use crate::utils::init_secrets;
 use crate::utils::jwt::{BEARER_KEY, BEARER_VALUE};
 use crate::{errors::AppError, state::AppState};
@@ -65,8 +64,7 @@ async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, A
 
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", client_routes())
-        .nest("/", protected_routes(config)?)
+        .nest("/client", client_routes(config))
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 // Log the matched route's path (with placeholders not filled in).
