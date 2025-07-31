@@ -7,7 +7,7 @@ use crate::{
     CoreResult,
     errors::CoreError,
     models::{permission::AssetPermissions, user::Users},
-    options::AssetSharing,
+    options::{AssetSharing, CreateAssetOptions},
 };
 
 use super::{AssetType, Assets};
@@ -20,25 +20,38 @@ pub(super) struct SaveAssetOpts<'a> {
     pub asset_type: &'a AssetType,
 }
 
-/// Validate whether `custom_path` is already used by another asset
-pub(super) async fn validate_custom_path(
+/// Validate whether `asset_path` or `custom_path` is already used by another asset
+pub(super) async fn validate_paths(
     rb: &RBatis,
-    custom_path: &str,
-    path: &str,
-    asset_type: &AssetType,
+    opts: &CreateAssetOptions,
     tmp: &Option<PathBuf>,
 ) -> Result<(), CoreError> {
-    let exist = Assets::get_by_path(rb, custom_path, asset_type).await;
-    if let Ok(exist) = exist {
-        if exist.asset_path != path {
-            if let Some(tmp) = tmp {
-                tokio::fs::remove_file(tmp).await?;
-            }
+    let CreateAssetOptions {
+        asset_path,
+        asset_type,
+        custom_path,
+        ..
+    } = opts;
+    let check_path = Assets::get_by_path(rb, asset_path, asset_type).await.ok();
+    let mut check_cp = None;
+    if let Some(custom_path) = custom_path {
+        check_cp = Assets::get_by_path(rb, custom_path, asset_type).await.ok();
+    }
 
-            return Err(CoreError::ServerError(format!(
-                r#"asset with custom_path "{custom_path}" already exists."#
-            )));
+    if check_path.is_some() || check_cp.is_some() {
+        let field = if check_path.is_some() {
+            "asset_path"
+        } else {
+            "custom_path"
+        };
+
+        if let Some(tmp) = tmp {
+            tokio::fs::remove_file(tmp).await?;
         }
+
+        return Err(CoreError::ServerError(format!(
+            "provided {field} already used by another asset."
+        )));
     }
 
     Ok(())
@@ -83,9 +96,11 @@ pub(super) async fn create_asset_parents(
             // check if parent folders
             if let Ok(exist) = Assets::get_by_path(rb, path, &AssetType::Folder).await {
                 if exist.user_id() != user_id {
-                    let msg = "you're attempting to create a folder that already belongs to someone else.";
+                    let msg = format!(
+                        "you're attempting to create a folder at \"{path}\" which already belongs to someone else."
+                    );
                     tracing::error!(msg);
-                    return Err(CoreError::ServerError(msg.to_string()));
+                    return Err(CoreError::ServerError(msg));
                 } else {
                     tracing::warn!("path {path} already exists. skipping... ");
                     continue;

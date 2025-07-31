@@ -6,7 +6,7 @@ use std::{
 
 use crate::models::de_sqlite_bool;
 use ext::{
-    SaveAssetOpts, create_asset_parents, create_or_update_asset, share_asset, validate_custom_path,
+    SaveAssetOpts, create_asset_parents, create_or_update_asset, share_asset, validate_paths,
 };
 use rbatis::{PageRequest, RBatis, crud, impl_select, impl_select_page};
 use rbs::value;
@@ -108,8 +108,10 @@ impl Assets {
         tmp: &Option<PathBuf>,
         dest: &Path,
     ) -> Result<String, CoreError> {
+        // validate custom_path
+        validate_paths(rb, &opts, tmp).await?;
+
         let CreateAssetOptions {
-            asset_path,
             public,
             asset_type,
             custom_path,
@@ -117,11 +119,6 @@ impl Assets {
             sharing,
             ..
         } = &opts;
-
-        // validate custom_path
-        if let Some(custom_path) = &custom_path {
-            validate_custom_path(rb, custom_path, asset_path, asset_type, tmp).await?;
-        }
 
         let user = Users::get(rb, user_id).await?;
 

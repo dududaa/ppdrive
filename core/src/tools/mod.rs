@@ -73,7 +73,7 @@ pub fn install_dir() -> CoreResult<PathBuf> {
 }
 
 /// compute total size (in bytes) of a folder.
-pub async fn check_folder_size(folder_path: &str, size: &mut u64) -> Result<(), CoreError> {
+pub async fn get_folder_size(folder_path: &str, size: &mut u64) -> Result<(), CoreError> {
     let path = Path::new(folder_path);
 
     if path.is_file() {
@@ -91,7 +91,7 @@ pub async fn check_folder_size(folder_path: &str, size: &mut u64) -> Result<(), 
             let m = path.metadata()?;
             *size += m.len()
         } else if let Some(folder) = path.to_str() {
-            Box::pin(check_folder_size(folder, size)).await?;
+            Box::pin(get_folder_size(folder, size)).await?;
         }
     }
 

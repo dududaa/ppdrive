@@ -20,19 +20,22 @@ pub struct LoginToken {
     pub refresh: (String, i64),
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct AssetSharing {
     pub user_id: String,
     pub permissions: Vec<Permission>,
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct CreateAssetOptions {
     /// Destination path where asset should be created
     pub asset_path: String,
 
     /// The type of asset - whether it's a file or folder
     pub asset_type: AssetType,
+
+    /// The UID of bucket in which to save the asset
+    pub bucket: String,
 
     /// Asset's visibility. Public assets can be read/accessed by everyone. Private assets can be
     /// viewed ONLY by permission.
@@ -52,9 +55,6 @@ pub struct CreateAssetOptions {
 
     /// Users to share this asset with. This can only be set if `public` option is false
     pub sharing: Option<Vec<AssetSharing>>,
-
-    /// The UID of bucket in which to save the asset
-    pub bucket: String,
 }
 
 #[derive(Deserialize, Serialize, Default)]

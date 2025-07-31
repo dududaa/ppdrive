@@ -10,3 +10,4 @@ allowed_origins = "*"
 # url = ""
 access_exp = 900    # 15min
 refresh_exp = 86400 # 24hr
+disable_refresh_token = false

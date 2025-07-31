@@ -7,12 +7,9 @@ use rbs::value;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    CoreResult, errors::CoreError, options::CreateBucketOptions, tools::check_folder_size,
-};
+use crate::{CoreResult, errors::CoreError, options::CreateBucketOptions, tools::get_folder_size};
 
 #[derive(Serialize, Deserialize, Modeller)]
-#[modeller(unique_together(owner_id, label))]
 pub struct Buckets {
     #[modeller(serial)]
     id: Option<u64>,
@@ -38,7 +35,6 @@ pub struct Buckets {
 crud!(Buckets {});
 
 impl_select!(Buckets { get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE ${key} = #{value} LIMIT 1`" });
-impl_select!(Buckets { select_by_pid(user_id: &u64, pid: &str) -> Option => "`WHERE user_id = #{user_id} AND pid = #{pid} LIMIT 1`" });
 
 impl Buckets {
     pub async fn create_by_client(
@@ -46,60 +42,34 @@ impl Buckets {
         opts: CreateBucketOptions,
         client_id: u64,
     ) -> Result<String, CoreError> {
-        let owner_type = u8::from(BucketOwnerType::Client);
-        let CreateBucketOptions {
-            partition_size,
-            partition,
-            accepts,
-            label,
-            public,
-        } = opts;
-
-        if let Some(folder) = &partition {
-            let b = Buckets::get_by_key(db, "root_folder", folder).await?;
-            if b.is_some() {
-                return Err(CoreError::PermissionError(format!(
-                    "folder name '{folder}' is not available. Try a different folder name."
-                )));
-            }
-        }
-
-        if partition_size.is_some() && partition.is_none() {
-            return Err(CoreError::PermissionError(format!(
-                "You can not set partition size without settion partition."
-            )));
-        }
-
-        let pid = Uuid::new_v4().to_string();
-        let data = Buckets {
-            id: None,
-            pid,
-            owner_id: client_id,
-            owner_type,
-            label,
-            partition_size,
-            partition,
-            accepts,
-            public: public.unwrap_or_default(),
+        let owner_info = OwnerInfo {
+            id: client_id,
+            ty: BucketOwnerType::Client,
         };
 
-        Buckets::insert(db, &data).await?;
-
-        let results = Buckets::select_by_map(db, value! { "pid": &data.pid }).await?;
-        let id = results
-            .first()
-            .map(|b| String::from(&b.pid))
-            .ok_or(CoreError::ServerError(
-                "unable to retrieve created bucker".to_string(),
-            ))?;
-
+        let id = Self::create(db, opts, owner_info).await?;
         Ok(id)
     }
 
-    pub async fn get_by_pid(db: &RBatis, user_id: &u64, pid: &str) -> CoreResult<Self> {
-        let s = Self::select_by_pid(db, user_id, pid)
+    pub async fn create_by_user(
+        db: &RBatis,
+        opts: CreateBucketOptions,
+        user_id: u64,
+    ) -> Result<String, CoreError> {
+        let owner_info = OwnerInfo {
+            id: user_id,
+            ty: BucketOwnerType::User,
+        };
+
+        let id = Self::create(db, opts, owner_info).await?;
+        Ok(id)
+    }
+
+    pub async fn get_by_pid(db: &RBatis, pid: &str) -> CoreResult<Self> {
+        let s = Self::get_by_key(db, "pid", pid)
             .await?
             .ok_or(CoreError::NotFound("bucket not found".to_string()))?;
+
         Ok(s)
     }
 
@@ -117,8 +87,7 @@ impl Buckets {
                 return Ok(size);
             }
 
-            check_folder_size(partition, &mut size).await?;
-            // size = Some(folder_size)
+            get_folder_size(partition, &mut size).await?;
         }
 
         Ok(size)
@@ -147,6 +116,54 @@ impl Buckets {
     pub fn partition_size(&self) -> &Option<u64> {
         &self.partition_size
     }
+
+    async fn create(
+        db: &RBatis,
+        opts: CreateBucketOptions,
+        owner_info: OwnerInfo,
+    ) -> CoreResult<String> {
+        let OwnerInfo { id: owner_id, ty } = owner_info;
+        let owner_type = u8::from(ty);
+
+        let CreateBucketOptions {
+            partition_size,
+            partition,
+            accepts,
+            label,
+            public,
+        } = opts;
+
+        if let Some(folder) = &partition {
+            let b = Buckets::get_by_key(db, "root_folder", folder).await?;
+            if b.is_some() {
+                return Err(CoreError::PermissionError(format!(
+                    "folder name '{folder}' is not available. Try a different folder name."
+                )));
+            }
+        }
+
+        if partition_size.is_some() && partition.is_none() {
+            return Err(CoreError::PermissionError(format!(
+                "You can not set partition size without settion partition."
+            )));
+        }
+
+        let pid = Uuid::new_v4().to_string();
+        let data = Buckets {
+            id: None,
+            pid,
+            owner_id,
+            owner_type,
+            label,
+            partition_size,
+            partition,
+            accepts,
+            public: public.unwrap_or_default(),
+        };
+
+        Buckets::insert(db, &data).await?;
+        Ok(data.pid)
+    }
 }
 
 pub enum BucketOwnerType {
@@ -171,4 +188,9 @@ impl From<u8> for BucketOwnerType {
 
         if value == 0 { Client } else { User }
     }
+}
+
+struct OwnerInfo {
+    id: u64,
+    ty: BucketOwnerType,
 }

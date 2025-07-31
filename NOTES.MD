@@ -13,7 +13,7 @@ ppdrive create-client {client_name}
 ###### Authentication and Authorization
 Client Access authenticates and authorizes users in 2 ways:
 1. **External Authentication**: You can provide your own external authentication url as `auth.url` in PPDRIVE configuration file. We currently support JWT auth and we'll check if the request has an authorization header, which we then pass to the request we make to `auth.url`. Your auth url **must** be a POST that returns a valid PPDRIVE user `pid`, provided by PPDRIVE when the user was created.
-2. **Host Authentication**: This is the default authentication method if you do not provide a `auth.url`. The authentication is performed directly by PPDRIVE. You can get your access tokens by visiting `POST: /client/user/login`. The endpoint will return both access and refresh tokens, each with expirations as set in `auth.access_exp` and `auth.refresh_exp` respectively.
+2. **Host Authentication**: This is the default authentication method if you do not provide a `auth.url`. The authentication is performed directly by PPDRIVE. You can get your access tokens by visiting `POST: /client/user/login`. The endpoint will return both access and refresh tokens, each with expirations as set in `auth.access_exp` and `auth.refresh_exp` respectively. You can disable refresh tokens by setting `auth.diable_refresh_token` to `false`.
 
 #### 2. Direct Access
 If you're trying to build your own file manager, cloud storage or anything that doesn't require a `Client`, PPDRIVE gives you direct access with **Host Authentication** as decribed above. No need to create a `Client`.
