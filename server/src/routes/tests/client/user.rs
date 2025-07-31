@@ -12,7 +12,7 @@ use crate::{
 #[tokio::test]
 #[serial]
 /// retrieve an authenticated user (created by client) using their access token
-async fn test_get_user() -> AppResult<()> {
+async fn test_client_user_get_userinfo() -> AppResult<()> {
     let config = app_config().await?;
     let db = create_db(&config).await?;
 
@@ -27,7 +27,7 @@ async fn test_get_user() -> AppResult<()> {
 
 #[tokio::test]
 #[serial]
-async fn test_create_user_bucket() -> AppResult<()> {
+async fn test_client_user_create_bucket() -> AppResult<()> {
     let config = app_config().await?;
     let server = create_server(&config).await?;
 
@@ -42,7 +42,7 @@ async fn test_create_user_bucket() -> AppResult<()> {
 
 #[tokio::test]
 #[serial]
-async fn test_create_asset_folder() -> AppResult<()> {
+async fn test_client_user_create_asset() -> AppResult<()> {
     let config = app_config().await?;
     let server = create_server(&config).await?;
 
@@ -95,6 +95,40 @@ async fn test_create_asset_folder() -> AppResult<()> {
         .authorization_bearer(token)
         .await;
 
+    resp.assert_status_ok();
+
+    Ok(())
+}
+
+#[tokio::test]
+#[serial]
+async fn test_client_user_delete_asset() -> AppResult<()> {
+    let config = app_config().await?;
+    let server = create_server(&config).await?;
+
+    let db = create_db(&config).await?;
+    let token = get_user_token(&server, &db).await?;
+
+    let bucket = create_user_bucket(&server, &token).await.text();
+    let asset_path = "delete-asset/great-folder";
+    let asset_opts = CreateAssetOptions {
+        asset_path: asset_path.to_string(),
+        asset_type: AssetType::Folder,
+        bucket,
+        ..Default::default()
+    };
+
+    // create asset
+    let opts = serde_json::to_string(&asset_opts)?;
+    let multipart = MultipartForm::new().add_text("options", &opts);
+    let _ = server
+        .post("/client/user/asset")
+        .multipart(multipart)
+        .authorization_bearer(&token)
+        .await;
+
+    let path = format!("client/user/asset/Folder/{asset_path}");
+    let resp = server.delete(&path).authorization(&token).await;
     resp.assert_status_ok();
 
     Ok(())
