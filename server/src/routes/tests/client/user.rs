@@ -1,4 +1,4 @@
-use axum_test::multipart::MultipartForm;
+use axum_test::multipart::{MultipartForm, Part};
 use ppdrive_core::{models::asset::AssetType, options::CreateAssetOptions};
 use serial_test::serial;
 
@@ -50,21 +50,45 @@ async fn test_create_asset_folder() -> AppResult<()> {
     let token = get_user_token(&server, &db).await?;
 
     let bucket = create_user_bucket(&server, &token).await.text();
-    let opts = CreateAssetOptions {
-        asset_path: "test-assets/great-folder".to_string(),
+    let asset_path = "test-assets/great-folder";
+    let mut asset_opts = CreateAssetOptions {
+        asset_path: asset_path.to_string(),
         asset_type: AssetType::Folder,
         bucket,
         ..Default::default()
     };
 
     // this should fail without authorization
-    let opts = serde_json::to_string(&opts)?;
+    let mut opts = serde_json::to_string(&asset_opts)?;
     let multipart = MultipartForm::new().add_text("options", &opts);
     let mut resp = server.post("/client/user/asset").multipart(multipart).await;
 
     resp.assert_status_not_ok();
 
+    // create folder asset
     let multipart = MultipartForm::new().add_text("options", &opts);
+    resp = server
+        .post("/client/user/asset")
+        .multipart(multipart)
+        .authorization_bearer(&token)
+        .await;
+
+    resp.assert_status_ok();
+
+    // upload file asset
+    asset_opts.asset_path = format!("{asset_path}/test-file");
+    asset_opts.asset_type = AssetType::File;
+    opts = serde_json::to_string(&asset_opts)?;
+
+    let file_bytes = include_bytes!("README.MD");
+    let file_path = Part::bytes(file_bytes.as_slice())
+        .file_name("some-test-file")
+        .mime_type("text/markdown");
+
+    let multipart = MultipartForm::new()
+        .add_part("file", file_path)
+        .add_text("options", &opts);
+
     resp = server
         .post("/client/user/asset")
         .multipart(multipart)
