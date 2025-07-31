@@ -145,8 +145,12 @@ pub fn client_routes(config: &AppConfig) -> Router<AppState> {
         // Routes accessible to users created/managed by clients. Requests to these routes
         // do not required x-ppd-client header but may require authorization header
         // if config.auth.url is not provided.
+        //
+        // Client users may access these routes directly using authorization header (without)
+        // contacting client server first.
         .route("/user", get(get_user))
-        .route("/asset", post(create_asset))
+        .route("/user/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))
-        .route("/asset/:asset_type/:asset_path", delete(delete_asset))
+        .route("/user/asset/:asset_type/:asset_path", delete(delete_asset))
+        .route("/user/bucket", post(create_user_bucket))
 }

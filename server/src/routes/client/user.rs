@@ -15,7 +15,7 @@ use ppdrive_core::{
         user::{UserSerializer, Users},
         IntoSerializer,
     },
-    options::CreateAssetOptions,
+    options::{CreateAssetOptions, CreateBucketOptions},
     tools::secrets::SECRETS_FILENAME,
 };
 
@@ -31,6 +31,18 @@ pub async fn get_user(
     let data = user_model.into_serializer(db).await?;
 
     Ok(Json(data))
+}
+
+#[debug_handler]
+pub async fn create_user_bucket(
+    State(state): State<AppState>,
+    ClientUser(user): ClientUser,
+    Json(data): Json<CreateBucketOptions>,
+) -> Result<String, AppError> {
+    let db = state.db();
+    let id = Buckets::create_by_user(db, data, *user.id()).await?;
+
+    Ok(id)
 }
 
 #[debug_handler]
@@ -66,7 +78,7 @@ pub async fn create_asset(
         }
     }
 
-    // validations
+    // options validations
     if opts.asset_path.is_empty() {
         return Err(AppError::InternalServerError(
             "asset_path field is required".to_string(),
@@ -80,7 +92,7 @@ pub async fn create_asset(
     }
 
     let db = state.db();
-    let bucket = Buckets::get_by_pid(db, user_id, &opts.bucket).await?;
+    let bucket = Buckets::get_by_pid(db, &opts.bucket).await?;
 
     if !bucket.public() {
         if let BucketOwnerType::User = bucket.owner_type() {
@@ -98,6 +110,7 @@ pub async fn create_asset(
     let dest = partition.map_or(asset_path.to_string(), |rf| format!("{rf}/{asset_path}"));
     let dest = std::path::Path::new(&dest);
 
+    // check bucket size limit
     if let (Some(filesize), Some(max_size)) = (filesize, bucket.partition_size()) {
         let cfz = bucket.content_size().await?;
         let total_size = cfz + filesize;
@@ -107,7 +120,7 @@ pub async fn create_asset(
             }
 
             return Err(AppError::InternalServerError(
-                "the total partition size assigned to this user is exceeded.".to_string(),
+                "bucket size exceeded.".to_string(),
             ));
         }
     }

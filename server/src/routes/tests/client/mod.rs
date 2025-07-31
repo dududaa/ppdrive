@@ -12,19 +12,13 @@ use crate::{
     AppResult,
 };
 
-const HEADER_NAME: &str = "x-ppd-client";
+mod user;
 
-async fn create_user_request(server: &TestServer, token: &str) -> TestResponse {
-    let data = CreateUserClient { max_bucket: None };
-    server
-        .post("/client/user/register")
-        .json(&data)
-        .add_header(HEADER_NAME, token)
-        .await
-}
+const HEADER_NAME: &str = "x-ppd-client";
 
 #[tokio::test]
 #[serial]
+/// create user by a client
 async fn test_client_create_user() -> AppResult<()> {
     let config = app_config().await?;
 
@@ -59,21 +53,7 @@ async fn test_client_login_user() -> AppResult<()> {
         AppError::InternalServerError(format!("unable to create test server: {err}"))
     })?;
 
-    let resp = create_user_request(&server, &token).await;
-    let user_id = resp.text();
-
-    let data = LoginUserClient {
-        id: user_id,
-        access_exp: None,
-        refresh_exp: None,
-    };
-
-    let resp = server
-        .post("/client/user/login")
-        .add_header("x-ppd-client", token)
-        .json(&data)
-        .await;
-
+    let resp = login_user_request(&server, &token).await;
     resp.assert_status_ok();
 
     Ok(())
@@ -122,17 +102,46 @@ async fn test_client_create_bucket() -> AppResult<()> {
         AppError::InternalServerError(format!("unable to create test server: {err}"))
     })?;
 
+    let resp = create_client_bucket(&server, &token).await;
+    resp.assert_status_ok();
+
+    Ok(())
+}
+
+async fn create_user_request(server: &TestServer, token: &str) -> TestResponse {
+    let data = CreateUserClient { max_bucket: None };
+    server
+        .post("/client/user/register")
+        .json(&data)
+        .add_header(HEADER_NAME, token)
+        .await
+}
+
+async fn login_user_request(server: &TestServer, token: &str) -> TestResponse {
+    let resp = create_user_request(&server, &token).await;
+    let user_id = resp.text();
+
+    let data = LoginUserClient {
+        id: user_id,
+        access_exp: None,
+        refresh_exp: None,
+    };
+
+    server
+        .post("/client/user/login")
+        .add_header("x-ppd-client", token)
+        .json(&data)
+        .await
+}
+
+async fn create_client_bucket(server: &TestServer, token: &str) -> TestResponse {
     let opts = CreateBucketOptions {
         ..Default::default()
     };
 
-    let resp = server
+    server
         .post("/client/bucket")
         .json(&opts)
         .add_header(HEADER_NAME, token)
-        .await;
-
-    resp.assert_status_ok();
-
-    Ok(())
+        .await
 }
