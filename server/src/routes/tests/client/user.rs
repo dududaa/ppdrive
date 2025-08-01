@@ -127,8 +127,8 @@ async fn test_client_user_delete_asset() -> AppResult<()> {
         .authorization_bearer(&token)
         .await;
 
-    let path = format!("client/user/asset/Folder/{asset_path}");
-    let resp = server.delete(&path).authorization(&token).await;
+    let path = format!("/client/user/asset/Folder/{asset_path}");
+    let resp = server.delete(&path).authorization_bearer(&token).await;
     resp.assert_status_ok();
 
     Ok(())

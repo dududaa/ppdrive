@@ -151,6 +151,6 @@ pub fn client_routes(config: &AppConfig) -> Router<AppState> {
         .route("/user", get(get_user))
         .route("/user/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))
-        .route("/user/asset/:asset_type/:asset_path", delete(delete_asset))
+        .route("/user/asset/:asset_type/*asset_path", delete(delete_asset))
         .route("/user/bucket", post(create_user_bucket))
 }
