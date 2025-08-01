@@ -26,11 +26,11 @@
 
 !server/
 !server/**
-server/migrations
-server/db.sqlite*
-server/sqlite.db*
-server/.ppdrive_secret
 
+**migrations
+**db.sqlite*
+**sqlite.db*
+**.ppdrive_secret
 
 !tests/
 !tests/**
