@@ -55,12 +55,15 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Co
 
 /// Regenerate token for a given client
 pub async fn regenerate_token(
-    rb: &RBatis,
+    db: &RBatis,
     secrets: &AppSecrets,
-    client_id: &str,
+    current_key: &str,
 ) -> CoreResult<String> {
-    let client = Clients::get(rb, client_id).await?;
-    generate_token(secrets, client.pid())
+    let mut client = Clients::get(db, current_key).await?;
+    let new_key = Uuid::new_v4().to_string();
+
+    client.update_key(db, new_key).await?;
+    generate_token(secrets, client.key())
 }
 
 pub fn install_dir() -> CoreResult<PathBuf> {
@@ -96,4 +99,32 @@ pub async fn get_folder_size(folder_path: &str, size: &mut u64) -> Result<(), Co
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        CoreResult,
+        db::init_db,
+        models::client::Clients,
+        tools::{
+            create_client, generate_token, regenerate_token, secrets::AppSecrets, verify_client,
+        },
+    };
+
+    #[tokio::test]
+    async fn test_client_tokens() -> CoreResult<()> {
+        let secrets = AppSecrets::read().await?;
+        let db = init_db("sqlite://db.sqlite").await?;
+
+        let token = create_client(&db, &secrets, "Test Client").await?;
+        let id = verify_client(&db, &secrets, &token).await?;
+        let client = Clients::get_by_key(&db, "id", &id).await?.unwrap();
+
+        let token = generate_token(&secrets, client.key())?;
+        let regen = regenerate_token(&db, &secrets, client.key()).await?;
+
+        assert_ne!(token, regen);
+        Ok(())
+    }
 }

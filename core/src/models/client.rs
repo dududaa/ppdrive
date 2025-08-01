@@ -1,5 +1,6 @@
 use modeller::prelude::*;
 use rbatis::{RBatis, crud, impl_select};
+use rbs::value;
 use serde::{Deserialize, Serialize};
 
 use crate::CoreResult;
@@ -11,8 +12,9 @@ pub struct Clients {
     #[modeller(serial)]
     id: Option<u64>,
 
+    /// keep away from public API
     #[modeller(unique)]
-    pid: String,
+    key: String,
 
     #[modeller(length = 120)]
     name: String,
@@ -22,15 +24,15 @@ crud!(Clients {});
 impl_select!(Clients { get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE ${key} = #{value} LIMIT 1`" });
 
 impl Clients {
-    pub async fn get(rb: &RBatis, id: &str) -> CoreResult<Self> {
-        let client = Clients::get_by_key(rb, "pid", id).await?;
+    pub async fn get(rb: &RBatis, key: &str) -> CoreResult<Self> {
+        let client = Clients::get_by_key(rb, "key", key).await?;
         check_model(client, "client not found")
     }
 
-    pub async fn create(rb: &RBatis, pid: String, name: String) -> CoreResult<()> {
+    pub async fn create(rb: &RBatis, key: String, name: String) -> CoreResult<()> {
         let value = Clients {
             id: None,
-            pid,
+            key,
             name,
         };
 
@@ -38,8 +40,15 @@ impl Clients {
         Ok(())
     }
 
-    pub fn pid(&self) -> &str {
-        &self.pid
+    pub async fn update_key(&mut self, db: &RBatis, value: String) -> CoreResult<()> {
+        self.key = value;
+        Clients::update_by_map(db, &self, value! { "id": &self.id() }).await?;
+
+        Ok(())
+    }
+
+    pub fn key(&self) -> &str {
+        &self.key
     }
 
     pub fn id(&self) -> u64 {
