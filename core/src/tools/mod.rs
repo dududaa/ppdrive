@@ -53,7 +53,7 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Co
     Ok(client.id())
 }
 
-/// Regenerate token for a given client
+/// Regenerate token for a given client.
 pub async fn regenerate_token(
     db: &RBatis,
     secrets: &AppSecrets,
@@ -111,8 +111,10 @@ mod tests {
             create_client, generate_token, regenerate_token, secrets::AppSecrets, verify_client,
         },
     };
+    use serial_test::serial;
 
     #[tokio::test]
+    #[serial]
     async fn test_client_tokens() -> CoreResult<()> {
         let secrets = AppSecrets::read().await?;
         let db = init_db("sqlite://db.sqlite").await?;
