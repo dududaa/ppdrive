@@ -1,8 +1,8 @@
 # PPDRIVE
 
-**PPDRIVE** is a free and open-source cloud storage written in Rust. PPDRIVE service provides a set of RESTful APIs that allows you to manage your remote and local files via secure and blazing fast operations.
+**PPDRIVE** is a free and open-source cloud storage service written in Rust. PPDRIVE service provides a set of RESTful APIs that allows you to manage your remote and local files via secure and blazing fast operations.
 
-If you're building your own version of Google Drive, Microsoft's OneDrive or even Dropbox, PPDRIVE provides a robust, secure, and extensible solution. You can also integrate PPDRIVE into your own applications as an alternative to AWS S3. Building self-hosted media streaming platforms? Use PPDRIVE at zero cost.
+If you're building your own version of Google Drive, Microsoft's OneDrive or even Dropbox, PPDRIVE provides a robust, secure, and extensible solution. You can also integrate PPDRIVE into your own applications as an alternative to AWS S3. Building self-hosted media streaming platforms? Build faster using PPDRIVE at zero cost.
 
 ---
 
@@ -17,7 +17,7 @@ If you're building your own version of Google Drive, Microsoft's OneDrive or eve
 - 🔒 **Secure by Default**: Runs with secure configurations and minimal surface area.
 - 🛢 **Cross Database Support**: Support for Postgres, MySQL and SQLite (default) database backends.
 
-#### Features (Roadmap)
+#### Roadmap Features (Let's Build Together)
 - Admin UI: Administrative client for managing your drive visually.
 - File Compression: Compress files on the fly or at any convenient time.
 - File Conversion: Convert files from one format to another.
@@ -80,6 +80,10 @@ Once your PPDRIVE is pu and running, check out [API DOC](https://prodbyola.githu
 ## Contributing
 We welcome contributions to PPDRIVE! Here’s how you can help:
 
+- You can create a PPDRIVE Client for your favorite language or framework. Please check our REST API Docs to get started.
+
+- Or you can contribute directly to PPDRIVE by helping us resolve an issue or implement our roadmap feature. Please follow these steps.
+
 1. Fork the repository.
 
 2. Create a new branch (git checkout -b feature-name).
@@ -100,9 +104,9 @@ PPDRIVE is open-source software licensed under the [MIT License](#/LICENSE).
 ---
 
 ## Acknowledgments
-- Basable: PPDRIVE is part of our ongoing Basable community project. You can [find us on Discord](https://discord.gg/BeVPFS7wkp).
+- Dududaa: PPDRIVE is part of our ongoing Dududaa community project. You can [find us on Discord](https://discord.gg/BeVPFS7wkp).
 - Rust: The systems programming language used to build PPDRIVE.
 - Axum: A Rust-based web application framework that focuses on ergonomics and modularity.
-- Sqlx: The async SQL toolkit for Rust, built with ❤️ by the LaunchBadge team.
+- RBatis: RBatis serves as a drive for our modeller crate and record management within PPDRIVE.
 - Docker: For containerizing the service.
 - Community: Thanks to the open-source community for their valuable contributions!
