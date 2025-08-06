@@ -22,10 +22,10 @@ async fn main() -> Result<(), error::CliError> {
     match args.get(1) {
         Some(cmd) => {
             let cmd: Command = cmd.try_into()?;
-            let run_args = args.split_off(2);
-            cmd.run(run_args, &db, &secrets).await?;
+            let cmd_args = args.split_off(2);
+            cmd.run(cmd_args, &db, &secrets).await?;
         }
-        None => panic!("ppdrive command not provided"),
+        None => panic!("please provide a command"),
     }
 
     Ok(())

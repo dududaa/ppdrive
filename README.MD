@@ -1,26 +1,30 @@
 # PPDRIVE
 
-**PPDRIVE** is a powerful, standalone file manager written in Rust, designed for seamless integration into other applications via a RESTful API. Whether you're building a complex backend system or need a standalone file server with authentication and file-level permissions, PPDRIVE provides a robust, secure, and extensible solution.
+**PPDRIVE** is a free and open-source cloud storage written in Rust. PPDRIVE service provides a set of RESTful APIs that allows you to manage your remote and local files via secure and blazing fast operations.
+
+If you're building your own version of Google Drive, Microsoft's OneDrive or even Dropbox, PPDRIVE provides a robust, secure, and extensible solution. You can also integrate PPDRIVE into your own applications as an alternative to AWS S3. Building self-hosted media streaming platforms? Use PPDRIVE at zero cost.
 
 ---
 
 ## 🚀 Features
 
 - ⚙️ **REST API Interface**: Interact with the file system programmatically from any external application.
-- 🔐 **Authentication & Authorization**: Built-in support for user authentication and per-file permissions. PPDRIVE supports peer-to-peer file sharing through asset-level permissions.
+- 🔐 **Flexible Authentication**: PPDRIVE is secure by default, providing JWT authentication to protect private resources according to your applications. If you prefer to use PPDRIVE as a free tool and don't need protected access, you can opt-in for "No Auth" feature.
+- 🪣 **Buckets**: Create isolated and configurable file buckets for better file system organization.
 - 🧩 **Pluggable Integration**: Easily integrate into existing backends or operate as a standalone executable.
 - 📦 **Prebuilt Executables**: Install and run with no setup required.
 - 🧾 **File & Directory Operations**: Upload, download, rename, delete, and move files or folders.
 - 🔒 **Secure by Default**: Runs with secure configurations and minimal surface area.
-- 🛢 **Cross Database Support**: Support for Postgres, MySQL and SQLite database backends. Thanks to Sqlx's [Any](https://docs.rs/sqlx/latest/sqlx/any/index.html) feature.
+- 🛢 **Cross Database Support**: Support for Postgres, MySQL and SQLite (default) database backends.
 
 #### Features (Roadmap)
 - Admin UI: Administrative client for managing your drive visually.
 - File Compression: Compress files on the fly or at any convenient time.
 - File Conversion: Convert files from one format to another.
+- Image manipulation: Provide url queries for manipulating images.
 - Async Upload: Upload large files in the background.
-- File Streaming: Enable file streaming (for video and audio streaming platforms)
-- Buckets: Buckets implementation for clients.
+- File Streaming: Enable file streaming (for video/audio streaming platforms and other use cases)
+- ~~Buckets: Buckets implementation for clients.~~
 - Mime Limits: Limit uploads to specified mime types.
 
 ---

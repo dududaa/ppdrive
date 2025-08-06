@@ -1,0 +1,782 @@
+[
+  {
+    "mime": "application/javascript",
+    "filetype": "application",
+    "label": "js"
+  },
+  {
+    "mime": "application/javascript",
+    "filetype": "application",
+    "label": "mjs"
+  },
+  {
+    "mime": "application/json",
+    "filetype": "application",
+    "label": "json"
+  },
+  {
+    "mime": "application/manifest+json",
+    "filetype": "application",
+    "label": "webmanifest"
+  },
+  {
+    "mime": "application/msword",
+    "filetype": "application",
+    "label": "doc"
+  },
+  {
+    "mime": "application/msword",
+    "filetype": "application",
+    "label": "dot"
+  },
+  {
+    "mime": "application/msword",
+    "filetype": "application",
+    "label": "wiz"
+  },
+  {
+    "mime": "application/n-quads",
+    "filetype": "application",
+    "label": "nq"
+  },
+  {
+    "mime": "application/n-triples",
+    "filetype": "application",
+    "label": "nt"
+  },
+  {
+    "mime": "application/octet-stream",
+    "filetype": "application",
+    "label": "bin"
+  },
+  {
+    "mime": "application/octet-stream",
+    "filetype": "application",
+    "label": "a"
+  },
+  {
+    "mime": "application/octet-stream",
+    "filetype": "application",
+    "label": "dll"
+  },
+  {
+    "mime": "application/octet-stream",
+    "filetype": "application",
+    "label": "exe"
+  },
+  {
+    "mime": "application/octet-stream",
+    "filetype": "application",
+    "label": "o"
+  },
+  {
+    "mime": "application/octet-stream",
+    "filetype": "application",
+    "label": "obj"
+  },
+  {
+    "mime": "application/octet-stream",
+    "filetype": "application",
+    "label": "so"
+  },
+  {
+    "mime": "application/oda",
+    "filetype": "application",
+    "label": "oda"
+  },
+  {
+    "mime": "application/pdf",
+    "filetype": "application",
+    "label": "pdf"
+  },
+  {
+    "mime": "application/pkcs7-mime",
+    "filetype": "application",
+    "label": "p7c"
+  },
+  {
+    "mime": "application/postscript",
+    "filetype": "application",
+    "label": "ps"
+  },
+  {
+    "mime": "application/postscript",
+    "filetype": "application",
+    "label": "ai"
+  },
+  {
+    "mime": "application/postscript",
+    "filetype": "application",
+    "label": "eps"
+  },
+  {
+    "mime": "application/trig",
+    "filetype": "application",
+    "label": "trig"
+  },
+  {
+    "mime": "application/vnd.apple.mpegurl",
+    "filetype": "application",
+    "label": "m3u"
+  },
+  {
+    "mime": "application/vnd.apple.mpegurl",
+    "filetype": "application",
+    "label": "m3u8"
+  },
+  {
+    "mime": "application/vnd.ms-excel",
+    "filetype": "application",
+    "label": "xls"
+  },
+  {
+    "mime": "application/vnd.ms-excel",
+    "filetype": "application",
+    "label": "xlb"
+  },
+  {
+    "mime": "application/vnd.ms-powerpoint",
+    "filetype": "application",
+    "label": "ppt"
+  },
+  {
+    "mime": "application/vnd.ms-powerpoint",
+    "filetype": "application",
+    "label": "pot"
+  },
+  {
+    "mime": "application/vnd.ms-powerpoint",
+    "filetype": "application",
+    "label": "ppa"
+  },
+  {
+    "mime": "application/vnd.ms-powerpoint",
+    "filetype": "application",
+    "label": "pps"
+  },
+  {
+    "mime": "application/vnd.ms-powerpoint",
+    "filetype": "application",
+    "label": "pwz"
+  },
+  {
+    "mime": "application/wasm",
+    "filetype": "application",
+    "label": "wasm"
+  },
+  {
+    "mime": "application/x-bcpio",
+    "filetype": "application",
+    "label": "bcpio"
+  },
+  {
+    "mime": "application/x-cpio",
+    "filetype": "application",
+    "label": "cpio"
+  },
+  {
+    "mime": "application/x-csh",
+    "filetype": "application",
+    "label": "csh"
+  },
+  {
+    "mime": "application/x-dvi",
+    "filetype": "application",
+    "label": "dvi"
+  },
+  {
+    "mime": "application/x-gtar",
+    "filetype": "application",
+    "label": "gtar"
+  },
+  {
+    "mime": "application/x-hdf",
+    "filetype": "application",
+    "label": "hdf"
+  },
+  {
+    "mime": "application/x-hdf5",
+    "filetype": "application",
+    "label": "h5"
+  },
+  {
+    "mime": "application/x-latex",
+    "filetype": "application",
+    "label": "latex"
+  },
+  {
+    "mime": "application/x-mif",
+    "filetype": "application",
+    "label": "mif"
+  },
+  {
+    "mime": "application/x-netcdf",
+    "filetype": "application",
+    "label": "cdf"
+  },
+  {
+    "mime": "application/x-netcdf",
+    "filetype": "application",
+    "label": "nc"
+  },
+  {
+    "mime": "application/x-pkcs12",
+    "filetype": "application",
+    "label": "p12"
+  },
+  {
+    "mime": "application/x-pkcs12",
+    "filetype": "application",
+    "label": "pfx"
+  },
+  {
+    "mime": "application/x-pn-realaudio",
+    "filetype": "application",
+    "label": "ram"
+  },
+  {
+    "mime": "application/x-python-code",
+    "filetype": "application",
+    "label": "pyc"
+  },
+  {
+    "mime": "application/x-python-code",
+    "filetype": "application",
+    "label": "pyo"
+  },
+  {
+    "mime": "application/x-sh",
+    "filetype": "application",
+    "label": "sh"
+  },
+  {
+    "mime": "application/x-shar",
+    "filetype": "application",
+    "label": "shar"
+  },
+  {
+    "mime": "application/x-shockwave-flash",
+    "filetype": "application",
+    "label": "swf"
+  },
+  {
+    "mime": "application/x-sv4cpio",
+    "filetype": "application",
+    "label": "sv4cpio"
+  },
+  {
+    "mime": "application/x-sv4crc",
+    "filetype": "application",
+    "label": "sv4crc"
+  },
+  {
+    "mime": "application/x-tar",
+    "filetype": "application",
+    "label": "tar"
+  },
+  {
+    "mime": "application/x-tcl",
+    "filetype": "application",
+    "label": "tcl"
+  },
+  {
+    "mime": "application/x-tex",
+    "filetype": "application",
+    "label": "tex"
+  },
+  {
+    "mime": "application/x-texinfo",
+    "filetype": "application",
+    "label": "texi"
+  },
+  {
+    "mime": "application/x-texinfo",
+    "filetype": "application",
+    "label": "texinfo"
+  },
+  {
+    "mime": "application/x-troff",
+    "filetype": "application",
+    "label": "roff"
+  },
+  {
+    "mime": "application/x-troff",
+    "filetype": "application",
+    "label": "t"
+  },
+  {
+    "mime": "application/x-troff",
+    "filetype": "application",
+    "label": "tr"
+  },
+  {
+    "mime": "application/x-troff-man",
+    "filetype": "application",
+    "label": "man"
+  },
+  {
+    "mime": "application/x-troff-me",
+    "filetype": "application",
+    "label": "me"
+  },
+  {
+    "mime": "application/x-troff-ms",
+    "filetype": "application",
+    "label": "ms"
+  },
+  {
+    "mime": "application/x-ustar",
+    "filetype": "application",
+    "label": "ustar"
+  },
+  {
+    "mime": "application/x-wais-source",
+    "filetype": "application",
+    "label": "src"
+  },
+  {
+    "mime": "application/x-yaml",
+    "filetype": "application",
+    "label": "yaml"
+  },
+  {
+    "mime": "application/x-yaml",
+    "filetype": "application",
+    "label": "yml"
+  },
+  {
+    "mime": "application/xml",
+    "filetype": "application",
+    "label": "xsl"
+  },
+  {
+    "mime": "application/xml",
+    "filetype": "application",
+    "label": "rdf"
+  },
+  {
+    "mime": "application/xml",
+    "filetype": "application",
+    "label": "wsdl"
+  },
+  {
+    "mime": "application/xml",
+    "filetype": "application",
+    "label": "xpdl"
+  },
+  {
+    "mime": "application/zip",
+    "filetype": "application",
+    "label": "zip"
+  },
+  {
+    "mime": "audio/3gpp",
+    "filetype": "audio",
+    "label": "3gp"
+  },
+  {
+    "mime": "audio/3gpp",
+    "filetype": "audio",
+    "label": "3gpp"
+  },
+  {
+    "mime": "audio/3gpp2",
+    "filetype": "audio",
+    "label": "3g2"
+  },
+  {
+    "mime": "audio/3gpp2",
+    "filetype": "audio",
+    "label": "3gpp2"
+  },
+  {
+    "mime": "audio/aac",
+    "filetype": "audio",
+    "label": "aac"
+  },
+  {
+    "mime": "audio/aac",
+    "filetype": "audio",
+    "label": "adts"
+  },
+  {
+    "mime": "audio/aac",
+    "filetype": "audio",
+    "label": "loas"
+  },
+  {
+    "mime": "audio/aac",
+    "filetype": "audio",
+    "label": "ass"
+  },
+  {
+    "mime": "audio/basic",
+    "filetype": "audio",
+    "label": "au"
+  },
+  {
+    "mime": "audio/basic",
+    "filetype": "audio",
+    "label": "snd"
+  },
+  {
+    "mime": "audio/flac",
+    "filetype": "audio",
+    "label": "flac"
+  },
+  {
+    "mime": "audio/mp4",
+    "filetype": "audio",
+    "label": "m4a"
+  },
+  {
+    "mime": "audio/mpeg",
+    "filetype": "audio",
+    "label": "mp3"
+  },
+  {
+    "mime": "audio/mpeg",
+    "filetype": "audio",
+    "label": "mp2"
+  },
+  {
+    "mime": "audio/ogg",
+    "filetype": "audio",
+    "label": "ogg"
+  },
+  {
+    "mime": "audio/opus",
+    "filetype": "audio",
+    "label": "opus"
+  },
+  {
+    "mime": "audio/x-aiff",
+    "filetype": "audio",
+    "label": "aif"
+  },
+  {
+    "mime": "audio/x-aiff",
+    "filetype": "audio",
+    "label": "aifc"
+  },
+  {
+    "mime": "audio/x-aiff",
+    "filetype": "audio",
+    "label": "aiff"
+  },
+  {
+    "mime": "audio/x-pn-realaudio",
+    "filetype": "audio",
+    "label": "ra"
+  },
+  {
+    "mime": "audio/x-wav",
+    "filetype": "audio",
+    "label": "wav"
+  },
+  {
+    "mime": "image/avif",
+    "filetype": "image",
+    "label": "avif"
+  },
+  {
+    "mime": "image/bmp",
+    "filetype": "image",
+    "label": "bmp"
+  },
+  {
+    "mime": "image/gif",
+    "filetype": "image",
+    "label": "gif"
+  },
+  {
+    "mime": "image/heic",
+    "filetype": "image",
+    "label": "heic"
+  },
+  {
+    "mime": "image/heif",
+    "filetype": "image",
+    "label": "heif"
+  },
+  {
+    "mime": "image/ief",
+    "filetype": "image",
+    "label": "ief"
+  },
+  {
+    "mime": "image/jpeg",
+    "filetype": "image",
+    "label": "jpg"
+  },
+  {
+    "mime": "image/jpeg",
+    "filetype": "image",
+    "label": "jpe"
+  },
+  {
+    "mime": "image/jpeg",
+    "filetype": "image",
+    "label": "jpeg"
+  },
+  {
+    "mime": "image/png",
+    "filetype": "image",
+    "label": "png"
+  },
+  {
+    "mime": "image/svg+xml",
+    "filetype": "image",
+    "label": "svg"
+  },
+  {
+    "mime": "image/tiff",
+    "filetype": "image",
+    "label": "tiff"
+  },
+  {
+    "mime": "image/tiff",
+    "filetype": "image",
+    "label": "tif"
+  },
+  {
+    "mime": "image/vnd.microsoft.icon",
+    "filetype": "image",
+    "label": "ico"
+  },
+  {
+    "mime": "image/x-cmu-raster",
+    "filetype": "image",
+    "label": "ras"
+  },
+  {
+    "mime": "image/x-portable-anymap",
+    "filetype": "image",
+    "label": "pnm"
+  },
+  {
+    "mime": "image/x-portable-bitmap",
+    "filetype": "image",
+    "label": "pbm"
+  },
+  {
+    "mime": "image/x-portable-graymap",
+    "filetype": "image",
+    "label": "pgm"
+  },
+  {
+    "mime": "image/x-portable-pixmap",
+    "filetype": "image",
+    "label": "ppm"
+  },
+  {
+    "mime": "image/x-rgb",
+    "filetype": "image",
+    "label": "rgb"
+  },
+  {
+    "mime": "image/x-xbitmap",
+    "filetype": "image",
+    "label": "xbm"
+  },
+  {
+    "mime": "image/x-xpixmap",
+    "filetype": "image",
+    "label": "xpm"
+  },
+  {
+    "mime": "image/x-xwindowdump",
+    "filetype": "image",
+    "label": "xwd"
+  },
+  {
+    "mime": "message/rfc822",
+    "filetype": "message",
+    "label": "eml"
+  },
+  {
+    "mime": "message/rfc822",
+    "filetype": "message",
+    "label": "mht"
+  },
+  {
+    "mime": "message/rfc822",
+    "filetype": "message",
+    "label": "mhtml"
+  },
+  {
+    "mime": "message/rfc822",
+    "filetype": "message",
+    "label": "nws"
+  },
+  {
+    "mime": "text/css",
+    "filetype": "text",
+    "label": "css"
+  },
+  {
+    "mime": "text/csv",
+    "filetype": "text",
+    "label": "csv"
+  },
+  {
+    "mime": "text/html",
+    "filetype": "text",
+    "label": "html"
+  },
+  {
+    "mime": "text/html",
+    "filetype": "text",
+    "label": "htm"
+  },
+  {
+    "mime": "text/markdown",
+    "filetype": "text",
+    "label": "md"
+  },
+  {
+    "mime": "text/n3",
+    "filetype": "text",
+    "label": "n3"
+  },
+  {
+    "mime": "text/plain",
+    "filetype": "text",
+    "label": "txt"
+  },
+  {
+    "mime": "text/plain",
+    "filetype": "text",
+    "label": "bat"
+  },
+  {
+    "mime": "text/plain",
+    "filetype": "text",
+    "label": "c"
+  },
+  {
+    "mime": "text/plain",
+    "filetype": "text",
+    "label": "h"
+  },
+  {
+    "mime": "text/plain",
+    "filetype": "text",
+    "label": "ksh"
+  },
+  {
+    "mime": "text/plain",
+    "filetype": "text",
+    "label": "pl"
+  },
+  {
+    "mime": "text/plain",
+    "filetype": "text",
+    "label": "srt"
+  },
+  {
+    "mime": "text/richtext",
+    "filetype": "text",
+    "label": "rtx"
+  },
+  {
+    "mime": "text/tab-separated-values",
+    "filetype": "text",
+    "label": "tsv"
+  },
+  {
+    "mime": "text/vtt",
+    "filetype": "text",
+    "label": "vtt"
+  },
+  {
+    "mime": "text/x-python",
+    "filetype": "text",
+    "label": "py"
+  },
+  {
+    "mime": "text/x-setext",
+    "filetype": "text",
+    "label": "etx"
+  },
+  {
+    "mime": "text/x-sgml",
+    "filetype": "text",
+    "label": "sgm"
+  },
+  {
+    "mime": "text/x-sgml",
+    "filetype": "text",
+    "label": "sgml"
+  },
+  {
+    "mime": "text/x-vcard",
+    "filetype": "text",
+    "label": "vcf"
+  },
+  {
+    "mime": "text/xml",
+    "filetype": "text",
+    "label": "xml"
+  },
+  {
+    "mime": "video/mp4",
+    "filetype": "video",
+    "label": "mp4"
+  },
+  {
+    "mime": "video/mpeg",
+    "filetype": "video",
+    "label": "mpeg"
+  },
+  {
+    "mime": "video/mpeg",
+    "filetype": "video",
+    "label": "m1v"
+  },
+  {
+    "mime": "video/mpeg",
+    "filetype": "video",
+    "label": "mpa"
+  },
+  {
+    "mime": "video/mpeg",
+    "filetype": "video",
+    "label": "mpe"
+  },
+  {
+    "mime": "video/mpeg",
+    "filetype": "video",
+    "label": "mpg"
+  },
+  {
+    "mime": "video/quicktime",
+    "filetype": "video",
+    "label": "mov"
+  },
+  {
+    "mime": "video/quicktime",
+    "filetype": "video",
+    "label": "qt"
+  },
+  {
+    "mime": "video/webm",
+    "filetype": "video",
+    "label": "webm"
+  },
+  {
+    "mime": "video/x-matroska",
+    "filetype": "video",
+    "label": "mkv"
+  },
+  {
+    "mime": "video/x-msvideo",
+    "filetype": "video",
+    "label": "avi"
+  },
+  {
+    "mime": "video/x-sgi-movie",
+    "filetype": "video",
+    "label": "movie"
+  }
+]

@@ -3,11 +3,9 @@ use rbatis::RBatis;
 use serde::{Deserialize, Deserializer};
 
 use crate::{
-    CoreResult,
-    errors::{CoreError, DbError},
-    models::{
-        asset::Assets, bucket::Buckets, client::Clients, permission::AssetPermissions, user::Users,
-    },
+    errors::{CoreError, DbError}, models::{
+        asset::Assets, bucket::Buckets, client::Clients, mime::Mimes, permission::AssetPermissions, user::Users
+    }, CoreResult
 };
 
 pub mod asset;
@@ -15,6 +13,7 @@ pub mod bucket;
 pub mod client;
 pub mod permission;
 pub mod user;
+pub mod mime;
 
 pub trait IntoSerializer {
     type Serializer;
@@ -35,6 +34,7 @@ pub async fn run_migrations(url: &str) -> CoreResult<()> {
     AssetPermissions::write_stream(&config).await?;
     Users::write_stream(&config).await?;
     Buckets::write_stream(&config).await?;
+    Mimes::write_stream(&config).await?;
 
     run_modeller(&config).await?;
     Ok(())

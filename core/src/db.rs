@@ -4,7 +4,7 @@ use rbdc_mysql::MysqlDriver;
 use rbdc_pg::PgDriver;
 use rbdc_sqlite::SqliteDriver;
 
-use crate::{CoreResult, errors::CoreError, models::run_migrations};
+use crate::{errors::CoreError, models::{mime::Mimes, run_migrations}, CoreResult};
 
 pub async fn init_db(url: &str) -> CoreResult<RBatis> {
     use DatabaseType::*;
@@ -21,6 +21,14 @@ pub async fn init_db(url: &str) -> CoreResult<RBatis> {
         MsSql => rb.init(MssqlDriver {}, url)?,
     }
 
+    // load mimes in the background
+    let db_clone = rb.clone();
+    tokio::spawn(async move {
+        if let Err(err) = Mimes::load_from_file(&db_clone).await {
+            tracing::error!("{err}")
+        }
+    });
+    
     Ok(rb)
 }
 
@@ -52,14 +60,3 @@ impl<'a> TryFrom<&'a str> for DatabaseType {
         }
     }
 }
-
-// async fn migrate(url: &str) -> CoreResult<()> {
-//     install_default_drivers();
-//     let pool = AnyPoolOptions::new().connect(url).await?;
-//     sqlx::migrate!()
-//         .run(&pool)
-//         .await
-//         .map_err(|err| CoreError::MigrationError(err.into()))?;
-
-//     Ok(())
-// }

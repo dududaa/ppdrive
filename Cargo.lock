@@ -1835,6 +1835,7 @@ dependencies = [
  "rbdc-sqlite",
  "rbs",
  "serde",
+ "serde_json",
  "serial_test",
  "sqlx",
  "tokio",
