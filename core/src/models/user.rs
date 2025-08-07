@@ -10,7 +10,6 @@ use super::{IntoSerializer, asset::Assets, check_model, permission::AssetPermiss
 
 #[derive(Serialize, Deserialize, Modeller)]
 pub struct Users {
-    #[modeller(serial)]
     id: Option<u64>,
 
     #[modeller(unique)]

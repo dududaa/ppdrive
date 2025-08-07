@@ -6,7 +6,6 @@ use crate::{CoreResult, errors::CoreError, tools::install_dir};
 
 #[derive(Serialize, Deserialize, Modeller)]
 pub struct Mimes {
-    #[modeller(serial)]
     id: Option<u64>,
 
     #[modeller(length = 60)]
@@ -21,15 +20,26 @@ pub struct Mimes {
 
 impl Mimes {
     pub async fn load_from_file(db: &RBatis) -> CoreResult<()> {
-        let mimepath = install_dir()?.join("mimes.json");
+        let filename = "mimes.json";
+        let mimepath = if cfg!(debug_assertions) {
+            filename.into()
+        } else {
+            install_dir()?.join(filename)
+        };
 
         let metalist = tokio::fs::read_to_string(mimepath).await?;
-        let metalist: Vec<MimeMeta> =
-            serde_json::from_str(&metalist).map_err(|err| CoreError::ParseError(err.to_string()))?;
+        let metalist: Vec<MimeMeta> = serde_json::from_str(&metalist)
+            .map_err(|err| CoreError::ParseError(err.to_string()))?;
 
         for meta in &metalist {
-            let MimeMeta { mime, filetype, label } = meta;
-            let sql = format!("INSERT INTO mimes (mime, filetype, label) VALUES ({mime}, {filetype}, {label})");
+            let MimeMeta {
+                mime,
+                filetype,
+                label,
+            } = meta;
+            let sql = format!(
+                "INSERT INTO mimes (mime, filetype, label) VALUES ({mime}, {filetype}, {label})"
+            );
             if let Err(err) = RBatis::exec(db, &sql, vec![]).await {
                 tracing::error!("{err}")
             }
@@ -47,7 +57,8 @@ pub struct MimeMeta {
 }
 
 #[derive(Serialize, Deserialize, Modeller)]
+#[modeller(index(name = "idx_bucket_mimes", fields(bucket_id)))]
 pub struct BucketMimes {
     bucket_id: u64,
-    mime_id: u64
+    mime_id: u64,
 }

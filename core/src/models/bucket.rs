@@ -11,7 +11,6 @@ use crate::{CoreResult, errors::CoreError, options::CreateBucketOptions, tools::
 
 #[derive(Serialize, Deserialize, Modeller)]
 pub struct Buckets {
-    #[modeller(serial)]
     id: Option<u64>,
 
     #[modeller(unique)]

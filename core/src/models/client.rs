@@ -9,7 +9,6 @@ use super::check_model;
 
 #[derive(Serialize, Deserialize, Modeller)]
 pub struct Clients {
-    #[modeller(serial)]
     id: Option<u64>,
 
     /// keep away from public API

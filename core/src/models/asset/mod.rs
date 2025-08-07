@@ -67,7 +67,6 @@ impl TryFrom<u8> for AssetType {
 
 #[derive(Serialize, Deserialize, Modeller)]
 pub struct Assets {
-    #[modeller(serial)]
     id: Option<u64>,
 
     #[modeller(unique, length = 3000)]

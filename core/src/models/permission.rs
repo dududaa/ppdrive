@@ -44,7 +44,7 @@ impl TryFrom<u8> for Permission {
 }
 
 #[derive(Serialize, Deserialize, Modeller)]
-#[modeller(unique_together(user_id, asset_id))]
+#[modeller(index(name = "idx_user_x_asset", fields(user_id, asset_id), unique))]
 pub struct AssetPermissions {
     #[modeller(foreign_key(rf = "users(id)", on_delete = "cascade"))]
     user_id: u64,
