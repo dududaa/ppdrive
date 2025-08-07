@@ -1,9 +1,9 @@
-use crate::errors::AppError;
-use ppdrive_core::tools::secrets::{generate_secret_file, secret_filename};
+use crate::errors::RestError;
+use ppdrive_fs::tools::secrets::{generate_secret_file, secret_filename};
 
 pub mod jwt;
 
-pub fn get_env(key: &str) -> Result<String, AppError> {
+pub fn get_env(key: &str) -> Result<String, RestError> {
     std::env::var(key).map_err(|err| {
         tracing::error!("unable to get var {key}: {err}");
         err.into()
@@ -16,7 +16,7 @@ pub fn mb_to_bytes(value: usize) -> usize {
 
 /// If app secret file does not exist, generate it. Mostly useful
 /// for app initialization.
-pub async fn init_secrets() -> Result<(), AppError> {
+pub async fn init_secrets() -> Result<(), RestError> {
     let path = secret_filename()?;
     if !path.is_file() {
         generate_secret_file().await?;

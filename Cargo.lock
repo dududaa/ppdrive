@@ -1813,15 +1813,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
-name = "ppdrive_cli"
+name = "ppdrive"
 version = "0.1.0"
 dependencies = [
- "ppdrive_core",
+ "ppdrive_rest",
  "tokio",
 ]
 
 [[package]]
-name = "ppdrive_core"
+name = "ppdrive_fs"
 version = "0.1.0"
 dependencies = [
  "chacha20poly1305",
@@ -1845,7 +1845,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ppdrive_server"
+name = "ppdrive_rest"
 version = "0.27.20"
 dependencies = [
  "axum",
@@ -1855,7 +1855,7 @@ dependencies = [
  "futures",
  "jsonwebtoken",
  "mime_guess",
- "ppdrive_core",
+ "ppdrive_fs",
  "serde",
  "serde_json",
  "serial_test",

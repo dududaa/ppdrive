@@ -5,7 +5,7 @@ use chrono::Utc;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
-use crate::errors::AppError;
+use crate::errors::RestError;
 
 use super::get_env;
 
@@ -25,19 +25,19 @@ pub struct Claims {
     pub ty: TokenType,
 }
 
-pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Claims, AppError> {
+pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Claims, RestError> {
     let token = extract_jwt(header_value)?;
 
     let mut validation = Validation::default();
     validation.algorithms = vec![Algorithm::HS512];
 
     let decoded = decode::<Claims>(&token, &DecodingKey::from_secret(secret), &validation)
-        .map_err(|err| AppError::AuthorizationError(format!("invalid token: {err}")))?;
+        .map_err(|err| RestError::AuthorizationError(format!("invalid token: {err}")))?;
 
     Ok(decoded.claims)
 }
 
-fn extract_jwt(header_value: &HeaderValue) -> Result<String, AppError> {
+fn extract_jwt(header_value: &HeaderValue) -> Result<String, RestError> {
     let bearer = get_env(BEARER_KEY)?;
 
     let bearer = format!("{} ", bearer);
@@ -50,7 +50,7 @@ fn extract_jwt(header_value: &HeaderValue) -> Result<String, AppError> {
         }
     }
 
-    Err(AppError::AuthorizationError(
+    Err(RestError::AuthorizationError(
         "Error extracting jwt".to_string(),
     ))
 }
@@ -60,7 +60,7 @@ pub(crate) fn create_jwt(
     secret: &[u8],
     exp: i64,
     ty: TokenType,
-) -> Result<String, AppError> {
+) -> Result<String, RestError> {
     let exp = Utc::now()
         .checked_add_signed(chrono::Duration::seconds(exp))
         .expect("Invalid timestamp")
@@ -74,5 +74,5 @@ pub(crate) fn create_jwt(
 
     let header = Header::new(Algorithm::HS512);
     encode(&header, &claims, &EncodingKey::from_secret(secret))
-        .map_err(|err| AppError::AuthorizationError(format!("unable to create token: {err}")))
+        .map_err(|err| RestError::AuthorizationError(format!("unable to create token: {err}")))
 }

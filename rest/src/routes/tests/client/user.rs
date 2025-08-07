@@ -1,5 +1,5 @@
 use axum_test::multipart::{MultipartForm, Part};
-use ppdrive_core::{models::asset::AssetType, options::CreateAssetOptions};
+use ppdrive_fs::{models::asset::AssetType, options::CreateAssetOptions};
 use serial_test::serial;
 
 use funtions::*;
@@ -136,7 +136,7 @@ async fn test_client_user_delete_asset() -> AppResult<()> {
 
 mod funtions {
     use axum_test::{TestResponse, TestServer};
-    use ppdrive_core::{
+    use ppdrive_fs::{
         options::{CreateBucketOptions, LoginToken},
         RBatis,
     };

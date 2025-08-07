@@ -18,14 +18,14 @@
 !migrate.sh
 !sqlite.sh
 
-!cli/
-!cli/**
+!fs/
+!fs/**
 
 !core/
 !core/**
 
-!server/
-!server/**
+!rest/
+!rest/**
 
 **migrations
 **db.sqlite*

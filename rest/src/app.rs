@@ -10,7 +10,7 @@ use axum::{
     routing::{get, IntoMakeService},
     Router,
 };
-use ppdrive_core::config::{AppConfig, CorsOriginType};
+use ppdrive_fs::config::{AppConfig, CorsOriginType};
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
@@ -21,7 +21,7 @@ use crate::routes::client::client_routes;
 use crate::routes::get_asset;
 use crate::utils::init_secrets;
 use crate::utils::jwt::{BEARER_KEY, BEARER_VALUE};
-use crate::{errors::AppError, state::AppState};
+use crate::{errors::RestError, state::AppState};
 
 fn to_origins(origins: CorsOriginType) -> AllowOrigin {
     match origins {
@@ -44,7 +44,7 @@ fn to_origins(origins: CorsOriginType) -> AllowOrigin {
     }
 }
 
-async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, AppError> {
+async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, RestError> {
     let state = AppState::new(config).await?;
     let origins = config.server().origins();
 
@@ -89,7 +89,7 @@ async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, A
     Ok(router)
 }
 
-pub async fn initialize_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, AppError> {
+pub async fn initialize_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, RestError> {
     if let Err(err) = tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()

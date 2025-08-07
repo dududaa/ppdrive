@@ -1,17 +1,17 @@
 use crate::app::initialize_app;
-use errors::AppError;
-use ppdrive_core::config::{get_config_path, AppConfig};
+use errors::RestError;
+use ppdrive_fs::config::{get_config_path, AppConfig};
 
 mod app;
-mod errors;
+pub mod errors;
 mod routes;
 mod state;
 mod utils;
 
-type AppResult<T> = Result<T, AppError>;
+type AppResult<T> = Result<T, RestError>;
 
-#[tokio::main]
-async fn main() -> AppResult<()> {
+// #[tokio::main]
+pub async fn start_server() -> AppResult<()> {
     let config_path = get_config_path()?;
     let config = AppConfig::load(config_path).await?;
     let app = initialize_app(&config).await?;
@@ -24,7 +24,7 @@ async fn main() -> AppResult<()> {
 
             axum::serve(listener, app)
                 .await
-                .map_err(|err| AppError::InitError(err.to_string()))?;
+                .map_err(|err| RestError::InitError(err.to_string()))?;
         }
         Err(err) => {
             tracing::error!("Error starting listener: {err}");

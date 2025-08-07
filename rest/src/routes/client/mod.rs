@@ -7,7 +7,7 @@ use axum_macros::debug_handler;
 use user::*;
 
 use crate::{
-    errors::AppError,
+    errors::RestError,
     state::AppState,
     utils::{
         jwt::{create_jwt, TokenType},
@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use ppdrive_core::{
+use ppdrive_fs::{
     config::AppConfig,
     models::{
         bucket::Buckets,
@@ -33,7 +33,7 @@ async fn create_user(
     State(state): State<AppState>,
     client: ClientRoute,
     Json(data): Json<CreateUserClient>,
-) -> Result<String, AppError> {
+) -> Result<String, RestError> {
     let db = state.db();
     let user_id = Users::create_by_client(db, *client.id(), data).await?;
 
@@ -45,7 +45,7 @@ async fn login_user(
     State(state): State<AppState>,
     _: ClientRoute,
     Json(data): Json<LoginUserClient>,
-) -> Result<Json<LoginToken>, AppError> {
+) -> Result<Json<LoginToken>, RestError> {
     let LoginUserClient {
         id,
         access_exp,
@@ -87,21 +87,21 @@ async fn delete_user(
     Path(id): Path<String>,
     client: ClientRoute,
     State(state): State<AppState>,
-) -> Result<String, AppError> {
+) -> Result<String, RestError> {
     let db = state.db();
     let user = Users::get_by_pid(db, &id).await?;
 
     if let Some(client_id) = user.client_id() {
         println!("client {}, user-client {}", client.id(), client_id);
         if client_id != client.id() {
-            return Err(AppError::PermissionDenied(
+            return Err(RestError::PermissionDenied(
                 "client cannot delete this user".to_string(),
             ));
         }
     }
 
     match user.role()? {
-        UserRole::Admin => Err(AppError::AuthorizationError(
+        UserRole::Admin => Err(RestError::AuthorizationError(
             "client cannot delete admin".to_string(),
         )),
         _ => {
@@ -116,11 +116,11 @@ async fn create_bucket(
     State(state): State<AppState>,
     client: ClientRoute,
     Json(data): Json<CreateBucketOptions>,
-) -> Result<String, AppError> {
+) -> Result<String, RestError> {
     let db = state.db();
     if let Some(partition) = &data.partition {
         if partition == SECRETS_FILENAME {
-            return Err(AppError::PermissionDenied(
+            return Err(RestError::PermissionDenied(
                 "partition name {SECRET_FILE} is not allowed".to_string(),
             ));
         }

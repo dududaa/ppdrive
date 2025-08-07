@@ -1,5 +1,5 @@
 use axum_test::{TestResponse, TestServer};
-use ppdrive_core::{
+use ppdrive_fs::{
     db::init_db,
     options::{CreateBucketOptions, CreateUserClient, LoginUserClient},
 };
@@ -7,7 +7,7 @@ use serial_test::serial;
 
 use crate::{
     app::initialize_app,
-    errors::AppError,
+    errors::RestError,
     routes::tests::{app_config, create_client_token},
     AppResult,
 };
@@ -29,7 +29,7 @@ async fn test_client_create_user() -> AppResult<()> {
     let app = initialize_app(&config).await?;
 
     let server = TestServer::new(app).map_err(|err| {
-        AppError::InternalServerError(format!("unable to create test server: {err}"))
+        RestError::InternalServerError(format!("unable to create test server: {err}"))
     })?;
 
     let resp = create_user_request(&server, &token).await;
@@ -50,7 +50,7 @@ async fn test_client_login_user() -> AppResult<()> {
     let app = initialize_app(&config).await?;
 
     let server = TestServer::new(app).map_err(|err| {
-        AppError::InternalServerError(format!("unable to create test server: {err}"))
+        RestError::InternalServerError(format!("unable to create test server: {err}"))
     })?;
 
     let resp = login_user_request(&server, &token).await;
@@ -71,7 +71,7 @@ async fn test_client_delete_user() -> AppResult<()> {
     let app = initialize_app(&config).await?;
 
     let server = TestServer::new(app).map_err(|err| {
-        AppError::InternalServerError(format!("unable to create test server: {err}"))
+        RestError::InternalServerError(format!("unable to create test server: {err}"))
     })?;
 
     let resp = create_user_request(&server, &token).await;
@@ -99,7 +99,7 @@ async fn test_client_create_bucket() -> AppResult<()> {
     let app = initialize_app(&config).await?;
 
     let server = TestServer::new(app).map_err(|err| {
-        AppError::InternalServerError(format!("unable to create test server: {err}"))
+        RestError::InternalServerError(format!("unable to create test server: {err}"))
     })?;
 
     let resp = create_client_bucket(&server, &token).await;

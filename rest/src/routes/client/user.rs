@@ -6,9 +6,9 @@ use axum_macros::debug_handler;
 use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
-use crate::{errors::AppError, state::AppState, utils::mb_to_bytes};
+use crate::{errors::RestError, state::AppState, utils::mb_to_bytes};
 
-use ppdrive_core::{
+use ppdrive_fs::{
     models::{
         asset::{AssetType, Assets},
         bucket::{BucketOwnerType, Buckets},
@@ -25,7 +25,7 @@ use crate::routes::extractors::ClientUser;
 pub async fn get_user(
     State(state): State<AppState>,
     ClientUser(user): ClientUser,
-) -> Result<Json<UserSerializer>, AppError> {
+) -> Result<Json<UserSerializer>, RestError> {
     let db = state.db();
     let user_model = Users::get(db, user.id()).await?;
     let data = user_model.into_serializer(db).await?;
@@ -38,7 +38,7 @@ pub async fn create_user_bucket(
     State(state): State<AppState>,
     ClientUser(user): ClientUser,
     Json(data): Json<CreateBucketOptions>,
-) -> Result<String, AppError> {
+) -> Result<String, RestError> {
     let db = state.db();
     let id = Buckets::create_by_user(db, data, *user.id()).await?;
 
@@ -50,7 +50,7 @@ pub async fn create_asset(
     State(state): State<AppState>,
     ClientUser(user): ClientUser,
     mut multipart: Multipart,
-) -> Result<String, AppError> {
+) -> Result<String, RestError> {
     let user_id = user.id();
 
     let mut opts = CreateAssetOptions::default();
@@ -80,13 +80,13 @@ pub async fn create_asset(
 
     // options validations
     if opts.asset_path.is_empty() {
-        return Err(AppError::InternalServerError(
+        return Err(RestError::InternalServerError(
             "asset_path field is required".to_string(),
         ));
     }
 
     if &opts.asset_path == SECRETS_FILENAME {
-        return Err(AppError::AuthorizationError(
+        return Err(RestError::AuthorizationError(
             "asset_path '{SECRET_FILE}' is reserved. please choose another path.".to_string(),
         ));
     }
@@ -97,7 +97,7 @@ pub async fn create_asset(
     if !bucket.public() {
         if let BucketOwnerType::User = bucket.owner_type() {
             if bucket.owner_id() != user_id {
-                return Err(AppError::PermissionDenied(
+                return Err(RestError::PermissionDenied(
                     "you cannot write to this bucket".to_string(),
                 ));
             }
@@ -122,7 +122,7 @@ pub async fn create_asset(
             if total_size > mb_to_bytes(*max_size as usize) as u64 {
                 tokio::fs::remove_file(tmp_file).await?;
 
-                return Err(AppError::InternalServerError(
+                return Err(RestError::InternalServerError(
                     "bucket size exceeded.".to_string(),
                 ));
             }
@@ -145,7 +145,7 @@ pub async fn delete_asset(
     Path((asset_type, asset_path)): Path<(AssetType, String)>,
     State(state): State<AppState>,
     ClientUser(user): ClientUser,
-) -> Result<String, AppError> {
+) -> Result<String, RestError> {
     let db = state.db();
     let asset = Assets::get_by_path(db, &asset_path, &asset_type).await?;
 
@@ -153,7 +153,7 @@ pub async fn delete_asset(
         asset.delete(db).await?;
         Ok("operation successful".to_string())
     } else {
-        Err(AppError::AuthorizationError(
+        Err(RestError::AuthorizationError(
             "permission denied".to_string(),
         ))
     }

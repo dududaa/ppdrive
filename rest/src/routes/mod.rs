@@ -7,9 +7,9 @@ use axum::{
 use axum_macros::debug_handler;
 use extractors::ClientUser;
 
-use crate::{errors::AppError, state::AppState};
+use crate::{errors::RestError, state::AppState};
 
-use ppdrive_core::{
+use ppdrive_fs::{
     models::asset::{AssetType, Assets},
     tools::secrets::SECRETS_FILENAME,
 };
@@ -27,13 +27,13 @@ pub async fn get_asset(
     Path((asset_type, mut asset_path)): Path<(AssetType, String)>,
     State(state): State<AppState>,
     user_extractor: Option<ClientUser>,
-) -> Result<Response<Body>, AppError> {
+) -> Result<Response<Body>, RestError> {
     if asset_path.ends_with("/") {
         asset_path = asset_path.trim_end_matches("/").to_string();
     }
 
     if &asset_path == SECRETS_FILENAME {
-        return Err(AppError::PermissionDenied("access denied".to_string()));
+        return Err(RestError::PermissionDenied("access denied".to_string()));
     }
 
     let db = state.db();
@@ -45,7 +45,7 @@ pub async fn get_asset(
     // original path
     if let Some(custom_path) = asset.custom_path() {
         if custom_path != &asset_path {
-            return Err(AppError::NotFound("asset not found".to_string()));
+            return Err(RestError::NotFound("asset not found".to_string()));
         }
     }
 
@@ -56,11 +56,11 @@ pub async fn get_asset(
                 let can_read = current_user.can_read_asset(&state, &asset.id()).await;
 
                 if (current_user.id() != asset.user_id()) && can_read.is_err() {
-                    return Err(AppError::PermissionDenied("permission denied".to_string()));
+                    return Err(RestError::PermissionDenied("permission denied".to_string()));
                 }
             }
             None => {
-                return Err(AppError::PermissionDenied("permission denied".to_string()));
+                return Err(RestError::PermissionDenied("permission denied".to_string()));
             }
         }
     }
@@ -74,11 +74,11 @@ pub async fn get_asset(
                 let resp = Response::builder()
                     .header(CONTENT_TYPE, mime_type.to_string())
                     .body(Body::from(content))
-                    .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+                    .map_err(|err| RestError::InternalServerError(err.to_string()))?;
 
                 Ok(resp)
             } else {
-                Err(AppError::NotFound(format!(
+                Err(RestError::NotFound(format!(
                     "asset record found but path '{asset_path}' does not exist if filesystem for '{asset_type}'."
                 )))
             }
@@ -137,11 +137,11 @@ pub async fn get_asset(
                 let resp = Response::builder()
                     .header(CONTENT_TYPE, "text/html")
                     .body(Body::from(body))
-                    .map_err(|err| AppError::InternalServerError(err.to_string()))?;
+                    .map_err(|err| RestError::InternalServerError(err.to_string()))?;
 
                 Ok(resp)
             } else {
-                Err(AppError::NotFound(format!(
+                Err(RestError::NotFound(format!(
                     "asset record found but path '{asset_path}' does not exist for '{asset_type}'."
                 )))
             }
