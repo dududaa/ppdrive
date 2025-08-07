@@ -1,10 +1,14 @@
 use modeller::prelude::*;
-use rbatis::RBatis;
+use rbatis::{RBatis, crud};
 use serde::{Deserialize, Serialize};
 
 use crate::{CoreResult, errors::CoreError, tools::install_dir};
 
 #[derive(Serialize, Deserialize, Modeller)]
+#[modeller(
+    index(name = "idx_mime_filetype", fields(filetype)),
+    index(name = "idx_mime", fields(mime))
+)]
 pub struct Mimes {
     id: Option<u64>,
 
@@ -17,6 +21,8 @@ pub struct Mimes {
     #[modeller(unique, length = 10)]
     label: String,
 }
+
+crud!(Mimes {});
 
 impl Mimes {
     pub async fn load_from_file(db: &RBatis) -> CoreResult<()> {
@@ -45,6 +51,10 @@ impl Mimes {
             }
         }
         Ok(())
+    }
+
+    pub fn id(&self) -> u64 {
+        *&self.id.unwrap_or_default()
     }
 }
 

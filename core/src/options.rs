@@ -63,7 +63,17 @@ pub struct CreateBucketOptions {
 
     /// can be set if there's partition
     pub partition_size: Option<u64>,
-    pub accepts: Option<String>,
+
+    /// The mime type acceptable by a bucket.
+    /// - "*" is the default and means all mime types are accepted.
+    /// - "custom" means a selection of mimetypes manually specified
+    /// by a user. Acceptable format should start with "custom" keyword
+    /// followed by a colon ":" and comma seprated mimetypes. Example, "custom:application/zip,audio/3gpp"
+    /// - You can specify a group of mimes using the `filetype` they
+    /// belong to (e.g, "audio", "video", "application"...etc).
+    /// - You can also specify a *list* of comma seprated groups e.g, "audio,video,application".
+    pub accepts: String,
+
     pub label: String,
     pub public: Option<bool>,
 }

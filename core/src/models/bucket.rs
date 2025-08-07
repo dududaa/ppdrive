@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::models::de_sqlite_bool;
+use crate::models::{de_sqlite_bool, mime::Mimes};
 use modeller::prelude::*;
 use rbatis::{RBatis, crud, impl_select};
 use rbs::value;
@@ -25,7 +25,9 @@ pub struct Buckets {
 
     /// can be set if there's partition
     partition_size: Option<u64>,
-    accepts: Option<String>,
+
+    #[modeller(default = "*")]
+    accepts: String,
 
     #[serde(deserialize_with = "de_sqlite_bool")]
     public: bool,
@@ -132,6 +134,12 @@ impl Buckets {
             public,
         } = opts;
 
+        if accepts.is_empty() {
+            return Err(CoreError::PermissionError(format!(
+                "bucket's \"accept\" parameter cannot be empty. please check docs to see how to specify acceptable mimetypes."
+            )));
+        }
+
         if let Some(folder) = &partition {
             let b = Buckets::get_by_key(db, "root_folder", folder).await?;
             if b.is_some() {
@@ -156,12 +164,83 @@ impl Buckets {
             label,
             partition_size,
             partition,
-            accepts,
+            accepts: accepts.clone(),
             public: public.unwrap_or_default(),
         };
 
         Buckets::insert(db, &data).await?;
+
+        let bucket = Buckets::get_by_pid(db, &data.pid.clone()).await?;
+        let db = db.clone();
+        tokio::spawn(async move {
+            if let Err(err) = bucket.save_mimes(&db, &accepts).await {
+                tracing::error!("unable to save mimes: {err}");
+            }
+        });
+
         Ok(data.pid)
+    }
+
+    /// save bucket's acceptable mimetypes based on `accepts` parameter.
+    async fn save_mimes(&self, db: &RBatis, accepts: &str) -> CoreResult<()> {
+        if accepts == "*" {
+            return Ok(());
+        }
+
+        let mut mime_ids = Vec::new();
+        if accepts.starts_with("custom") {
+            let mstr = accepts.split(":").collect::<Vec<&str>>();
+            match mstr.get(1) {
+                Some(mlist) => {
+                    let mimes = mlist.split(",").collect::<Vec<&str>>();
+                    for mime in mimes {
+                        let get_mimes = Mimes::select_by_map(
+                            db,
+                            value! {
+                                "mime": mime.trim()
+                            },
+                        )
+                        .await?;
+
+                        mime_ids = get_mimes.iter().map(|m| m.id()).collect();
+                    }
+                }
+                None => {
+                    return Err(CoreError::PermissionError(format!(
+                        "You need to specify mime list for custom mimetypes."
+                    )));
+                }
+            }
+        } else {
+            let filetypes = accepts.split(",").collect::<Vec<&str>>();
+            for filtype in filetypes {
+                let get_mimes = Mimes::select_by_map(
+                    db,
+                    value! {
+                        "filetype": filtype.trim()
+                    },
+                )
+                .await?;
+
+                let mut ids = get_mimes.iter().map(|m| m.id()).collect();
+                mime_ids.append(&mut ids);
+            }
+        }
+
+        let bucket_id = &self.id.unwrap_or_default();
+        if !mime_ids.is_empty() {
+            for mime_id in mime_ids {
+                let query = format!(
+                    "INSERT INTO bucket_mimes (bucket_id, mime_id) VALUES ({bucket_id}, {mime_id})"
+                );
+
+                if let Err(err) = db.exec(&query, vec![]).await {
+                    tracing::error!("{err}")
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
