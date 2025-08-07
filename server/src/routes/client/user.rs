@@ -110,18 +110,22 @@ pub async fn create_asset(
     let dest = partition.map_or(asset_path.to_string(), |rf| format!("{rf}/{asset_path}"));
     let dest = std::path::Path::new(&dest);
 
-    // check bucket size limit
-    if let (Some(filesize), Some(max_size)) = (filesize, bucket.partition_size()) {
-        let cfz = bucket.content_size().await?;
-        let total_size = cfz + filesize;
-        if total_size > mb_to_bytes(*max_size as usize) as u64 {
-            if let Some(tmp_file) = tmp_file {
-                tokio::fs::remove_file(tmp_file).await?;
-            }
+    // validate file mimetype and check bucket size limit
+    if let Some(tmp_file) = &tmp_file {
+        let mime_type = mime_guess::from_path(tmp_file).first_or_octet_stream();
+        let mime = mime_type.to_string();
+        bucket.validate_mime(db, &mime).await?;
 
-            return Err(AppError::InternalServerError(
-                "bucket size exceeded.".to_string(),
-            ));
+        if let (Some(filesize), Some(max_size)) = (filesize, bucket.partition_size()) {
+            let cfz = bucket.content_size().await?;
+            let total_size = cfz + filesize;
+            if total_size > mb_to_bytes(*max_size as usize) as u64 {
+                tokio::fs::remove_file(tmp_file).await?;
+
+                return Err(AppError::InternalServerError(
+                    "bucket size exceeded.".to_string(),
+                ));
+            }
         }
     }
 

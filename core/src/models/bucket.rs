@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use crate::models::{de_sqlite_bool, mime::Mimes};
+use crate::models::{
+    de_sqlite_bool,
+    mime::{BucketMimes, Mimes},
+};
 use modeller::prelude::*;
 use rbatis::{RBatis, crud, impl_select};
 use rbs::value;
@@ -241,6 +244,28 @@ impl Buckets {
         }
 
         Ok(())
+    }
+
+    pub async fn validate_mime(&self, db: &RBatis, mime: &str) -> CoreResult<()> {
+        if self.accepts == "*" {
+            return Ok(());
+        }
+
+        let get_mime = Mimes::get_by_key(db, "mime", mime).await?;
+        let mime = get_mime.ok_or(CoreError::ServerError(format!(
+            "unsupported file mime '{mime}'"
+        )))?;
+
+        let bucket_mimes = BucketMimes::select_by_bucket(db, &self.id()).await?;
+        let exists = bucket_mimes.iter().find(|bm| *bm.mime_id() == mime.id());
+
+        match exists {
+            Some(_) => Ok(()),
+            None => Err(CoreError::PermissionError(format!(
+                "mime '{}' not supported by selected bucket.",
+                mime.mime()
+            ))),
+        }
     }
 }
 
