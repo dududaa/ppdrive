@@ -1813,6 +1813,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
+name = "ppd_bookeeper"
+version = "0.1.0"
+dependencies = [
+ "modeller",
+ "rbatis",
+ "rbdc-mssql",
+ "rbdc-mysql",
+ "rbdc-pg",
+ "rbdc-sqlite",
+ "rbs",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "ppdrive"
 version = "0.1.0"
 dependencies = [

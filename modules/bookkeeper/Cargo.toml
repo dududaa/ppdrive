@@ -1,0 +1,20 @@
+[package]
+name = "ppd_bookeeper"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rbs = { version = "4.5.51" }
+rbatis = { version = "4.5.51" }
+
+rbdc-sqlite = { version = "4.6" }
+rbdc-mysql = { version = "4.6" }
+rbdc-pg = { version = "4.6" }
+rbdc-mssql = { version = "4.6" }
+tokio = { version = "1.45.1" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.140"
+
+uuid = { version = "1.16.0", features = ["v4"] }
+modeller = { path = "../../../modeller/modeller" }

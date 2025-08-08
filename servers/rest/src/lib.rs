@@ -10,7 +10,6 @@ mod utils;
 
 type AppResult<T> = Result<T, RestError>;
 
-// #[tokio::main]
 pub async fn start_server() -> AppResult<()> {
     let config_path = get_config_path()?;
     let config = AppConfig::load(config_path).await?;
