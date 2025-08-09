@@ -7,23 +7,21 @@ use axum_macros::debug_handler;
 use user::*;
 
 use crate::{
-    errors::RestError,
+    errors::ServerError,
+    jwt::{create_jwt, TokenType},
     state::AppState,
-    utils::{
-        jwt::{create_jwt, TokenType},
-        mb_to_bytes,
-    },
+};
+use ppd_shared::{
+    config::AppConfig,
+    tools::{mb_to_bytes, SECRETS_FILENAME},
 };
 
-use ppdrive_fs::{
-    config::AppConfig,
-    models::{
-        bucket::Buckets,
-        user::{UserRole, Users},
-    },
-    options::{CreateBucketOptions, CreateUserClient, LoginToken, LoginUserClient},
-    tools::secrets::SECRETS_FILENAME,
+use ppd_bk::models::{
+    bucket::{Buckets, CreateBucketOptions},
+    user::{UserRole, Users},
 };
+
+use crate::opts::{CreateUserClient, LoginToken, LoginUserClient};
 
 use super::extractors::ClientRoute;
 mod user;
@@ -33,9 +31,9 @@ async fn create_user(
     State(state): State<AppState>,
     client: ClientRoute,
     Json(data): Json<CreateUserClient>,
-) -> Result<String, RestError> {
+) -> Result<String, ServerError> {
     let db = state.db();
-    let user_id = Users::create_by_client(db, *client.id(), data).await?;
+    let user_id = Users::create_by_client(db, *client.id(), data.max_bucket).await?;
 
     Ok(user_id.to_string())
 }
@@ -45,7 +43,7 @@ async fn login_user(
     State(state): State<AppState>,
     _: ClientRoute,
     Json(data): Json<LoginUserClient>,
-) -> Result<Json<LoginToken>, RestError> {
+) -> Result<Json<LoginToken>, ServerError> {
     let LoginUserClient {
         id,
         access_exp,
@@ -87,21 +85,21 @@ async fn delete_user(
     Path(id): Path<String>,
     client: ClientRoute,
     State(state): State<AppState>,
-) -> Result<String, RestError> {
+) -> Result<String, ServerError> {
     let db = state.db();
     let user = Users::get_by_pid(db, &id).await?;
 
     if let Some(client_id) = user.client_id() {
         println!("client {}, user-client {}", client.id(), client_id);
         if client_id != client.id() {
-            return Err(RestError::PermissionDenied(
+            return Err(ServerError::PermissionDenied(
                 "client cannot delete this user".to_string(),
             ));
         }
     }
 
     match user.role()? {
-        UserRole::Admin => Err(RestError::AuthorizationError(
+        UserRole::Admin => Err(ServerError::AuthorizationError(
             "client cannot delete admin".to_string(),
         )),
         _ => {
@@ -116,11 +114,11 @@ async fn create_bucket(
     State(state): State<AppState>,
     client: ClientRoute,
     Json(data): Json<CreateBucketOptions>,
-) -> Result<String, RestError> {
+) -> Result<String, ServerError> {
     let db = state.db();
     if let Some(partition) = &data.partition {
         if partition == SECRETS_FILENAME {
-            return Err(RestError::PermissionDenied(
+            return Err(ServerError::PermissionDenied(
                 "partition name {SECRET_FILE} is not allowed".to_string(),
             ));
         }

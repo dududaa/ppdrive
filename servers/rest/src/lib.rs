@@ -1,18 +1,23 @@
 use crate::app::initialize_app;
-use errors::RestError;
-use ppdrive_fs::config::{get_config_path, AppConfig};
+use errors::ServerError;
+use ppd_shared::config::AppConfig;
+// use ppdrive_fs::config::{get_config_path, AppConfig};
 
 mod app;
 pub mod errors;
-mod routes;
+mod extractors;
+mod general;
+
+#[cfg(feature = "client")]
+mod client;
 mod state;
-mod utils;
+mod jwt;
+mod opts;
 
-type AppResult<T> = Result<T, RestError>;
+type ServerResult<T> = Result<T, ServerError>;
 
-pub async fn start_server() -> AppResult<()> {
-    let config_path = get_config_path()?;
-    let config = AppConfig::load(config_path).await?;
+pub async fn start_server() -> ServerResult<()> {
+    let config = AppConfig::load().await?;
     let app = initialize_app(&config).await?;
 
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.server().port())).await {
@@ -23,7 +28,7 @@ pub async fn start_server() -> AppResult<()> {
 
             axum::serve(listener, app)
                 .await
-                .map_err(|err| RestError::InitError(err.to_string()))?;
+                .map_err(|err| ServerError::InitError(err.to_string()))?;
         }
         Err(err) => {
             tracing::error!("Error starting listener: {err}");

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::{CoreResult, config::auth::AuthConfig, errors::CoreError, tools::install_dir};
+use crate::{AppResult, config::auth::AuthConfig, errors::Error, tools::install_dir};
 pub mod auth;
 
 pub const CONFIG_FILENAME: &str = "ppd_config.toml";
@@ -11,7 +11,7 @@ pub enum CorsOriginType {
     List(Vec<String>),
 }
 
-pub fn get_config_path() -> CoreResult<PathBuf> {
+fn get_config_path() -> AppResult<PathBuf> {
     let path = if cfg!(debug_assertions) {
         CONFIG_FILENAME.into()
     } else {
@@ -78,10 +78,11 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub async fn load(config_path: PathBuf) -> CoreResult<Self> {
+    pub async fn load() -> AppResult<Self> {
+        let config_path = get_config_path()?;
         let config_str = tokio::fs::read_to_string(&config_path).await?;
         let config: Self =
-            toml::from_str(&config_str).map_err(|err| CoreError::ServerError(err.to_string()))?;
+            toml::from_str(&config_str).map_err(|err| Error::ServerError(err.to_string()))?;
 
         Ok(config)
     }
@@ -98,7 +99,7 @@ impl AppConfig {
         &self.auth
     }
 
-    pub async fn update(&mut self, data: ConfigUpdater) -> CoreResult<()> {
+    pub async fn update(&mut self, data: ConfigUpdater) -> AppResult<()> {
         // database
         let url = &self.database.url;
         self.database.url = data.db_url.unwrap_or(url.to_string());
@@ -114,7 +115,7 @@ impl AppConfig {
 
         // save to file
         let updated =
-            toml::to_string_pretty(&self).map_err(|err| CoreError::ServerError(err.to_string()))?;
+            toml::to_string_pretty(&self).map_err(|err| Error::ServerError(err.to_string()))?;
         let path = get_config_path()?;
 
         tokio::fs::write(&path, &updated).await?;

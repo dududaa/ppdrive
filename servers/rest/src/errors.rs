@@ -1,69 +1,87 @@
 use std::{env::VarError, fmt::Display, string::FromUtf8Error};
 
 use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoResponse};
-use ppdrive_fs::errors::CoreError;
+use ppd_fs::errors::Error as FsError;
+use ppd_shared::errors::Error as SharedError;
+use ppd_bk::Error as DBError;
 
 #[derive(Debug)]
-pub enum RestError {
+pub enum ServerError {
     InitError(String),
-    InternalServerError(String),
-    CoreError(CoreError),
+    InternalError(String),
+    FsError(FsError),
+    CommonError(SharedError),
+    DBError(DBError),
     AuthorizationError(String),
     IOError(String),
     NotFound(String),
     PermissionDenied(String),
 }
 
-impl Display for RestError {
+impl Display for ServerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RestError::InitError(msg) => write!(f, "{msg}"),
-            RestError::InternalServerError(msg) => write!(f, "{msg}"),
-            RestError::CoreError(msg) => write!(f, "{msg}"),
-            RestError::AuthorizationError(msg) => write!(f, "{msg}"),
-            RestError::IOError(msg) => write!(f, "{msg}"),
-            RestError::NotFound(msg) => write!(f, "{msg}"),
-            RestError::PermissionDenied(msg) => write!(f, "{msg}"),
+            ServerError::InitError(msg) => write!(f, "{msg}"),
+            ServerError::InternalError(msg) => write!(f, "{msg}"),
+            ServerError::FsError(err) => write!(f, "{err}"),
+            ServerError::CommonError(err) => write!(f, "{err}"),
+            ServerError::DBError(err) => write!(f, "{err}"),
+            ServerError::AuthorizationError(msg) => write!(f, "{msg}"),
+            ServerError::IOError(msg) => write!(f, "{msg}"),
+            ServerError::NotFound(msg) => write!(f, "{msg}"),
+            ServerError::PermissionDenied(msg) => write!(f, "{msg}"),
         }
     }
 }
 
-impl From<VarError> for RestError {
+impl From<VarError> for ServerError {
     fn from(value: VarError) -> Self {
-        RestError::InternalServerError(value.to_string())
+        ServerError::InternalError(value.to_string())
     }
 }
 
-impl From<serde_json::Error> for RestError {
+impl From<serde_json::Error> for ServerError {
     fn from(value: serde_json::Error) -> Self {
-        RestError::InternalServerError(value.to_string())
+        ServerError::InternalError(value.to_string())
     }
 }
 
-impl From<std::io::Error> for RestError {
+impl From<std::io::Error> for ServerError {
     fn from(value: std::io::Error) -> Self {
-        RestError::IOError(value.to_string())
+        ServerError::IOError(value.to_string())
     }
 }
 
-impl From<MultipartError> for RestError {
+impl From<MultipartError> for ServerError {
     fn from(value: MultipartError) -> Self {
-        RestError::InternalServerError(value.to_string())
+        ServerError::InternalError(value.to_string())
     }
 }
 
-impl From<CoreError> for RestError {
-    fn from(value: CoreError) -> Self {
-        RestError::CoreError(value)
+impl From<FsError> for ServerError {
+    fn from(value: FsError) -> Self {
+        ServerError::FsError(value)
     }
 }
 
-impl IntoResponse for RestError {
+impl From<SharedError> for ServerError {
+    fn from(value: SharedError) -> Self {
+        ServerError::CommonError(value)
+    }
+}
+
+impl From<DBError> for ServerError {
+    fn from(value: DBError) -> Self {
+        ServerError::DBError(value)
+    }
+}
+
+impl IntoResponse for ServerError {
     fn into_response(self) -> axum::response::Response {
         let resp = match self {
-            RestError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
-            RestError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            RestError::PermissionDenied(msg) => (StatusCode::FORBIDDEN, msg),
+            ServerError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
+            ServerError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            ServerError::PermissionDenied(msg) => (StatusCode::FORBIDDEN, msg),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
 
@@ -71,8 +89,8 @@ impl IntoResponse for RestError {
     }
 }
 
-impl From<FromUtf8Error> for RestError {
+impl From<FromUtf8Error> for ServerError {
     fn from(value: FromUtf8Error) -> Self {
-        RestError::InitError(value.to_string())
+        ServerError::InitError(value.to_string())
     }
 }

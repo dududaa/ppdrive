@@ -11,5 +11,5 @@ ppd_bk = { path = "../bookkeeper", optional = true }
 ppd_shared = { path = "../../shared" }
 
 [features]
-default = ["auth"]
+default = []
 auth = ["dep:ppd_bk"]

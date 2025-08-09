@@ -9,7 +9,7 @@ pub mod mime;
 pub mod permission;
 pub mod user;
 
-trait IntoSerializer {
+pub trait IntoSerializer {
     type Serializer;
 
     #[allow(async_fn_in_trait)]

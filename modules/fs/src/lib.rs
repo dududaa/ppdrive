@@ -14,13 +14,13 @@ pub mod auth;
 #[cfg(not(feature = "auth"))]
 pub mod free;
 
-mod errors;
+pub mod errors;
 pub mod opts;
 mod utils;
 
 pub type FsResult<T> = Result<T, Error>;
 
-pub enum FileResponse {
+pub enum AssetBody {
     File(Mime, Vec<u8>),
     Folder(String),
 }
@@ -30,7 +30,7 @@ pub async fn read_asset(
     asset_path: &str,
     asset_type: &AssetType,
     user_id: &Option<u64>,
-) -> FsResult<FileResponse> {
+) -> FsResult<AssetBody> {
     let asset = Assets::get_by_path(db, asset_path, asset_type).await?;
 
     // if asset has custom path and custom path is not provided in url,
@@ -64,7 +64,7 @@ pub async fn read_asset(
                 let content = tokio::fs::read(path).await?;
                 let mime_type = mime_guess::from_path(path).first_or_octet_stream();
 
-                let resp = FileResponse::File(mime_type, content);
+                let resp = AssetBody::File(mime_type, content);
                 Ok(resp)
             } else {
                 Err(Error::NotFound(format!(
@@ -124,7 +124,7 @@ pub async fn read_asset(
                 "#
                 );
 
-                let resp = FileResponse::Folder(body);
+                let resp = AssetBody::Folder(body);
                 Ok(resp)
             } else {
                 Err(Error::NotFound(format!(

@@ -5,16 +5,9 @@ use axum::{
     extract::{FromRef, FromRequestParts},
     http::{header::AUTHORIZATION, request::Parts, HeaderValue},
 };
+use client_tools::verify_client;
+use crate::{errors::ServerError, state::AppState, jwt::decode_jwt, ServerResult};
 
-use crate::{errors::RestError, state::AppState, utils::jwt::decode_jwt, AppResult};
-
-use ppdrive_fs::{
-    models::{
-        permission::{AssetPermissions, Permission},
-        user::Users,
-    },
-    tools::verify_client,
-};
 
 pub struct RequestUser {
     id: u64,
@@ -23,14 +16,6 @@ pub struct RequestUser {
 impl RequestUser {
     pub fn id(&self) -> &u64 {
         &self.id
-    }
-
-    /// checks if user has read permission for the given asset
-    pub async fn can_read_asset(&self, state: &AppState, asset_id: &u64) -> Result<(), RestError> {
-        let db = state.db();
-
-        AssetPermissions::exists(db, self.id(), asset_id, Permission::Read).await?;
-        Ok(())
     }
 }
 
@@ -44,7 +29,7 @@ where
     AppState: FromRef<S>,
     S: Send + Sync,
 {
-    type Rejection = RestError;
+    type Rejection = ServerError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         match parts.headers.get(AUTHORIZATION) {
@@ -62,7 +47,7 @@ where
                     }
                 }
             }
-            None => Err(RestError::AuthorizationError(
+            None => Err(ServerError::AuthorizationError(
                 "authorization header required".to_string(),
             )),
         }
@@ -83,7 +68,7 @@ where
     AppState: FromRef<S>,
     S: Send + Sync,
 {
-    type Rejection = RestError;
+    type Rejection = ServerError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let client_key = parts.headers.get("x-ppd-client");
@@ -93,27 +78,27 @@ where
             Some(key) => {
                 let token = key
                     .to_str()
-                    .map_err(|err| RestError::AuthorizationError(err.to_string()))?;
+                    .map_err(|err| ServerError::AuthorizationError(err.to_string()))?;
 
                 let secrets = state.secrets();
-                let id = verify_client(state.db(), secrets.deref(), token).await?;
+                let id = verify_client(state.db(), secrets.deref(), token).await.map_err(|err| ServerError::AuthorizationError(err.to_string()))?;
 
                 Ok(ClientRoute(id))
             }
-            _ => Err(RestError::AuthorizationError(
+            _ => Err(ServerError::AuthorizationError(
                 "missing 'x-client-key' headers".to_string(),
             )),
         }
     }
 }
 
-async fn get_local_user(state: &AppState, header: &HeaderValue) -> AppResult<RequestUser> {
+async fn get_local_user(state: &AppState, header: &HeaderValue) -> ServerResult<RequestUser> {
     let secrets = state.secrets();
-    let db = state.db();
+    // let db = state.db();
 
     let claims = decode_jwt(header, secrets.jwt_secret())?;
-    let user = Users::get(db, &claims.sub).await?;
-    let id = user.id().to_owned();
+    // let user = Users::get(db, &claims.sub).await?;
+    // let id = user.id().to_owned();
 
-    Ok(RequestUser { id })
+    Ok(RequestUser { id: claims.sub })
 }

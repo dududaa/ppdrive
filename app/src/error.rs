@@ -1,13 +1,13 @@
 use std::fmt::Display;
 
-use ppdrive_rest::errors::RestError;
+use ppdrive_rest::errors::ServerError as RestError;
 
 pub type CliResult<T> = Result<T, CliError>;
 
 #[derive(Debug)]
 pub enum CliError {
     VarError(std::env::VarError),
-    ServerError(RestError),
+    RestError(RestError),
     IOError(std::io::Error),
     CommandError(String),
 }
@@ -19,7 +19,7 @@ impl Display for CliError {
         match self {
             VarError(err) => write!(f, "{err}"),
             IOError(err) => write!(f, "{err}"),
-            ServerError(err) => write!(f, "{err}"),
+            RestError(err) => write!(f, "{err}"),
             CommandError(err) => write!(f, "{err}"),
         }
     }
@@ -33,7 +33,7 @@ impl From<std::env::VarError> for CliError {
 
 impl From<RestError> for CliError {
     fn from(value: RestError) -> Self {
-        CliError::ServerError(value)
+        CliError::RestError(value)
     }
 }
 

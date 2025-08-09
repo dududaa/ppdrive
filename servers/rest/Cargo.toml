@@ -3,6 +3,12 @@ name = "ppdrive_rest"
 version = "0.27.20"
 edition = "2021"
 
+[features]
+default = ["client"]
+client = ["ppd_fs/auth", "dep:client_tools"]
+direct = ["ppd_fs/auth"]
+zero-auth = []
+
 [dependencies]
 axum = { version = "0.7.9", features = ["multipart"] }
 axum-macros = "0.4.2"
@@ -23,6 +29,9 @@ mime_guess = "2.0.5"
 jsonwebtoken = "9.3.1"
 uuid = { version = "1.16.0", features = ["v4"] }
 ppd_fs = { path = "../../modules/fs" }
+ppd_shared = { path = "../../shared" }
+ppd_bk = { path = "../../modules/bookkeeper" }
+client_tools = { path = "../../modules/client-tools", optional = true }
 
 [dev-dependencies]
 axum-test = "16"

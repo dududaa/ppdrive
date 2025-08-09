@@ -6,9 +6,11 @@ use crate::{
     },
 };
 use modeller::prelude::*;
+use ppd_shared::tracing;
 use rbatis::{RBatis, crud, impl_select};
 use rbs::value;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Modeller)]
 pub struct Buckets {
@@ -45,6 +47,34 @@ impl Buckets {
             .ok_or(AppError::NotFound("bucket not found".to_string()))?;
 
         Ok(s)
+    }
+
+    pub async fn create_by_client(
+        db: &RBatis,
+        opts: CreateBucketOptions,
+        client_id: u64,
+    ) -> DBResult<String> {
+        let owner_info = OwnerInfo {
+            id: client_id,
+            ty: BucketOwnerType::Client,
+        };
+
+        let id = Self::create(db, opts, owner_info).await?;
+        Ok(id)
+    }
+
+    pub async fn create_by_user(
+        db: &RBatis,
+        opts: CreateBucketOptions,
+        user_id: u64,
+    ) -> DBResult<String> {
+        let owner_info = OwnerInfo {
+            id: user_id,
+            ty: BucketOwnerType::User,
+        };
+
+        let id = Self::create(db, opts, owner_info).await?;
+        Ok(id)
     }
 
     pub async fn delete(db: &RBatis, pid: &str) -> DBResult<()> {
@@ -149,6 +179,69 @@ impl Buckets {
         }
     }
 
+    async fn create(
+        db: &RBatis,
+        opts: CreateBucketOptions,
+        owner_info: OwnerInfo,
+    ) -> DBResult<String> {
+        let OwnerInfo { id: owner_id, ty } = owner_info;
+        let owner_type = u8::from(ty);
+
+        let CreateBucketOptions {
+            partition_size,
+            partition,
+            accepts,
+            label,
+            public,
+        } = opts;
+
+        if accepts.is_empty() {
+            return Err(AppError::PermissionError(format!(
+                "bucket's \"accept\" parameter cannot be empty. please check docs to see how to specify acceptable mimetypes."
+            )));
+        }
+
+        if let Some(folder) = &partition {
+            let b = Buckets::get_by_key(db, "root_folder", folder).await?;
+            if b.is_some() {
+                return Err(AppError::PermissionError(format!(
+                    "folder name '{folder}' is not available. Try a different folder name."
+                )));
+            }
+        }
+
+        if partition_size.is_some() && partition.is_none() {
+            return Err(AppError::PermissionError(format!(
+                "You can not set partition size without settion partition."
+            )));
+        }
+
+        let pid = Uuid::new_v4().to_string();
+        let data = Buckets {
+            id: None,
+            pid,
+            owner_id,
+            owner_type,
+            label,
+            partition_size,
+            partition,
+            accepts: accepts.clone(),
+            public: public.unwrap_or_default(),
+        };
+
+        Buckets::insert(db, &data).await?;
+
+        let bucket = Buckets::get_by_pid(db, &data.pid.clone()).await?;
+        let db = db.clone();
+        tokio::spawn(async move {
+            if let Err(err) = bucket.save_mimes(&db, &accepts).await {
+                tracing::error!("unable to save mimes: {err}");
+            }
+        });
+
+        Ok(data.pid)
+    }
+
     pub fn id(&self) -> u64 {
         *&self.id.unwrap_or_default()
     }
@@ -201,4 +294,25 @@ impl From<u8> for BucketOwnerType {
 struct OwnerInfo {
     id: u64,
     ty: BucketOwnerType,
+}
+
+#[derive(Deserialize, Serialize, Default)]
+pub struct CreateBucketOptions {
+    pub partition: Option<String>,
+
+    /// can be set if there's partition
+    pub partition_size: Option<u64>,
+
+    /// The mime type acceptable by a bucket.
+    /// - "*" is the default and means all mime types are accepted.
+    /// - "custom" means a selection of mimetypes manually specified
+    /// by a user. Acceptable format should start with "custom" keyword
+    /// followed by a colon ":" and comma seprated mimetypes. Example, "custom:application/zip,audio/3gpp"
+    /// - You can specify a group of mimes using the `filetype` they
+    /// belong to (e.g, "audio", "video", "application"...etc).
+    /// - You can also specify a *list* of comma seprated groups e.g, "audio,video,application".
+    pub accepts: String,
+
+    pub label: String,
+    pub public: Option<bool>,
 }

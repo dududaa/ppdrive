@@ -1,5 +1,6 @@
-use crate::errors::RestError;
-use ppdrive_fs::{config::AppConfig, db::init_db, tools::secrets::AppSecrets, RBatis};
+use crate::errors::ServerError;
+use ppd_bk::{db::init_db, RBatis};
+use ppd_shared::{config::AppConfig, tools::AppSecrets};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -10,7 +11,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn new(config: &AppConfig) -> Result<Self, RestError> {
+    pub async fn new(config: &AppConfig) -> Result<Self, ServerError> {
         let db = init_db(config.db().url()).await?;
         let secrets = Arc::new(AppSecrets::read().await?);
 

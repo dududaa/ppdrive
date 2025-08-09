@@ -5,9 +5,9 @@ use chrono::Utc;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
-use crate::errors::RestError;
+use crate::errors::ServerError;
 
-use super::get_env;
+use ppd_shared::tools::get_env;
 
 pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
 pub const BEARER_VALUE: &str = "Bearer";
@@ -25,19 +25,19 @@ pub struct Claims {
     pub ty: TokenType,
 }
 
-pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Claims, RestError> {
+pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Claims, ServerError> {
     let token = extract_jwt(header_value)?;
 
     let mut validation = Validation::default();
     validation.algorithms = vec![Algorithm::HS512];
 
     let decoded = decode::<Claims>(&token, &DecodingKey::from_secret(secret), &validation)
-        .map_err(|err| RestError::AuthorizationError(format!("invalid token: {err}")))?;
+        .map_err(|err| ServerError::AuthorizationError(format!("invalid token: {err}")))?;
 
     Ok(decoded.claims)
 }
 
-fn extract_jwt(header_value: &HeaderValue) -> Result<String, RestError> {
+fn extract_jwt(header_value: &HeaderValue) -> Result<String, ServerError> {
     let bearer = get_env(BEARER_KEY)?;
 
     let bearer = format!("{} ", bearer);
@@ -50,7 +50,7 @@ fn extract_jwt(header_value: &HeaderValue) -> Result<String, RestError> {
         }
     }
 
-    Err(RestError::AuthorizationError(
+    Err(ServerError::AuthorizationError(
         "Error extracting jwt".to_string(),
     ))
 }
@@ -60,7 +60,7 @@ pub(crate) fn create_jwt(
     secret: &[u8],
     exp: i64,
     ty: TokenType,
-) -> Result<String, RestError> {
+) -> Result<String, ServerError> {
     let exp = Utc::now()
         .checked_add_signed(chrono::Duration::seconds(exp))
         .expect("Invalid timestamp")
@@ -74,5 +74,5 @@ pub(crate) fn create_jwt(
 
     let header = Header::new(Algorithm::HS512);
     encode(&header, &claims, &EncodingKey::from_secret(secret))
-        .map_err(|err| RestError::AuthorizationError(format!("unable to create token: {err}")))
+        .map_err(|err| ServerError::AuthorizationError(format!("unable to create token: {err}")))
 }

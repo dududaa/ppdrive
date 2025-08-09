@@ -3,6 +3,7 @@ use std::fmt::Display;
 use ppd_bk::errors::Error as DatabaseError;
 use tokio::io::Error as IOError;
 
+#[derive(Debug)]
 pub enum Error {
     DatabaseError(DatabaseError),
     IOError(IOError),

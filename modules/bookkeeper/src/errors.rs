@@ -3,6 +3,7 @@ use std::fmt::Display;
 use modeller::prelude::Error as ModellerError;
 use rbatis::Error as ExecError;
 
+#[derive(Debug)]
 pub enum Error {
     MigrationError(ModellerError),
     ExecError(ExecError),

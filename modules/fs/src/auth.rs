@@ -10,7 +10,7 @@ use crate::utils::{create_asset_parents, get_bucket_size, mb_to_bytes};
 use crate::{FsResult, opts::CreateAssetOptions};
 
 /// create or update an asset
-pub async fn create_or_update(
+pub async fn create_or_update_asset(
     db: &RBatis,
     user_id: &u64,
     opts: &CreateAssetOptions,

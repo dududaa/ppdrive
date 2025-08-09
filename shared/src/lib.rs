@@ -1,17 +1,8 @@
 pub use tracing;
 
-pub enum AuthType {
-    Client,
-    User,
-    None,
-}
+use crate::errors::Error;
+pub mod config;
+pub mod errors;
+pub mod tools;
 
-impl AuthType {
-    /// record keeping is only required when authtype is not `None`
-    pub fn keep_record(&self) -> bool {
-        match self {
-            AuthType::None => false,
-            _ => true,
-        }
-    }
-}
+pub type AppResult<T> = Result<T, Error>;
