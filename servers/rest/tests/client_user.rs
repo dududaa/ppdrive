@@ -1,18 +1,19 @@
 use axum_test::multipart::{MultipartForm, Part};
-use ppdrive_fs::{models::asset::AssetType, options::CreateAssetOptions};
+use ppd_bk::models::asset::AssetType;
 use serial_test::serial;
 
-use funtions::*;
+use ppd_fs::opts::CreateAssetOptions;
 
-use crate::{
-    routes::tests::{app_config, create_db, create_server},
-    AppResult,
-};
+use test_utils::functions::*;
+mod test_utils;
+
+use ppd_rest::{ServerResult};
+use test_utils::{app_config, create_db, create_server};
 
 #[tokio::test]
 #[serial]
 /// retrieve an authenticated user (created by client) using their access token
-async fn test_client_user_get_userinfo() -> AppResult<()> {
+async fn test_client_user_get_userinfo() -> ServerResult<()> {
     let config = app_config().await?;
     let db = create_db(&config).await?;
 
@@ -27,7 +28,7 @@ async fn test_client_user_get_userinfo() -> AppResult<()> {
 
 #[tokio::test]
 #[serial]
-async fn test_client_user_create_bucket() -> AppResult<()> {
+async fn test_client_user_create_bucket() -> ServerResult<()> {
     let config = app_config().await?;
     let server = create_server(&config).await?;
 
@@ -42,7 +43,7 @@ async fn test_client_user_create_bucket() -> AppResult<()> {
 
 #[tokio::test]
 #[serial]
-async fn test_client_user_create_asset() -> AppResult<()> {
+async fn test_client_user_create_asset() -> ServerResult<()> {
     let config = app_config().await?;
     let server = create_server(&config).await?;
 
@@ -102,7 +103,7 @@ async fn test_client_user_create_asset() -> AppResult<()> {
 
 #[tokio::test]
 #[serial]
-async fn test_client_user_delete_asset() -> AppResult<()> {
+async fn test_client_user_delete_asset() -> ServerResult<()> {
     let config = app_config().await?;
     let server = create_server(&config).await?;
 
@@ -132,35 +133,4 @@ async fn test_client_user_delete_asset() -> AppResult<()> {
     resp.assert_status_ok();
 
     Ok(())
-}
-
-mod funtions {
-    use axum_test::{TestResponse, TestServer};
-    use ppdrive_fs::{
-        options::{CreateBucketOptions, LoginToken},
-        RBatis,
-    };
-
-    use crate::{
-        routes::tests::{client::login_user_request, create_client_token},
-        AppResult,
-    };
-
-    pub async fn create_user_bucket(server: &TestServer, token: &str) -> TestResponse {
-        let opts = CreateBucketOptions::default();
-
-        server
-            .post("/client/user/bucket")
-            .json(&opts)
-            .authorization_bearer(token)
-            .await
-    }
-
-    pub async fn get_user_token(server: &TestServer, db: &RBatis) -> AppResult<String> {
-        let token = create_client_token(&db).await?;
-        let resp = login_user_request(&server, &token).await;
-        let tokens: LoginToken = resp.json();
-
-        Ok(tokens.access.0)
-    }
 }

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use ppdrive_rest::errors::ServerError as RestError;
+use ppd_rest::errors::ServerError as RestError;
 
 pub type CliResult<T> = Result<T, CliError>;
 

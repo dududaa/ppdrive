@@ -4,6 +4,7 @@ use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoR
 use ppd_fs::errors::Error as FsError;
 use ppd_shared::errors::Error as SharedError;
 use ppd_bk::Error as DBError;
+use client_tools::errors::Error as ClientError;
 
 #[derive(Debug)]
 pub enum ServerError {
@@ -73,6 +74,12 @@ impl From<SharedError> for ServerError {
 impl From<DBError> for ServerError {
     fn from(value: DBError) -> Self {
         ServerError::DBError(value)
+    }
+}
+
+impl From<ClientError> for ServerError {
+    fn from(value: ClientError) -> Self {
+        ServerError::InternalError(value.to_string())
     }
 }
 

@@ -1752,26 +1752,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ppd_shared"
-version = "0.1.0"
-dependencies = [
- "chacha20poly1305",
- "serde",
- "tokio",
- "toml",
- "tracing",
-]
-
-[[package]]
-name = "ppdrive"
-version = "0.1.0"
-dependencies = [
- "ppdrive_rest",
- "tokio",
-]
-
-[[package]]
-name = "ppdrive_rest"
+name = "ppd_rest"
 version = "0.27.20"
 dependencies = [
  "axum",
@@ -1794,6 +1775,25 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "ppd_shared"
+version = "0.1.0"
+dependencies = [
+ "chacha20poly1305",
+ "serde",
+ "tokio",
+ "toml",
+ "tracing",
+]
+
+[[package]]
+name = "ppdrive"
+version = "0.1.0"
+dependencies = [
+ "ppd_rest",
+ "tokio",
 ]
 
 [[package]]

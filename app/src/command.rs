@@ -1,4 +1,4 @@
-use ppdrive_rest::start_server;
+use ppd_rest::start_server;
 
 use crate::error::{self, CliResult};
 pub enum Command {

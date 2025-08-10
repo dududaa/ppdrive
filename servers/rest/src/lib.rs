@@ -1,4 +1,4 @@
-use crate::app::initialize_app;
+pub use crate::app::initialize_app;
 use errors::ServerError;
 use ppd_shared::config::AppConfig;
 // use ppdrive_fs::config::{get_config_path, AppConfig};
@@ -12,9 +12,9 @@ mod general;
 mod client;
 mod state;
 mod jwt;
-mod opts;
+pub mod opts;
 
-type ServerResult<T> = Result<T, ServerError>;
+pub type ServerResult<T> = Result<T, ServerError>;
 
 pub async fn start_server() -> ServerResult<()> {
     let config = AppConfig::load().await?;
