@@ -7,3 +7,4 @@ edition = "2024"
 tokio = { version = "1.35.1", features = ["io-std", "rt-multi-thread"] }
 libloading = "0.8.8"
 ppd_rest = { path = "../servers/rest" }
+clap = "4.5.45"
