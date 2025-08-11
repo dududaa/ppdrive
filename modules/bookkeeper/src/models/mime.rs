@@ -1,5 +1,6 @@
 use crate::{DBResult, Error as DBError};
 use modeller::prelude::*;
+use ppd_shared::tracing;
 use rbatis::{RBatis, impl_select};
 use serde::{Deserialize, Serialize};
 
@@ -37,10 +38,10 @@ impl Mimes {
                 label,
             } = meta;
             let sql = format!(
-                "INSERT INTO mimes (mime, filetype, label) VALUES ({mime}, {filetype}, {label})"
+                "INSERT INTO mimes (mime, filetype, label) VALUES ('{mime}', '{filetype}', '{label}')"
             );
             if let Err(err) = RBatis::exec(db, &sql, vec![]).await {
-                println!("{err}")
+                tracing::warn!("{err}")
             }
         }
         Ok(())

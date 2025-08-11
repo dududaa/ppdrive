@@ -195,12 +195,7 @@ impl Buckets {
             public,
         } = opts;
 
-        if accepts.is_empty() {
-            return Err(AppError::PermissionError(format!(
-                "bucket's \"accept\" parameter cannot be empty. please check docs to see how to specify acceptable mimetypes."
-            )));
-        }
-
+        let accepts = accepts.unwrap_or(String::from("*"));
         if let Some(folder) = &partition {
             let b = Buckets::get_by_key(db, "root_folder", folder).await?;
             if b.is_some() {
@@ -311,7 +306,7 @@ pub struct CreateBucketOptions {
     /// - You can specify a group of mimes using the `filetype` they
     /// belong to (e.g, "audio", "video", "application"...etc).
     /// - You can also specify a *list* of comma seprated groups e.g, "audio,video,application".
-    pub accepts: String,
+    pub accepts: Option<String>,
 
     pub label: String,
     pub public: Option<bool>,
