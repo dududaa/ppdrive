@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::{AppResult, config::auth::AuthConfig, errors::Error, tools::install_dir};
+use crate::{AppResult, config::auth::AuthConfig, errors::Error, tools::root_dir};
 pub mod auth;
 
 pub const CONFIG_FILENAME: &str = "ppd_config.toml";
@@ -12,12 +12,7 @@ pub enum CorsOriginType {
 }
 
 fn get_config_path() -> AppResult<PathBuf> {
-    let path = if cfg!(debug_assertions) {
-        CONFIG_FILENAME.into()
-    } else {
-        install_dir()?.join(CONFIG_FILENAME)
-    };
-
+    let path = root_dir()?.join(CONFIG_FILENAME);
     Ok(path)
 }
 

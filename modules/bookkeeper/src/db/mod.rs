@@ -6,14 +6,10 @@ use rbdc_sqlite::SqliteDriver;
 
 use crate::{DBResult, errors::Error, models::mime::Mimes};
 
-use migration::run_migrations;
-
-mod migration;
+pub mod migration;
 
 pub async fn init_db(url: &str) -> DBResult<RBatis> {
     use DatabaseType::*;
-
-    run_migrations(url).await?;
 
     let db_type = url.try_into()?;
     let rb = RBatis::new();

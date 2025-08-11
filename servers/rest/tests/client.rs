@@ -12,12 +12,11 @@ mod test_utils;
 /// create user by a client
 async fn test_client_create_user() -> ServerResult<()> {
     let config = app_config().await?;
-
     let url = config.db().url();
     let db = init_db(url).await?;
-
-    let token = create_client_token(&db).await?;
+    
     let app = initialize_app(&config).await?;
+    let token = create_client_token(&db).await?;
 
     let server = TestServer::new(app).map_err(|err| {
         ServerError::InternalError(format!("unable to create test server: {err}"))

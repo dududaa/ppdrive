@@ -55,12 +55,7 @@ impl AppSecrets {
 }
 
 pub fn secret_filename() -> AppResult<PathBuf> {
-    let path = if cfg!(debug_assertions) {
-        SECRETS_FILENAME.into()
-    } else {
-        install_dir()?.join(SECRETS_FILENAME)
-    };
-
+    let path = root_dir()?.join(SECRETS_FILENAME);
     Ok(path)
 }
 
@@ -84,13 +79,22 @@ pub async fn generate_secret_file() -> AppResult<()> {
     Ok(())
 }
 
-pub fn install_dir() -> AppResult<PathBuf> {
-    let exec_path = std::env::current_exe()?;
-    let path = exec_path
-        .parent()
-        .ok_or(Error::ServerError("unable to get install dir".to_string()))?;
+pub fn root_dir() -> AppResult<PathBuf> {
+    let path = if cfg!(debug_assertions) {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let path = path.parent().ok_or(Error::ServerError("unable to get root dir".to_string()))?;
 
-    Ok(path.to_owned())
+        path.to_path_buf()
+    } else {
+        let exec_path = std::env::current_exe()?;
+        let path = exec_path
+            .parent()
+            .ok_or(Error::ServerError("unable to get install dir".to_string()))?;
+
+        path.to_owned()
+    };
+
+    Ok(path)
 }
 
 /// compute total size (in bytes) of a folder.

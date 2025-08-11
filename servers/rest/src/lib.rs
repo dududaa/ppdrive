@@ -1,5 +1,6 @@
 pub use crate::app::initialize_app;
 use errors::ServerError;
+use ppd_bk::db::migration::run_migrations;
 use ppd_shared::config::AppConfig;
 // use ppdrive_fs::config::{get_config_path, AppConfig};
 
@@ -18,6 +19,8 @@ pub type ServerResult<T> = Result<T, ServerError>;
 
 pub async fn start_server() -> ServerResult<()> {
     let config = AppConfig::load().await?;
+    run_migrations(config.db().url()).await?;
+    
     let app = initialize_app(&config).await?;
 
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.server().port())).await {

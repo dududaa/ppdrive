@@ -77,6 +77,14 @@ Once your PPDRIVE is pu and running, check out [API DOC](https://prodbyola.githu
 
 ---
 
+---
+
+## Running Tests
+
+1. First, run migration test: `cargo test test_migration`.
+2. Then run other tests `cargo test`
+---
+
 ## Contributing
 We welcome contributions to PPDRIVE! Here’s how you can help:
 
