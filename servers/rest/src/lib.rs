@@ -3,7 +3,9 @@ use errors::ServerError;
 use ppd_bk::db::migration::run_migrations;
 use ppd_shared::config::AppConfig;
 use tokio::runtime::Runtime;
-// use ppdrive_fs::config::{get_config_path, AppConfig};
+
+#[cfg(test)]
+mod tests;
 
 mod app;
 pub mod errors;

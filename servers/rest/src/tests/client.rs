@@ -2,10 +2,8 @@ use axum_test::TestServer;
 use ppd_bk::db::init_db;
 use serial_test::serial;
 
-use ppd_rest::{errors::ServerError, initialize_app, ServerResult};
-use test_utils::{app_config, create_client_token, functions::{create_user_request, login_user_request, create_client_bucket}};
-
-mod test_utils;
+use crate::{errors::ServerError, initialize_app, ServerResult};
+use super::test_utils::{app_config, create_client_token, functions::{create_user_request, login_user_request, create_client_bucket}};
 
 #[tokio::test]
 #[serial]

@@ -1,7 +1,7 @@
 use axum_test::{TestResponse, TestServer};
 use ppd_bk::{models::bucket::CreateBucketOptions, RBatis};
 
-use ppd_rest::{
+use crate::{
     opts::{CreateUserClient, LoginToken, LoginUserClient},
     ServerResult,
 };

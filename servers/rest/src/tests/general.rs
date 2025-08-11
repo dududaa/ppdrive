@@ -1,5 +1,5 @@
 use ppd_bk::db::migration::run_migrations;
-use ppd_rest::ServerResult;
+use crate::ServerResult;
 use ppd_shared::{config::AppConfig, tools::root_dir};
 use serial_test::serial;
 

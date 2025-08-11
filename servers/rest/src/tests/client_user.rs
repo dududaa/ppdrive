@@ -4,12 +4,9 @@ use serial_test::serial;
 
 use ppd_fs::opts::CreateAssetOptions;
 
-use test_utils::functions::*;
-
-use ppd_rest::{ServerResult};
-use test_utils::{app_config, create_db, create_server};
-
-mod test_utils;
+use crate::{ServerResult};
+use super::test_utils::functions::*;
+use super::test_utils::{app_config, create_db, create_server};
 
 #[tokio::test]
 #[serial]

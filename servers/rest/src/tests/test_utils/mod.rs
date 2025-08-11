@@ -6,7 +6,7 @@ use ppd_shared::{
 };
 use client_tools::create_client;
 
-use ppd_rest::{initialize_app, errors::ServerError, ServerResult};
+use crate::{initialize_app, errors::ServerError, ServerResult};
 
 pub mod functions;
 
