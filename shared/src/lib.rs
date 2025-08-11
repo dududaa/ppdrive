@@ -1,5 +1,3 @@
-pub use tracing;
-
 use crate::errors::Error;
 pub mod config;
 pub mod errors;

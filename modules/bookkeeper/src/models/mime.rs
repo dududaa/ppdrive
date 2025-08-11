@@ -1,6 +1,5 @@
 use crate::{DBResult, Error as DBError};
 use modeller::prelude::*;
-use ppd_shared::tracing;
 use rbatis::{RBatis, impl_select};
 use serde::{Deserialize, Serialize};
 

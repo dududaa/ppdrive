@@ -29,7 +29,7 @@ mime_guess = "2.0.5"
 jsonwebtoken = "9.3.1"
 uuid = { version = "1.16.0", features = ["v4"] }
 ppd_fs = { path = "../../modules/fs" }
-ppd_shared = { path = "../../shared" }
+ppd_shared.workspace = true
 ppd_bk = { path = "../../modules/bookkeeper" }
 client_tools = { path = "../../modules/client-tools", optional = true }
 

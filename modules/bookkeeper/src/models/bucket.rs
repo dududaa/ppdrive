@@ -6,7 +6,6 @@ use crate::{
     },
 };
 use modeller::prelude::*;
-use ppd_shared::tracing;
 use rbatis::{RBatis, crud, impl_select};
 use rbs::value;
 use serde::{Deserialize, Serialize};

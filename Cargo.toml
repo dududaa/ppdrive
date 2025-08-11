@@ -1,3 +1,9 @@
 [workspace]
 resolver = "3"
 members = ["app", "servers/rest", "modules/fs", "modules/bookkeeper", "shared", "modules/client-tools"]
+
+[workspace.dependencies]
+serde = "1.0.219"
+tracing = "0.1.41"
+tokio = { version = "1.47.1", features = ["fs"] }
+ppd_shared = { path = "./shared" }

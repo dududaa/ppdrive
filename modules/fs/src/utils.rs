@@ -7,7 +7,6 @@ use ppd_bk::{
         bucket::Buckets,
     },
 };
-use ppd_shared::tracing;
 
 use crate::{FsResult, errors::Error};
 
