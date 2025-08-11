@@ -3,6 +3,9 @@ name = "ppd_rest"
 version = "0.27.20"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "lib"]
+
 [features]
 default = ["client"]
 client = ["ppd_fs/auth", "dep:client_tools"]
