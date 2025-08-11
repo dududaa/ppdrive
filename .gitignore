@@ -36,12 +36,11 @@
 **db.sqlite*
 **sqlite.db*
 **.ppdrive_secret
+**test-assets
+**delete-assets
 
 !tests/
 !tests/**
-
-# !migrations/
-# !migrations/**
 
 !docs/
 !docs/**
@@ -49,4 +48,3 @@
 !.github
 !.github/**
 !NOTES.MD
-!mimes.json
