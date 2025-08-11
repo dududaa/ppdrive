@@ -24,6 +24,7 @@ pub async fn create_client_token(db: &RBatis) -> ServerResult<String> {
     Ok(token)
 }
 
+#[allow(dead_code)]
 pub async fn create_server(config: &AppConfig) -> ServerResult<TestServer> {
     let app = initialize_app(&config).await?;
     let server = TestServer::new(app).map_err(|err| {
@@ -33,6 +34,7 @@ pub async fn create_server(config: &AppConfig) -> ServerResult<TestServer> {
     Ok(server)
 }
 
+#[allow(dead_code)]
 pub async fn create_db(config: &AppConfig) -> ServerResult<RBatis> {
     let url = config.db().url();
     let db = init_db(url).await?;

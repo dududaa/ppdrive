@@ -29,16 +29,11 @@ impl DatabaseConfig {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ServerConfig {
-    port: u16,
     max_upload_size: usize,
     allowed_origins: String,
 }
 
 impl ServerConfig {
-    pub fn port(&self) -> &u16 {
-        &self.port
-    }
-
     pub fn max_upload_size(&self) -> &usize {
         &self.max_upload_size
     }
@@ -100,11 +95,9 @@ impl AppConfig {
         self.database.url = data.db_url.unwrap_or(url.to_string());
 
         // server
-        let port = &self.server.port;
         let origins = &self.server.allowed_origins;
         let max_upload = &self.server.max_upload_size;
 
-        self.server.port = data.server_port.unwrap_or(port.clone());
         self.server.allowed_origins = data.allowed_urls.unwrap_or(origins.to_string());
         self.server.max_upload_size = data.max_upload_size.unwrap_or(max_upload.clone());
 

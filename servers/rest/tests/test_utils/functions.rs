@@ -7,6 +7,7 @@ use ppd_rest::{
 };
 use super::{create_client_token, HEADER_NAME};
 
+#[allow(dead_code)]
 pub async fn create_user_bucket(server: &TestServer, token: &str) -> TestResponse {
     let opts = CreateBucketOptions::default();
 
@@ -17,6 +18,7 @@ pub async fn create_user_bucket(server: &TestServer, token: &str) -> TestRespons
         .await
 }
 
+#[allow(dead_code)]
 pub async fn get_user_token(server: &TestServer, db: &RBatis) -> ServerResult<String> {
     let token = create_client_token(&db).await?;
     let resp = login_user_request(&server, &token).await;
@@ -51,6 +53,7 @@ pub async fn login_user_request(server: &TestServer, token: &str) -> TestRespons
         .await
 }
 
+#[allow(dead_code)]
 pub async fn create_client_bucket(server: &TestServer, token: &str) -> TestResponse {
     let opts = CreateBucketOptions {
         ..Default::default()

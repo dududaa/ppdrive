@@ -18,7 +18,7 @@ impl Command {
                 println!("{n}: {v}");
             }
             Start => {
-                start_server().await?;
+                start_server(5000);
             }
         }
 
