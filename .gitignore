@@ -27,6 +27,8 @@
 !modules/
 !modules/**
 
+!nnn.md
+
 **migrations
 **db.sqlite*
 **sqlite.db*
