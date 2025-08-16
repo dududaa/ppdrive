@@ -52,32 +52,21 @@ impl Buckets {
         Ok(())
     }
 
-    pub fn id(&self) -> u64 {
-        *&self.id.unwrap_or_default()
-    }
+    /// validate whether a given user can write to this bucket
+    pub fn validate_write(&self, user_id: &u64) -> bool {
+        if !self.public() {
+            if let BucketOwnerType::User = self.owner_type() {
+                if self.owner_id() != user_id {
+                    return false;
+                }
+            }
+        }
 
-    pub fn owner_id(&self) -> &u64 {
-        &self.owner_id
-    }
-
-    pub fn owner_type(&self) -> BucketOwnerType {
-        self.owner_type.into()
-    }
-
-    pub fn public(&self) -> bool {
-        self.public
-    }
-
-    pub fn partition(&self) -> &Option<String> {
-        &self.partition
-    }
-
-    pub fn partition_size(&self) -> &Option<u64> {
-        &self.partition_size
+        true
     }
 
     /// save bucket's acceptable mimetypes based on `accepts` parameter.
-    async fn save_mimes(&self, db: &RBatis, accepts: &str) -> DBResult<()> {
+    pub async fn save_mimes(&self, db: &RBatis, accepts: &str) -> DBResult<()> {
         if accepts == "*" {
             return Ok(());
         }
@@ -158,6 +147,30 @@ impl Buckets {
                 mime.mime()
             ))),
         }
+    }
+
+    pub fn id(&self) -> u64 {
+        *&self.id.unwrap_or_default()
+    }
+
+    pub fn owner_id(&self) -> &u64 {
+        &self.owner_id
+    }
+
+    pub fn owner_type(&self) -> BucketOwnerType {
+        self.owner_type.into()
+    }
+
+    pub fn public(&self) -> bool {
+        self.public
+    }
+
+    pub fn partition(&self) -> &Option<String> {
+        &self.partition
+    }
+
+    pub fn partition_size(&self) -> &Option<u64> {
+        &self.partition_size
     }
 }
 

@@ -127,7 +127,27 @@ impl Assets {
     }
 
     pub async fn delete_for_user(db: &RBatis, user_id: &u64) -> DBResult<()> {
-        Assets::delete_by_map(db, value! { "user_id": user_id }).await?;
+        let assets = Assets::select_by_map(db, value! { "user_id": user_id }).await?;
+        for asset in assets {
+            asset.delete(db).await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn delete(&self, db: &RBatis) -> DBResult<()> {
+        // delete asset permissions
+        AssetPermissions::delete_for_asset(db, &self.id()).await?;
+
+        // delete asset record
+        Assets::delete_by_map(
+            db,
+            value! {
+                "id": &self.id
+            },
+        )
+        .await?;
+
         Ok(())
     }
 

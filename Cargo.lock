@@ -1661,6 +1661,7 @@ dependencies = [
 name = "ppd_fs"
 version = "0.1.0"
 dependencies = [
+ "mime_guess",
  "ppd_bk",
  "ppd_shared",
  "serde",

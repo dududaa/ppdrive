@@ -164,14 +164,6 @@ impl Assets {
         // delete asset permissions
         AssetPermissions::delete_for_asset(rb, &self.id()).await?;
 
-        // delete children records
-        self.delete_children_records(rb).await?;
-
-        // delete file/folder objects
-        if let Err(err) = self.delete_object().await {
-            tracing::error!("unable to remove {} from fs: {err}", self.asset_path)
-        }
-
         // delete asset record
         Assets::delete_by_map(
             rb,

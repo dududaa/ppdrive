@@ -2,20 +2,20 @@ use std::path::{Path, PathBuf};
 
 use ppd_bk::RBatis;
 use ppd_bk::models::asset::{AssetType, Assets, NewAsset, UpdateAssetValues};
+use ppd_bk::models::bucket::Buckets;
 use ppd_bk::validators::{ValidatePathDetails, validate_asset_paths};
-use ppd_shared::tracing;
 
 use crate::errors::Error;
-use crate::utils::move_file;
+use crate::utils::{create_asset_parents, get_bucket_size, mb_to_bytes};
 use crate::{FsResult, opts::CreateAssetOptions};
 
+/// create or update an asset
 pub async fn create_or_update(
     db: &RBatis,
     user_id: &u64,
-    bucket_id: &u64,
     opts: &CreateAssetOptions,
     tmp: &Option<PathBuf>,
-    dest: &Path,
+    filesize: &Option<u64>,
 ) -> FsResult<()> {
     let CreateAssetOptions {
         asset_path,
@@ -25,8 +25,38 @@ pub async fn create_or_update(
         create_parents,
         sharing,
         update_asset_path,
-        ..
+        bucket,
     } = opts;
+
+    // retrieve bucket and validate bucket ownership
+    let bucket = Buckets::get_by_pid(db, &bucket).await?;
+    if !bucket.validate_write(user_id) {
+        return Err(Error::PermissionError(
+            "you have not permission to write to this bucket".to_string(),
+        ));
+    }
+
+    // extract destination path
+    let partition = bucket.partition().as_deref();
+    let dest = partition.map_or(asset_path.to_string(), |rf| format!("{rf}/{asset_path}"));
+    let dest = Path::new(&dest);
+
+    // validate file mimetype and check bucket size limit
+    if let Some(tmp_file) = tmp {
+        let mime_type = mime_guess::from_path(tmp_file).first_or_octet_stream();
+        let mime = mime_type.to_string();
+        bucket.validate_mime(db, &mime).await?;
+
+        if let (Some(filesize), Some(max_size)) = (filesize, bucket.partition_size()) {
+            let cfz = get_bucket_size(&bucket).await?;
+            let total_size = cfz + filesize;
+            if total_size > mb_to_bytes(*max_size as usize) as u64 {
+                tokio::fs::remove_file(tmp_file).await?;
+
+                return Err(Error::ServerError("bucket size exceeded.".to_string()));
+            }
+        }
+    }
 
     // validate paths
     let vd = ValidatePathDetails {
@@ -35,25 +65,17 @@ pub async fn create_or_update(
         custom_path,
     };
 
-    if let Err(err) = validate_asset_paths(db, vd).await {
-        if let Some(tmp) = tmp {
-            if let Err(err) = tokio::fs::remove_file(tmp).await {
-                tracing::error!("removing tmp file after asset validation: {err}")
-            }
-        }
-
-        return Err(err.into());
-    }
+    validate_asset_paths(db, vd).await?;
 
     // create parents if required
     if create_parents.unwrap_or(true) {
-        create_asset_parents(db, dest, user_id, bucket_id, public).await?;
+        create_asset_parents(db, dest, user_id, &bucket.id(), public).await?;
     }
 
     match asset_type {
         AssetType::File => {
             if let Some(tmp) = tmp {
-                move_file(tmp, &dest).await?;
+                tokio::fs::rename(tmp, &dest).await?;
             }
         }
         AssetType::Folder => tokio::fs::create_dir(&dest).await?,
@@ -66,12 +88,6 @@ pub async fn create_or_update(
     let asset: Result<Assets, Error> = match Assets::get_by_path(db, &path, asset_type).await {
         Ok(mut exists) => {
             if exists.user_id() != user_id {
-                if let Some(tmp) = tmp {
-                    if let Err(err) = tokio::fs::remove_file(tmp).await {
-                        tracing::warn!("{err}")
-                    }
-                }
-
                 return Err(Error::PermissionError(
                     "you do not have permission to update this resource.".to_string(),
                 ));
@@ -94,7 +110,7 @@ pub async fn create_or_update(
                 asset_path: asset_path.to_string(),
                 custom_path: custom_path.clone(),
                 asset_type: u8::from(asset_type),
-                bucket_id: *bucket_id,
+                bucket_id: bucket.id(),
             };
 
             Assets::create(db, value).await?;
@@ -117,69 +133,32 @@ pub async fn create_or_update(
     Ok(())
 }
 
-/// create asset's parents (including their records) if they don't exist.
-async fn create_asset_parents(
-    db: &RBatis,
-    path: &Path,
-    user_id: &u64,
-    bucket_id: &u64,
-    is_public: &Option<bool>,
-) -> FsResult<()> {
-    let parent = path.parent();
+/// removes an asset and associated records. if asset is a folder, this will remove all its content as well
+pub async fn delete_asset(db: &RBatis, path: &str, asset_type: &AssetType) -> FsResult<()> {
+    let asset = Assets::get_by_path(db, path, asset_type).await?;
+    asset.delete(db).await?;
 
-    if let Some(parent) = parent {
-        let parents: Vec<&str> = parent.ancestors().filter_map(|p| p.to_str()).collect();
-        let paths: Vec<&&str> = parents
-            .iter()
-            .rev()
-            .filter(|p| !p.is_empty())
-            .filter(|p| p != &&"/")
-            .collect();
-
-        if let Some(first) = paths.first() {
-            if first.starts_with("/") {
-                return Err(Error::ServerError(
-                    "asset path cannot start with an '/'".to_string(),
-                ));
-            }
-        }
-
-        let folder_type = u8::from(&AssetType::Folder);
-        let mut assets = Vec::with_capacity(paths.len());
-
-        for path in &paths {
-            // check if parent folders
-            if let Ok(exist) = Assets::get_by_path(db, path, &AssetType::Folder).await {
-                if exist.user_id() != user_id {
-                    let msg = format!(
-                        "you're attempting to create a folder at \"{path}\" which already belongs to someone else."
-                    );
-                    tracing::error!(msg);
-                    return Err(Error::ServerError(msg));
-                } else {
-                    tracing::warn!("path {path} already exists. skipping... ");
-                    continue;
-                }
-            }
-
-            // build query values
-            let asset = NewAsset {
-                user_id: *user_id,
-                asset_path: path.to_string(),
-                custom_path: None,
-                asset_type: folder_type,
-                public: is_public.unwrap_or(false),
-                bucket_id: *bucket_id,
+    if let AssetType::Folder = asset_type {
+        let mut entries = tokio::fs::read_dir(asset.path()).await?;
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let path = entry.path();
+            let child_type = if path.is_file() {
+                AssetType::File
+            } else {
+                AssetType::Folder
             };
 
-            assets.push(asset);
+            if let Some(path) = path.to_str() {
+                if let Ok(child) = Assets::get_by_path(db, path, &child_type).await {
+                    child.delete(db).await?;
+                }
+            }
         }
+    }
 
-        if !assets.is_empty() {
-            Assets::insert_group(db, assets).await?;
-        }
-
-        tokio::fs::create_dir_all(parent).await?;
+    match asset_type {
+        AssetType::File => tokio::fs::remove_file(path).await?,
+        AssetType::Folder => tokio::fs::remove_dir_all(path).await?,
     }
 
     Ok(())
