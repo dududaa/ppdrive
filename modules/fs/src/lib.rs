@@ -1,13 +1,8 @@
-use errors::CoreError;
-pub use rbatis::RBatis;
-pub use toml;
+#[cfg(feature = "auth")]
+pub mod auth;
+mod errors;
+pub mod free;
+pub mod opts;
+pub mod utils;
 
-pub mod config;
-pub mod db;
-pub mod errors;
-mod fs;
-pub mod models;
-pub mod options;
-pub mod tools;
-
-pub(self) type CoreResult<T> = Result<T, CoreError>;
+pub type FsResult<T> = Result<T, crate::errors::Error>;

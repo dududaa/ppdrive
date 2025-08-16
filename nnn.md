@@ -1,26 +1,31 @@
-## Capabilities:
-- Perform the following operations over network
-    1. File System Management
-        - Upload
-        - View
-        - Update
-        - Delete
+## Flow
+1. `Server` receives network request from external systems via one of the following (configurable/installable) authetication methods:
+- Client Auth
+- Direct Auth
+- No Auth
 
-    2. File Compression
-    3. File Conversion
-    4. Image Manipulation
+2. Server route handler forwards request to approriate `Module`(s) for processing.
 
-- Network can be:
-    1. REST
-    2. gRPC
+3. `Module` processes request, update bookkeeping (for authenticated requests) and send response back to `Server`.
 
-- Network Access Types
-    1. Client Auth
-    2. Direct Auth
-    3. No Auth
+4. `Server` sends response to external systems.
 
-## Package
-1. CLI (bin) - For configuring app, managing and installing app libraries on the server.
+## Servers
+We currently working on implementing following servers
+1. REST
+2. gRPC
 
-2. REST Server (lib)
-    - Feature:
+## Modules
+Modules implement package capabilities:
+1. File System Management
+    - Upload
+    - View
+    - Update
+    - Delete
+2. File Compression
+3. File Conversion
+4. Image Manipulation
+
+## Packages
+- app (bin) - For configuring app, managing and installing app libraries on the server.
+- shared: Functionalities shared across the app

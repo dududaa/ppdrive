@@ -22,7 +22,7 @@ serde_json = "1.0.140"
 mime_guess = "2.0.5"
 jsonwebtoken = "9.3.1"
 uuid = { version = "1.16.0", features = ["v4"] }
-ppdrive_fs = { path = "../../modules/fs" }
+ppd_fs = { path = "../../modules/fs" }
 
 [dev-dependencies]
 axum-test = "16"

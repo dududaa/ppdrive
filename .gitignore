@@ -27,6 +27,9 @@
 !modules/
 !modules/**
 
+!shared/
+!shared/**
+
 !nnn.md
 
 **migrations
