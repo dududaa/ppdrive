@@ -10,12 +10,15 @@ use crate::errors::Error;
 
 #[cfg(feature = "auth")]
 pub mod auth;
-mod errors;
-pub mod free;
-pub mod opts;
-pub mod utils;
 
-pub type FsResult<T> = Result<T, crate::errors::Error>;
+#[cfg(not(feature = "auth"))]
+pub mod free;
+
+mod errors;
+pub mod opts;
+mod utils;
+
+pub type FsResult<T> = Result<T, Error>;
 
 pub enum FileResponse {
     File(Mime, Vec<u8>),
