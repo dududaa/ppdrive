@@ -180,6 +180,12 @@ impl Assets {
         Ok(())
     }
 
+    /// checks if a user has read access to the asset
+    pub async fn can_read(&self, db: &RBatis, user_id: &u64) -> DBResult<()> {
+        AssetPermissions::exists(db, user_id, &self.id(), Permission::Read).await?;
+        Ok(())
+    }
+
     pub fn id(&self) -> u64 {
         *&self.id.unwrap_or_default()
     }

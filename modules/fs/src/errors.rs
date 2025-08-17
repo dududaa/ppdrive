@@ -8,6 +8,7 @@ pub enum Error {
     IOError(IOError),
     ServerError(String),
     PermissionError(String),
+    NotFound(String),
 }
 
 impl Display for Error {
@@ -19,6 +20,7 @@ impl Display for Error {
             IOError(err) => write!(f, "{err}"),
             ServerError(msg) => write!(f, "{msg}"),
             PermissionError(msg) => write!(f, "{msg}"),
+            NotFound(msg) => write!(f, "{msg}"),
         }
     }
 }

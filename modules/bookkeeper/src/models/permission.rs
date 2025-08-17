@@ -96,13 +96,13 @@ impl AssetPermissions {
     }
 
     pub async fn exists(
-        rb: &RBatis,
+        db: &RBatis,
         user_id: &u64,
         asset_id: &u64,
         permission: Permission,
     ) -> DBResult<()> {
         let pd = u8::from(permission);
-        let perm = AssetPermissions::check(rb, user_id, asset_id, &pd).await?;
+        let perm = AssetPermissions::check(db, user_id, asset_id, &pd).await?;
 
         check_model(perm, "permission does not exist")?;
         Ok(())
