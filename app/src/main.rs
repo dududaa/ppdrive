@@ -1,5 +1,14 @@
-mod command;
+use clap::Parser;
 
-fn main()  {
-    
+use crate::{command::Cli, errors::AppResult};
+
+mod command;
+mod plugins;
+mod errors;
+
+fn main() -> AppResult<()> {
+    let cli = Cli::parse();
+    cli.run()?;
+
+    Ok(())
 }

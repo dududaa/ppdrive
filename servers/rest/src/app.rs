@@ -17,7 +17,7 @@ use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-#[cfg(feature = "client")]
+#[cfg(feature = "client-auth")]
 use crate::client::client_routes;
 
 use crate::general::get_asset;

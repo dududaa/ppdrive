@@ -1,4 +1,4 @@
-pub use crate::app::initialize_app;
+use crate::app::initialize_app;
 use errors::ServerError;
 use ppd_bk::db::migration::run_migrations;
 use ppd_shared::config::AppConfig;
@@ -8,15 +8,15 @@ use tokio::runtime::Runtime;
 mod tests;
 
 mod app;
-pub mod errors;
+mod errors;
 mod extractors;
 mod general;
 
-#[cfg(feature = "client")]
+#[cfg(feature = "client-auth")]
 mod client;
 mod state;
 mod jwt;
-pub mod opts;
+mod opts;
 
 pub type ServerResult<T> = Result<T, ServerError>;
 

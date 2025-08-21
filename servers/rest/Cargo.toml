@@ -7,9 +7,9 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
-default = ["client"]
-client = ["ppd_fs/auth", "dep:client_tools"]
-direct = ["ppd_fs/auth"]
+default = ["client-auth"]
+client-auth = ["ppd_fs/auth", "dep:client_tools"]
+direct-auth = ["ppd_fs/auth"]
 zero-auth = []
 
 [dependencies]

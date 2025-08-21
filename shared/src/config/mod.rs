@@ -70,7 +70,7 @@ pub struct AppConfig {
 impl AppConfig {
     pub async fn load() -> AppResult<Self> {
         let config_path = get_config_path()?;
-        let config_str = tokio::fs::read_to_string(&config_path).await?;
+        let config_str = tokio::fs::read_to_string(&config_path).await.map_err(|_| Error::ServerError(format!("unable to read {config_path:?}")))?;
         let config: Self =
             toml::from_str(&config_str).map_err(|err| Error::ServerError(err.to_string()))?;
 
