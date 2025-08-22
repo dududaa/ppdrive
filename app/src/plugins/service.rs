@@ -18,10 +18,24 @@ impl Service {
         let filename = self.filename()?;
 
         #[cfg(debug_assertions)]
-        std::fs::remove_file(&filename)?;
+        if let Err(err) = std::fs::remove_file(&filename) {
+            eprintln!("cannot remove previous plugin: {err}")
+        }
 
         if !filename.is_file() {
-            self.install()?;
+            // confirm before installation
+            println!("You currently don't have {} plugin installed. Do you want to install it? (y/n)", self.plugin_name());
+            let mut ans = String::new();
+
+            std::io::stdin().read_line(&mut ans)?;
+            let ans = ans.trim().to_lowercase();
+            
+            if &ans == "y" {
+                println!("installing {}...", self.plugin_name());
+                self.install()?;
+            } else {
+                return Ok(());
+            }
         }
 
         let lib = unsafe { Library::new(&filename)? };
@@ -32,17 +46,24 @@ impl Service {
         let port = self.port.unwrap_or(5000);
         unsafe { start(port); }
 
+        println!("server started at port: {port}");
+
         Ok(())
+    }
+
+    fn plugin_name(&self) -> String {
+        let mut n = format!("{:?}", self.ty);
+        if let Some(mode) = self.auth_mode {
+            n.push_str(&format!("-{mode:?}"));
+        }
+
+        n
     }
 }
 
 impl Plugin for Service {
     fn filename(&self) -> AppResult<PathBuf> {
-        let mut n = format!("{:?}-", self.ty);
-        if let Some(mode) = self.auth_mode {
-            n.push_str(&format!("{mode:?}"));
-        }
-
+        let mut n = self.plugin_name();
         n.push_str(Self::ext());
 
         let p = root_dir()?.join(n.to_lowercase());

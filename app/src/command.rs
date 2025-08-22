@@ -13,7 +13,7 @@ pub struct Cli {
     command: CliCommand,
 
     /// server's authentication mode
-    #[arg(value_enum)]
+    #[arg(long, value_enum)]
     mode: Option<ServiceAuthMode>,
 
     /// the port to run server on

@@ -39,23 +39,23 @@ pub trait Plugin {
     fn ext() -> &'static str {
         #[cfg(target_os = "windows")]
         {
-            "dll"
+            ".dll"
         }
 
         #[cfg(target_os = "macos")]
         {
-            "dylib"
+            ".dylib"
         }
 
         #[cfg(target_os = "linux")]
-        "dll"
+        ".dll"
     }
 
     /// the output filename path of the release build.
     #[cfg(debug_assertions)]
     fn release_path(&self) -> AppResult<PathBuf> {
         let n = format!(
-            "target/debug/lib{}.{}",
+            "target/debug/lib{}{}",
             self.package_name(),
             Self::ext()
         );
