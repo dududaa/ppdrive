@@ -4,20 +4,8 @@ use ppd_bk::db::migration::run_migrations;
 use ppd_shared::config::AppConfig;
 use tokio::runtime::Runtime;
 
-#[cfg(test)]
-mod tests;
-
 mod app;
 mod errors;
-mod extractors;
-mod general;
-
-#[cfg(feature = "client-auth")]
-mod client;
-mod state;
-mod jwt;
-mod opts;
-
 pub type ServerResult<T> = Result<T, ServerError>;
 
 async fn run_server(port: u16) -> ServerResult<()> {

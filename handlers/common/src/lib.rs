@@ -9,20 +9,28 @@ use ppd_bk::models::asset::AssetType;
 use ppd_fs::{read_asset, AssetBody};
 use ppd_shared::tools::SECRETS_FILENAME;
 
-use crate::{errors::ServerError, extractors::ClientUser, state::AppState};
+use crate::{errors::HandlerError, extractors::ClientUser, state::AppState};
+
+pub mod extractors;
+pub mod jwt;
+pub mod opts;
+pub mod state;
+pub mod errors;
+
+pub type HandlerResult<T> = Result<T, HandlerError>;
 
 #[debug_handler]
 pub async fn get_asset(
     Path((asset_type, mut asset_path)): Path<(AssetType, String)>,
     State(state): State<AppState>,
     user: Option<ClientUser>,
-) -> Result<Response<Body>, ServerError> {
+) -> Result<Response<Body>, HandlerError> {
     if asset_path.ends_with("/") {
         asset_path = asset_path.trim_end_matches("/").to_string();
     }
 
     if &asset_path == SECRETS_FILENAME {
-        return Err(ServerError::PermissionDenied("access denied".to_string()));
+        return Err(HandlerError::PermissionDenied("access denied".to_string()));
     }
 
     let db = state.db();
@@ -38,6 +46,6 @@ pub async fn get_asset(
             .body(Body::from(content)),
     };
 
-    let resp = body.map_err(|err| ServerError::InternalError(err.to_string()))?;
+    let resp = body.map_err(|err| HandlerError::InternalError(err.to_string()))?;
     Ok(resp)
 }

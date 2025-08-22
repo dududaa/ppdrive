@@ -39,8 +39,8 @@
 **test-assets
 **delete-assets
 
-!tests/
-!tests/**
+!handlers/
+!handlers/**
 
 !docs/
 !docs/**

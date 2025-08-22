@@ -5,7 +5,7 @@ use chrono::Utc;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
-use crate::errors::ServerError;
+use crate::errors::HandlerError;
 
 use ppd_shared::tools::get_env;
 
@@ -25,19 +25,19 @@ pub struct Claims {
     pub ty: TokenType,
 }
 
-pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Claims, ServerError> {
+pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Claims, HandlerError> {
     let token = extract_jwt(header_value)?;
 
     let mut validation = Validation::default();
     validation.algorithms = vec![Algorithm::HS512];
 
     let decoded = decode::<Claims>(&token, &DecodingKey::from_secret(secret), &validation)
-        .map_err(|err| ServerError::AuthorizationError(format!("invalid token: {err}")))?;
+        .map_err(|err| HandlerError::AuthorizationError(format!("invalid token: {err}")))?;
 
     Ok(decoded.claims)
 }
 
-fn extract_jwt(header_value: &HeaderValue) -> Result<String, ServerError> {
+fn extract_jwt(header_value: &HeaderValue) -> Result<String, HandlerError> {
     let bearer = get_env(BEARER_KEY)?;
 
     let bearer = format!("{} ", bearer);
@@ -50,17 +50,17 @@ fn extract_jwt(header_value: &HeaderValue) -> Result<String, ServerError> {
         }
     }
 
-    Err(ServerError::AuthorizationError(
+    Err(HandlerError::AuthorizationError(
         "Error extracting jwt".to_string(),
     ))
 }
 
-pub(crate) fn create_jwt(
+pub fn create_jwt(
     user_id: &u64,
     secret: &[u8],
     exp: i64,
     ty: TokenType,
-) -> Result<String, ServerError> {
+) -> Result<String, HandlerError> {
     let exp = Utc::now()
         .checked_add_signed(chrono::Duration::seconds(exp))
         .expect("Invalid timestamp")
@@ -74,5 +74,5 @@ pub(crate) fn create_jwt(
 
     let header = Header::new(Algorithm::HS512);
     encode(&header, &claims, &EncodingKey::from_secret(secret))
-        .map_err(|err| ServerError::AuthorizationError(format!("unable to create token: {err}")))
+        .map_err(|err| HandlerError::AuthorizationError(format!("unable to create token: {err}")))
 }

@@ -567,6 +567,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
+name = "client"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-macros",
+ "handlers",
+ "ppd_bk",
+ "ppd_fs",
+ "ppd_shared",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "client_tools"
 version = "0.1.0"
 dependencies = [
@@ -1013,6 +1028,23 @@ name = "gimli"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
+
+[[package]]
+name = "handlers"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-macros",
+ "chrono",
+ "client_tools",
+ "jsonwebtoken",
+ "mime_guess",
+ "ppd_bk",
+ "ppd_fs",
+ "ppd_shared",
+ "serde",
+ "uuid",
+]
 
 [[package]]
 name = "hashbrown"
@@ -1882,25 +1914,18 @@ name = "ppd_rest"
 version = "0.27.20"
 dependencies = [
  "axum",
- "axum-macros",
  "axum-test",
- "chrono",
- "client_tools",
  "futures",
- "jsonwebtoken",
- "mime_guess",
+ "handlers",
  "ppd_bk",
- "ppd_fs",
  "ppd_shared",
  "serde",
- "serde_json",
  "serial_test",
  "tokio",
  "tower 0.4.13",
  "tower-http",
  "tracing",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

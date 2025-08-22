@@ -7,5 +7,5 @@ edition = "2024"
 chacha20poly1305 = "0.10.1"
 hex = "0.4.3"
 uuid = "1.18.0"
-ppd_bk = { path = "../bookkeeper" }
+ppd_bk.workspace = true
 ppd_shared.workspace = true

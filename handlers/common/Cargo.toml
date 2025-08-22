@@ -1,0 +1,17 @@
+[package]
+name = "handlers"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum.workspace = true
+axum-macros.workspace = true
+ppd_shared.workspace = true
+ppd_bk.workspace = true
+ppd_fs.workspace = true
+client_tools.workspace = true
+serde.workspace = true
+jsonwebtoken = "9.3.1"
+uuid = { workspace = true, features = ["v4"] }
+mime_guess = "2.0.5"
+chrono = "0.4.40"

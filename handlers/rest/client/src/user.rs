@@ -1,23 +1,22 @@
 use axum::{
-    extract::{Multipart, Path, State},
     Json,
+    extract::{Multipart, Path, State},
 };
 use axum_macros::debug_handler;
 use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
-use crate::{errors::ServerError, state::AppState};
+use crate::errors::ServerError;
+use handlers::{extractors::ClientUser, state::AppState};
 use ppd_bk::models::{
+    IntoSerializer,
     asset::{AssetType, Assets},
     bucket::{Buckets, CreateBucketOptions},
     user::{UserSerializer, Users},
-    IntoSerializer,
 };
 use ppd_shared::tools::SECRETS_FILENAME;
 
 use ppd_fs::{auth::create_or_update_asset, opts::CreateAssetOptions};
-
-use crate::extractors::ClientUser;
 
 #[debug_handler]
 pub async fn get_user(

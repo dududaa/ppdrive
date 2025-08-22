@@ -1,4 +1,4 @@
-use crate::errors::ServerError;
+use crate::errors::HandlerError;
 use ppd_bk::{db::init_db, RBatis};
 use ppd_shared::{config::AppConfig, tools::AppSecrets};
 use std::sync::Arc;
@@ -11,7 +11,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn new(config: &AppConfig) -> Result<Self, ServerError> {
+    pub async fn new(config: &AppConfig) -> Result<Self, HandlerError> {
         let db = init_db(config.db().url()).await?;
         let secrets = Arc::new(AppSecrets::read().await?);
 

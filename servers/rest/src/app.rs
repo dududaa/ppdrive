@@ -17,13 +17,13 @@ use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-#[cfg(feature = "client-auth")]
-use crate::client::client_routes;
+// #[cfg(feature = "client-auth")]
+// use crate::client::client_routes;
 
-use crate::general::get_asset;
+// use crate::general::get_asset;
 use ppd_shared::tools::init_secrets;
-use crate::jwt::{BEARER_KEY, BEARER_VALUE};
-use crate::{errors::ServerError, state::AppState};
+use handlers::{jwt::{BEARER_KEY, BEARER_VALUE}, state::AppState, get_asset };
+use crate::{errors::ServerError};
 
 fn to_origins(origins: CorsOriginType) -> AllowOrigin {
     match origins {
@@ -66,7 +66,7 @@ async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, S
 
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", client_routes(config))
+        // .nest("/client", client_routes(config))
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 // Log the matched route's path (with placeholders not filled in).

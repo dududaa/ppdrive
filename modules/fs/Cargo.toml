@@ -8,9 +8,9 @@ tracing.workspace = true
 serde = "1.0.219"
 tokio = { version = "1.47.1", features = ["fs"] }
 mime_guess = "2.0.5"
-ppd_bk = { path = "../bookkeeper", optional = true }
+ppd_bk = { workspace = true, optional = true }
 ppd_shared.workspace = true
 
 [features]
-default = []
+default = ["auth"]
 auth = ["dep:ppd_bk"]

@@ -6,7 +6,7 @@ use axum::{
     http::{header::AUTHORIZATION, request::Parts, HeaderValue},
 };
 use client_tools::verify_client;
-use crate::{errors::ServerError, state::AppState, jwt::decode_jwt, ServerResult};
+use crate::{errors::HandlerError, state::AppState, jwt::decode_jwt, HandlerResult};
 
 
 pub struct RequestUser {
@@ -29,7 +29,7 @@ where
     AppState: FromRef<S>,
     S: Send + Sync,
 {
-    type Rejection = ServerError;
+    type Rejection = HandlerError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         match parts.headers.get(AUTHORIZATION) {
@@ -47,7 +47,7 @@ where
                     }
                 }
             }
-            None => Err(ServerError::AuthorizationError(
+            None => Err(HandlerError::AuthorizationError(
                 "authorization header required".to_string(),
             )),
         }
@@ -68,7 +68,7 @@ where
     AppState: FromRef<S>,
     S: Send + Sync,
 {
-    type Rejection = ServerError;
+    type Rejection = HandlerError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let client_key = parts.headers.get("x-ppd-client");
@@ -78,21 +78,21 @@ where
             Some(key) => {
                 let token = key
                     .to_str()
-                    .map_err(|err| ServerError::AuthorizationError(err.to_string()))?;
+                    .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
                 let secrets = state.secrets();
-                let id = verify_client(state.db(), secrets.deref(), token).await.map_err(|err| ServerError::AuthorizationError(err.to_string()))?;
+                let id = verify_client(state.db(), secrets.deref(), token).await.map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
                 Ok(ClientRoute(id))
             }
-            _ => Err(ServerError::AuthorizationError(
+            _ => Err(HandlerError::AuthorizationError(
                 "missing 'x-client-key' headers".to_string(),
             )),
         }
     }
 }
 
-async fn get_local_user(state: &AppState, header: &HeaderValue) -> ServerResult<RequestUser> {
+async fn get_local_user(state: &AppState, header: &HeaderValue) -> HandlerResult<RequestUser> {
     let secrets = state.secrets();
     // let db = state.db();
 
