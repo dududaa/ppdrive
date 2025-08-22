@@ -4,7 +4,7 @@ use ppd_shared::{
     config::AppConfig,
     tools::AppSecrets,
 };
-use client_tools::create_client;
+use client_tools::{create_client, errors::Error as ClientError};
 
 use crate::{initialize_app, errors::ServerError, ServerResult};
 
@@ -40,4 +40,10 @@ pub async fn create_db(config: &AppConfig) -> ServerResult<RBatis> {
     let db = init_db(url).await?;
 
     Ok(db)
+}
+
+impl From<ClientError> for ServerError {
+    fn from(value: ClientError) -> Self {
+        ServerError::InternalError(value.to_string())
+    }
 }

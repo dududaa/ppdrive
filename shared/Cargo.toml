@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 tracing.workspace = true
-clap.workspace = true
+clap = {workspace = true, features = ["derive"]}
 serde = {workspace = true, features = ["derive"]}
 tokio = { workspace = true, features = ["fs", "io-util"] }
 toml = "0.9.5"

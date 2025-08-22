@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::{AppResult, config::auth::AuthConfig, errors::Error, tools::root_dir};
+use crate::{config::auth::AuthConfig, errors::Error, plugins::service::ServiceAuthMode, tools::root_dir, AppResult};
 pub mod auth;
 
 pub const CONFIG_FILENAME: &str = "ppd_config.toml";
@@ -31,6 +31,7 @@ impl DatabaseConfig {
 pub struct ServerConfig {
     max_upload_size: usize,
     allowed_origins: String,
+    auth_modes: Vec<ServiceAuthMode>
 }
 
 impl ServerConfig {
@@ -40,6 +41,10 @@ impl ServerConfig {
 
     pub fn allowed_origins(&self) -> &str {
         &self.allowed_origins
+    }
+
+    pub fn auth_modes(&self) -> &[ServiceAuthMode] {
+        &self.auth_modes
     }
 
     pub fn origins(&self) -> CorsOriginType {
@@ -89,33 +94,15 @@ impl AppConfig {
         &self.auth
     }
 
-    pub async fn update(&mut self, data: ConfigUpdater) -> AppResult<()> {
-        // database
-        let url = &self.database.url;
-        self.database.url = data.db_url.unwrap_or(url.to_string());
-
-        // server
-        let origins = &self.server.allowed_origins;
-        let max_upload = &self.server.max_upload_size;
-
-        self.server.allowed_origins = data.allowed_urls.unwrap_or(origins.to_string());
-        self.server.max_upload_size = data.max_upload_size.unwrap_or(max_upload.clone());
-
-        // save to file
+    pub async fn set_auth_modes(&mut self, values: &[ServiceAuthMode]) -> AppResult<()> {
+        self.server.auth_modes.append(&mut values.to_vec());
+        self.server.auth_modes.dedup(); 
+        
         let updated =
-            toml::to_string_pretty(&self).map_err(|err| Error::ServerError(err.to_string()))?;
+        toml::to_string_pretty(&self).map_err(|err| Error::ServerError(err.to_string()))?;
+        
         let path = get_config_path()?;
-
         tokio::fs::write(&path, &updated).await?;
-
         Ok(())
     }
-}
-
-#[derive(Default)]
-pub struct ConfigUpdater {
-    pub db_url: Option<String>,
-    pub server_port: Option<u16>,
-    pub max_upload_size: Option<usize>,
-    pub allowed_urls: Option<String>,
 }

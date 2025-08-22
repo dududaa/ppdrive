@@ -1,10 +1,10 @@
 [package]
-name = "client"
+name = "rest_client"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "lib"]
 
 [dependencies]
 serde_json.workspace = true

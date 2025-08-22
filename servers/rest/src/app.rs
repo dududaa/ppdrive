@@ -11,19 +11,22 @@ use axum::{
     Router,
 };
 use ppd_shared::config::{AppConfig, CorsOriginType};
+use ppd_shared::plugins::router::ServiceRouter;
+use ppd_shared::plugins::service::{ServiceAuthMode, ServiceType};
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-// #[cfg(feature = "client-auth")]
-// use crate::client::client_routes;
-
-// use crate::general::get_asset;
+use crate::errors::ServerError;
+use crate::ServerResult;
+use handlers::{
+    get_asset,
+    jwt::{BEARER_KEY, BEARER_VALUE},
+    state::AppState,
+};
 use ppd_shared::tools::init_secrets;
-use handlers::{jwt::{BEARER_KEY, BEARER_VALUE}, state::AppState, get_asset };
-use crate::{errors::ServerError};
 
 fn to_origins(origins: CorsOriginType) -> AllowOrigin {
     match origins {
@@ -64,9 +67,10 @@ async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, S
 
     set_var(BEARER_KEY, BEARER_VALUE);
 
+    let client_router = get_client_router(config)?;
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        // .nest("/client", client_routes(config))
+        .nest("/client", *client_router)
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 // Log the matched route's path (with placeholders not filled in).
@@ -93,7 +97,7 @@ async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, S
 
 pub async fn initialize_app(
     config: &AppConfig,
-) -> Result<IntoMakeService<Router<()>>, ServerError> {
+) -> ServerResult<IntoMakeService<Router<()>>> {
     if let Err(err) = tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -108,4 +112,16 @@ pub async fn initialize_app(
     // start ppdrive app
     init_secrets().await?;
     create_app(&config).await
+}
+
+fn get_client_router(config: &AppConfig) -> ServerResult<Box<Router<AppState>>> {
+    let router = if config.server().auth_modes().contains(&ServiceAuthMode::Client) {
+        let svc_router = ServiceRouter { svc_type: ServiceType::Rest, auth_mode: ServiceAuthMode::Client };
+        svc_router.get(config)?
+    } else {
+        Box::new(Router::new())
+    };
+
+    Ok(router)
+    
 }

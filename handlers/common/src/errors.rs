@@ -1,6 +1,6 @@
 use std::{env::VarError, fmt::Display, string::FromUtf8Error};
 
-use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoResponse};
+use axum::{http::StatusCode, response::IntoResponse};
 use ppd_fs::errors::Error as FsError;
 use ppd_shared::errors::Error as SharedError;
 use ppd_bk::Error as DBError;
@@ -47,11 +47,11 @@ impl From<std::io::Error> for HandlerError {
     }
 }
 
-impl From<MultipartError> for HandlerError {
-    fn from(value: MultipartError) -> Self {
-        HandlerError::InternalError(value.to_string())
-    }
-}
+// impl From<MultipartError> for HandlerError {
+//     fn from(value: MultipartError) -> Self {
+//         HandlerError::InternalError(value.to_string())
+//     }
+// }
 
 impl From<FsError> for HandlerError {
     fn from(value: FsError) -> Self {

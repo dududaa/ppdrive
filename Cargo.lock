@@ -567,21 +567,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
-name = "client"
-version = "0.1.0"
-dependencies = [
- "axum",
- "axum-macros",
- "handlers",
- "ppd_bk",
- "ppd_fs",
- "ppd_shared",
- "serde_json",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "client_tools"
 version = "0.1.0"
 dependencies = [
@@ -1915,11 +1900,14 @@ version = "0.27.20"
 dependencies = [
  "axum",
  "axum-test",
+ "client_tools",
  "futures",
  "handlers",
  "ppd_bk",
+ "ppd_fs",
  "ppd_shared",
- "serde",
+ "rest_client",
+ "serde_json",
  "serial_test",
  "tokio",
  "tower 0.4.13",
@@ -1947,6 +1935,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "ppd_shared",
+ "tokio",
 ]
 
 [[package]]
@@ -2385,6 +2374,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21918d6644020c6f6ef1993242989bf6d4952d2e025617744f184c02df51c356"
 dependencies = [
  "thiserror 2.0.14",
+]
+
+[[package]]
+name = "rest_client"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-macros",
+ "handlers",
+ "ppd_bk",
+ "ppd_fs",
+ "ppd_shared",
+ "serde_json",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

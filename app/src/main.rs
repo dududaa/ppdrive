@@ -5,9 +5,10 @@ use crate::{command::Cli, errors::AppResult};
 mod command;
 mod errors;
 
-fn main() -> AppResult<()> {
+#[tokio::main]
+async fn main() -> AppResult<()> {
     let cli = Cli::parse();
-    cli.run()?;
+    cli.run().await?;
 
     Ok(())
 }

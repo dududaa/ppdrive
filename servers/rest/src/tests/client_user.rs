@@ -4,7 +4,7 @@ use serial_test::serial;
 
 use ppd_fs::opts::CreateAssetOptions;
 
-use crate::{ServerResult};
+use crate::{ServerResult, errors::ServerError};
 use super::test_utils::functions::*;
 use super::test_utils::{app_config, create_db, create_server};
 
@@ -131,4 +131,10 @@ async fn test_client_user_delete_asset() -> ServerResult<()> {
     resp.assert_status_ok();
 
     Ok(())
+}
+
+impl From<serde_json::Error> for ServerError {
+    fn from(value: serde_json::Error) -> Self {
+        ServerError::InternalError(value.to_string())
+    }
 }

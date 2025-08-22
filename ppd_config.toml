@@ -4,10 +4,8 @@ url = "sqlite://db.sqlite"
 [server]
 max_upload_size = 10
 allowed_origins = "*"
-auth_mode = []
+auth_modes = ["Client"]
 
 [auth]
-# url = ""
-access_exp = 900    # 15min
-refresh_exp = 86400 # 24hr
-disable_refresh_token = false
+access_exp = 900
+refresh_exp = 86400

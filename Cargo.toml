@@ -25,3 +25,4 @@ ppd_bk = { path = "modules/bookkeeper" }
 ppd_fs = { path = "modules/fs" }
 client_tools = { path = "handlers/rest/client-tools" }
 handlers = { path = "handlers/common" }
+rest_client = { path = "handlers/rest/client" }

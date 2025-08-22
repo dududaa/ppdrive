@@ -9,7 +9,6 @@ use handlers::errors::HandlerError;
 pub enum ServerError {
     InitError(String),
     InternalError(String),
-    // FsError(FsError),
     CommonError(SharedError),
     DBError(DBError),
     AuthorizationError(String),

@@ -151,6 +151,7 @@ pub fn client_routes(max_upload_size: usize) -> Router<AppState> {
         .route("/user/bucket", post(create_user_bucket))
 }
 
+#[unsafe(no_mangle)]
 pub extern "C" fn load_router(max_upload_size: usize) -> *mut Router<AppState> {
     let router = client_routes(max_upload_size);
     let boxed = Box::new(router);

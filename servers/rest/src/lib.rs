@@ -4,6 +4,9 @@ use ppd_bk::db::migration::run_migrations;
 use ppd_shared::config::AppConfig;
 use tokio::runtime::Runtime;
 
+// #[cfg(test)]
+// mod tests;
+
 mod app;
 mod errors;
 pub type ServerResult<T> = Result<T, ServerError>;
