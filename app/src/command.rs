@@ -2,8 +2,8 @@ use clap::{Parser, Subcommand};
 
 use crate::{
     errors::AppResult,
-    plugins::service::{ServiceAuthMode, ServiceBuilder, ServiceType},
 };
+use ppd_shared::plugins::service::{ServiceAuthMode, ServiceBuilder, ServiceType};
 
 /// A free and open-source cloud storage service.
 #[derive(Parser)]

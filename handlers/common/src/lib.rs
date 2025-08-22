@@ -1,3 +1,5 @@
+//! functionalities shared by server handlers
+
 use axum::{
     body::Body,
     extract::{Path, State},

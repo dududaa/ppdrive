@@ -14,7 +14,7 @@ zero-auth = []
 
 [dependencies]
 axum.workspace = true
-tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tower = "0.4.13"
 tower-http = { version = "0.5.1", features = [
     "cors",

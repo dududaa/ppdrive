@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
-use ppd_shared::tools::root_dir;
-
-use crate::errors::AppResult;
+use crate::{AppResult, tools::root_dir};
 
 pub mod service;
 

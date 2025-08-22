@@ -2,9 +2,7 @@ use std::{path::PathBuf, process::Command};
 
 use clap::ValueEnum;
 use libloading::{Library, Symbol};
-use ppd_shared::tools::root_dir;
-
-use crate::{errors::AppResult, plugins::Plugin};
+use crate::{AppResult, plugins::Plugin, tools::root_dir};
 
 #[derive(Default)]
 pub struct Service {

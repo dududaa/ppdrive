@@ -1,6 +1,5 @@
 use std::fmt::Display;
 use ppd_shared::errors::Error as SharedError;
-use libloading::Error as LibLoadError;
 
 pub type AppResult<T> = Result<T, Error>;
 
@@ -8,7 +7,6 @@ pub type AppResult<T> = Result<T, Error>;
 pub enum Error {
     VarError(std::env::VarError),
     IOError(std::io::Error),
-    LibLoadError(LibLoadError),
     InternalError(String),
 }
 
@@ -19,7 +17,6 @@ impl Display for Error {
         match self {
             VarError(err) => write!(f, "{err}"),
             IOError(err) => write!(f, "{err}"),
-            LibLoadError(err) => write!(f, "{err}"),
             InternalError(msg) => write!(f, "{msg}"),
         }
     }
@@ -40,11 +37,5 @@ impl From<std::io::Error> for Error {
 impl From<SharedError> for Error {
     fn from(value: SharedError) -> Self {
         Error::InternalError(value.to_string())
-    }
-}
-
-impl From<LibLoadError> for Error  {
-    fn from(value: LibLoadError) -> Self {
-        Error::LibLoadError(value)
     }
 }

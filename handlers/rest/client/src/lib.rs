@@ -14,7 +14,6 @@ use handlers::{
     extractors::ClientRoute
 };
 use ppd_shared::{
-    config::AppConfig,
     tools::{SECRETS_FILENAME, mb_to_bytes},
 };
 
@@ -129,9 +128,8 @@ async fn create_bucket(
 }
 
 /// Routes for external clients.
-pub fn client_routes(config: &AppConfig) -> Router<AppState> {
-    let max = config.server().max_upload_size();
-    let limit = mb_to_bytes(*max);
+pub fn client_routes(max_upload_size: usize) -> Router<AppState> {
+    let limit = mb_to_bytes(max_upload_size);
 
     Router::new()
         // Routes used by client for administrative tasks. Requests to these routes
@@ -151,4 +149,11 @@ pub fn client_routes(config: &AppConfig) -> Router<AppState> {
         .layer(DefaultBodyLimit::max(limit))
         .route("/user/asset/:asset_type/*asset_path", delete(delete_asset))
         .route("/user/bucket", post(create_user_bucket))
+}
+
+pub extern "C" fn load_router(max_upload_size: usize) -> *mut Router<AppState> {
+    let router = client_routes(max_upload_size);
+    let boxed = Box::new(router);
+
+    Box::into_raw(boxed)
 }
