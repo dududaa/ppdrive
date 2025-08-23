@@ -19,11 +19,16 @@ fn get_config_path() -> AppResult<PathBuf> {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DatabaseConfig {
     url: String,
+    manager_port: u16
 }
 
 impl DatabaseConfig {
     pub fn url(&self) -> &str {
         &self.url
+    }
+
+    pub fn manager_addr(&self) -> String {
+        format!("0.0.0.0:{}", self.manager_port)
     }
 }
 

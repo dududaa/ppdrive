@@ -5,30 +5,38 @@ use clap::ValueEnum;
 use libloading::Symbol;
 use serde::{Deserialize, Serialize};
 
-#[derive(Default)]
 pub struct Service {
     ty: ServiceType,
-    port: Option<u16>,
+    port: u16,
 }
 
 impl Service {
-    pub async fn start(&self) -> AppResult<u16> {
+    pub async fn start(&self) -> AppResult<()> {
         #[cfg(debug_assertions)]
         self.remove()?;
 
         let lib = self.load()?;
         let start: Symbol<unsafe extern "C" fn(u16)> = unsafe { lib.get(b"start_server")? };
-
-        let port = self.port.unwrap_or(5000);
+        
         unsafe {
-            start(port.clone());
+            start(self.port);
         }
 
-        Ok(port)
+        Ok(())
     }
 
     fn plugin_name(&self) -> String {
         self.ty.to_string()
+    }
+
+    pub fn port(&self) -> &u16 {
+        &self.port
+    }
+}
+
+impl Default for Service  {
+    fn default() -> Self {
+        Service { ty: ServiceType::default(), port: 5000 }
     }
 }
 
@@ -62,7 +70,7 @@ impl ServiceBuilder {
         Self { inner }
     }
 
-    pub fn port(mut self, port: Option<u16>) -> Self {
+    pub fn port(mut self, port: u16) -> Self {
         self.inner.port = port;
         self
     }

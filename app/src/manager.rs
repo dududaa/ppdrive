@@ -1,0 +1,87 @@
+use std::{slice, sync::Arc};
+
+use ppd_shared::{config::AppConfig, plugins::service::ServiceType};
+use tokio_util::sync::CancellationToken;
+
+use crate::errors::AppResult;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+};
+
+pub struct ServiceManager {
+    list: Vec<ServiceInfo>,
+}
+
+impl ServiceManager {
+    pub async fn start(&mut self, config: &AppConfig) -> AppResult<()> {
+        let addr = config.db().manager_addr();
+        let listener = TcpListener::bind(addr).await?;
+
+        loop {
+            let (mut socket, _) = listener.accept().await?;
+
+            // we're expecting one connection at a time, so we don't need to read stream
+            // from a new thread
+            let mut buf = [0u8; 1024];
+            if let Ok(n) = socket.read(&mut buf).await {
+                if n > 0 {
+                    let cmd = unsafe { Arc::from_raw(buf.as_ptr() as *const ServiceCommand) };
+                    match cmd.as_ref() {
+                        ServiceCommand::Add(info) => self.list.push(info.clone()),
+                        ServiceCommand::Cancel(id) => {
+                            let item = self.list.iter().enumerate().find(|item| item.1.ty == *id);
+                            if let Some((idx, info)) = item {
+                                info.token.cancel();
+                                self.list.remove(idx);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// add a new task to the manager
+    pub async fn add_svc(svc_info: ServiceInfo, config: &AppConfig) -> AppResult<()> {
+        Self::send_command(ServiceCommand::Add(svc_info), config).await?;
+        Ok(())
+    }
+
+    /// cancel a task in the manager
+    pub async fn cancel_svc(ty: ServiceType, config: &AppConfig) -> AppResult<()> {
+        Self::send_command(ServiceCommand::Cancel(ty), config).await?;
+        Ok(())
+    }
+
+    async fn send_command(cmd: ServiceCommand, config: &AppConfig) -> AppResult<()> {
+        let svc = Arc::new(cmd);
+        let svc = Arc::into_raw(svc);
+
+        let svc_size = std::mem::size_of::<ServiceCommand>();
+        let data = unsafe { slice::from_raw_parts(svc as *const u8, svc_size) };
+
+        let addr = config.db().manager_addr();
+        let mut stream = TcpStream::connect(addr).await?;
+        stream.write_all(data).await?;
+
+        Ok(())
+    }
+}
+
+impl Default for ServiceManager {
+    fn default() -> Self {
+        ServiceManager { list: vec![] }
+    }
+}
+
+#[derive(Clone)]
+pub struct ServiceInfo {
+    pub ty: ServiceType,
+    pub token: CancellationToken,
+}
+
+enum ServiceCommand {
+    Add(ServiceInfo),
+    Cancel(ServiceType),
+}

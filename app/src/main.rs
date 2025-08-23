@@ -4,6 +4,7 @@ use crate::{command::Cli, errors::AppResult};
 
 mod command;
 mod errors;
+mod manager;
 
 #[tokio::main]
 async fn main() -> AppResult<()> {

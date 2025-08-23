@@ -1,5 +1,6 @@
 [database]
 url = "sqlite://db.sqlite"
+manager_port = 5025
 
 [server]
 max_upload_size = 10

@@ -1,6 +1,9 @@
 use clap::{Parser, Subcommand};
 
-use crate::errors::AppResult;
+use crate::{
+    errors::AppResult,
+    manager::{ServiceInfo, ServiceManager},
+};
 use ppd_shared::{
     config::AppConfig,
     plugins::service::{ServiceAuthMode, ServiceBuilder, ServiceType},
@@ -26,21 +29,54 @@ pub struct Cli {
 
 impl Cli {
     pub async fn run(&self) -> AppResult<()> {
+        let mut config = AppConfig::load().await?;
         if let Some(modes) = &self.mode {
             println!("updating configuration...");
-            let mut config = AppConfig::load().await?;
             config.set_auth_modes(modes).await?;
             println!("configuration updated...");
         }
 
         match self.command {
             CliCommand::Start { ty } => {
-                let svc = ServiceBuilder::new(ty).port(self.port).build();
-                let token = CancellationToken::new();
+                let mut builder = ServiceBuilder::new(ty.clone());
+                if let Some(port) = self.port {
+                    builder = builder.port(port);
+                }
 
-                let port = svc.start().await?;
-                
-                println!("server started at port {port}");
+                let svc = builder.build();
+                let port = svc.port().clone();
+
+                let token = CancellationToken::new();
+                let token_clone = token.clone();
+                tokio::spawn(async move {
+                    tokio::select! {
+                        res = svc.start() => {
+                            if let Err(err) = res {
+                                panic!("unable to start service: {err}")
+                            }
+                        }
+                        _ = token_clone.cancelled() => {
+                            print!("service closed successfully")
+                        }
+                    }
+                });
+
+                // add task to service task to manager
+                let info = ServiceInfo { ty, token };
+                ServiceManager::add_svc(info, &config).await?;
+
+                println!("server started at port {}", port);
+            }
+            CliCommand::Stop { ty } => {
+                ServiceManager::cancel_svc(ty, &config).await?;
+            }
+            CliCommand::Manager => {
+                let mut manager = ServiceManager::default();
+                tokio::spawn(async move {
+                    if let Err(err) = manager.start(&config).await {
+                        panic!("{err}")
+                    }
+                });
             }
             _ => unimplemented!("this command is not supported"),
         }
@@ -58,8 +94,14 @@ enum CliCommand {
     },
 
     /// stop a running server
-    Stop,
+    Stop {
+        #[arg(value_enum)]
+        ty: ServiceType,
+    },
 
     /// install a module
     Install,
+
+    /// a command for starting service manager
+    Manager,
 }

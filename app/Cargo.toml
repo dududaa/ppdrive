@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net"] }
 tokio-util = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 ppd_shared.workspace = true
