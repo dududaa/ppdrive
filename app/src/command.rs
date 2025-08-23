@@ -1,9 +1,12 @@
 use clap::{Parser, Subcommand};
 
-use crate::{
-    errors::AppResult,
+use crate::errors::AppResult;
+use ppd_shared::{
+    config::AppConfig,
+    plugins::service::{ServiceAuthMode, ServiceBuilder, ServiceType},
 };
-use ppd_shared::{config::AppConfig, plugins::service::{ServiceAuthMode, ServiceBuilder, ServiceType}};
+
+use tokio_util::sync::CancellationToken;
 
 /// A free and open-source cloud storage service.
 #[derive(Parser)]
@@ -32,11 +35,12 @@ impl Cli {
 
         match self.command {
             CliCommand::Start { ty } => {
-                let svc = ServiceBuilder::new(ty)
-                    .port(self.port)
-                    .build();
+                let svc = ServiceBuilder::new(ty).port(self.port).build();
+                let token = CancellationToken::new();
+
+                let port = svc.start().await?;
                 
-                svc.start()?;
+                println!("server started at port {port}");
             }
             _ => unimplemented!("this command is not supported"),
         }

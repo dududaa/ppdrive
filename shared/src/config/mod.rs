@@ -95,9 +95,7 @@ impl AppConfig {
     }
 
     pub async fn set_auth_modes(&mut self, values: &[ServiceAuthMode]) -> AppResult<()> {
-        self.server.auth_modes.append(&mut values.to_vec());
-        self.server.auth_modes.dedup(); 
-        
+        self.server.auth_modes = values.to_vec();
         let updated =
         toml::to_string_pretty(&self).map_err(|err| Error::ServerError(err.to_string()))?;
         

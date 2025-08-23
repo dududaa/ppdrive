@@ -12,7 +12,7 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn start(&self) -> AppResult<()> {
+    pub async fn start(&self) -> AppResult<u16> {
         #[cfg(debug_assertions)]
         self.remove()?;
 
@@ -21,12 +21,10 @@ impl Service {
 
         let port = self.port.unwrap_or(5000);
         unsafe {
-            start(port);
+            start(port.clone());
         }
 
-        println!("server started at port: {port}");
-
-        Ok(())
+        Ok(port)
     }
 
     fn plugin_name(&self) -> String {
