@@ -24,7 +24,7 @@ use crate::ServerResult;
 use handlers::{
     get_asset,
     jwt::{BEARER_KEY, BEARER_VALUE},
-    state::AppState,
+    state::HandlerState,
 };
 use ppd_shared::tools::init_secrets;
 
@@ -50,7 +50,7 @@ fn to_origins(origins: CorsOriginType) -> AllowOrigin {
 }
 
 async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, ServerError> {
-    let state = AppState::new(config).await?;
+    let state = HandlerState::new(config).await?;
     let origins = config.server().origins();
 
     let cors = CorsLayer::new()
@@ -114,7 +114,7 @@ pub async fn initialize_app(
     create_app(&config).await
 }
 
-fn get_client_router(config: &AppConfig) -> ServerResult<Box<Router<AppState>>> {
+fn get_client_router(config: &AppConfig) -> ServerResult<Box<Router<HandlerState>>> {
     let router = if config.server().auth_modes().contains(&ServiceAuthMode::Client) {
         let svc_router = ServiceRouter { svc_type: ServiceType::Rest, auth_mode: ServiceAuthMode::Client };
         svc_router.get(config)?

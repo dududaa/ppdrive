@@ -11,7 +11,7 @@ use ppd_bk::models::asset::AssetType;
 use ppd_fs::{read_asset, AssetBody};
 use ppd_shared::tools::SECRETS_FILENAME;
 
-use crate::{errors::HandlerError, extractors::ClientUser, state::AppState};
+use crate::{errors::HandlerError, extractors::ClientUser, state::HandlerState};
 
 pub mod extractors;
 pub mod jwt;
@@ -24,7 +24,7 @@ pub type HandlerResult<T> = Result<T, HandlerError>;
 #[debug_handler]
 pub async fn get_asset(
     Path((asset_type, mut asset_path)): Path<(AssetType, String)>,
-    State(state): State<AppState>,
+    State(state): State<HandlerState>,
     user: Option<ClientUser>,
 ) -> Result<Response<Body>, HandlerError> {
     if asset_path.ends_with("/") {

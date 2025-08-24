@@ -9,7 +9,7 @@ use user::*;
 use crate::errors::ServerError;
 use handlers::{
     jwt::{TokenType, create_jwt},
-    state::AppState,
+    state::HandlerState,
     opts::{CreateUserClient, LoginToken, LoginUserClient},
     extractors::ClientRoute
 };
@@ -27,7 +27,7 @@ mod user;
 
 #[debug_handler]
 async fn create_user(
-    State(state): State<AppState>,
+    State(state): State<HandlerState>,
     client: ClientRoute,
     Json(data): Json<CreateUserClient>,
 ) -> Result<String, ServerError> {
@@ -39,7 +39,7 @@ async fn create_user(
 
 #[debug_handler]
 async fn login_user(
-    State(state): State<AppState>,
+    State(state): State<HandlerState>,
     _: ClientRoute,
     Json(data): Json<LoginUserClient>,
 ) -> Result<Json<LoginToken>, ServerError> {
@@ -83,7 +83,7 @@ async fn login_user(
 async fn delete_user(
     Path(id): Path<String>,
     client: ClientRoute,
-    State(state): State<AppState>,
+    State(state): State<HandlerState>,
 ) -> Result<String, ServerError> {
     let db = state.db();
     let user = Users::get_by_pid(db, &id).await?;
@@ -110,7 +110,7 @@ async fn delete_user(
 
 #[debug_handler]
 async fn create_bucket(
-    State(state): State<AppState>,
+    State(state): State<HandlerState>,
     client: ClientRoute,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
@@ -128,7 +128,7 @@ async fn create_bucket(
 }
 
 /// Routes for external clients.
-pub fn client_routes(max_upload_size: usize) -> Router<AppState> {
+pub fn client_routes(max_upload_size: usize) -> Router<HandlerState> {
     let limit = mb_to_bytes(max_upload_size);
 
     Router::new()
@@ -152,7 +152,7 @@ pub fn client_routes(max_upload_size: usize) -> Router<AppState> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn load_router(max_upload_size: usize) -> *mut Router<AppState> {
+pub extern "C" fn load_router(max_upload_size: usize) -> *mut Router<HandlerState> {
     let router = client_routes(max_upload_size);
     let boxed = Box::new(router);
 

@@ -4,13 +4,13 @@ use ppd_shared::{config::AppConfig, tools::AppSecrets};
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct AppState {
+pub struct HandlerState {
     db: RBatis,
     secrets: Arc<AppSecrets>,
     config: Arc<AppConfig>,
 }
 
-impl AppState {
+impl HandlerState {
     pub async fn new(config: &AppConfig) -> Result<Self, HandlerError> {
         let db = init_db(config.db().url()).await?;
         let secrets = Arc::new(AppSecrets::read().await?);

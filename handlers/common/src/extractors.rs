@@ -6,7 +6,7 @@ use axum::{
     http::{header::AUTHORIZATION, request::Parts, HeaderValue},
 };
 use client_tools::verify_client;
-use crate::{errors::HandlerError, state::AppState, jwt::decode_jwt, HandlerResult};
+use crate::{errors::HandlerError, state::HandlerState, jwt::decode_jwt, HandlerResult};
 
 
 pub struct RequestUser {
@@ -26,7 +26,7 @@ pub struct ClientUser(pub RequestUser);
 #[async_trait]
 impl<S> FromRequestParts<S> for ClientUser
 where
-    AppState: FromRef<S>,
+    HandlerState: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = HandlerError;
@@ -34,7 +34,7 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         match parts.headers.get(AUTHORIZATION) {
             Some(auth) => {
-                let state = AppState::from_ref(state);
+                let state = HandlerState::from_ref(state);
                 let config = state.config();
 
                 match config.auth().url() {
@@ -65,14 +65,14 @@ impl ClientRoute {
 #[async_trait]
 impl<S> FromRequestParts<S> for ClientRoute
 where
-    AppState: FromRef<S>,
+    HandlerState: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = HandlerError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let client_key = parts.headers.get("x-ppd-client");
-        let state = AppState::from_ref(state);
+        let state = HandlerState::from_ref(state);
 
         match client_key {
             Some(key) => {
@@ -92,7 +92,7 @@ where
     }
 }
 
-async fn get_local_user(state: &AppState, header: &HeaderValue) -> HandlerResult<RequestUser> {
+async fn get_local_user(state: &HandlerState, header: &HeaderValue) -> HandlerResult<RequestUser> {
     let secrets = state.secrets();
     // let db = state.db();
 

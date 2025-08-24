@@ -16,7 +16,7 @@ fn get_config_path() -> AppResult<PathBuf> {
     Ok(path)
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DatabaseConfig {
     url: String,
     manager_port: u16
@@ -28,11 +28,11 @@ impl DatabaseConfig {
     }
 
     pub fn manager_addr(&self) -> String {
-        format!("0.0.0.0:{}", self.manager_port)
+        format!("127.0.0.1:{}", self.manager_port)
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ServerConfig {
     max_upload_size: usize,
     allowed_origins: String,
@@ -70,7 +70,7 @@ impl ServerConfig {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct AppConfig {
     database: DatabaseConfig,
     server: ServerConfig,

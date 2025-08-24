@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{ffi::OsStr, path::PathBuf};
 
 use libloading::Library;
 
@@ -8,9 +8,6 @@ pub mod service;
 pub mod router;
 
 pub trait Plugin {
-    /// output filename (path) of the plugin, relative to installation directory
-    fn filename(&self) -> AppResult<PathBuf>;
-
     /// package name of the plugin, as declared in manifest (Cargo.toml)
     fn package_name(&self) -> &'static str;
 
@@ -26,7 +23,7 @@ pub trait Plugin {
         child.wait()?;
 
         let release_path = self.release_path()?;
-        let output_path = self.filename()?;
+        let output_path = self.output()?;
 
         std::fs::rename(release_path, output_path)?;
 
@@ -52,7 +49,7 @@ pub trait Plugin {
 
     /// remove the plugin
     fn remove(&self) -> AppResult<()> {
-        let filename = self.filename()?;
+        let filename = self.output()?;
 
         if let Err(err) = std::fs::remove_file(&filename) {
             eprintln!("cannot remove previous plugin: {err}")
@@ -61,9 +58,9 @@ pub trait Plugin {
         Ok(())
     }
 
-    /// load the plugin. attempts to install plugin if it's not installed.
-    fn load(&self) -> AppResult<Library> {
-        let filename = self.filename()?;
+    /// prepare plugin for loading. attempts to install plugin if it's not installed.
+    fn preload(&self) -> AppResult<()> {
+        let filename = self.output()?;
 
         if !filename.is_file() {
             // confirm before installation
@@ -82,8 +79,12 @@ pub trait Plugin {
             } 
         }
 
-        let lib = unsafe { Library::new(&filename)? };
+        Ok(())
+    }
 
+    /// load the plugim
+    fn load<P: AsRef<OsStr>>(filename: P) -> AppResult<Library> {
+        let lib = unsafe { Library::new(filename)? };
         Ok(lib)
     }
 
@@ -113,6 +114,14 @@ pub trait Plugin {
         );
 
         let p = root_dir()?.join(n);
+        Ok(p)
+    }
+
+    /// output filename (path) of the plugin, relative to installation directory
+    fn output(&self) -> AppResult<PathBuf> {
+        let n = format!("{}{}", self.package_name(), Self::ext());
+        let p = root_dir()?.join(n);
+
         Ok(p)
     }
 }

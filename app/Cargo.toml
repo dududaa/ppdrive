@@ -6,5 +6,9 @@ edition = "2024"
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net"] }
 tokio-util = { workspace = true }
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 clap = { workspace = true, features = ["derive"] }
 ppd_shared.workspace = true
+bincode = "2.0.1"

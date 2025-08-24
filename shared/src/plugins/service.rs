@@ -1,10 +1,11 @@
-use std::{fmt::Display, path::PathBuf};
+use std::fmt::Display;
 
-use crate::{AppResult, plugins::Plugin, tools::root_dir};
+use crate::{AppResult, plugins::Plugin};
 use clap::ValueEnum;
 use libloading::Symbol;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug)]
 pub struct Service {
     ty: ServiceType,
     port: u16,
@@ -12,21 +13,32 @@ pub struct Service {
 
 impl Service {
     pub async fn start(&self) -> AppResult<()> {
+        tracing::info!("starting server...");
         #[cfg(debug_assertions)]
         self.remove()?;
 
-        let lib = self.load()?;
-        let start: Symbol<unsafe extern "C" fn(u16)> = unsafe { lib.get(b"start_server")? };
+        self.preload()?;
+
+        let filename = self.output()?;
+        let port = self.port.clone();
         
-        unsafe {
-            start(self.port);
-        }
+        tracing::info!("{:?} plugin loaded...", self.output()?);
+        tokio::spawn(async move {
+            match Self::load(filename) {
+                Ok(lib) => {
+                    let start: Symbol<unsafe extern "C" fn(u16)> = unsafe { 
+                        lib.get(b"start_server").expect("unable to load start_server Symbol") 
+                    };
+                    unsafe {
+                        start(port);
+                    }
+                },
+                Err(err) => tracing::error!("{err}")
+            };
+            
+        });
 
         Ok(())
-    }
-
-    fn plugin_name(&self) -> String {
-        self.ty.to_string()
     }
 
     pub fn port(&self) -> &u16 {
@@ -34,21 +46,16 @@ impl Service {
     }
 }
 
-impl Default for Service  {
+impl Default for Service {
     fn default() -> Self {
-        Service { ty: ServiceType::default(), port: 5000 }
+        Service {
+            ty: ServiceType::default(),
+            port: 5000,
+        }
     }
 }
 
 impl Plugin for Service {
-    fn filename(&self) -> AppResult<PathBuf> {
-        let mut n = self.plugin_name();
-        n.push_str(Self::ext());
-
-        let p = root_dir()?.join(n.to_lowercase());
-        Ok(p)
-    }
-
     fn package_name(&self) -> &'static str {
         match &self.ty {
             ServiceType::Rest => "ppd_rest",

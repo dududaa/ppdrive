@@ -24,9 +24,12 @@ impl ServiceRouter {
         #[cfg(debug_assertions)]
         self.remove()?;
 
-        let lib = self.load()?;
         let max_upload_size = config.server().max_upload_size().clone();
+        self.preload()?;
 
+        let filename = self.output()?;
+        let lib = Self::load(filename)?;
+        
         let load_router: Symbol<unsafe extern "C" fn(usize) -> *mut T> =
             unsafe { lib.get(b"load_router")? };
 
@@ -53,10 +56,10 @@ impl Plugin for ServiceRouter {
         }
     }
 
-    fn filename(&self) -> crate::AppResult<std::path::PathBuf> {
+    fn output(&self) -> crate::AppResult<std::path::PathBuf> {
         let n = format!("{}{}", self.package_name(), Self::ext());
-
         let path = root_dir()?.join(n);
+
         Ok(path)
     }
 }

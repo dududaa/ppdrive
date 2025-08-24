@@ -29,7 +29,7 @@ async fn run_server(port: u16) -> ServerResult<()> {
         }
         Err(err) => {
             tracing::error!("Error starting listener: {err}");
-            panic!("{err:?}")
+            panic!("{err}")
         }
     }
 

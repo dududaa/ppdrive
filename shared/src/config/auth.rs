@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AuthConfig {
     /// setting `url` means we first attempt to authenticate the user from the url and if fails
     /// we perform local authentication.

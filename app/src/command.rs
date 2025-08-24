@@ -1,18 +1,17 @@
 use clap::{Parser, Subcommand};
+use tracing::{Instrument, info_span, instrument};
 
 use crate::{
     errors::AppResult,
     manager::{ServiceInfo, ServiceManager},
+    state::SyncState,
 };
-use ppd_shared::{
-    config::AppConfig,
-    plugins::service::{ServiceAuthMode, ServiceBuilder, ServiceType},
-};
+use ppd_shared::plugins::service::{ServiceAuthMode, ServiceBuilder, ServiceType};
 
 use tokio_util::sync::CancellationToken;
 
 /// A free and open-source cloud storage service.
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(version, about)]
 pub struct Cli {
     #[command(subcommand)]
@@ -28,12 +27,13 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub async fn run(&self) -> AppResult<()> {
-        let mut config = AppConfig::load().await?;
+    #[instrument]
+    pub async fn run(&self, state: SyncState) -> AppResult<()> {
         if let Some(modes) = &self.mode {
-            println!("updating configuration...");
-            config.set_auth_modes(modes).await?;
-            println!("configuration updated...");
+            tracing::info!("updating configuration...");
+            let mut state = state.lock().await;
+            state.update_auth_modes(modes).await?;
+            tracing::info!("configuration updated...");
         }
 
         match self.command {
@@ -44,39 +44,48 @@ impl Cli {
                 }
 
                 let svc = builder.build();
-                let port = svc.port().clone();
 
                 let token = CancellationToken::new();
                 let token_clone = token.clone();
-                tokio::spawn(async move {
-                    tokio::select! {
-                        res = svc.start() => {
-                            if let Err(err) = res {
-                                panic!("unable to start service: {err}")
-                            }
-                        }
-                        _ = token_clone.cancelled() => {
-                            print!("service closed successfully")
-                        }
-                    }
-                });
 
                 // add task to service task to manager
+                tracing::info!("adding service to service manager...");
                 let info = ServiceInfo { ty, token };
-                ServiceManager::add_svc(info, &config).await?;
-
-                println!("server started at port {}", port);
+                ServiceManager::add_svc(info, state).await?;
+                
+                tokio::spawn(
+                    async move {
+                        tracing::info!("preparing to start service...");
+                        tokio::select! {
+                            res = svc.start() => {
+                                if let Err(err) = res {
+                                    tracing::error!("unable to start service: {err}")
+                                }
+                            }
+                            _ = token_clone.cancelled() => {
+                                tracing::info!("service closed successfully")
+                            }
+                        }
+                    }
+                    .instrument(info_span!("start_server")),
+                );
             }
             CliCommand::Stop { ty } => {
-                ServiceManager::cancel_svc(ty, &config).await?;
+                ServiceManager::cancel_svc(ty, state).await?;
             }
             CliCommand::Manager => {
                 let mut manager = ServiceManager::default();
-                tokio::spawn(async move {
-                    if let Err(err) = manager.start(&config).await {
-                        panic!("{err}")
+                let state = state;
+
+                tokio::spawn(
+                    async move {
+                        match manager.start(state).await {
+                            Ok(_) => tracing::info!("manager successfully..."),
+                            Err(err) => tracing::error!(?err, "error occured"),
+                        }
                     }
-                });
+                    .instrument(info_span!("start_manager")),
+                );
             }
             _ => unimplemented!("this command is not supported"),
         }
@@ -85,7 +94,7 @@ impl Cli {
     }
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum CliCommand {
     /// start or restart a server
     Start {

@@ -7,7 +7,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
 use crate::errors::ServerError;
-use handlers::{extractors::ClientUser, state::AppState};
+use handlers::{extractors::ClientUser, state::HandlerState};
 use ppd_bk::models::{
     IntoSerializer,
     asset::{AssetType, Assets},
@@ -20,7 +20,7 @@ use ppd_fs::{auth::create_or_update_asset, opts::CreateAssetOptions};
 
 #[debug_handler]
 pub async fn get_user(
-    State(state): State<AppState>,
+    State(state): State<HandlerState>,
     ClientUser(user): ClientUser,
 ) -> Result<Json<UserSerializer>, ServerError> {
     let db = state.db();
@@ -32,7 +32,7 @@ pub async fn get_user(
 
 #[debug_handler]
 pub async fn create_user_bucket(
-    State(state): State<AppState>,
+    State(state): State<HandlerState>,
     ClientUser(user): ClientUser,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
@@ -44,7 +44,7 @@ pub async fn create_user_bucket(
 
 #[debug_handler]
 pub async fn create_asset(
-    State(state): State<AppState>,
+    State(state): State<HandlerState>,
     ClientUser(user): ClientUser,
     mut multipart: Multipart,
 ) -> Result<String, ServerError> {
@@ -96,7 +96,7 @@ pub async fn create_asset(
 #[debug_handler]
 pub async fn delete_asset(
     Path((asset_type, asset_path)): Path<(AssetType, String)>,
-    State(state): State<AppState>,
+    State(state): State<HandlerState>,
     ClientUser(user): ClientUser,
 ) -> Result<String, ServerError> {
     let db = state.db();
