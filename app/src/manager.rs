@@ -28,7 +28,6 @@ impl ServiceManager {
         loop {
             match listener.accept().await {
                 Ok((mut socket, _)) => {
-                    tracing::info!("new command received.");
                     // we're expecting one connection at a time, so we don't need to read stream
                     // from a new thread
                     let mut buf = [0u8; 1024];
