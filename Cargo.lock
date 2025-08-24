@@ -1948,7 +1948,6 @@ dependencies = [
 name = "ppdrive"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "clap",
  "ppd_shared",
  "tokio",

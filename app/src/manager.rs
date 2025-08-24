@@ -22,13 +22,13 @@ impl ServiceManager {
         let config = state.config();
 
         let addr = config.db().manager_addr();
-        let listener = TcpListener::bind(addr.clone()).await?;
-        tracing::info!("service listener created at {addr}...");
+        let listener = TcpListener::bind(&addr).await?;
+        tracing::info!("service manager listening at {addr}...");
 
         loop {
-            tracing::info!("awaiting connection...");
             match listener.accept().await {
                 Ok((mut socket, _)) => {
+                    tracing::info!("new command received.");
                     // we're expecting one connection at a time, so we don't need to read stream
                     // from a new thread
                     let mut buf = [0u8; 1024];
@@ -59,6 +59,7 @@ impl ServiceManager {
             }
 
         }
+
     }
 
     /// add a new task to the manager
@@ -70,7 +71,7 @@ impl ServiceManager {
         Ok(())
     }
 
-    /// cancel a task in the manager
+    /// cancel a service in the manager
     pub async fn cancel_svc(ty: ServiceType, state: SyncState) -> AppResult<()> {
         let state = state.lock().await;
         let config = state.config();
@@ -79,6 +80,7 @@ impl ServiceManager {
         Ok(())
     }
 
+    /// send a command to manager's tcp connection
     async fn send_command(cmd: ServiceCommand, config: &AppConfig) -> AppResult<()> {
         let svc = Arc::new(cmd);
         let svc = Arc::into_raw(svc);

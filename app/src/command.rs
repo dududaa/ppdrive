@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use tracing::{Instrument, info_span, instrument};
+use tracing::instrument;
 
 use crate::{
     errors::AppResult,
@@ -52,23 +52,17 @@ impl Cli {
                 tracing::info!("adding service to service manager...");
                 let info = ServiceInfo { ty, token };
                 ServiceManager::add_svc(info, state).await?;
-                
-                tokio::spawn(
-                    async move {
-                        tracing::info!("preparing to start service...");
-                        tokio::select! {
-                            res = svc.start() => {
-                                if let Err(err) = res {
-                                    tracing::error!("unable to start service: {err}")
-                                }
-                            }
-                            _ = token_clone.cancelled() => {
-                                tracing::info!("service closed successfully")
-                            }
+
+                tokio::select! {
+                    res = svc.start() => {
+                        if let Err(err) = res {
+                            tracing::error!("unable to start service: {err}")
                         }
                     }
-                    .instrument(info_span!("start_server")),
-                );
+                    _ = token_clone.cancelled() => {
+                        tracing::info!("service closed successfully")
+                    }
+                }
             }
             CliCommand::Stop { ty } => {
                 ServiceManager::cancel_svc(ty, state).await?;
@@ -76,16 +70,7 @@ impl Cli {
             CliCommand::Manager => {
                 let mut manager = ServiceManager::default();
                 let state = state;
-
-                tokio::spawn(
-                    async move {
-                        match manager.start(state).await {
-                            Ok(_) => tracing::info!("manager successfully..."),
-                            Err(err) => tracing::error!(?err, "error occured"),
-                        }
-                    }
-                    .instrument(info_span!("start_manager")),
-                );
+                manager.start(state).await?;
             }
             _ => unimplemented!("this command is not supported"),
         }
