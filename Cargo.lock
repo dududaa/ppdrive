@@ -1910,6 +1910,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ppd_manager"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "clap",
+ "ppd_shared",
+ "rand 0.9.2",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "ppd_rest"
 version = "0.27.20"
 dependencies = [
@@ -1944,21 +1959,6 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
-]
-
-[[package]]
-name = "ppdrive"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "clap",
- "ppd_shared",
- "rand 0.9.2",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]

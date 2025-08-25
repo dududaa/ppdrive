@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
-    "app",
+    "manager",
     "servers/rest",
     "modules/fs",
     "modules/bookkeeper",

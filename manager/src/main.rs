@@ -5,7 +5,7 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 
 mod command;
 mod errors;
-mod manager;
+mod manage;
 
 #[tokio::main]
 async fn main() -> AppResult<()> {

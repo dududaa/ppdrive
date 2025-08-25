@@ -115,14 +115,19 @@ impl ServiceManager {
     }
 
     /// add a new task to the manager
-    pub fn add_svc(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
+    pub fn add(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
         Self::send_command(ServiceCommand::Add(config), port)?;
         Ok(())
     }
 
     /// cancel a service in the manager
-    pub fn cancel_svc(id: u8, port: Option<u16>) -> AppResult<()> {
+    pub fn cancel(id: u8, port: Option<u16>) -> AppResult<()> {
         Self::send_command(ServiceCommand::Cancel(id), port)?;
+        Ok(())
+    }
+
+    pub fn list(port: Option<u16>) -> AppResult<()> {
+        Self::send_command(ServiceCommand::List, port)?;
         Ok(())
     }
 

@@ -172,6 +172,11 @@ impl ServiceConfig {
         self
     }
 
+    pub fn service_type(mut self, ty: ServiceType) -> Self {
+        self.base.ty = ty;
+        self
+    }
+
     /// make config ffi-safe
     pub unsafe  fn into_raw(self) -> AppResult<(*const u8, usize)> {
         let data = bincode::encode_to_vec(self, config::standard()).map_err(|err| Error::ServerError(format!("unable to decode config: {err}")))?;

@@ -18,8 +18,8 @@
 !migrate.sh
 !sqlite.sh
 
-!app/
-!app/**
+!manager/
+!manager/**
 
 !servers/
 !servers/**
