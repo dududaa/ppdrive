@@ -34,10 +34,11 @@ impl Cli {
                     manager.start(port)?;
                 }
                 _ => {
-                    let config = ServiceConfig::default()
-                    .auth(auth)
-                    .base(base_config)
-                    .service_type(select.into());
+                    let config = ServiceConfig {
+                        ty: select.into(),
+                        base: base_config,
+                        auth
+                    };
 
                     tracing::info!("adding service to service manager...");
                     ServiceManager::add(config, port)?;
@@ -64,10 +65,10 @@ enum CliCommand {
         select: StartOptions,
 
         #[command(flatten)]
-        base_config: Option<ServiceBaseConfig>,
+        base_config: ServiceBaseConfig,
 
         #[command(flatten)]
-        auth: Option<ServiceAuthConfig>,
+        auth: ServiceAuthConfig,
     },
 
     /// stop a running service

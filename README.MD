@@ -6,6 +6,17 @@ If you're building your own version of Google Drive, Microsoft's OneDrive or eve
 
 ---
 
+## Why PPDRIVE?
+- **Privacy and Data Control**: All your data on your server.
+- **Full Ownership**: We don't have access to any of your data.
+- **Ease of User**: Flexible service management tools.
+- **Security**: Secure by default.
+- **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
+- **Speed**: Fast operation handlers.
+- **Lightweight**: install only what you need.
+
+---
+
 ## 🚀 Features
 
 - ⚙️ **REST API Interface**: Interact with the file system programmatically from any external application.

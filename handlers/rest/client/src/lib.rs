@@ -8,14 +8,12 @@ use user::*;
 
 use crate::errors::ServerError;
 use handlers::{
+    extractors::ClientRoute,
     jwt::{TokenType, create_jwt},
-    state::HandlerState,
     opts::{CreateUserClient, LoginToken, LoginUserClient},
-    extractors::ClientRoute
+    state::HandlerState,
 };
-use ppd_shared::{
-    tools::{SECRETS_FILENAME, mb_to_bytes},
-};
+use ppd_shared::tools::{SECRETS_FILENAME, mb_to_bytes};
 
 use ppd_bk::models::{
     bucket::{Buckets, CreateBucketOptions},
@@ -54,30 +52,39 @@ async fn login_user(
     let secrets = state.secrets();
 
     let user = Users::get_by_pid(db, &id).await?;
-    let default_access = config.auth.access_exp.unwrap_or_default();
-    let default_refresh = config.auth.refresh_exp.unwrap_or_default();
+    let default_access = config.auth.access_exp;
+    let default_refresh = config.auth.refresh_exp;
 
     let access_exp = access_exp.unwrap_or(default_access);
     let refresh_exp = refresh_exp.unwrap_or(default_refresh);
 
-    let access_token = create_jwt(
-        &user.id(),
-        secrets.jwt_secret(),
-        access_exp,
-        TokenType::Access,
-    )?;
+    let access = if access_exp > 0 {
+        let access_token = create_jwt(
+            &user.id(),
+            secrets.jwt_secret(),
+            access_exp,
+            TokenType::Access,
+        )?;
 
-    let refresh_token = create_jwt(
-        &user.id(),
-        secrets.jwt_secret(),
-        access_exp,
-        TokenType::Refresh,
-    )?;
-
-    let data = LoginToken {
-        access: (access_token, access_exp),
-        refresh: (refresh_token, refresh_exp),
+        Some((access_token,access_exp))
+    } else {
+        None
     };
+
+    let refresh = if refresh_exp > 0 {
+        let refresh_token = create_jwt(
+            &user.id(),
+            secrets.jwt_secret(),
+            access_exp,
+            TokenType::Refresh,
+        )?;
+
+        Some((refresh_token, refresh_exp))
+    } else {
+        None
+    };
+
+    let data = LoginToken { access, refresh };
 
     Ok(Json(data))
 }

@@ -36,7 +36,7 @@ impl ServiceManager {
                                 Ok((cmd, _)) => match cmd {
                                     ServiceCommand::Add(config) => {
                                         let port = config.base.port;
-                                        let ty = config.base.ty;
+                                        let ty = config.ty;
                                         let info = ServiceInfo::new(config.clone());
 
                                         let id = info.id.clone();

@@ -14,6 +14,6 @@ pub struct LoginUserClient {
 
 #[derive(Serialize, Deserialize)]
 pub struct LoginToken {
-    pub access: (String, i64),
-    pub refresh: (String, i64),
+    pub access: Option<(String, i64)>,
+    pub refresh: Option<(String, i64)>,
 }

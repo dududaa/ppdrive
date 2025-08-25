@@ -109,74 +109,50 @@ impl Display for ServiceType {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Encode, Decode)]
 pub enum ServiceAuthMode {
     Client,
-    User,
+    Direct,
     Zero,
 }
 
 /// configuration for each service created.
 #[derive(Debug, Args, Encode, Decode, Clone)]
 pub struct ServiceBaseConfig {
-    pub ty: ServiceType,
+    #[arg(long("db"), default_value_t=String::from("sqlite://db.sqlite"))]
     pub db_url: String,
-    pub port: u16,
-    pub max_upload_size: usize,
-    pub allowed_origins: Option<Vec<String>>,
-}
 
-impl Default for ServiceBaseConfig {
-    fn default() -> Self {
-        ServiceBaseConfig {
-            db_url: "sqlite://db.sqlite".to_string(),
-            port: 5000,
-            max_upload_size: 10,
-            allowed_origins: None,
-            ty: ServiceType::Rest,
-        }
-    }
+    #[arg(long, default_value_t=5000)]
+    pub port: u16,
+    
+    #[arg(long("max-upload"), default_value_t=10)]
+    pub max_upload_size: usize,
+    
+    #[arg(long("allowed-origins"))]
+    pub allowed_origins: Option<Vec<String>>,
 }
 
 /// authentication configuration for a service
 #[derive(Debug, Args, Clone, Encode, Decode)]
 pub struct ServiceAuthConfig {
+    #[arg(long("auth-modes"))]
     pub modes: Vec<ServiceAuthMode>,
-    pub access_exp: Option<i64>,
-    pub refresh_exp: Option<i64>,
+    
+    #[arg(long, default_value_t=900)]
+    pub access_exp: i64,
+    
+    #[arg(long, default_value_t=86400)]
+    pub refresh_exp: i64,
+
+    #[arg(long("auth-url"))]
     pub url: Option<String>
 }
 
-impl Default for ServiceAuthConfig {
-    fn default() -> Self {
-        ServiceAuthConfig {
-            modes: vec![],
-            access_exp: Some(900),
-            refresh_exp: Some(86400),
-            url: None
-        }
-    }
-}
-
-#[derive(Encode, Decode, Default, Clone)]
+#[derive(Encode, Decode, Clone)]
 pub struct ServiceConfig {
+    pub ty: ServiceType,
     pub base: ServiceBaseConfig,
     pub auth: ServiceAuthConfig,
 }
 
 impl ServiceConfig {
-    pub fn base(mut self, base: Option<ServiceBaseConfig>) -> Self {
-        self.base = base.unwrap_or_default();
-        self
-    }
-
-    pub fn auth(mut self, auth: Option<ServiceAuthConfig>) -> Self {
-        self.auth = auth.unwrap_or_default();
-        self
-    }
-
-    pub fn service_type(mut self, ty: ServiceType) -> Self {
-        self.base.ty = ty;
-        self
-    }
-
     /// make config ffi-safe
     pub unsafe  fn into_raw(self) -> AppResult<(*const u8, usize)> {
         let data = bincode::encode_to_vec(self, config::standard()).map_err(|err| Error::ServerError(format!("unable to decode config: {err}")))?;
