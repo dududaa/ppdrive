@@ -16,6 +16,7 @@ pub struct ServiceManager {
 }
 
 impl ServiceManager {
+    /// start the service manager at the provided port
     pub fn start(&mut self, port: Option<u16>) -> AppResult<()> {
         let addr = Self::addr(port);
         let listener = TcpListener::bind(&addr)?;

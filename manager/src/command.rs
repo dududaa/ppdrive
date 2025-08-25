@@ -1,6 +1,4 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use tracing::instrument;
-
 use crate::{errors::AppResult, manage::ServiceManager};
 use ppd_shared::plugins::service::{
     ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType,
@@ -19,8 +17,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    #[instrument]
-    pub async fn run(self) -> AppResult<()> {
+    pub fn run(self) -> AppResult<()> {
         let port = self.port.clone();
 
         match self.command {
