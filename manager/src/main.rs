@@ -29,7 +29,7 @@ fn start_logger() -> AppResult<tracing_appender::non_blocking::WorkerGuard> {
                 .unwrap_or_else(|_| "ppd_manager=debug,ppd_shared=debug,ppd_rest=debug".into()),
         )
         .with(fmt::layer().with_ansi(false).pretty().with_writer(writer))
-        .with(fmt::layer().pretty())
+        .with(fmt::layer().without_time().pretty())
         .try_init()
     {
         println!("cannot start logger: {err}")
