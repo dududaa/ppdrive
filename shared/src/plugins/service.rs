@@ -1,9 +1,9 @@
 use std::fmt::Display;
 
-use crate::{AppResult, plugins::Plugin};
-use clap::ValueEnum;
+use crate::{errors::Error, plugins::Plugin, AppResult};
+use bincode::{config, Decode, Encode};
+use clap::{Args, ValueEnum};
 use libloading::Symbol;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct Service {
@@ -12,31 +12,30 @@ pub struct Service {
 }
 
 impl Service {
-    pub async fn start(&self) -> AppResult<()> {
+    /// start a rest or grpc server
+    pub async fn start(&self, config: ServiceConfig) -> AppResult<()> {
         tracing::info!("starting server...");
         #[cfg(debug_assertions)]
         self.remove()?;
 
         self.preload()?;
-
         let filename = self.output()?;
-        let port = self.port.clone();
-        
-        tracing::info!("{:?} plugin loaded...", self.output()?);
-        tokio::spawn(async move {
-            match Self::load(filename) {
-                Ok(lib) => {
-                    let start: Symbol<unsafe extern "C" fn(u16)> = unsafe { 
-                        lib.get(b"start_server").expect("unable to load start_server Symbol") 
-                    };
-                    unsafe {
-                        start(port);
-                    }
-                },
-                Err(err) => tracing::error!("{err}")
-            };
-            
-        });
+
+        match Self::load(filename) {
+            Ok(lib) => {
+                
+                let start: Symbol<unsafe extern "C" fn(*const u8, usize)> = unsafe {
+                    lib.get(b"start_server")
+                        .expect("unable to load start_server Symbol")
+                };
+                unsafe {
+                    let (cfg_data, cfg_len) = config.into_raw()?;
+                    start(cfg_data, cfg_len);
+                }
+            }
+            Err(err) => tracing::error!("{err}"),
+        };
+       
 
         Ok(())
     }
@@ -87,7 +86,9 @@ impl ServiceBuilder {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Default, Debug)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Default, Debug, Encode, Decode,
+)]
 pub enum ServiceType {
     #[default]
     Rest,
@@ -105,9 +106,77 @@ impl Display for ServiceType {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Encode, Decode)]
 pub enum ServiceAuthMode {
     Client,
     User,
     Zero,
+}
+
+/// configuration for each service created.
+#[derive(Debug, Args, Encode, Decode, Clone)]
+pub struct ServiceBaseConfig {
+    pub ty: ServiceType,
+    pub db_url: String,
+    pub port: u16,
+    pub max_upload_size: usize,
+    pub allowed_origins: Option<Vec<String>>,
+}
+
+impl Default for ServiceBaseConfig {
+    fn default() -> Self {
+        ServiceBaseConfig {
+            db_url: "sqlite://db.sqlite".to_string(),
+            port: 5000,
+            max_upload_size: 10,
+            allowed_origins: None,
+            ty: ServiceType::Rest,
+        }
+    }
+}
+
+/// authentication configuration for a service
+#[derive(Debug, Args, Clone, Encode, Decode)]
+pub struct ServiceAuthConfig {
+    pub modes: Vec<ServiceAuthMode>,
+    pub access_exp: Option<i64>,
+    pub refresh_exp: Option<i64>,
+    pub url: Option<String>
+}
+
+impl Default for ServiceAuthConfig {
+    fn default() -> Self {
+        ServiceAuthConfig {
+            modes: vec![],
+            access_exp: Some(900),
+            refresh_exp: Some(86400),
+            url: None
+        }
+    }
+}
+
+#[derive(Encode, Decode, Default, Clone)]
+pub struct ServiceConfig {
+    pub base: ServiceBaseConfig,
+    pub auth: ServiceAuthConfig,
+}
+
+impl ServiceConfig {
+    pub fn base(mut self, base: Option<ServiceBaseConfig>) -> Self {
+        self.base = base.unwrap_or_default();
+        self
+    }
+
+    pub fn auth(mut self, auth: Option<ServiceAuthConfig>) -> Self {
+        self.auth = auth.unwrap_or_default();
+        self
+    }
+
+    /// make config ffi-safe
+    pub unsafe  fn into_raw(self) -> AppResult<(*const u8, usize)> {
+        let data = bincode::encode_to_vec(self, config::standard()).map_err(|err| Error::ServerError(format!("unable to decode config: {err}")))?;
+        let len = data.len();
+
+        Ok((data.as_ptr(), len))
+    }
 }

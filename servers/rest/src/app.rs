@@ -10,9 +10,8 @@ use axum::{
     routing::{get, IntoMakeService},
     Router,
 };
-use ppd_shared::config::{AppConfig, CorsOriginType};
 use ppd_shared::plugins::router::ServiceRouter;
-use ppd_shared::plugins::service::{ServiceAuthMode, ServiceType};
+use ppd_shared::plugins::service::{ServiceAuthMode, ServiceConfig, ServiceType};
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
@@ -28,10 +27,9 @@ use handlers::{
 };
 use ppd_shared::tools::init_secrets;
 
-fn to_origins(origins: CorsOriginType) -> AllowOrigin {
+fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     match origins {
-        CorsOriginType::Any => AllowOrigin::any(),
-        CorsOriginType::List(list) => {
+        Some(list) => {
             let headers: Vec<HeaderValue> = list
                 .iter()
                 .map(|s| match s.parse::<HeaderValue>() {
@@ -46,12 +44,13 @@ fn to_origins(origins: CorsOriginType) -> AllowOrigin {
 
             headers.into()
         }
+        None => AllowOrigin::any(),
     }
 }
 
-async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, ServerError> {
+async fn create_app(config: &ServiceConfig) -> Result<IntoMakeService<Router<()>>, ServerError> {
     let state = HandlerState::new(config).await?;
-    let origins = config.server().origins();
+    let origins = &config.base.allowed_origins;
 
     let cors = CorsLayer::new()
         .allow_origin(to_origins(origins))
@@ -95,9 +94,7 @@ async fn create_app(config: &AppConfig) -> Result<IntoMakeService<Router<()>>, S
     Ok(router)
 }
 
-pub async fn initialize_app(
-    config: &AppConfig,
-) -> ServerResult<IntoMakeService<Router<()>>> {
+pub async fn initialize_app(config: &ServiceConfig) -> ServerResult<IntoMakeService<Router<()>>> {
     if let Err(err) = tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -114,14 +111,21 @@ pub async fn initialize_app(
     create_app(&config).await
 }
 
-fn get_client_router(config: &AppConfig) -> ServerResult<Box<Router<HandlerState>>> {
-    let router = if config.server().auth_modes().contains(&ServiceAuthMode::Client) {
-        let svc_router = ServiceRouter { svc_type: ServiceType::Rest, auth_mode: ServiceAuthMode::Client };
-        svc_router.get(config)?
+fn get_client_router(config: &ServiceConfig) -> ServerResult<Box<Router<HandlerState>>> {
+    let max_upload_size = config.base.max_upload_size;
+    let router = if config
+        .auth
+        .modes
+        .contains(&ServiceAuthMode::Client)
+    {
+        let svc_router = ServiceRouter {
+            svc_type: ServiceType::Rest,
+            auth_mode: ServiceAuthMode::Client,
+        };
+        svc_router.get(max_upload_size)?
     } else {
         Box::new(Router::new())
     };
 
     Ok(router)
-    
 }

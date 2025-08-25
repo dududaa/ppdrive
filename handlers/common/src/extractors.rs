@@ -37,7 +37,7 @@ where
                 let state = HandlerState::from_ref(state);
                 let config = state.config();
 
-                match config.auth().url() {
+                match &config.auth.url {
                     Some(_url) => {
                         unimplemented!("external url feature not implemented.")
                     }

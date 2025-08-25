@@ -5,7 +5,6 @@ use libloading::Symbol;
 
 use crate::{
     AppResult,
-    config::AppConfig,
     plugins::{
         Plugin,
         service::{ServiceAuthMode, ServiceType},
@@ -19,12 +18,11 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get<T>(&self, config: &AppConfig) -> AppResult<Box<T>> {
+    pub fn get<T>(&self, max_upload_size: usize) -> AppResult<Box<T>> {
 
         #[cfg(debug_assertions)]
         self.remove()?;
 
-        let max_upload_size = config.server().max_upload_size().clone();
         self.preload()?;
 
         let filename = self.output()?;

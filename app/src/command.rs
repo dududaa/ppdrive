@@ -1,14 +1,8 @@
 use clap::{Parser, Subcommand};
 use tracing::instrument;
 
-use crate::{
-    errors::AppResult,
-    manager::{ServiceInfo, ServiceManager},
-    state::SyncState,
-};
-use ppd_shared::plugins::service::{ServiceAuthMode, ServiceBuilder, ServiceType};
-
-use tokio_util::sync::CancellationToken;
+use crate::{errors::AppResult, manager::ServiceManager};
+use ppd_shared::plugins::service::{ServiceAuthConfig, ServiceAuthMode, ServiceBaseConfig, ServiceConfig};
 
 /// A free and open-source cloud storage service.
 #[derive(Parser, Debug)]
@@ -28,49 +22,19 @@ pub struct Cli {
 
 impl Cli {
     #[instrument]
-    pub async fn run(&self, state: SyncState) -> AppResult<()> {
-        if let Some(modes) = &self.mode {
-            tracing::info!("updating configuration...");
-            let mut state = state.lock().await;
-            state.update_auth_modes(modes).await?;
-            tracing::info!("configuration updated...");
-        }
-
+    pub async fn run(self) -> AppResult<()> {
         match self.command {
-            CliCommand::Start { ty } => {
-                let mut builder = ServiceBuilder::new(ty.clone());
-                if let Some(port) = self.port {
-                    builder = builder.port(port);
-                }
-
-                let svc = builder.build();
-
-                let token = CancellationToken::new();
-                let token_clone = token.clone();
-
-                // add task to service task to manager
+            CliCommand::Start { base_config, auth } => {
+                let config = ServiceConfig::default().auth(auth).base(base_config);
                 tracing::info!("adding service to service manager...");
-                let info = ServiceInfo { ty, token };
-                ServiceManager::add_svc(info, state).await?;
-
-                tokio::select! {
-                    res = svc.start() => {
-                        if let Err(err) = res {
-                            tracing::error!("unable to start service: {err}")
-                        }
-                    }
-                    _ = token_clone.cancelled() => {
-                        tracing::info!("service closed successfully")
-                    }
-                }
+                ServiceManager::add_svc(config, None)?;
             }
-            CliCommand::Stop { ty } => {
-                ServiceManager::cancel_svc(ty, state).await?;
+            CliCommand::Stop { id } => {
+                ServiceManager::cancel_svc(id, None)?;
             }
-            CliCommand::Manager => {
+            CliCommand::Manager { port } => {
                 let mut manager = ServiceManager::default();
-                let state = state;
-                manager.start(state).await?;
+                manager.start(port)?;
             }
             _ => unimplemented!("this command is not supported"),
         }
@@ -83,19 +47,25 @@ impl Cli {
 enum CliCommand {
     /// start or restart a server
     Start {
-        #[arg(value_enum)]
-        ty: ServiceType,
+        #[command(flatten)]
+        base_config: Option<ServiceBaseConfig>,
+
+        #[command(flatten)]
+        auth: Option<ServiceAuthConfig>,
     },
 
     /// stop a running server
     Stop {
-        #[arg(value_enum)]
-        ty: ServiceType,
+        #[arg(long)]
+        id: u8,
     },
 
     /// install a module
     Install,
 
     /// a command for starting service manager
-    Manager,
+    Manager {
+        #[arg(long, short)]
+        port: Option<u16>,
+    },
 }

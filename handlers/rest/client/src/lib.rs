@@ -54,8 +54,11 @@ async fn login_user(
     let secrets = state.secrets();
 
     let user = Users::get_by_pid(db, &id).await?;
-    let access_exp = access_exp.unwrap_or(*config.auth().access_exp());
-    let refresh_exp = refresh_exp.unwrap_or(*config.auth().refresh_exp());
+    let default_access = config.auth.access_exp.unwrap_or_default();
+    let default_refresh = config.auth.refresh_exp.unwrap_or_default();
+
+    let access_exp = access_exp.unwrap_or(default_access);
+    let refresh_exp = refresh_exp.unwrap_or(default_refresh);
 
     let access_token = create_jwt(
         &user.id(),

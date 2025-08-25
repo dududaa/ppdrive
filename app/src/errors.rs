@@ -1,8 +1,5 @@
-use std::{fmt::Display, sync::MutexGuard};
 use ppd_shared::errors::Error as SharedError;
-use std::sync::PoisonError;
-
-use crate::state::State;
+use std::fmt::Display;
 
 pub type AppResult<T> = Result<T, Error>;
 
@@ -39,18 +36,6 @@ impl From<std::io::Error> for Error {
 
 impl From<SharedError> for Error {
     fn from(value: SharedError) -> Self {
-        Error::InternalError(value.to_string())
-    }
-}
-
-impl From<PoisonError<MutexGuard<'_, State>>> for Error  {
-    fn from(value: PoisonError<MutexGuard<'_, State>>) -> Self {
-        Error::InternalError(value.to_string())
-    }
-}
-
-impl From<PoisonError<&mut State>> for Error  {
-    fn from(value: PoisonError<&mut State>) -> Self {
         Error::InternalError(value.to_string())
     }
 }

@@ -1,51 +1,106 @@
-use std::{slice, sync::Arc};
-
-use ppd_shared::{config::AppConfig, plugins::service::ServiceType};
-use tokio_util::sync::CancellationToken;
-use tracing::instrument;
-
-use crate::{errors::AppResult, state::SyncState};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+use std::{
+    io::{Read, Write},
     net::{TcpListener, TcpStream},
 };
 
-#[derive(Debug)]
+use bincode::{Decode, Encode, config};
+use ppd_shared::plugins::service::{ServiceBuilder, ServiceConfig};
+use tokio::runtime::Runtime;
+use tokio_util::sync::CancellationToken;
+
+use crate::errors::AppResult;
+
 pub struct ServiceManager {
     list: Vec<ServiceInfo>,
+    // port: u16,
 }
 
 impl ServiceManager {
-    #[instrument]
-    pub async fn start(&mut self, state: SyncState) -> AppResult<()> {
-        let state = state.lock().await;
-        let config = state.config();
-
-        let addr = config.db().manager_addr();
-        let listener = TcpListener::bind(&addr).await?;
-        tracing::info!("service manager listening at {addr}...");
+    pub fn start(&mut self, port: Option<u16>) -> AppResult<()> {
+        let addr = Self::addr(port);
+        let listener = TcpListener::bind(&addr)?;
+        tracing::info!("service manager listening at {}...", addr);
 
         loop {
-            match listener.accept().await {
+            match listener.accept() {
                 Ok((mut socket, _)) => {
                     // we're expecting one connection at a time, so we don't need to read stream
                     // from a new thread
                     let mut buf = [0u8; 1024];
-                    if let Ok(n) = socket.read(&mut buf).await {
+                    if let Ok(n) = socket.read(&mut buf) {
                         if n > 0 {
-                            let cmd = unsafe { Arc::from_raw(buf.as_ptr() as *const ServiceCommand) };
-                            match cmd.as_ref() {
-                                ServiceCommand::Add(info) => {
-                                    self.list.push(info.clone());
-                                    tracing::info!("service {} added to manager", info.ty);
-                                }
-                                ServiceCommand::Cancel(id) => {
-                                    let item = self.list.iter().enumerate().find(|item| item.1.ty == *id);
-                                    if let Some((idx, info)) = item {
-                                        info.token.cancel();
-                                        self.list.remove(idx);
-                                        tracing::info!("service {} removed from manager", id);
+                            match bincode::decode_from_slice::<ServiceCommand, _>(
+                                &buf,
+                                config::standard(),
+                            ) {
+                                Ok((cmd, _)) => match cmd {
+                                    ServiceCommand::Add(config) => {
+                                        let port = config.base.port;
+                                        let ty = config.base.ty;
+                                        let info = ServiceInfo::new(config.clone());
+
+                                        let id = info.id.clone();
+                                        let token = info.token.clone();
+                                        self.list.push(info);
+
+                                        tracing::info!("service {} added to manager", id);
+
+                                        // start the service
+                                        let rt = Runtime::new()?;
+                                        rt.block_on(async move {
+                                            let svc = ServiceBuilder::new(ty).port(port).build();
+                                            tokio::select! {
+                                                res = svc.start(config) => {
+                                                    match res {
+                                                        Ok(_) => tracing::info!("service {id} started successfully"),
+                                                        Err(err) => {
+                                                            tracing::error!("unable to start service: {err}");
+                                                            token.cancel();
+                                                        }
+                                                    }
+                                                }
+                                                _ = token.cancelled() => {
+                                                    tracing::info!("service closed successfully")
+                                                }
+                                            }
+
+                                        });
                                     }
+                                    ServiceCommand::Cancel(id) => {
+                                        let item = self
+                                            .list
+                                            .iter()
+                                            .enumerate()
+                                            .find(|item| item.1.id == id);
+
+                                        match item {
+                                            Some((idx, info)) => {
+                                                info.token.cancel();
+                                                self.list.remove(idx);
+                                                tracing::info!(
+                                                    "service {id} removed from manager successfully."
+                                                );
+                                            }
+                                            None => tracing::error!(
+                                                "unable to cancel service with id {id}. it's propably not running."
+                                            ),
+                                        }
+                                    }
+                                    ServiceCommand::List => {
+                                        if !self.list.is_empty() {
+                                            for svc in &self.list {
+                                                let id = svc.id;
+                                                let port = svc.config.base.port;
+                                                println!("id\t port");
+                                                println!("{id}\t {port}")
+                                            } 
+                                        } else {
+                                            println!("no service started");
+                                        }
+                                    }
+                                },
+                                Err(err) => {
+                                    tracing::error!("unable to decode server config: {err}")
                                 }
                             }
                         }
@@ -56,58 +111,76 @@ impl ServiceManager {
                     break Ok(());
                 }
             }
-
         }
-
     }
 
     /// add a new task to the manager
-    pub async fn add_svc(svc_info: ServiceInfo, state: SyncState) -> AppResult<()> {
-        let state = state.lock().await;
-        let config = state.config();
-
-        Self::send_command(ServiceCommand::Add(svc_info), config).await?;
+    pub fn add_svc(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
+        Self::send_command(ServiceCommand::Add(config), port)?;
         Ok(())
     }
 
     /// cancel a service in the manager
-    pub async fn cancel_svc(ty: ServiceType, state: SyncState) -> AppResult<()> {
-        let state = state.lock().await;
-        let config = state.config();
-
-        Self::send_command(ServiceCommand::Cancel(ty), config).await?;
+    pub fn cancel_svc(id: u8, port: Option<u16>) -> AppResult<()> {
+        Self::send_command(ServiceCommand::Cancel(id), port)?;
         Ok(())
     }
 
     /// send a command to manager's tcp connection
-    async fn send_command(cmd: ServiceCommand, config: &AppConfig) -> AppResult<()> {
-        let svc = Arc::new(cmd);
-        let svc = Arc::into_raw(svc);
-
-        let svc_size = std::mem::size_of::<ServiceCommand>();
-        let data = unsafe { slice::from_raw_parts(svc as *const u8, svc_size) };
-
-        let addr = config.db().manager_addr();
-        let mut stream = TcpStream::connect(addr).await?;
-        stream.write_all(data).await?;
+    fn send_command(cmd: ServiceCommand, port: Option<u16>) -> AppResult<()> {
+        match bincode::encode_to_vec(cmd, config::standard()) {
+            Ok(data) => {
+                let addr = Self::addr(port);
+                let mut stream = TcpStream::connect(addr)?;
+                stream.write_all(&data)?;
+            }
+            Err(err) => tracing::error!("unable to encode service command: {err}"),
+        }
 
         Ok(())
+    }
+
+    fn addr(port: Option<u16>) -> String {
+        let port = port.unwrap_or(5025);
+        format!("0.0.0.0:{}", port)
     }
 }
 
 impl Default for ServiceManager {
     fn default() -> Self {
-        ServiceManager { list: vec![] }
+        ServiceManager {
+            list: vec![],
+            // port: 5025,
+        }
     }
 }
 
-#[derive(Clone, Debug)]
 pub struct ServiceInfo {
-    pub ty: ServiceType,
-    pub token: CancellationToken,
+    id: u8,
+    config: ServiceConfig,
+    token: CancellationToken,
 }
 
-enum ServiceCommand {
-    Add(ServiceInfo),
-    Cancel(ServiceType),
+impl ServiceInfo {
+    fn new(config: ServiceConfig) -> Self {
+        Self {
+            id: rand::random(),
+            config,
+            token: CancellationToken::new(),
+        }
+    }
 }
+
+#[derive(Encode, Decode)]
+/// service management commands
+enum ServiceCommand {
+    /// add a new service with the provided config
+    Add(ServiceConfig),
+
+    /// cancel and remove a service with the given id
+    Cancel(u8),
+
+    /// list running services
+    List
+}
+
