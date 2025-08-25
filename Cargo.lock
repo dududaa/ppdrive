@@ -1930,7 +1930,6 @@ version = "0.27.20"
 dependencies = [
  "axum",
  "axum-test",
- "bincode",
  "client_tools",
  "futures",
  "handlers",

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use crate::{errors::Error, plugins::Plugin, AppResult};
 use bincode::{config, Decode, Encode};
@@ -13,7 +13,7 @@ pub struct Service {
 
 impl Service {
     /// start a rest or grpc server
-    pub async fn start(&self, config: ServiceConfig) -> AppResult<()> {
+    pub fn start(&self, config: SharedConfig) -> AppResult<()> {
         tracing::info!("starting server...");
         #[cfg(debug_assertions)]
         self.remove()?;
@@ -24,13 +24,14 @@ impl Service {
         match Self::load(filename) {
             Ok(lib) => {
                 
-                let start: Symbol<unsafe extern "C" fn(*const u8, usize)> = unsafe {
+                let start: Symbol<unsafe extern "C" fn(*const ServiceConfig)> = unsafe {
                     lib.get(b"start_server")
                         .expect("unable to load start_server Symbol")
                 };
+
+                let config = Arc::into_raw(config);
                 unsafe {
-                    let (cfg_data, cfg_len) = config.into_raw()?;
-                    start(cfg_data, cfg_len);
+                    start(config);
                 }
             }
             Err(err) => tracing::error!("{err}"),
@@ -161,3 +162,5 @@ impl ServiceConfig {
         Ok((data.as_ptr(), len))
     }
 }
+
+pub type SharedConfig = Arc<ServiceConfig>;

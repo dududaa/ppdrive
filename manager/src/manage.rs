@@ -1,6 +1,11 @@
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread,
 };
 
 use bincode::{Decode, Encode, config};
@@ -35,36 +40,34 @@ impl ServiceManager {
                             ) {
                                 Ok((cmd, _)) => match cmd {
                                     ServiceCommand::Add(config) => {
-                                        let port = config.base.port;
-                                        let ty = config.ty;
-                                        let info = ServiceInfo::new(config.clone());
+                                        let info = ServiceInfo::new(config);
+                                        let running = info.running.clone();
 
-                                        let id = info.id.clone();
-                                        let token = info.token.clone();
-                                        self.list.push(info);
-
-                                        tracing::info!("service {} added to manager", id);
+                                        let port = info.config.base.port;
+                                        let ty = info.config.ty;
+                                        let id = info.id;
+                                        let shared_config = Arc::new(info.config.clone());
 
                                         // start the service
-                                        let rt = Runtime::new()?;
-                                        rt.block_on(async move {
-                                            let svc = ServiceBuilder::new(ty).port(port).build();
-                                            tokio::select! {
-                                                res = svc.start(config) => {
-                                                    match res {
-                                                        Ok(_) => tracing::info!("service {id} started successfully"),
-                                                        Err(err) => {
-                                                            tracing::error!("unable to start service: {err}");
-                                                            token.cancel();
-                                                        }
-                                                    }
-                                                }
-                                                _ = token.cancelled() => {
-                                                    tracing::info!("service closed successfully")
+                                        thread::spawn(move || {
+                                            while running.load(Ordering::Relaxed) {
+                                                let svc =
+                                                    ServiceBuilder::new(ty).port(port).build();
+
+                                                match svc.start(shared_config) {
+                                                    Ok(_) => tracing::info!(
+                                                        "service {id} successfully started at port {port}"
+                                                    ),
+                                                    Err(err) => tracing::error!(
+                                                        "unable to start service: {err}"
+                                                    ),
                                                 }
                                             }
-
                                         });
+
+                                        
+
+                                        self.list.push(info);
                                     }
                                     ServiceCommand::Cancel(id) => {
                                         let item = self
@@ -75,7 +78,7 @@ impl ServiceManager {
 
                                         match item {
                                             Some((idx, info)) => {
-                                                info.token.cancel();
+                                                info.running.store(false, Ordering::Relaxed);
                                                 self.list.remove(idx);
                                                 tracing::info!(
                                                     "service {id} removed from manager successfully."
@@ -93,7 +96,7 @@ impl ServiceManager {
                                                 let port = svc.config.base.port;
                                                 println!("id\t port");
                                                 println!("{id}\t {port}")
-                                            } 
+                                            }
                                         } else {
                                             println!("no service started");
                                         }
@@ -153,17 +156,14 @@ impl ServiceManager {
 
 impl Default for ServiceManager {
     fn default() -> Self {
-        ServiceManager {
-            list: vec![],
-            // port: 5025,
-        }
+        ServiceManager { list: vec![] }
     }
 }
 
 pub struct ServiceInfo {
     id: u8,
     config: ServiceConfig,
-    token: CancellationToken,
+    running: Arc<AtomicBool>,
 }
 
 impl ServiceInfo {
@@ -171,7 +171,7 @@ impl ServiceInfo {
         Self {
             id: rand::random(),
             config,
-            token: CancellationToken::new(),
+            running: Arc::new(AtomicBool::new(true)),
         }
     }
 }
@@ -186,6 +186,5 @@ enum ServiceCommand {
     Cancel(u8),
 
     /// list running services
-    List
+    List,
 }
-
