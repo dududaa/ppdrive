@@ -25,8 +25,7 @@ impl ServiceManager {
         loop {
             match listener.accept() {
                 Ok((mut socket, _)) => {
-                    // we're expecting one connection at a time, so we don't need to read stream
-                    // from a new thread
+                    // we're expecting one connection at a time, so we don't need to start a new thread
                     let mut buf = [0u8; 1024];
                     if let Ok(n) = socket.read(&mut buf) {
                         if n > 0 {
