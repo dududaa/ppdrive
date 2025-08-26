@@ -5,13 +5,10 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    thread,
 };
 
 use bincode::{Decode, Encode, config};
 use ppd_shared::plugins::service::{ServiceBuilder, ServiceConfig};
-use tokio::runtime::Runtime;
-use tokio_util::sync::CancellationToken;
 
 use crate::errors::AppResult;
 
@@ -45,16 +42,18 @@ impl ServiceManager {
 
                                         let port = info.config.base.port;
                                         let ty = info.config.ty;
-                                        let id = info.id;
-                                        let shared_config = Arc::new(info.config.clone());
+                                        let id: u8 = info.id.clone();
+
+                                        let config = Arc::new(info.config.clone());
 
                                         // start the service
-                                        thread::spawn(move || {
+                                        tokio::spawn(async move {
+                                            // let config = config.
                                             while running.load(Ordering::Relaxed) {
                                                 let svc =
                                                     ServiceBuilder::new(ty).port(port).build();
 
-                                                match svc.start(shared_config) {
+                                                match svc.start(config.clone()) {
                                                     Ok(_) => tracing::info!(
                                                         "service {id} successfully started at port {port}"
                                                     ),
@@ -64,8 +63,6 @@ impl ServiceManager {
                                                 }
                                             }
                                         });
-
-                                        
 
                                         self.list.push(info);
                                     }

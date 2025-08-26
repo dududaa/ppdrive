@@ -1,7 +1,7 @@
 use std::{fmt::Display, sync::Arc};
 
-use crate::{errors::Error, plugins::Plugin, AppResult};
-use bincode::{config, Decode, Encode};
+use crate::{AppResult, errors::Error, plugins::Plugin};
+use bincode::{Decode, Encode, config};
 use clap::{Args, ValueEnum};
 use libloading::Symbol;
 
@@ -13,30 +13,27 @@ pub struct Service {
 
 impl Service {
     /// start a rest or grpc server
-    pub fn start(&self, config: SharedConfig) -> AppResult<()> {
+    pub fn start(&self, config: Arc<ServiceConfig>) -> AppResult<()> {
         tracing::info!("starting server...");
         #[cfg(debug_assertions)]
         self.remove()?;
 
         self.preload()?;
         let filename = self.output()?;
+        let (cfg, len) = unsafe{config.into_raw()?};
 
         match Self::load(filename) {
             Ok(lib) => {
-                
-                let start: Symbol<unsafe extern "C" fn(*const ServiceConfig)> = unsafe {
+                let start: Symbol<unsafe extern "C" fn(*const u8, usize)> = unsafe {
                     lib.get(b"start_server")
                         .expect("unable to load start_server Symbol")
                 };
-
-                let config = Arc::into_raw(config);
                 unsafe {
-                    start(config);
+                    start(cfg, len);
                 }
             }
             Err(err) => tracing::error!("{err}"),
         };
-       
 
         Ok(())
     }
@@ -120,12 +117,12 @@ pub struct ServiceBaseConfig {
     #[arg(long("db"), default_value_t=String::from("sqlite://db.sqlite"))]
     pub db_url: String,
 
-    #[arg(long, default_value_t=5000)]
+    #[arg(long, default_value_t = 5000)]
     pub port: u16,
-    
-    #[arg(long("max-upload"), default_value_t=10)]
+
+    #[arg(long("max-upload"), default_value_t = 10)]
     pub max_upload_size: usize,
-    
+
     #[arg(long("allowed-origins"))]
     pub allowed_origins: Option<Vec<String>>,
 }
@@ -135,15 +132,15 @@ pub struct ServiceBaseConfig {
 pub struct ServiceAuthConfig {
     #[arg(long("auth-modes"))]
     pub modes: Vec<ServiceAuthMode>,
-    
-    #[arg(long, default_value_t=900)]
+
+    #[arg(long, default_value_t = 900)]
     pub access_exp: i64,
-    
-    #[arg(long, default_value_t=86400)]
+
+    #[arg(long, default_value_t = 86400)]
     pub refresh_exp: i64,
 
     #[arg(long("auth-url"))]
-    pub url: Option<String>
+    pub url: Option<String>,
 }
 
 #[derive(Encode, Decode, Clone)]
@@ -155,12 +152,23 @@ pub struct ServiceConfig {
 
 impl ServiceConfig {
     /// make config ffi-safe
-    pub unsafe  fn into_raw(self) -> AppResult<(*const u8, usize)> {
-        let data = bincode::encode_to_vec(self, config::standard()).map_err(|err| Error::ServerError(format!("unable to decode config: {err}")))?;
+    pub unsafe fn into_raw(&self) -> AppResult<(*const u8, usize)> {
+        let data = bincode::encode_to_vec(&self, config::standard())
+            .map_err(|err| Error::ServerError(format!("unable to decode config: {err}")))?;
         let len = data.len();
 
         Ok((data.as_ptr(), len))
     }
-}
 
-pub type SharedConfig = Arc<ServiceConfig>;
+    pub fn from_raw(data: &[u8]) -> AppResult<(Self, usize)> {
+        let s = bincode::decode_from_slice::<ServiceConfig, _>(&data, config::standard())
+            .map_err(|err| Error::ServerError(err.to_string()))?;
+        Ok(s)
+    }
+
+    pub fn into_vec(self) -> AppResult<Vec<u8>> {
+        let v = bincode::encode_to_vec(self, config::standard())
+            .map_err(|err| Error::ServerError(err.to_string()))?;
+        Ok(v)
+    }
+}
