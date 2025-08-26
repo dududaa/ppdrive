@@ -57,12 +57,6 @@ impl From<MultipartError> for ServerError {
     }
 }
 
-// impl From<FsError> for ServerError {
-//     fn from(value: FsError) -> Self {
-//         ServerError::FsError(value)
-//     }
-// }
-
 impl From<SharedError> for ServerError {
     fn from(value: SharedError) -> Self {
         ServerError::CommonError(value)
@@ -74,12 +68,6 @@ impl From<DBError> for ServerError {
         ServerError::DBError(value)
     }
 }
-
-// impl From<ClientError> for ServerError {
-//     fn from(value: ClientError) -> Self {
-//         ServerError::InternalError(value.to_string())
-//     }
-// }
 
 impl IntoResponse for ServerError {
     fn into_response(self) -> axum::response::Response {
