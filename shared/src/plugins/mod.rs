@@ -58,7 +58,7 @@ pub trait Plugin {
         Ok(())
     }
 
-    /// prepare plugin for loading. attempts to install plugin if it's not installed.
+    /// prepare plugin for loading. attempts to install plugin (and its dependencies) if it's not installed.
     fn preload(&self) -> AppResult<()> {
         let filename = self.output()?;
 

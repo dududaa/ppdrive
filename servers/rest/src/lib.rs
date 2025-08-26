@@ -36,7 +36,6 @@ async fn run_server(config_data: &[u8]) -> ServerResult<()> {
 }
 
 #[no_mangle]
-// #[repr(C)]
 pub extern "C" fn start_server(config_data: *const u8, config_size: usize) {
     match Runtime::new() {
         Ok(rt) => {

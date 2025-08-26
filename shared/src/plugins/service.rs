@@ -12,15 +12,14 @@ pub struct Service {
 }
 
 impl Service {
+    pub fn new(config: &ServiceConfig) -> Self {
+        ServiceBuilder::new(config.ty.clone()).port(config.base.port).build()
+    }
+    
     /// start a rest or grpc server
     pub fn start(&self, config: Arc<ServiceConfig>) -> AppResult<()> {
-        tracing::info!("starting server...");
-        #[cfg(debug_assertions)]
-        self.remove()?;
-
-        self.preload()?;
         let filename = self.output()?;
-        let (cfg, len) = unsafe{config.into_raw()?};
+        let (cfg, len) = unsafe { config.into_raw()? };
 
         match Self::load(filename) {
             Ok(lib) => {
@@ -143,7 +142,7 @@ pub struct ServiceAuthConfig {
     pub url: Option<String>,
 }
 
-#[derive(Encode, Decode, Clone)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub struct ServiceConfig {
     pub ty: ServiceType,
     pub base: ServiceBaseConfig,

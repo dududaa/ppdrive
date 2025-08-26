@@ -8,7 +8,9 @@ use std::{
 };
 
 use bincode::{Decode, Encode, config};
-use ppd_shared::plugins::service::{ServiceBuilder, ServiceConfig};
+use ppd_shared::plugins::service::{Service, ServiceConfig};
+#[cfg(debug_assertions)]
+use ppd_shared::plugins::Plugin;
 
 use crate::errors::AppResult;
 
@@ -41,28 +43,23 @@ impl ServiceManager {
                                         let running = info.running.clone();
 
                                         let port = info.config.base.port;
-                                        let ty = info.config.ty;
-                                        let id: u8 = info.id.clone();
+                                        let id = info.id.clone();
 
                                         let config = Arc::new(info.config.clone());
 
                                         // start the service
-                                        tokio::spawn(async move {
-                                            // let config = config.
-                                            while running.load(Ordering::Relaxed) {
-                                                let svc =
-                                                    ServiceBuilder::new(ty).port(port).build();
+                                        while running.load(Ordering::Relaxed) {
+                                            let svc = Service::new(&config);
 
-                                                match svc.start(config.clone()) {
-                                                    Ok(_) => tracing::info!(
-                                                        "service {id} successfully started at port {port}"
-                                                    ),
-                                                    Err(err) => tracing::error!(
-                                                        "unable to start service: {err}"
-                                                    ),
-                                                }
+                                            match svc.start(config.clone()) {
+                                                Ok(_) => tracing::info!(
+                                                    "service {id} successfully started at port {port}"
+                                                ),
+                                                Err(err) => tracing::error!(
+                                                    "unable to start service: {err}"
+                                                ),
                                             }
-                                        });
+                                        }
 
                                         self.list.push(info);
                                     }
@@ -114,8 +111,16 @@ impl ServiceManager {
         }
     }
 
-    /// add a new task to the manager
+    /// add a new service to the manager
     pub fn add(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
+        // preload service plugin
+        let svc = Service::new(&config);
+
+        #[cfg(debug_assertions)]
+        svc.remove()?;
+        svc.preload()?;
+        
+        // message service manager to load service
         Self::send_command(ServiceCommand::Add(config), port)?;
         Ok(())
     }

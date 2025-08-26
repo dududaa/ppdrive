@@ -13,7 +13,7 @@ If you're building your own version of Google Drive, Microsoft's OneDrive or eve
 - **Security**: Secure by default.
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
 - **Speed**: Fast operation handlers.
-- **Lightweight**: install only what you need.
+- **Lightweight**: We aim to make PPDRIVE lightweight. The starting point is to make sure you can install only what you need.
 
 ---
 
