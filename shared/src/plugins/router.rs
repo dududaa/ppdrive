@@ -4,12 +4,9 @@
 use libloading::Symbol;
 
 use crate::{
-    AppResult,
     plugins::{
-        Plugin,
-        service::{ServiceAuthMode, ServiceType},
-    },
-    tools::root_dir,
+        service::{ServiceAuthMode, ServiceType}, Plugin
+    }, AppResult
 };
 
 pub struct ServiceRouter {
@@ -23,10 +20,8 @@ impl ServiceRouter {
         #[cfg(debug_assertions)]
         self.remove()?;
 
-        self.preload()?;
-
         let filename = self.output()?;
-        let lib = Self::load(filename)?;
+        let lib = self.load(filename)?;
         
         let load_router: Symbol<unsafe extern "C" fn(usize) -> *mut T> =
             unsafe { lib.get(b"load_router")? };
@@ -52,12 +47,5 @@ impl Plugin for ServiceRouter {
             },
             Grpc => unimplemented!("loading plugin for a grpc server is not implemented."),
         }
-    }
-
-    fn output(&self) -> crate::AppResult<std::path::PathBuf> {
-        let n = format!("{}{}", self.package_name(), Self::ext());
-        let path = root_dir()?.join(n);
-
-        Ok(path)
     }
 }

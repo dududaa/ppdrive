@@ -8,7 +8,7 @@ use std::{
 };
 
 use bincode::{Decode, Encode, config};
-use ppd_shared::plugins::service::{Service, ServiceConfig};
+use ppd_shared::plugins::{service::{Service, ServiceConfig}, HasDependecies};
 #[cfg(debug_assertions)]
 use ppd_shared::plugins::Plugin;
 
@@ -49,7 +49,7 @@ impl ServiceManager {
 
                                         // start the service
                                         while running.load(Ordering::Relaxed) {
-                                            let svc = Service::new(&config);
+                                            let svc = Service::from(&*config);
 
                                             match svc.start(config.clone()) {
                                                 Ok(_) => tracing::info!(
@@ -114,10 +114,10 @@ impl ServiceManager {
     /// add a new service to the manager
     pub fn add(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
         // preload service plugin
-        let svc = Service::new(&config);
+        let svc = Service::from(&config);
+        println!("starting modes {:?}", svc.modes());
 
-        #[cfg(debug_assertions)]
-        svc.remove()?;
+        svc.preload_deps()?;
         svc.preload()?;
         
         // message service manager to load service

@@ -1,38 +1,36 @@
 use std::{fmt::Display, sync::Arc};
 
-use crate::{AppResult, errors::Error, plugins::Plugin};
+use crate::{
+    AppResult,
+    errors::Error,
+    plugins::{HasDependecies, Plugin, router::ServiceRouter},
+};
 use bincode::{Decode, Encode, config};
 use clap::{Args, ValueEnum};
 use libloading::Symbol;
 
 #[derive(Debug)]
-pub struct Service {
-    ty: ServiceType,
-    port: u16,
+pub struct Service<'a> {
+    ty: &'a ServiceType,
+    port: &'a u16,
+    modes: &'a [ServiceAuthMode],
 }
 
-impl Service {
-    pub fn new(config: &ServiceConfig) -> Self {
-        ServiceBuilder::new(config.ty.clone()).port(config.base.port).build()
-    }
-    
-    /// start a rest or grpc server
+impl<'a> Service<'a> {
+    /// start a rest or grpc service
     pub fn start(&self, config: Arc<ServiceConfig>) -> AppResult<()> {
         let filename = self.output()?;
         let (cfg, len) = unsafe { config.into_raw()? };
 
-        match Self::load(filename) {
-            Ok(lib) => {
-                let start: Symbol<unsafe extern "C" fn(*const u8, usize)> = unsafe {
-                    lib.get(b"start_server")
-                        .expect("unable to load start_server Symbol")
-                };
-                unsafe {
-                    start(cfg, len);
-                }
-            }
-            Err(err) => tracing::error!("{err}"),
+        let lib = self.load(filename)?;
+        let start: Symbol<unsafe extern "C" fn(*const u8, usize)> = unsafe {
+            lib.get(b"start_server")
+                .expect("unable to load start_server Symbol")
         };
+
+        unsafe {
+            start(cfg, len);
+        }
 
         Ok(())
     }
@@ -40,18 +38,23 @@ impl Service {
     pub fn port(&self) -> &u16 {
         &self.port
     }
+
+    pub fn modes(&self) -> &[ServiceAuthMode] {
+        self.modes
+    }
 }
 
-impl Default for Service {
-    fn default() -> Self {
-        Service {
-            ty: ServiceType::default(),
-            port: 5000,
+impl<'a> From<&'a ServiceConfig> for Service<'a> {
+    fn from(value: &'a ServiceConfig) -> Self {
+        Self {
+            ty: &value.ty,
+            port: &value.base.port,
+            modes: &value.auth.modes,
         }
     }
 }
 
-impl Plugin for Service {
+impl<'a> Plugin for Service<'a> {
     fn package_name(&self) -> &'static str {
         match &self.ty {
             ServiceType::Rest => "ppd_rest",
@@ -60,26 +63,20 @@ impl Plugin for Service {
     }
 }
 
-pub struct ServiceBuilder {
-    inner: Service,
-}
+impl<'a> HasDependecies for Service<'a> {
+    fn dependecies(&self) -> Vec<Box<dyn Plugin>> {
+        let routers: Vec<Box<dyn Plugin>> = self
+            .modes
+            .iter()
+            .map(|mode| {
+                Box::new(ServiceRouter {
+                    svc_type: *self.ty,
+                    auth_mode: mode.clone(),
+                }) as Box<dyn Plugin>
+            })
+            .collect();
 
-impl ServiceBuilder {
-    pub fn new(ty: ServiceType) -> Self {
-        let inner = Service {
-            ty,
-            ..Default::default()
-        };
-        Self { inner }
-    }
-
-    pub fn port(mut self, port: u16) -> Self {
-        self.inner.port = port;
-        self
-    }
-
-    pub fn build(self) -> Service {
-        self.inner
+        routers
     }
 }
 
@@ -150,7 +147,7 @@ pub struct ServiceConfig {
 }
 
 impl ServiceConfig {
-    /// make config ffi-safe
+    /// make ServiceConfig ffi-safe
     pub unsafe fn into_raw(&self) -> AppResult<(*const u8, usize)> {
         let data = bincode::encode_to_vec(&self, config::standard())
             .map_err(|err| Error::ServerError(format!("unable to decode config: {err}")))?;

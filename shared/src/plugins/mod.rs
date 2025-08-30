@@ -1,11 +1,11 @@
-use std::{ffi::OsStr, path::PathBuf};
+use std::path::PathBuf;
 
 use libloading::Library;
 
 use crate::{AppResult, tools::root_dir};
 
-pub mod service;
 pub mod router;
+pub mod service;
 
 pub trait Plugin {
     /// package name of the plugin, as declared in manifest (Cargo.toml)
@@ -60,6 +60,9 @@ pub trait Plugin {
 
     /// prepare plugin for loading. attempts to install plugin (and its dependencies) if it's not installed.
     fn preload(&self) -> AppResult<()> {
+        #[cfg(debug_assertions)]
+        self.remove()?;
+
         let filename = self.output()?;
 
         if !filename.is_file() {
@@ -76,20 +79,20 @@ pub trait Plugin {
             if &ans == "y" {
                 println!("installing \"{}\" plugin ...", self.package_name());
                 self.install()?;
-            } 
+            }
         }
 
         Ok(())
     }
 
-    /// load the plugim
-    fn load<P: AsRef<OsStr>>(filename: P) -> AppResult<Library> {
+    /// load the plugin
+    fn load(&self, filename: PathBuf) -> AppResult<Library> {
         let lib = unsafe { Library::new(filename)? };
         Ok(lib)
     }
 
     /// output file extenstion for the plugin
-    fn ext() -> &'static str {
+    fn ext(&self) -> &'static str {
         #[cfg(target_os = "windows")]
         {
             ".dll"
@@ -107,11 +110,7 @@ pub trait Plugin {
     /// the output filename path of the release build.
     #[cfg(debug_assertions)]
     fn release_path(&self) -> AppResult<PathBuf> {
-        let n = format!(
-            "target/debug/lib{}{}",
-            self.package_name(),
-            Self::ext()
-        );
+        let n = format!("target/debug/lib{}{}", self.package_name(), self.ext());
 
         let p = root_dir()?.join(n);
         Ok(p)
@@ -119,10 +118,27 @@ pub trait Plugin {
 
     /// output filename (path) of the plugin, relative to installation directory
     fn output(&self) -> AppResult<PathBuf> {
-        let n = format!("{}{}", self.package_name(), Self::ext());
+        let n = format!("{}{}", self.package_name(), self.ext());
         let p = root_dir()?.join(n);
 
         Ok(p)
     }
 }
 
+pub trait HasDependecies: Plugin {
+    fn has_dependencies(&self) -> bool {
+        !self.dependecies().is_empty()
+    }
+
+    fn preload_deps(&self) -> AppResult<()> {
+        if self.has_dependencies() {
+            for dep in self.dependecies() {
+                dep.preload()?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn dependecies(&self) -> Vec<Box<dyn Plugin>>;
+}
