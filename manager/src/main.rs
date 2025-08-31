@@ -1,3 +1,5 @@
+use std::fs::OpenOptions;
+
 use crate::{command::Cli, errors::AppResult};
 use clap::Parser;
 use tracing_appender::non_blocking as non_blocking_logger;
@@ -20,7 +22,7 @@ async fn main() -> AppResult<()> {
 }
 
 fn start_logger() -> AppResult<tracing_appender::non_blocking::WorkerGuard> {
-    let log_file = std::fs::File::create("ppd.log")?;
+    let log_file = OpenOptions::new().create(true).append(true).open("ppd.log")?;
     let (writer, guard) = non_blocking_logger(log_file);
 
     if let Err(err) = tracing_subscriber::registry()

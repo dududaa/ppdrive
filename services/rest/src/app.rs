@@ -15,6 +15,8 @@ use ppd_shared::plugins::service::{ServiceAuthMode, ServiceConfig, ServiceType};
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
+use tracing_appender::non_blocking;
+use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -92,18 +94,26 @@ async fn create_app(config: &ServiceConfig) -> Result<IntoMakeService<Router<()>
     Ok(router)
 }
 
-pub async fn initialize_app(config: &ServiceConfig) -> ServerResult<IntoMakeService<Router<()>>> {
+type LoggerGuard = tracing_appender::non_blocking::WorkerGuard;
+pub fn start_logger() -> ServerResult<LoggerGuard> {
+    let log_file = std::fs::OpenOptions::new().create(true).append(true).open("ppd.log")?;
+    let (writer, guard) = non_blocking(log_file);
+
     if let Err(err) = tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "ppdrive=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| "ppd_rest=debug,tower_http=debug".into()),
         )
-        .with(tracing_subscriber::fmt::layer())
+        .with(fmt::layer().with_ansi(false).pretty().with_writer(writer))
         .try_init()
     {
         tracing::warn!("{err}")
     }
 
+    Ok(guard)
+}
+
+pub async fn initialize_app(config: &ServiceConfig) -> ServerResult<IntoMakeService<Router<()>>> {
     // start ppdrive app
     init_secrets().await?;
     create_app(&config).await

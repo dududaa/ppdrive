@@ -16,10 +16,6 @@ pub struct ServiceRouter {
 
 impl ServiceRouter {
     pub fn get<T>(&self, max_upload_size: usize) -> AppResult<Box<T>> {
-
-        #[cfg(debug_assertions)]
-        self.remove()?;
-
         let filename = self.output()?;
         let lib = self.load(filename)?;
         

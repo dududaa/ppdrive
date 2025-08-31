@@ -2,7 +2,7 @@
 resolver = "3"
 members = [
     "manager",
-    "servers/rest",
+    "services/rest",
     "modules/fs",
     "modules/bookkeeper",
     "shared",

@@ -1,5 +1,6 @@
-use crate::app::initialize_app;
-use bincode::config;
+use std::sync::Arc;
+
+use crate::app::{initialize_app, start_logger};
 use errors::ServerError;
 use ppd_bk::db::migration::run_migrations;
 use ppd_shared::plugins::service::ServiceConfig;
@@ -9,17 +10,15 @@ mod app;
 mod errors;
 pub type ServerResult<T> = Result<T, ServerError>;
 
-async fn run_server(config_data: &[u8]) -> ServerResult<()> {
-    let (config, _): (ServiceConfig, usize) =
-        bincode::decode_from_slice(config_data, config::standard())
-            .map_err(|err| ServerError::InternalError(err.to_string()))?;
+async fn launch_svc(config: Arc<ServiceConfig>) -> ServerResult<()> {
+    let _guard = start_logger()?;
     run_migrations(&config.base.db_url).await?;
-    let app = initialize_app(&config).await?;
 
+    let app = initialize_app(&config).await?;
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", &config.base.port)).await {
         Ok(listener) => {
             if let Ok(addr) = listener.local_addr() {
-                tracing::info!("listening on {addr}");
+                tracing::info!("new service listening on {addr}");
             }
 
             axum::serve(listener, app)
@@ -36,12 +35,14 @@ async fn run_server(config_data: &[u8]) -> ServerResult<()> {
 }
 
 #[no_mangle]
-pub extern "C" fn start_server(config_data: *const u8, config_size: usize) {
+pub extern "C" fn start_svc(cfg_raw: *const ServiceConfig) {
+    let config = unsafe { Arc::from_raw(cfg_raw) };
+    
     match Runtime::new() {
         Ok(rt) => {
             rt.block_on(async {
-                let config = unsafe { std::slice::from_raw_parts(config_data, config_size) };
-                if let Err(err) = run_server(config).await {
+                if let Err(err) = launch_svc(config).await {
+                    tracing::error!("{err}");
                     panic!("{err}")
                 }
             });

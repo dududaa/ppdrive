@@ -45,11 +45,11 @@ impl ServiceManager {
                                         let port = info.config.base.port;
                                         let id = info.id.clone();
 
-                                        let config = Arc::new(info.config.clone());
+                                        let config = info.config.clone();
 
                                         // start the service
                                         while running.load(Ordering::Relaxed) {
-                                            let svc = Service::from(&*config);
+                                            let svc = Service::from(&config);
 
                                             match svc.start(config.clone()) {
                                                 Ok(_) => tracing::info!(
@@ -115,7 +115,7 @@ impl ServiceManager {
     pub fn add(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
         // preload service plugin
         let svc = Service::from(&config);
-        println!("starting modes {:?}", svc.modes());
+        tracing::info!("starting service {:?} with auth modes {:?}", svc.ty(), svc.modes());
 
         svc.preload_deps()?;
         svc.preload()?;

@@ -21,8 +21,8 @@
 !manager/
 !manager/**
 
-!servers/
-!servers/**
+!services/
+!services/**
 
 !modules/
 !modules/**

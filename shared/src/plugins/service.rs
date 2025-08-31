@@ -18,21 +18,26 @@ pub struct Service<'a> {
 
 impl<'a> Service<'a> {
     /// start a rest or grpc service
-    pub fn start(&self, config: Arc<ServiceConfig>) -> AppResult<()> {
+    pub fn start(&self, config: ServiceConfig) -> AppResult<()> {
         let filename = self.output()?;
-        let (cfg, len) = unsafe { config.into_raw()? };
+        let cfg_ptr = Arc::new(config);
+        let cfg_raw = Arc::into_raw(cfg_ptr);
 
         let lib = self.load(filename)?;
-        let start: Symbol<unsafe extern "C" fn(*const u8, usize)> = unsafe {
-            lib.get(b"start_server")
+        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig)> = unsafe {
+            lib.get(b"start_svc")
                 .expect("unable to load start_server Symbol")
         };
 
         unsafe {
-            start(cfg, len);
+            start(cfg_raw);
         }
 
         Ok(())
+    }
+
+    pub fn ty(&self) -> &ServiceType {
+        &self.ty
     }
 
     pub fn port(&self) -> &u16 {
@@ -126,7 +131,7 @@ pub struct ServiceBaseConfig {
 /// authentication configuration for a service
 #[derive(Debug, Args, Clone, Encode, Decode)]
 pub struct ServiceAuthConfig {
-    #[arg(long("auth-modes"))]
+    #[arg(long("auth-modes"), value_enum, default_values = ["client"])]
     pub modes: Vec<ServiceAuthMode>,
 
     #[arg(long, default_value_t = 900)]
