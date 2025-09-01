@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
-    "manager",
+    "ppdrive",
     "services/rest",
     "modules/fs",
     "modules/bookkeeper",

@@ -28,7 +28,7 @@ fn start_logger() -> AppResult<tracing_appender::non_blocking::WorkerGuard> {
     if let Err(err) = tracing_subscriber::registry()
         .with(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "ppd_manager=debug,ppd_shared=debug,ppd_rest=debug".into()),
+                .unwrap_or_else(|_| "ppdrive=debug,ppd_shared=debug,ppd_rest=debug".into()),
         )
         .with(fmt::layer().with_ansi(false).pretty().with_writer(writer))
         .with(fmt::layer().without_time().pretty())
