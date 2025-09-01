@@ -32,7 +32,8 @@ impl ServiceManager {
         loop {
             match listener.accept() {
                 Ok((mut socket, _)) => {
-                    // we're expecting one connection at a time, so we don't need to start a new thread
+                    // we're expecting one connection at a time, so we don't need to start
+                    // multiple threads
                     let mut buf = [0u8; 1024];
                     if let Ok(n) = socket.read(&mut buf) {
                         if n > 0 {
@@ -50,22 +51,25 @@ impl ServiceManager {
 
                                         let config = info.config.clone();
 
-                                        // start the service
-                                        while running.load(Ordering::Relaxed) {
-                                            let svc = Service::from(&config);
+                                        tokio::spawn(async move {
+                                            // start the service
+                                            while running.load(Ordering::Relaxed) {
+                                                let svc = Service::from(&config);
 
-                                            match svc.start(config.clone()) {
-                                                Ok(_) => tracing::info!(
-                                                    "service {id} successfully started at port {port}"
-                                                ),
-                                                Err(err) => tracing::error!(
-                                                    "unable to start service: {err}"
-                                                ),
+                                                match svc.start(config.clone()) {
+                                                    Ok(_) => tracing::info!(
+                                                        "service {id} successfully started at port {port}"
+                                                    ),
+                                                    Err(err) => tracing::error!(
+                                                        "unable to start service: {err}"
+                                                    ),
+                                                }
                                             }
-                                        }
+                                        });
 
                                         self.list.push(info);
                                     }
+
                                     ServiceCommand::Cancel(id) => {
                                         let item = self
                                             .list
@@ -86,15 +90,21 @@ impl ServiceManager {
                                             ),
                                         }
                                     }
+
                                     ServiceCommand::List => {
                                         tracing::info!("listing commmand received");
                                         match bincode::encode_to_vec(&self.list, config::standard())
                                         {
                                             Ok(list) => {
-                                                tracing::info!("list generated for {} service(s)", self.list.len());
+                                                tracing::info!(
+                                                    "list generated for {} service(s)",
+                                                    self.list.len()
+                                                );
                                                 socket.write_all(&list)?;
                                             }
-                                            Err(err) => tracing::error!("service listing error: {err}"),
+                                            Err(err) => {
+                                                tracing::error!("service listing error: {err}")
+                                            }
                                         }
                                     }
                                 },
@@ -140,14 +150,15 @@ impl ServiceManager {
     pub fn list(port: Option<u16>) -> AppResult<()> {
         println!("getting list...");
         let mut stream = Self::send_command(ServiceCommand::List, port)?;
-        
+
         println!("message sent...");
         let mut data = [0u8; 1024];
-        
+
         stream.read(&mut data)?;
         println!("stream received...");
-        let (list, _): (Vec<ServiceInfo>, usize) = bincode::decode_from_slice(&data, config::standard())?;
-        
+        let (list, _): (Vec<ServiceInfo>, usize) =
+            bincode::decode_from_slice(&data, config::standard())?;
+
         println!("got {} services", list.len());
         if !list.is_empty() {
             for svc in &list {
@@ -159,6 +170,8 @@ impl ServiceManager {
         } else {
             println!("no service started");
         }
+
+        // stream.shutdown(std::net::Shutdown::Both)?;
         Ok(())
     }
 
@@ -172,7 +185,9 @@ impl ServiceManager {
 
                 Ok(stream)
             }
-            Err(err) => Err(Error::InternalError(format!("unable to encode service command: {err}"))),
+            Err(err) => Err(Error::InternalError(format!(
+                "unable to encode service command: {err}"
+            ))),
         }
     }
 
