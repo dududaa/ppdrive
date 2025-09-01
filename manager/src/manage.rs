@@ -60,9 +60,12 @@ impl ServiceManager {
                                                     Ok(_) => tracing::info!(
                                                         "service {id} successfully started at port {port}"
                                                     ),
-                                                    Err(err) => tracing::error!(
-                                                        "unable to start service: {err}"
-                                                    ),
+                                                    Err(err) => {
+                                                        tracing::error!(
+                                                            "unable to start service: {err}"
+                                                        );
+                                                        break;
+                                                    }
                                                 }
                                             }
                                         });
@@ -148,14 +151,10 @@ impl ServiceManager {
     }
 
     pub fn list(port: Option<u16>) -> AppResult<()> {
-        println!("getting list...");
         let mut stream = Self::send_command(ServiceCommand::List, port)?;
-
-        println!("message sent...");
         let mut data = [0u8; 1024];
 
         stream.read(&mut data)?;
-        println!("stream received...");
         let (list, _): (Vec<ServiceInfo>, usize) =
             bincode::decode_from_slice(&data, config::standard())?;
 
