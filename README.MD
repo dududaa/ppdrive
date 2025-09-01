@@ -1,4 +1,4 @@
-# PPDRIVE
+# PPDRIVE (IN DEVELOPMENT)
 
 **PPDRIVE** is a free and open-source cloud storage service written in Rust. PPDRIVE service provides a set of RESTful APIs that allows you to manage your remote and local files via secure and blazing fast operations.
 

@@ -2,10 +2,9 @@ use std::{fmt::Display, sync::Arc};
 
 use crate::{
     AppResult,
-    errors::Error,
     plugins::{HasDependecies, Plugin, router::ServiceRouter},
 };
-use bincode::{Decode, Encode, config};
+use bincode::{Decode, Encode};
 use clap::{Args, ValueEnum};
 use libloading::Symbol;
 
@@ -149,27 +148,4 @@ pub struct ServiceConfig {
     pub ty: ServiceType,
     pub base: ServiceBaseConfig,
     pub auth: ServiceAuthConfig,
-}
-
-impl ServiceConfig {
-    /// make ServiceConfig ffi-safe
-    pub unsafe fn into_raw(&self) -> AppResult<(*const u8, usize)> {
-        let data = bincode::encode_to_vec(&self, config::standard())
-            .map_err(|err| Error::ServerError(format!("unable to decode config: {err}")))?;
-        let len = data.len();
-
-        Ok((data.as_ptr(), len))
-    }
-
-    pub fn from_raw(data: &[u8]) -> AppResult<(Self, usize)> {
-        let s = bincode::decode_from_slice::<ServiceConfig, _>(&data, config::standard())
-            .map_err(|err| Error::ServerError(err.to_string()))?;
-        Ok(s)
-    }
-
-    pub fn into_vec(self) -> AppResult<Vec<u8>> {
-        let v = bincode::encode_to_vec(self, config::standard())
-            .map_err(|err| Error::ServerError(err.to_string()))?;
-        Ok(v)
-    }
 }

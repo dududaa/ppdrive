@@ -1,3 +1,4 @@
+use bincode::error::{DecodeError, EncodeError};
 use ppd_shared::errors::Error as SharedError;
 use std::fmt::Display;
 
@@ -36,6 +37,18 @@ impl From<std::io::Error> for Error {
 
 impl From<SharedError> for Error {
     fn from(value: SharedError) -> Self {
+        Error::InternalError(value.to_string())
+    }
+}
+
+impl From<DecodeError> for Error {
+    fn from(value: DecodeError) -> Self {
+        Error::InternalError(value.to_string())
+    }
+}
+
+impl From<EncodeError> for Error {
+    fn from(value: EncodeError) -> Self {
         Error::InternalError(value.to_string())
     }
 }

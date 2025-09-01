@@ -8,11 +8,14 @@ use std::{
 };
 
 use bincode::{Decode, Encode, config};
-use ppd_shared::plugins::{service::{Service, ServiceConfig}, HasDependecies};
 #[cfg(debug_assertions)]
 use ppd_shared::plugins::Plugin;
+use ppd_shared::plugins::{
+    HasDependecies,
+    service::{Service, ServiceConfig},
+};
 
-use crate::errors::AppResult;
+use crate::errors::{AppResult, Error};
 
 pub struct ServiceManager {
     list: Vec<ServiceInfo>,
@@ -84,15 +87,14 @@ impl ServiceManager {
                                         }
                                     }
                                     ServiceCommand::List => {
-                                        if !self.list.is_empty() {
-                                            for svc in &self.list {
-                                                let id = svc.id;
-                                                let port = svc.config.base.port;
-                                                println!("id\t port");
-                                                println!("{id}\t {port}")
+                                        tracing::info!("listing commmand received");
+                                        match bincode::encode_to_vec(&self.list, config::standard())
+                                        {
+                                            Ok(list) => {
+                                                tracing::info!("list generated for {} service(s)", self.list.len());
+                                                socket.write_all(&list)?;
                                             }
-                                        } else {
-                                            println!("no service started");
+                                            Err(err) => tracing::error!("service listing error: {err}"),
                                         }
                                     }
                                 },
@@ -115,11 +117,15 @@ impl ServiceManager {
     pub fn add(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
         // preload service plugin
         let svc = Service::from(&config);
-        tracing::info!("starting service {:?} with auth modes {:?}", svc.ty(), svc.modes());
+        tracing::info!(
+            "starting service {:?} with auth modes {:?}",
+            svc.ty(),
+            svc.modes()
+        );
 
         svc.preload_deps()?;
         svc.preload()?;
-        
+
         // message service manager to load service
         Self::send_command(ServiceCommand::Add(config), port)?;
         Ok(())
@@ -132,22 +138,42 @@ impl ServiceManager {
     }
 
     pub fn list(port: Option<u16>) -> AppResult<()> {
-        Self::send_command(ServiceCommand::List, port)?;
+        println!("getting list...");
+        let mut stream = Self::send_command(ServiceCommand::List, port)?;
+        
+        println!("message sent...");
+        let mut data = [0u8; 1024];
+        
+        stream.read(&mut data)?;
+        println!("stream received...");
+        let (list, _): (Vec<ServiceInfo>, usize) = bincode::decode_from_slice(&data, config::standard())?;
+        
+        println!("got {} services", list.len());
+        if !list.is_empty() {
+            for svc in &list {
+                let id = svc.id;
+                let port = svc.config.base.port;
+                println!("id\t port");
+                println!("{id}\t {port}")
+            }
+        } else {
+            println!("no service started");
+        }
         Ok(())
     }
 
     /// send a command to manager's tcp connection
-    fn send_command(cmd: ServiceCommand, port: Option<u16>) -> AppResult<()> {
+    fn send_command(cmd: ServiceCommand, port: Option<u16>) -> AppResult<TcpStream> {
         match bincode::encode_to_vec(cmd, config::standard()) {
             Ok(data) => {
                 let addr = Self::addr(port);
                 let mut stream = TcpStream::connect(addr)?;
                 stream.write_all(&data)?;
-            }
-            Err(err) => tracing::error!("unable to encode service command: {err}"),
-        }
 
-        Ok(())
+                Ok(stream)
+            }
+            Err(err) => Err(Error::InternalError(format!("unable to encode service command: {err}"))),
+        }
     }
 
     fn addr(port: Option<u16>) -> String {
@@ -162,6 +188,7 @@ impl Default for ServiceManager {
     }
 }
 
+#[derive(Encode, Decode)]
 pub struct ServiceInfo {
     id: u8,
     config: ServiceConfig,
