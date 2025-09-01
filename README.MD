@@ -7,13 +7,14 @@ If you're building your own version of Google Drive, Microsoft's OneDrive or eve
 ---
 
 ## Why PPDRIVE?
-- **Privacy and Data Control**: All your data on your server.
-- **Full Ownership**: We don't have access to any of your data.
-- **Ease of User**: Flexible service management tools.
+- **Privacy and Data Control**: All your user, application and business data stay on your server. PPDRIVE does not host, spy or use your data in any way.
+- **No vendor lock-in. No hidden charges**: Unlike AWS, GCP and other commercial alternatives, you don't need to pay for anything.
+- **Full Ownership**: We don't collect any "insight" or gain access to any of your data.
+- **Ease of Use**: Flexible service management tools for installing plugins, viewing or cancelling running services.
 - **Security**: Secure by default.
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
-- **Speed**: Fast operation handlers.
-- **Lightweight**: We aim to make PPDRIVE lightweight. The starting point is to make sure you can install only what you need.
+- **Speed**: Very fast operation handlers.
+- **Lightweight**: We aim to make PPDRIVE as lightweight as possible. The starting point is to make sure you can install only what you need.
 
 ---
 
@@ -41,45 +42,7 @@ If you're building your own version of Google Drive, Microsoft's OneDrive or eve
 ---
 
 ## Installation
-#### Linux and MacOS
-**Prequisite**: Please make sure you have created a database for PPDRIVE to save records. You'll need to add the database URL after installation, during configuration. We support Postgres, MySQL and SQLite databases.
-
-Once your database is ready, kindly proceed to the following steps:
-
-- Install:
-```bash
-curl -f https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/install.sh | sh
-```
-
-- Configure:
-```bash
-ppdrive configure
-```
-
-- Start
-```bash
-systemctl --user start ppdrive
-```
-
-#### Docker Compose
-If you have docker compose, you can use our [compose template](https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/compose.yml) for full installation (database included). Copy and modify the [compose template](https://raw.githubusercontent.com/prodbyola/ppdrive/refs/heads/main/compose.yml) to suit your need. Take note to update `ppdrive_db` service environments and `PPDRIVE_DATABASE_URL` in `ppdrive` service.
-
-- Build: Build docker containers
-```sh
-docker-compose up --build -d
-```
-
-- Configure: Open `ppdrive` container terminal and run the configuration command.
-```sh
-docker-compose exec ppdrive sh
-
-ppdrive --configure
-```
-
-- Restart: Now restart the containers
-```sh
-docker-compose restart
-```
+Documentation comming soon
 
 ---
 
@@ -88,13 +51,11 @@ Once your PPDRIVE is pu and running, check out [API DOC](https://prodbyola.githu
 
 ---
 
----
+## Support
+I'm putting alot of time and efforts into this project. Your financial contribution will go a long way in helping me keep this project free for everyone. If you would love to support by journey, please consider donating via any of these channels:
 
-## Running Tests
-
-1. First, run migration test: `cargo test test_migration`.
-2. Then run other tests, excluding migration test `cargo test -- --skip test_migration`
----
+- **Bitcoin BNB Smart Chain (BEP20):** 0x912f022d95c31b983e5efe21bf22094ba6fafe55
+- **Bitget BEP20 (Binance Smart Chain):** 0xd7a3da9faa4bd5c7ab0066391761a089e64a25d6
 
 ## Contributing
 We welcome contributions to PPDRIVE! Here’s how you can help:
