@@ -70,7 +70,11 @@ impl ServiceManager {
                                             }
                                         });
 
+                                        let id = info.id;
                                         self.list.push(info);
+
+                                        let resp = Response::success(id).message(format!("service added to manager with id {id}. run 'ppdrive list' to see running services."));
+                                        resp.write(&mut socket)?;
                                     }
 
                                     ServiceCommand::Cancel(id) => {
@@ -80,35 +84,28 @@ impl ServiceManager {
                                             .enumerate()
                                             .find(|item| item.1.id == id);
 
-                                        match item {
+                                        let resp = match item {
                                             Some((idx, info)) => {
                                                 info.running.store(false, Ordering::Relaxed);
                                                 self.list.remove(idx);
-                                                tracing::info!(
-                                                    "service {id} removed from manager successfully."
-                                                );
+
+                                                Response::success(()).message(format!("service {id} removed from manager successfully."))
                                             }
-                                            None => tracing::error!(
-                                                "unable to cancel service with id {id}. it's propably not running."
-                                            ),
-                                        }
+                                            None => Response::error(()).message(format!("unable to cancel service with id {id}. it's propably not running.")),
+                                        };
+
+                                        resp.write(&mut socket)?;
                                     }
 
                                     ServiceCommand::List => {
                                         tracing::info!("listing commmand received");
-                                        match bincode::encode_to_vec(&self.list, config::standard())
-                                        {
-                                            Ok(list) => {
-                                                tracing::info!(
-                                                    "list generated for {} service(s)",
-                                                    self.list.len()
-                                                );
-                                                socket.write_all(&list)?;
-                                            }
-                                            Err(err) => {
-                                                tracing::error!("service listing error: {err}")
-                                            }
-                                        }
+                                        let resp =
+                                            Response::success(self.list.clone()).message(format!(
+                                                "list generated for {} service(s)",
+                                                self.list.len()
+                                            ));
+
+                                        resp.write(&mut socket)?;
                                     }
                                 },
                                 Err(err) => {
@@ -140,27 +137,27 @@ impl ServiceManager {
         svc.preload()?;
 
         // message service manager to load service
-        Self::send_command(ServiceCommand::Add(config), port)?;
+        let resp = Self::send_command::<u8>(ServiceCommand::Add(config), port)?;
+        resp.log();
+
         Ok(())
     }
 
     /// cancel a service in the manager
     pub fn cancel(id: u8, port: Option<u16>) -> AppResult<()> {
-        Self::send_command(ServiceCommand::Cancel(id), port)?;
+        let resp = Self::send_command::<String>(ServiceCommand::Cancel(id), port)?;
+        resp.log();
+
         Ok(())
     }
 
     pub fn list(port: Option<u16>) -> AppResult<()> {
-        let mut stream = Self::send_command(ServiceCommand::List, port)?;
-        let mut data = [0u8; 1024];
+        let resp = Self::send_command::<Vec<ServiceInfo>>(ServiceCommand::List, port)?;
+        let list = &resp.body;
 
-        stream.read(&mut data)?;
-        let (list, _): (Vec<ServiceInfo>, usize) =
-            bincode::decode_from_slice(&data, config::standard())?;
-
-        println!("got {} services", list.len());
+        resp.log();
         if !list.is_empty() {
-            for svc in &list {
+            for svc in list {
                 let id = svc.id;
                 let port = svc.config.base.port;
                 println!("id\t port");
@@ -170,19 +167,26 @@ impl ServiceManager {
             println!("no service started");
         }
 
-        // stream.shutdown(std::net::Shutdown::Both)?;
         Ok(())
     }
 
     /// send a command to manager's tcp connection
-    fn send_command(cmd: ServiceCommand, port: Option<u16>) -> AppResult<TcpStream> {
+    fn send_command<T: Encode + Decode<()>>(
+        cmd: ServiceCommand,
+        port: Option<u16>,
+    ) -> AppResult<Response<T>> {
         match bincode::encode_to_vec(cmd, config::standard()) {
             Ok(data) => {
                 let addr = Self::addr(port);
                 let mut stream = TcpStream::connect(addr)?;
                 stream.write_all(&data)?;
 
-                Ok(stream)
+                let mut buf = [0u8; 1024];
+                stream.read(&mut buf)?;
+
+                let resp = bincode::decode_from_slice(&buf, config::standard())?;
+
+                Ok(resp.0)
             }
             Err(err) => Err(Error::InternalError(format!(
                 "unable to encode service command: {err}"
@@ -202,7 +206,7 @@ impl Default for ServiceManager {
     }
 }
 
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Clone)]
 pub struct ServiceInfo {
     id: u8,
     config: ServiceConfig,
@@ -230,4 +234,58 @@ enum ServiceCommand {
 
     /// list running services
     List,
+}
+
+#[derive(Encode, Decode)]
+struct Response<T: Encode + Decode<()>> {
+    ty: ResponseType,
+    body: T,
+    msg: Option<String>,
+}
+
+impl<T: Encode + Decode<()>> Response<T> {
+    fn success(body: T) -> Response<T> {
+        Response {
+            ty: ResponseType::Success,
+            body,
+            msg: None,
+        }
+    }
+
+    fn error(body: T) -> Response<T> {
+        Response {
+            ty: ResponseType::Error,
+            body,
+            msg: None,
+        }
+    }
+
+    fn message(mut self, msg: String) -> Self {
+        self.msg = Some(msg);
+        self
+    }
+
+    fn log(&self) {
+        use ResponseType::*;
+
+        let msg = self.msg.clone().unwrap_or("no message".to_string());
+
+        match self.ty {
+            Success => tracing::info!("{msg}"),
+            Error => tracing::error!("{msg}"),
+        }
+    }
+
+    fn write(&self, socket: &mut TcpStream) -> AppResult<()> {
+        let data = bincode::encode_to_vec(&self, config::standard())?;
+        socket.write_all(&data)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Encode, Decode)]
+enum ResponseType {
+    Success,
+    Error,
 }

@@ -36,8 +36,9 @@ If you're building your own version of Google Drive, Microsoft's OneDrive or eve
 - Image manipulation: Provide url queries for manipulating images.
 - Async Upload: Upload large files in the background.
 - File Streaming: Enable file streaming (for video/audio streaming platforms and other use cases)
+- Live Streaming: End-to-end live streaming server.
 - ~~Buckets: Buckets implementation for clients.~~
-- Mime Limits: Limit uploads to specified mime types.
+- ~~Mime Limits: Limit uploads to specified mime types.~~
 
 ---
 
