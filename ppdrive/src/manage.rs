@@ -19,7 +19,6 @@ use crate::errors::{AppResult, Error};
 
 pub struct ServiceManager {
     list: Vec<ServiceInfo>,
-    // port: u16,
 }
 
 impl ServiceManager {
@@ -93,6 +92,8 @@ impl ServiceManager {
                                             }
                                             None => Response::error(()).message(format!("unable to cancel service with id {id}. it's propably not running.")),
                                         };
+
+                                        resp.log();
 
                                         resp.write(&mut socket)?;
                                     }
