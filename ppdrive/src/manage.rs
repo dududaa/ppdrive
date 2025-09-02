@@ -98,7 +98,6 @@ impl ServiceManager {
                                     }
 
                                     ServiceCommand::List => {
-                                        tracing::info!("listing commmand received");
                                         let resp =
                                             Response::success(self.list.clone()).message(format!(
                                                 "list generated for {} service(s)",

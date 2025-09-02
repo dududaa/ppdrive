@@ -47,11 +47,6 @@ Documentation comming soon
 
 ---
 
-## API Documentation
-Once your PPDRIVE is pu and running, check out [API DOC](https://prodbyola.github.io/ppdrive/) to learn how to connect and use your PPDRIVE instance.
-
----
-
 ## Support
 I'm putting alot of time and efforts into this project. Your financial contribution will go a long way in helping me keep this project free for everyone. If you would love to support by journey, please consider donating via any of these channels:
 
