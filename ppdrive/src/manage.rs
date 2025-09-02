@@ -8,10 +8,10 @@ use std::{
 };
 
 use bincode::{Decode, Encode, config};
-#[cfg(debug_assertions)]
-use ppd_shared::plugins::Plugin;
+
 use ppd_shared::plugins::{
     HasDependecies,
+    Plugin,
     service::{Service, ServiceConfig},
 };
 
