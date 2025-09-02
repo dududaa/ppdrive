@@ -68,10 +68,14 @@ async fn create_app(config: &ServiceConfig) -> Result<IntoMakeService<Router<()>
 
     set_var(BEARER_KEY, BEARER_VALUE);
 
+    println!("before loading router");
     let client_router = get_client_router(config)?;
+    
+    println!("after loading router, has routes {}", client_router.has_routes());
+    
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", *client_router)
+        .nest("/client", Router::new())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request
@@ -91,6 +95,7 @@ async fn create_app(config: &ServiceConfig) -> Result<IntoMakeService<Router<()>
         .with_state(state)
         .into_make_service();
 
+    println!("router created...");
     Ok(router)
 }
 
