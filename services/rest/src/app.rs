@@ -75,7 +75,7 @@ async fn create_app(config: &ServiceConfig) -> Result<IntoMakeService<Router<()>
     
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", Router::new())
+        .nest("/client", *client_router)
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request

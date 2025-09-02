@@ -93,8 +93,6 @@ impl ServiceManager {
                                             None => Response::error(()).message(format!("unable to cancel service with id {id}. it's propably not running.")),
                                         };
 
-                                        resp.log();
-
                                         resp.write(&mut socket)?;
                                     }
 
@@ -125,7 +123,6 @@ impl ServiceManager {
 
     /// add a new service to the manager
     pub fn add(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
-        // preload service plugin
         let svc = Service::from(&config);
         tracing::info!(
             "starting service {:?} with auth modes {:?}",
