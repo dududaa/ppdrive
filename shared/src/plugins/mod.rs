@@ -104,7 +104,7 @@ pub trait Plugin {
         }
 
         #[cfg(target_os = "linux")]
-        ".dll"
+        ".so"
     }
 
     /// the output filename path of the release build.

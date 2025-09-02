@@ -26,7 +26,7 @@ impl ServiceManager {
     pub fn start(&mut self, port: Option<u16>) -> AppResult<()> {
         let addr = Self::addr(port);
         let listener = TcpListener::bind(&addr)?;
-        tracing::info!("service manager listening at {}...", addr);
+        tracing::info!("service manager listening at {}", addr);
 
         loop {
             match listener.accept() {
@@ -145,7 +145,7 @@ impl ServiceManager {
 
     /// cancel a service in the manager
     pub fn cancel(id: u8, port: Option<u16>) -> AppResult<()> {
-        let resp = Self::send_command::<String>(ServiceCommand::Cancel(id), port)?;
+        let resp = Self::send_command::<()>(ServiceCommand::Cancel(id), port)?;
         resp.log();
 
         Ok(())
@@ -160,8 +160,8 @@ impl ServiceManager {
             for svc in list {
                 let id = svc.id;
                 let port = svc.config.base.port;
-                println!("id\t port");
-                println!("{id}\t {port}")
+                println!("id\t | port");
+                println!("{id}\t | {port}")
             }
         } else {
             println!("no service started");

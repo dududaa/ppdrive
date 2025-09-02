@@ -48,7 +48,7 @@ Documentation comming soon
 ---
 
 ## Support
-I'm putting alot of time and efforts into this project. Your financial contribution will go a long way in helping me keep this project free for everyone. If you would love to support by journey, please consider donating via any of these channels:
+If you would love to support by journey, please consider donating via any of these channels:
 
 - **Bitcoin BNB Smart Chain (BEP20):** 0x912f022d95c31b983e5efe21bf22094ba6fafe55
 - **Bitget BEP20 (Binance Smart Chain):** 0xd7a3da9faa4bd5c7ab0066391761a089e64a25d6
