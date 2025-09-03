@@ -27,7 +27,7 @@ use handlers::{
         jwt::{BEARER_KEY, BEARER_VALUE},
         state::HandlerState,
     },
-    get_asset,
+    rest::get_asset,
 };
 use ppd_shared::tools::init_secrets;
 

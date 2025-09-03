@@ -7,11 +7,13 @@ use axum_macros::debug_handler;
 use user::*;
 
 use crate::errors::ServerError;
-use handlers::prelude::{
-    extractors::ClientRoute,
-    jwt::{TokenType, create_jwt},
-    opts::{CreateUserClient, LoginToken, LoginUserClient},
-    state::HandlerState,
+use handlers::{
+    prelude::{
+        jwt::{TokenType, create_jwt},
+        opts::{CreateUserClient, LoginToken, LoginUserClient},
+        state::HandlerState,
+    },
+    rest::extractors::ClientRoute,
 };
 use ppd_shared::tools::{SECRETS_FILENAME, mb_to_bytes};
 
@@ -66,7 +68,7 @@ async fn login_user(
             TokenType::Access,
         )?;
 
-        Some((access_token,access_exp))
+        Some((access_token, access_exp))
     } else {
         None
     };

@@ -1,14 +1,13 @@
 use std::ops::Deref;
 
+use crate::prelude::{jwt::decode_jwt, state::HandlerState};
+use crate::tools::verify_client;
+use crate::{HandlerResult, errors::HandlerError};
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
-    http::{header::AUTHORIZATION, request::Parts, HeaderValue},
+    http::{HeaderValue, header::AUTHORIZATION, request::Parts},
 };
-use crate::tools::verify_client;
-use crate::{errors::HandlerError, HandlerResult};
-use super::{state::HandlerState, jwt::decode_jwt};
-
 
 pub struct RequestUser {
     id: u64,
@@ -82,7 +81,9 @@ where
                     .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
                 let secrets = state.secrets();
-                let id = verify_client(state.db(), secrets.deref(), token).await.map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
+                let id = verify_client(state.db(), secrets.deref(), token)
+                    .await
+                    .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
                 Ok(ClientRoute(id))
             }

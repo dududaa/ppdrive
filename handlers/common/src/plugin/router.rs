@@ -1,10 +1,11 @@
 //! implementation of [Plugin](crate::plugins::Plugin) for routers loaded for a [Service](super::service::Service),
 //! depending `config.server.auth_type` parameter.
 
+use axum::Router;
 use libloading::Symbol;
 use ppd_shared::{plugin::Plugin, opts::{ServiceAuthMode, ServiceType}};
 
-use crate::HandlerResult;
+use crate::{HandlerResult, prelude::state::HandlerState};
 
 pub struct ServiceRouter {
     pub svc_type: ServiceType,
@@ -12,12 +13,12 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get<T>(&self, max_upload_size: usize) -> HandlerResult<Box<T>> {
+    pub fn get(&self, max_upload_size: usize) -> HandlerResult<Box<Router<HandlerState>>> {
         let filename = self.output()?;
         let lib = self.load(filename)?;
         
         println!("getting router symbol...");
-        let load_router: Symbol<unsafe extern "C" fn(usize) -> *mut T> =
+        let load_router: Symbol<unsafe extern "C" fn(usize) -> *mut Router<HandlerState>> =
             unsafe { lib.get(b"load_router")? };
 
         println!("building router...");
