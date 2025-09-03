@@ -1,24 +1,29 @@
 //! functionalities shared by server handlers
 
-use axum::{
-    body::Body,
-    extract::{Path, State},
-    http::header::CONTENT_TYPE,
-    response::Response,
-};
-use axum_macros::debug_handler;
-use ppd_bk::models::asset::AssetType;
-use ppd_fs::{read_asset, AssetBody};
-use ppd_shared::tools::SECRETS_FILENAME;
+#[cfg(feature = "prelude")]
+pub mod exports {
+    pub use axum::{
+        body::Body,
+        extract::{Path, State},
+        http::header::CONTENT_TYPE,
+        response::Response,
+    };
+    pub use axum_macros::debug_handler;
+    pub use ppd_bk::models::asset::AssetType;
+    pub use ppd_fs::{AssetBody, read_asset};
+    pub use ppd_shared::tools::SECRETS_FILENAME;
 
-use crate::{errors::HandlerError};
+    pub use crate::errors::HandlerError;
+}
+
 pub mod errors;
+pub use exports::*;
 
-#[cfg(feature = "common")]
-pub use crate::common::{extractors::ClientUser, state::HandlerState};
+#[cfg(feature = "prelude")]
+pub use crate::prelude::{extractors::ClientUser, state::HandlerState};
 
-#[cfg(feature = "common")]
-pub mod common;
+#[cfg(feature = "prelude")]
+pub mod prelude;
 
 #[cfg(feature = "plugin")]
 pub mod plugin;
@@ -28,7 +33,7 @@ pub mod tools;
 
 pub type HandlerResult<T> = Result<T, HandlerError>;
 
-#[cfg(feature = "common")]
+#[cfg(feature = "prelude")]
 #[debug_handler]
 pub async fn get_asset(
     Path((asset_type, mut asset_path)): Path<(AssetType, String)>,

@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-default = ["common"]
+default = ["prelude"]
+prelude = []
 plugin = ["dep:libloading"]
-common = []
 tools = ["dep:chacha20poly1305", "dep:hex"]
 
 [dependencies]

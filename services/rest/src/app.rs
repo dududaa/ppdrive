@@ -23,7 +23,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use crate::errors::ServerError;
 use crate::ServerResult;
 use handlers::{
-    common::{
+    prelude::{
         jwt::{BEARER_KEY, BEARER_VALUE},
         state::HandlerState,
     },
