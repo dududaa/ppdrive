@@ -9,11 +9,12 @@ use std::{
 
 use bincode::{Decode, Encode, config};
 
-use ppd_shared::plugins::{
-    HasDependecies,
-    Plugin,
-    service::{Service, ServiceConfig},
+use ppd_shared::{
+    opts::ServiceConfig,
+    plugin::{HasDependecies, Plugin},
 };
+
+use handlers::plugin::service::Service;
 
 use crate::errors::{AppResult, Error};
 

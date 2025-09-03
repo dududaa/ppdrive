@@ -2,12 +2,9 @@
 //! depending `config.server.auth_type` parameter.
 
 use libloading::Symbol;
+use ppd_shared::{plugin::Plugin, opts::{ServiceAuthMode, ServiceType}};
 
-use crate::{
-    plugins::{
-        service::{ServiceAuthMode, ServiceType}, Plugin
-    }, AppResult
-};
+use crate::HandlerResult;
 
 pub struct ServiceRouter {
     pub svc_type: ServiceType,
@@ -15,7 +12,7 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get<T>(&self, max_upload_size: usize) -> AppResult<Box<T>> {
+    pub fn get<T>(&self, max_upload_size: usize) -> HandlerResult<Box<T>> {
         let filename = self.output()?;
         let lib = self.load(filename)?;
         

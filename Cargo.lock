@@ -1038,6 +1038,7 @@ dependencies = [
  "chrono",
  "client_tools",
  "jsonwebtoken",
+ "libloading",
  "mime_guess",
  "ppd_bk",
  "ppd_fs",
@@ -1953,6 +1954,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "clap",
+ "handlers",
  "ppd_shared",
  "rand 0.9.2",
  "tokio",

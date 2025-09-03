@@ -1,7 +1,7 @@
 use crate::errors::Error;
-// pub mod config;
 pub mod errors;
 pub mod tools;
-pub mod plugins;
+pub mod plugin;
+pub mod opts;
 
 pub type AppResult<T> = Result<T, Error>;

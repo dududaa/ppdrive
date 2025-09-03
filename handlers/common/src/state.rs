@@ -1,6 +1,6 @@
 use crate::errors::HandlerError;
 use ppd_bk::{RBatis, db::init_db};
-use ppd_shared::{plugins::service::ServiceConfig, tools::AppSecrets};
+use ppd_shared::{opts::ServiceConfig, tools::AppSecrets};
 use std::sync::Arc;
 
 #[derive(Clone)]

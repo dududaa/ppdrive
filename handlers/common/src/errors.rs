@@ -6,6 +6,9 @@ use ppd_shared::errors::Error as SharedError;
 use ppd_bk::Error as DBError;
 use client_tools::errors::Error as ClientError;
 
+#[cfg(feature = "plugin")]
+use libloading::Error as LibLoadError;
+
 #[derive(Debug)]
 pub enum HandlerError {
     InitError(String),
@@ -93,5 +96,12 @@ impl IntoResponse for HandlerError {
 impl From<FromUtf8Error> for HandlerError {
     fn from(value: FromUtf8Error) -> Self {
         HandlerError::InitError(value.to_string())
+    }
+}
+
+#[cfg(feature = "plugin")]
+impl From<LibLoadError> for HandlerError  {
+    fn from(value: LibLoadError) -> Self {
+        HandlerError::InternalError(value.to_string())
     }
 }

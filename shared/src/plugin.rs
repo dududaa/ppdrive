@@ -4,9 +4,6 @@ use libloading::Library;
 
 use crate::{AppResult, tools::root_dir};
 
-pub mod router;
-pub mod service;
-
 pub trait Plugin {
     /// package name of the plugin, as declared in manifest (Cargo.toml)
     fn package_name(&self) -> &'static str;

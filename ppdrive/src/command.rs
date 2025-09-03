@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use crate::{errors::AppResult, manage::ServiceManager};
-use ppd_shared::plugins::service::{
+use ppd_shared::opts::{
     ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType,
 };
 

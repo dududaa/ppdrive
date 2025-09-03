@@ -45,6 +45,9 @@
 !docs/
 !docs/**
 
+!.vscode
+!.vscode/**
+
 !.github
 !.github/**
 !NOTES.MD

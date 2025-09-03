@@ -19,6 +19,9 @@ pub mod opts;
 pub mod state;
 pub mod errors;
 
+#[cfg(feature = "plugin")]
+pub mod plugin;
+
 pub type HandlerResult<T> = Result<T, HandlerError>;
 
 #[debug_handler]

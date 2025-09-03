@@ -30,3 +30,4 @@ ppd_fs = { path = "modules/fs" }
 client_tools = { path = "handlers/rest/client-tools" }
 handlers = { path = "handlers/common" }
 rest_client = { path = "handlers/rest/client" }
+libloading = "0.8.8"
