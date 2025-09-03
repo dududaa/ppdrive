@@ -69,13 +69,13 @@ async fn create_app(config: &ServiceConfig) -> Result<IntoMakeService<Router<()>
     set_var(BEARER_KEY, BEARER_VALUE);
 
     println!("before loading router");
-    let client_router = get_client_router(config)?;
+    let client_router = *get_client_router(config)?;
     
     println!("after loading router, has routes {}", client_router.has_routes());
     
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", *client_router)
+        .nest("/client", Router::new())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request
@@ -135,10 +135,32 @@ fn get_client_router(config: &ServiceConfig) -> ServerResult<Box<Router<HandlerS
             svc_type: ServiceType::Rest,
             auth_mode: ServiceAuthMode::Client,
         };
+
+        println!("calling router get...");
         svc_router.get(max_upload_size)?
     } else {
         Box::new(Router::new())
     };
 
     Ok(router)
+}
+
+#[cfg(test)]
+mod tests {
+    use ppd_shared::plugins::service::{ServiceAuthMode, ServiceConfig};
+
+    use crate::{app::create_app, ServerResult};
+
+    #[tokio::test]
+    async fn test_create_app() -> ServerResult<()> {
+        let mut config = ServiceConfig::default();
+        config.base.db_url = "sqlite://db.sqlite".to_string();
+        config.base.port = 5000;
+        config.auth.modes.push(ServiceAuthMode::Client);
+
+        let ca = create_app(&config).await;
+        assert!(ca.is_ok());
+
+        Ok(())
+    }
 }

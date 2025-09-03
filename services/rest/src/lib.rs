@@ -12,9 +12,10 @@ pub type ServerResult<T> = Result<T, ServerError>;
 
 async fn launch_svc(config: Arc<ServiceConfig>) -> ServerResult<()> {
     let _guard = start_logger()?;
+    
     run_migrations(&config.base.db_url).await?;
-
     let app = initialize_app(&config).await?;
+
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", &config.base.port)).await {
         Ok(listener) => {
             if let Ok(addr) = listener.local_addr() {
@@ -36,8 +37,10 @@ async fn launch_svc(config: Arc<ServiceConfig>) -> ServerResult<()> {
 
 #[no_mangle]
 pub extern "C" fn start_svc(cfg_raw: *const ServiceConfig) {
+    println!("loading svc config raw...");
     let config = unsafe { Arc::from_raw(cfg_raw) };
     
+    println!("config raw loaded...");
     match Runtime::new() {
         Ok(rt) => {
             rt.block_on(async {

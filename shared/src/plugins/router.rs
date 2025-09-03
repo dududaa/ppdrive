@@ -19,14 +19,17 @@ impl ServiceRouter {
         let filename = self.output()?;
         let lib = self.load(filename)?;
         
+        println!("getting router symbol...");
         let load_router: Symbol<unsafe extern "C" fn(usize) -> *mut T> =
             unsafe { lib.get(b"load_router")? };
 
+        println!("building router...");
         let router = unsafe { 
             let raw = load_router(max_upload_size);
             Box::from_raw(raw)
         };
 
+        println!("router box built successful...");
         Ok(router)
     }
 }

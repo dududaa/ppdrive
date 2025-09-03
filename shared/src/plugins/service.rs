@@ -112,7 +112,7 @@ pub enum ServiceAuthMode {
 }
 
 /// configuration for each service created.
-#[derive(Debug, Args, Encode, Decode, Clone)]
+#[derive(Debug, Args, Encode, Decode, Clone, Default)]
 pub struct ServiceBaseConfig {
     #[arg(long("db"), default_value_t=String::from("sqlite://db.sqlite"))]
     pub db_url: String,
@@ -128,7 +128,7 @@ pub struct ServiceBaseConfig {
 }
 
 /// authentication configuration for a service
-#[derive(Debug, Args, Clone, Encode, Decode)]
+#[derive(Debug, Args, Clone, Encode, Decode, Default)]
 pub struct ServiceAuthConfig {
     #[arg(long("auth-modes"), value_enum, default_values = ["client"])]
     pub modes: Vec<ServiceAuthMode>,
@@ -143,7 +143,7 @@ pub struct ServiceAuthConfig {
     pub url: Option<String>,
 }
 
-#[derive(Encode, Decode, Clone, Debug)]
+#[derive(Encode, Decode, Clone, Debug, Default)]
 pub struct ServiceConfig {
     pub ty: ServiceType,
     pub base: ServiceBaseConfig,
