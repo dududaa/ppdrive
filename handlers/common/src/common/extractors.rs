@@ -5,8 +5,9 @@ use axum::{
     extract::{FromRef, FromRequestParts},
     http::{header::AUTHORIZATION, request::Parts, HeaderValue},
 };
-use client_tools::verify_client;
-use crate::{errors::HandlerError, state::HandlerState, jwt::decode_jwt, HandlerResult};
+use crate::tools::verify_client;
+use crate::{errors::HandlerError, HandlerResult};
+use super::{state::HandlerState, jwt::decode_jwt};
 
 
 pub struct RequestUser {

@@ -567,17 +567,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
-name = "client_tools"
-version = "0.1.0"
-dependencies = [
- "chacha20poly1305",
- "hex",
- "ppd_bk",
- "ppd_shared",
- "uuid",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1035,8 +1024,9 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "axum-macros",
+ "chacha20poly1305",
  "chrono",
- "client_tools",
+ "hex",
  "jsonwebtoken",
  "libloading",
  "mime_guess",
@@ -1917,7 +1907,6 @@ dependencies = [
  "axum",
  "axum-test",
  "bincode",
- "client_tools",
  "futures",
  "handlers",
  "ppd_bk",

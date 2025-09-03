@@ -4,7 +4,6 @@ use axum::{http::StatusCode, response::IntoResponse};
 use ppd_fs::errors::Error as FsError;
 use ppd_shared::errors::Error as SharedError;
 use ppd_bk::Error as DBError;
-use client_tools::errors::Error as ClientError;
 
 #[cfg(feature = "plugin")]
 use libloading::Error as LibLoadError;
@@ -50,12 +49,6 @@ impl From<std::io::Error> for HandlerError {
     }
 }
 
-// impl From<MultipartError> for HandlerError {
-//     fn from(value: MultipartError) -> Self {
-//         HandlerError::InternalError(value.to_string())
-//     }
-// }
-
 impl From<FsError> for HandlerError {
     fn from(value: FsError) -> Self {
         HandlerError::FsError(value)
@@ -71,12 +64,6 @@ impl From<SharedError> for HandlerError {
 impl From<DBError> for HandlerError {
     fn from(value: DBError) -> Self {
         HandlerError::DBError(value)
-    }
-}
-
-impl From<ClientError> for HandlerError {
-    fn from(value: ClientError) -> Self {
-        HandlerError::InternalError(value.to_string())
     }
 }
 

@@ -6,7 +6,6 @@ members = [
     "modules/fs",
     "modules/bookkeeper",
     "shared",
-    "handlers/rest/client-tools",
     "handlers/common",
     "handlers/rest/client",
 ]
@@ -27,7 +26,6 @@ clap = "4.5.45"
 ppd_shared = { path = "shared" }
 ppd_bk = { path = "modules/bookkeeper" }
 ppd_fs = { path = "modules/fs" }
-client_tools = { path = "handlers/rest/client-tools" }
-handlers = { path = "handlers/common" }
+handlers = { path = "handlers/common", default-features = false }
 rest_client = { path = "handlers/rest/client" }
 libloading = "0.8.8"

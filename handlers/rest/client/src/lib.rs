@@ -7,7 +7,7 @@ use axum_macros::debug_handler;
 use user::*;
 
 use crate::errors::ServerError;
-use handlers::{
+use handlers::common::{
     extractors::ClientRoute,
     jwt::{TokenType, create_jwt},
     opts::{CreateUserClient, LoginToken, LoginUserClient},

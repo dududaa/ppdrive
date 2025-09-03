@@ -7,7 +7,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
 use crate::errors::ServerError;
-use handlers::{extractors::ClientUser, state::HandlerState};
+use handlers::common::{extractors::ClientUser, state::HandlerState};
 use ppd_bk::models::{
     IntoSerializer,
     asset::{AssetType, Assets},

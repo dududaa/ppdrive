@@ -10,8 +10,8 @@ use axum::{
     routing::{get, IntoMakeService},
     Router,
 };
-use ppd_shared::plugins::router::ServiceRouter;
-use ppd_shared::plugins::service::{ServiceAuthMode, ServiceConfig, ServiceType};
+use handlers::plugin::router::ServiceRouter;
+use ppd_shared::opts::{ServiceAuthMode, ServiceConfig, ServiceType};
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
@@ -23,9 +23,11 @@ use tracing_subscriber::util::SubscriberInitExt;
 use crate::errors::ServerError;
 use crate::ServerResult;
 use handlers::{
+    common::{
+        jwt::{BEARER_KEY, BEARER_VALUE},
+        state::HandlerState,
+    },
     get_asset,
-    jwt::{BEARER_KEY, BEARER_VALUE},
-    state::HandlerState,
 };
 use ppd_shared::tools::init_secrets;
 
@@ -70,9 +72,12 @@ async fn create_app(config: &ServiceConfig) -> Result<IntoMakeService<Router<()>
 
     println!("before loading router");
     let client_router = *get_client_router(config)?;
-    
-    println!("after loading router, has routes {}", client_router.has_routes());
-    
+
+    println!(
+        "after loading router, has routes {}",
+        client_router.has_routes()
+    );
+
     let router = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
         .nest("/client", Router::new())
@@ -101,7 +106,10 @@ async fn create_app(config: &ServiceConfig) -> Result<IntoMakeService<Router<()>
 
 type LoggerGuard = tracing_appender::non_blocking::WorkerGuard;
 pub fn start_logger() -> ServerResult<LoggerGuard> {
-    let log_file = std::fs::OpenOptions::new().create(true).append(true).open("ppd.log")?;
+    let log_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("ppd.log")?;
     let (writer, guard) = non_blocking(log_file);
 
     if let Err(err) = tracing_subscriber::registry()
@@ -126,11 +134,7 @@ pub async fn initialize_app(config: &ServiceConfig) -> ServerResult<IntoMakeServ
 
 fn get_client_router(config: &ServiceConfig) -> ServerResult<Box<Router<HandlerState>>> {
     let max_upload_size = config.base.max_upload_size;
-    let router = if config
-        .auth
-        .modes
-        .contains(&ServiceAuthMode::Client)
-    {
+    let router = if config.auth.modes.contains(&ServiceAuthMode::Client) {
         let svc_router = ServiceRouter {
             svc_type: ServiceType::Rest,
             auth_mode: ServiceAuthMode::Client,
@@ -147,7 +151,7 @@ fn get_client_router(config: &ServiceConfig) -> ServerResult<Box<Router<HandlerS
 
 #[cfg(test)]
 mod tests {
-    use ppd_shared::plugins::service::{ServiceAuthMode, ServiceConfig};
+    use ppd_shared::opts::{ServiceAuthMode, ServiceConfig};
 
     use crate::{app::create_app, ServerResult};
 

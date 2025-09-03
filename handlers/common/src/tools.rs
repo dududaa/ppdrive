@@ -1,15 +1,11 @@
-use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce};
+use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce, Error as XError};
 use ppd_bk::{models::client::Clients, RBatis};
 use ppd_shared::tools::AppSecrets;
 use uuid::Uuid;
-use errors::Error;
-
-pub mod errors;
-
-type CoreResult<T> = Result<T, errors::Error>;
+use crate::{errors::HandlerError, HandlerResult};
 
 /// creates a new client and returns the client's key
-pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> CoreResult<String> {
+pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> HandlerResult<String> {
     let client_id = Uuid::new_v4();
     let client_id = client_id.to_string();
 
@@ -19,7 +15,7 @@ pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> Cor
 }
 
 /// generate a token for client's id
-fn generate_token(secrets: &AppSecrets, client_id: &str) -> CoreResult<String> {
+fn generate_token(secrets: &AppSecrets, client_id: &str) -> HandlerResult<String> {
     let key = secrets.secret_key();
     let nonce_key = secrets.nonce();
 
@@ -33,9 +29,9 @@ fn generate_token(secrets: &AppSecrets, client_id: &str) -> CoreResult<String> {
 }
 
 /// validate that a given client token exists
-pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> CoreResult<u64> {
+pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> HandlerResult<u64> {
     let decode =
-        hex::decode(token).map_err(|err| Error::AuthorizationError(err.to_string()))?;
+        hex::decode(token).map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
     let key = secrets.secret_key();
     let nonce_key = secrets.nonce();
@@ -46,7 +42,7 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Co
     let decrypt = cipher.decrypt(nonce, decode.as_slice())?;
 
     let id =
-        String::from_utf8(decrypt).map_err(|err| Error::AuthorizationError(err.to_string()))?;
+        String::from_utf8(decrypt).map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
     let client = Clients::get(rb, &id).await?;
     Ok(client.id())
@@ -57,10 +53,16 @@ pub async fn regenerate_token(
     db: &RBatis,
     secrets: &AppSecrets,
     current_key: &str,
-) -> CoreResult<String> {
+) -> HandlerResult<String> {
     let mut client = Clients::get(db, current_key).await?;
     let new_key = Uuid::new_v4().to_string();
 
     client.update_key(db, new_key).await?;
     generate_token(secrets, client.key())
+}
+
+impl From<XError> for HandlerError {
+    fn from(value: XError) -> Self {
+        HandlerError::InternalError(value.to_string())
+    }
 }

@@ -11,19 +11,24 @@ use ppd_bk::models::asset::AssetType;
 use ppd_fs::{read_asset, AssetBody};
 use ppd_shared::tools::SECRETS_FILENAME;
 
-use crate::{errors::HandlerError, extractors::ClientUser, state::HandlerState};
-
-pub mod extractors;
-pub mod jwt;
-pub mod opts;
-pub mod state;
+use crate::{errors::HandlerError};
 pub mod errors;
+
+#[cfg(feature = "common")]
+pub use crate::common::{extractors::ClientUser, state::HandlerState};
+
+#[cfg(feature = "common")]
+pub mod common;
 
 #[cfg(feature = "plugin")]
 pub mod plugin;
 
+#[cfg(feature = "tools")]
+pub mod tools;
+
 pub type HandlerResult<T> = Result<T, HandlerError>;
 
+#[cfg(feature = "common")]
 #[debug_handler]
 pub async fn get_asset(
     Path((asset_type, mut asset_path)): Path<(AssetType, String)>,

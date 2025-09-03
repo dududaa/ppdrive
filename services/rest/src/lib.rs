@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::app::{initialize_app, start_logger};
 use errors::ServerError;
 use ppd_bk::db::migration::run_migrations;
-use ppd_shared::plugins::service::ServiceConfig;
+use ppd_shared::opts::ServiceConfig;
 use tokio::runtime::Runtime;
 
 mod app;
