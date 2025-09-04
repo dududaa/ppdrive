@@ -164,12 +164,6 @@ pub fn client_routes(max_upload_size: usize) -> Router<HandlerState> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn load_router(max_upload_size: usize) -> *mut Router<HandlerState> {
-    println!("loading router with max_upload size...");
-    let router = client_routes(max_upload_size);
-    let boxed = Box::new(router);
-
-    println!("router is boxed...");
-
-    Box::into_raw(boxed)
+pub fn load_router(max_upload_size: usize) -> Router<HandlerState> {
+    client_routes(max_upload_size)
 }

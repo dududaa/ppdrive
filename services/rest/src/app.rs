@@ -71,7 +71,7 @@ async fn create_app(config: &ServiceConfig) -> Result<IntoMakeService<Router<()>
     set_var(BEARER_KEY, BEARER_VALUE);
 
     println!("before loading router");
-    let client_router = *get_client_router(config)?;
+    let client_router = get_client_router(config)?;
 
     println!(
         "after loading router, has routes {}",
@@ -132,7 +132,7 @@ pub async fn initialize_app(config: &ServiceConfig) -> ServerResult<IntoMakeServ
     create_app(&config).await
 }
 
-fn get_client_router(config: &ServiceConfig) -> ServerResult<Box<Router<HandlerState>>> {
+fn get_client_router(config: &ServiceConfig) -> ServerResult<Router<HandlerState>> {
     let max_upload_size = config.base.max_upload_size;
     let router = if config.auth.modes.contains(&ServiceAuthMode::Client) {
         let svc_router = ServiceRouter {
@@ -143,7 +143,7 @@ fn get_client_router(config: &ServiceConfig) -> ServerResult<Box<Router<HandlerS
         println!("calling router get...");
         svc_router.get(max_upload_size)?
     } else {
-        Box::new(Router::new())
+        Router::new()
     };
 
     Ok(router)
@@ -163,6 +163,10 @@ mod tests {
         config.auth.modes.push(ServiceAuthMode::Client);
 
         let ca = create_app(&config).await;
+        if let Err(err) = &ca  {
+            println!("err: {err}")    
+        }
+
         assert!(ca.is_ok());
 
         Ok(())

@@ -13,22 +13,16 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get(&self, max_upload_size: usize) -> HandlerResult<Box<Router<HandlerState>>> {
+    pub fn get(&self, max_upload_size: usize) -> HandlerResult<Router<HandlerState>> {
         let filename = self.output()?;
         let lib = self.load(filename)?;
         
         println!("getting router symbol...");
-        let load_router: Symbol<unsafe extern "C" fn(usize) -> *mut Router<HandlerState>> =
+        let load_router: Symbol<fn(usize) -> Router<HandlerState>> =
             unsafe { lib.get(b"load_router")? };
 
-        println!("building router...");
-        let router = unsafe { 
-            let raw = load_router(max_upload_size);
-            Box::from_raw(raw)
-        };
-
         println!("router box built successful...");
-        Ok(router)
+        Ok(load_router(max_upload_size))
     }
 }
 
@@ -44,5 +38,9 @@ impl Plugin for ServiceRouter {
             },
             Grpc => unimplemented!("loading plugin for a grpc server is not implemented."),
         }
+    }
+
+    fn ext(&self) -> &'static str {
+        ".a"
     }
 }
