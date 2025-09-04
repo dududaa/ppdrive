@@ -151,12 +151,16 @@ fn get_client_router(config: &ServiceConfig) -> ServerResult<Router<HandlerState
 
 #[cfg(test)]
 mod tests {
-    use ppd_shared::opts::{ServiceAuthMode, ServiceConfig};
+    use handlers::plugin::router::ServiceRouter;
+    use ppd_shared::{opts::{ServiceAuthMode, ServiceConfig}, plugin::Plugin};
 
     use crate::{app::create_app, ServerResult};
 
     #[tokio::test]
     async fn test_create_app() -> ServerResult<()> {
+        let svc = ServiceRouter::default();
+        svc.preload()?;
+
         let mut config = ServiceConfig::default();
         config.base.db_url = "sqlite://db.sqlite".to_string();
         config.base.port = 5000;

@@ -7,6 +7,7 @@ use ppd_shared::{plugin::Plugin, opts::{ServiceAuthMode, ServiceType}};
 
 use crate::{HandlerResult, prelude::state::HandlerState};
 
+#[derive(Default)]
 pub struct ServiceRouter {
     pub svc_type: ServiceType,
     pub auth_mode: ServiceAuthMode,
@@ -38,9 +39,5 @@ impl Plugin for ServiceRouter {
             },
             Grpc => unimplemented!("loading plugin for a grpc server is not implemented."),
         }
-    }
-
-    fn ext(&self) -> &'static str {
-        ".a"
     }
 }

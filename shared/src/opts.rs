@@ -23,8 +23,9 @@ impl Display for ServiceType {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Encode, Decode, Default)]
 pub enum ServiceAuthMode {
+    #[default]
     Client,
     Direct,
     Zero,
