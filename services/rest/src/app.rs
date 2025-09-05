@@ -141,7 +141,7 @@ fn get_client_router(config: &ServiceConfig) -> ServerResult<Router<HandlerState
         };
 
         println!("calling router get...");
-        svc_router.get(max_upload_size)?
+        svc_router.get(max_upload_size).map(|r| r.as_ref().clone())?
     } else {
         Router::new()
     };

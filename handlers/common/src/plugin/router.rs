@@ -1,8 +1,10 @@
 //! implementation of [Plugin](crate::plugins::Plugin) for routers loaded for a [Service](super::service::Service),
 //! depending `config.server.auth_type` parameter.
 
+use std::str;
+
 use axum::Router;
-use libloading::Symbol;
+use libloading::{Library, Symbol};
 use ppd_shared::{plugin::Plugin, opts::{ServiceAuthMode, ServiceType}};
 
 use crate::{HandlerResult, prelude::state::HandlerState};
@@ -14,16 +16,17 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get(&self, max_upload_size: usize) -> HandlerResult<Router<HandlerState>> {
+    pub fn get(&self, max_upload_size: usize) -> HandlerResult<SharedRouter> {
         let filename = self.output()?;
         let lib = self.load(filename)?;
-        
-        println!("getting router symbol...");
-        let load_router: Symbol<fn(usize) -> Router<HandlerState>> =
-            unsafe { lib.get(b"load_router")? };
 
-        println!("router box built successful...");
-        Ok(load_router(max_upload_size))
+        let ptr = unsafe {
+            let load_router: Symbol<unsafe extern "C" fn(usize) -> *mut Router<HandlerState>> = lib.get(b"load_router")?;
+            load_router(max_upload_size)
+        };
+        
+        let router = SharedRouter{ ptr, lib };
+        Ok(router)
     }
 }
 
@@ -38,6 +41,30 @@ impl Plugin for ServiceRouter {
                 _ => unimplemented!("loading plugin for this auth_mode is not supported"),
             },
             Grpc => unimplemented!("loading plugin for a grpc server is not implemented."),
+        }
+    }
+}
+
+/// ffi-safe router shared by dynamic libraries
+pub struct SharedRouter {
+    ptr: *mut Router<HandlerState>,
+    lib: Library
+}
+
+impl SharedRouter {
+    pub fn as_ref(&self) -> &Router<HandlerState> {
+        unsafe { &*self.ptr }
+    }
+}
+
+impl Drop for SharedRouter  {
+    fn drop(&mut self) {
+        unsafe {
+            let free_router = self.lib.get::<unsafe extern "C" fn(*mut Router<HandlerState>)>(b"free_router");
+            match free_router {
+                Ok(call) => call(self.ptr),
+                Err(err) => println!("unable to drop shared router {err}")
+            }
         }
     }
 }
