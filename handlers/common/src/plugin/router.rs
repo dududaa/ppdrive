@@ -21,7 +21,7 @@ impl ServiceRouter {
         let lib = self.load(filename)?;
 
         let ptr = unsafe {
-            let load_router: Symbol<unsafe extern "C" fn(usize) -> *mut Router<HandlerState>> = lib.get(b"load_router")?;
+            let load_router: Symbol<fn(usize) -> *mut Router<HandlerState>> = lib.get(b"load_router")?;
             load_router(max_upload_size)
         };
         
@@ -60,7 +60,7 @@ impl SharedRouter {
 impl Drop for SharedRouter  {
     fn drop(&mut self) {
         unsafe {
-            let free_router = self.lib.get::<unsafe extern "C" fn(*mut Router<HandlerState>)>(b"free_router");
+            let free_router = self.lib.get::<fn(*mut Router<HandlerState>)>(b"free_router");
             match free_router {
                 Ok(call) => call(self.ptr),
                 Err(err) => println!("unable to drop shared router {err}")
