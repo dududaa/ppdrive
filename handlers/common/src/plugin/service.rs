@@ -17,7 +17,7 @@ pub struct Service<'a> {
 
 impl<'a> Service<'a> {
     /// start a rest or grpc service
-    pub fn start(&self, config: ServiceConfig) -> HandlerResult<()> {
+    pub async fn start(&self, config: ServiceConfig) -> HandlerResult<()> {
         let filename = self.output()?;
         let cfg_ptr = Arc::new(config);
         let cfg_raw = Arc::into_raw(cfg_ptr);

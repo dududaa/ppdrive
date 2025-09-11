@@ -15,6 +15,7 @@ use ppd_shared::{
 };
 
 use handlers::plugin::service::Service;
+use tokio_util::sync::CancellationToken;
 
 use crate::errors::{AppResult, Error};
 
@@ -23,7 +24,8 @@ pub struct ServiceManager {
 }
 
 impl ServiceManager {
-    /// start the service manager at the provided port
+    /// start the service manager at the provided port. this is a tcp listener opened at the 
+    /// connected port.
     pub fn start(&mut self, port: Option<u16>) -> AppResult<()> {
         let addr = Self::addr(port);
         let listener = TcpListener::bind(&addr)?;
@@ -44,7 +46,7 @@ impl ServiceManager {
                                 Ok((cmd, _)) => match cmd {
                                     ServiceCommand::Add(config) => {
                                         let info = ServiceInfo::new(config);
-                                        let running = info.running.clone();
+                                        let token = info.token.clone();
 
                                         let port = info.config.base.port;
                                         let id = info.id.clone();
@@ -53,20 +55,9 @@ impl ServiceManager {
 
                                         tokio::spawn(async move {
                                             // start the service
-                                            while running.load(Ordering::Relaxed) {
-                                                let svc = Service::from(&config);
-
-                                                match svc.start(config.clone()) {
-                                                    Ok(_) => tracing::info!(
-                                                        "service {id} successfully started at port {port}"
-                                                    ),
-                                                    Err(err) => {
-                                                        tracing::error!(
-                                                            "unable to start service: {err}"
-                                                        );
-                                                        break;
-                                                    }
-                                                }
+                                            tokio::select! {
+                                                res = svc.start(config.clone()) => {}
+                                                _ = token.cancel() => {}
                                             }
                                         });
 
@@ -86,7 +77,7 @@ impl ServiceManager {
 
                                         let resp = match item {
                                             Some((idx, info)) => {
-                                                info.running.store(false, Ordering::Relaxed);
+                                                info.token.store(false, Ordering::Relaxed);
                                                 self.list.remove(idx);
 
                                                 Response::success(()).message(format!("service {id} removed from manager successfully."))
@@ -98,11 +89,12 @@ impl ServiceManager {
                                     }
 
                                     ServiceCommand::List => {
-                                        let resp =
-                                            Response::success(self.list.clone()).message(format!(
-                                                "list generated for {} service(s)",
-                                                self.list.len()
-                                            ));
+                                        let items: Vec<ServiceItem> =
+                                            self.list.iter().map(|s| s.into()).collect();
+                                        let resp = Response::success(items).message(format!(
+                                            "list generated for {} service(s)",
+                                            self.list.len()
+                                        ));
 
                                         resp.write(&mut socket)?;
                                     }
@@ -150,7 +142,7 @@ impl ServiceManager {
     }
 
     pub fn list(port: Option<u16>) -> AppResult<()> {
-        let resp = Self::send_command::<Vec<ServiceInfo>>(ServiceCommand::List, port)?;
+        let resp = Self::send_command::<Vec<ServiceItem>>(ServiceCommand::List, port)?;
         let list = &resp.body;
 
         resp.log();
@@ -204,11 +196,10 @@ impl Default for ServiceManager {
     }
 }
 
-#[derive(Encode, Decode, Clone)]
 pub struct ServiceInfo {
     id: u8,
     config: ServiceConfig,
-    running: Arc<AtomicBool>,
+    token: Arc<CancellationToken>,
 }
 
 impl ServiceInfo {
@@ -216,7 +207,23 @@ impl ServiceInfo {
         Self {
             id: rand::random(),
             config,
-            running: Arc::new(AtomicBool::new(true)),
+            token: Arc::new(AtomicBool::new(true)),
+        }
+    }
+}
+
+/// serializable [ServiceInfo].
+#[derive(Encode, Decode, Clone)]
+pub struct ServiceItem {
+    id: u8,
+    port: u16,
+}
+
+impl From<&ServiceInfo> for ServiceItem {
+    fn from(value: &ServiceInfo) -> Self {
+        ServiceItem {
+            id: value.id,
+            port: value.config.base.port,
         }
     }
 }
