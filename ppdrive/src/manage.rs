@@ -1,10 +1,7 @@
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::Arc,
 };
 
 use bincode::{Decode, Encode, config};
@@ -24,7 +21,7 @@ pub struct ServiceManager {
 }
 
 impl ServiceManager {
-    /// start the service manager at the provided port. this is a tcp listener opened at the 
+    /// start the service manager at the provided port. this is a tcp listener opened at the
     /// connected port.
     pub fn start(&mut self, port: Option<u16>) -> AppResult<()> {
         let addr = Self::addr(port);
@@ -48,17 +45,21 @@ impl ServiceManager {
                                         let info = ServiceInfo::new(config);
                                         let token = info.token.clone();
 
-                                        let port = info.config.base.port;
                                         let id = info.id.clone();
-
                                         let config = info.config.clone();
 
                                         tokio::spawn(async move {
                                             // start the service
+                                            let svc = Service::from(&config);
                                             tokio::select! {
-                                                res = svc.start(config.clone()) => {}
-                                                _ = token.cancel() => {}
-                                            }
+                                                res = svc.start(config.clone()) => {
+                                                    match res {
+                                                      Ok(_) => tracing::info!("{} started with id {} on port {}", svc.ty(), id, svc.port()),
+                                                      Err(err) => tracing::error!("unable to start service {} on port {}: {err}", svc.ty(), svc.port())
+                                                    }
+                                                }
+                                                _ = token.cancelled() => {}
+                                            };
                                         });
 
                                         let id = info.id;
@@ -77,7 +78,7 @@ impl ServiceManager {
 
                                         let resp = match item {
                                             Some((idx, info)) => {
-                                                info.token.store(false, Ordering::Relaxed);
+                                                info.token.cancel();
                                                 self.list.remove(idx);
 
                                                 Response::success(()).message(format!("service {id} removed from manager successfully."))
@@ -149,7 +150,7 @@ impl ServiceManager {
         if !list.is_empty() {
             for svc in list {
                 let id = svc.id;
-                let port = svc.config.base.port;
+                let port = svc.port;
                 println!("id\t | port");
                 println!("{id}\t | {port}")
             }
@@ -207,7 +208,7 @@ impl ServiceInfo {
         Self {
             id: rand::random(),
             config,
-            token: Arc::new(AtomicBool::new(true)),
+            token: Arc::new(CancellationToken::new()),
         }
     }
 }

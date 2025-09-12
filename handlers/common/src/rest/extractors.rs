@@ -1,8 +1,8 @@
 use std::ops::Deref;
 
-use crate::prelude::{jwt::decode_jwt, state::HandlerState};
 use crate::tools::verify_client;
 use crate::{HandlerResult, errors::HandlerError};
+use crate::{jwt::decode_jwt, prelude::state::HandlerState};
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},

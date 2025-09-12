@@ -1,5 +1,5 @@
 {
-    "rust-analyzer.cargo.features": [
-        // "plugin", "tools", "rest"
-    ]
+    // "rust-analyzer.cargo.features": [
+    //     // "plugin", "tools", "rest"
+    // ]
 }

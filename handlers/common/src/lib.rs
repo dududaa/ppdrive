@@ -4,11 +4,10 @@ use crate::errors::HandlerError;
 
 pub mod errors;
 
-// #[cfg(feature = "prelude")]
-// pub use crate::prelude::{extractors::ClientUser, state::HandlerState};
-
-#[cfg(feature = "prelude")]
 pub mod prelude;
+
+#[cfg(feature = "jwt")]
+pub mod jwt;
 
 #[cfg(feature = "plugin")]
 pub mod plugin;

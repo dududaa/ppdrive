@@ -18,8 +18,8 @@ use tracing_subscriber::util::SubscriberInitExt;
 use crate::errors::ServerError;
 use crate::ServerResult;
 use handlers::{
+    jwt::{BEARER_KEY, BEARER_VALUE},
     prelude::{
-        jwt::{BEARER_KEY, BEARER_VALUE},
         state::HandlerState,
     },
     rest::get_asset,

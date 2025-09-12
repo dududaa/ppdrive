@@ -8,7 +8,8 @@ default = ["prelude"]
 prelude = []
 plugin = ["dep:libloading"]
 tools = ["dep:chacha20poly1305", "dep:hex"]
-rest = ["prelude", "tools"]
+rest = ["prelude", "tools", "jwt"]
+jwt = ["dep:jsonwebtoken"]
 
 [dependencies]
 axum.workspace = true
@@ -18,7 +19,7 @@ ppd_bk.workspace = true
 ppd_fs.workspace = true
 libloading = { workspace = true, optional = true }
 serde.workspace = true
-jsonwebtoken = "9.3.1"
+jsonwebtoken = { version = "9.3.1", optional = true }
 uuid = { workspace = true, features = ["v4"] }
 mime_guess = "2.0.5"
 chrono = "0.4.40"

@@ -8,8 +8,8 @@ use user::*;
 
 use crate::errors::ServerError;
 use handlers::{
+    jwt::{TokenType, create_jwt},
     prelude::{
-        jwt::{TokenType, create_jwt},
         opts::{CreateUserClient, LoginToken, LoginUserClient},
         state::HandlerState,
     },
