@@ -12,3 +12,4 @@ clap = { workspace = true, features = ["derive"] }
 ppd_shared.workspace = true
 bincode.workspace = true
 handlers = { workspace = true, features = ["plugin"] }
+rand = { version = "0.9.2" }

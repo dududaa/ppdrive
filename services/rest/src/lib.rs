@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::sync::{mpsc::Sender, Arc};
 
 use crate::app::{initialize_app, start_logger};
 use errors::ServerError;
-use handlers::plugin::service::ServiceInfo;
 use ppd_bk::db::migration::run_migrations;
 use ppd_shared::opts::ServiceConfig;
+use tokio::runtime::Runtime;
 
 mod app;
 mod errors;
@@ -20,14 +20,21 @@ async fn launch_svc(config: Arc<ServiceConfig>) -> ServerResult<()> {
 }
 
 #[no_mangle]
-pub extern "C" fn start_svc(config: *const ServiceConfig, svc: *const ServiceInfo) {
+pub extern "C" fn start_svc(config: *const ServiceConfig, tx: *const Sender<Arc<Runtime>>) {
     let config = unsafe { Arc::from_raw(config) };
-    let svc = unsafe { Arc::from_raw(svc) };
+    let tx = unsafe { Arc::from_raw(tx) };
 
-    svc.runtime.block_on(async {
-        if let Err(err) = launch_svc(config).await {
-            tracing::error!("{err}");
-            panic!("{err}")
+    if let Ok(rt) = Runtime::new() {
+        let rtc = Arc::new(rt);
+        if let Err(err) = tx.send(rtc.clone()) {
+            tracing::error!("unable to send service runtime: {err}")
         }
-    });
+
+        rtc.block_on(async {
+            if let Err(err) = launch_svc(config).await {
+                tracing::error!("{err}");
+                panic!("{err}")
+            }
+        });
+    }
 }

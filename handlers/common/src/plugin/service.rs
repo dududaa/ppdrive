@@ -1,4 +1,6 @@
-use std::sync::Arc;
+use std::{
+    sync::{Arc, mpsc::Sender},
+};
 
 use super::router::ServiceRouter;
 use crate::HandlerResult;
@@ -18,23 +20,25 @@ pub struct Service<'a> {
 
 impl<'a> Service<'a> {
     /// start a rest or grpc service
-    pub fn start(&self, config: ServiceConfig, svc: Arc<ServiceInfo>) -> HandlerResult<()> {
+    pub fn start(
+        &self,
+        config: ServiceConfig,
+        tx: Arc<Sender<Arc<Runtime>>>,
+    ) -> HandlerResult<()> {
         let filename = self.output()?;
-
-        let tx_raw = Arc::into_raw(svc);
 
         let cfg_ptr = Arc::new(config);
         let cfg_raw = Arc::into_raw(cfg_ptr);
 
+        let tx_raw = Arc::into_raw(tx);
+
         let lib = self.load(filename)?;
-        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig, *const ServiceInfo)> = unsafe {
+        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig, *const Sender<Arc<Runtime>>)> = unsafe {
             lib.get(b"start_svc")
                 .expect("unable to load start_server Symbol")
         };
 
-        unsafe {
-            start(cfg_raw, tx_raw);
-        }
+        unsafe { start(cfg_raw, tx_raw) };
 
         Ok(())
     }
@@ -85,32 +89,5 @@ impl<'a> HasDependecies for Service<'a> {
             .collect();
 
         routers
-    }
-}
-
-pub struct ServiceInfo {
-    id: u8,
-    config: ServiceConfig,
-    pub runtime: Runtime,
-}
-
-impl ServiceInfo {
-    pub fn new(config: &ServiceConfig) -> HandlerResult<Self> {
-        let runtime = Runtime::new()?;
-        let s = Self {
-            id: rand::random(),
-            config: config.clone(),
-            runtime,
-        };
-
-        Ok(s)
-    }
-
-    pub fn id(&self) -> &u8 {
-        &self.id
-    }
-
-    pub fn config(&self) -> &ServiceConfig {
-        &self.config
     }
 }

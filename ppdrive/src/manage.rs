@@ -1,6 +1,7 @@
 use std::{
     io::{Read, Write},
-    net::{TcpListener, TcpStream}, sync::Arc
+    net::{TcpListener, TcpStream},
+    sync::Arc,
 };
 
 use bincode::{Decode, Encode, config};
@@ -10,8 +11,9 @@ use ppd_shared::{
     plugin::{HasDependecies, Plugin},
 };
 
-use handlers::plugin::service::{Service, ServiceInfo};
 use crate::errors::{AppResult, Error};
+use handlers::plugin::service::Service;
+use tokio::runtime::Runtime;
 
 pub struct ServiceManager {
     list: Vec<ServiceInfo>,
@@ -39,50 +41,43 @@ impl ServiceManager {
                             ) {
                                 Ok((cmd, _)) => match cmd {
                                     ServiceCommand::Add(config) => {
-                                        let info = ServiceInfo::new(&config)?;
-                                        
-                                        let shared_info = Arc::new(info);
-                                        let info_clone = shared_info.clone();
+                                        let mut info = ServiceInfo::new(&config);
+
+                                        let (tx, rx) = std::sync::mpsc::channel::<Arc<Runtime>>();
+                                        let shared_tx = Arc::new(tx);
 
                                         tokio::spawn(async move {
-                                            // start the service
-                                            let id = info_clone.id().clone();
                                             let svc = Service::from(&config);
-
-                                            match svc.start(config.clone(), info_clone) {
-                                                Ok(_) => tracing::info!(
-                                                    "{} started with id {id} on port {}",
-                                                    svc.ty(),
-                                                    svc.port()
-                                                ),
-                                                Err(err) => tracing::error!(
-                                                    "unable to start service {} on port {}: {err}",
-                                                    svc.ty(),
-                                                    svc.port()
-                                                ),
+                                            if let Err(err) = svc.start(config.clone(), shared_tx) {
+                                                tracing::error!("unable to start service: {err}")
                                             }
-
                                         });
 
-                                        if let Some(info) = Arc::into_inner(shared_info) {
-                                            let id = info.id().clone();
+                                        if let Ok(rt) = rx.recv() {
+                                            let rt = Arc::into_inner(rt);
+                                            tracing::info!(
+                                                "service runtime received. preparing to add service with runtime status: {}...",
+                                                rt.is_some()
+                                            );
+
+                                            info.runtime = rt;
+
+                                            let id = info.id;
                                             self.list.push(info);
-    
+
                                             let resp = Response::success(id).message(format!("service added to manager with id {id}. run 'ppdrive list' to see running services."));
                                             resp.write(&mut socket)?;
                                         }
                                     }
 
                                     ServiceCommand::Cancel(id) => {
-                                        let item = self
-                                            .list
-                                            .iter()
-                                            .enumerate()
-                                            .find(|item| item.1.id() == &id);
+                                        let item = self.list.iter().position(|item| item.id == id);
 
                                         let resp = match item {
-                                            Some((idx, _info)) => {
-                                                self.list.remove(idx);
+                                            Some(idx) => {
+                                                let item = self.list.remove(idx);
+                                                tracing::debug!("active runtime {}", item.runtime.is_some());
+
                                                 Response::success(()).message(format!("service {id} removed from manager successfully."))
                                             }
                                             None => Response::error(()).message(format!("unable to cancel service with id {id}. it's propably not running.")),
@@ -199,6 +194,22 @@ impl Default for ServiceManager {
     }
 }
 
+pub struct ServiceInfo {
+    id: u8,
+    config: ServiceConfig,
+    runtime: Option<Runtime>,
+}
+
+impl ServiceInfo {
+    pub fn new(config: &ServiceConfig) -> Self {
+        Self {
+            id: rand::random(),
+            config: config.clone(),
+            runtime: None,
+        }
+    }
+}
+
 /// serializable [ServiceInfo].
 #[derive(Encode, Decode, Clone)]
 pub struct ServiceItem {
@@ -209,8 +220,8 @@ pub struct ServiceItem {
 impl From<&ServiceInfo> for ServiceItem {
     fn from(value: &ServiceInfo) -> Self {
         ServiceItem {
-            id: *value.id(),
-            port: value.config().base.port,
+            id: value.id,
+            port: value.config.base.port,
         }
     }
 }
