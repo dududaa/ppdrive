@@ -3,11 +3,13 @@
 
 use std::str;
 
-use axum::Router;
-use libloading::{Library, Symbol};
-use ppd_shared::{plugin::Plugin, opts::{ServiceAuthMode, ServiceType}};
+use libloading::Symbol;
+use ppd_shared::{
+    opts::{ServiceAuthMode, ServiceType},
+    plugin::Plugin,
+};
 
-use crate::{HandlerResult, prelude::state::HandlerState};
+use crate::HandlerResult;
 
 #[derive(Default)]
 pub struct ServiceRouter {
@@ -16,17 +18,16 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get(&self, max_upload_size: usize) -> HandlerResult<SharedRouter> {
+    pub fn get<T>(&self, max_upload_size: usize) -> HandlerResult<*mut T> {
         let filename = self.output()?;
         let lib = self.load(filename)?;
 
         let ptr = unsafe {
-            let load_router: Symbol<fn(usize) -> *mut Router<HandlerState>> = lib.get(b"load_router")?;
+            let load_router: Symbol<fn(usize) -> *mut T> = lib.get(b"load_router")?;
             load_router(max_upload_size)
         };
-        
-        let router = SharedRouter{ ptr, lib };
-        Ok(router)
+
+        Ok(ptr)
     }
 }
 
@@ -41,30 +42,6 @@ impl Plugin for ServiceRouter {
                 _ => unimplemented!("loading plugin for this auth_mode is not supported"),
             },
             Grpc => unimplemented!("loading plugin for a grpc server is not implemented."),
-        }
-    }
-}
-
-/// ffi-safe router shared by dynamic libraries
-pub struct SharedRouter {
-    ptr: *mut Router<HandlerState>,
-    lib: Library
-}
-
-impl SharedRouter {
-    pub fn as_ref(&self) -> &Router<HandlerState> {
-        unsafe { &*self.ptr }
-    }
-}
-
-impl Drop for SharedRouter  {
-    fn drop(&mut self) {
-        unsafe {
-            let free_router = self.lib.get::<fn(*mut Router<HandlerState>)>(b"free_router");
-            match free_router {
-                Ok(call) => call(self.ptr),
-                Err(err) => println!("unable to drop shared router {err}")
-            }
         }
     }
 }

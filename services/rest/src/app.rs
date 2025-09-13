@@ -5,7 +5,7 @@ use axum::http::header::{
 };
 use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
-use handlers::plugin::router::{ServiceRouter, SharedRouter};
+use handlers::plugin::router::ServiceRouter;
 use ppd_shared::opts::{ServiceAuthMode, ServiceConfig, ServiceType};
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
@@ -19,9 +19,7 @@ use crate::errors::ServerError;
 use crate::ServerResult;
 use handlers::{
     jwt::{BEARER_KEY, BEARER_VALUE},
-    prelude::{
-        state::HandlerState,
-    },
+    prelude::state::HandlerState,
     rest::get_asset,
 };
 use ppd_shared::tools::init_secrets;
@@ -64,46 +62,57 @@ async fn serve_app(config: &ServiceConfig) -> ServerResult<()> {
         .allow_methods(Any);
 
     set_var(BEARER_KEY, BEARER_VALUE);
-    if let Ok(client_router) = get_client_router(config) {
-        let router = Router::new()
-            .route("/:asset_type/*asset_path", get(get_asset))
-            .nest("/client", client_router.as_ref().clone())
-            .layer(
-                TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
-                    let matched_path = request
-                        .extensions()
-                        .get::<MatchedPath>()
-                        .map(MatchedPath::as_str);
-    
-                    info_span!(
-                        "http_request",
-                        method = ?request.method(),
-                        matched_path,
-                        some_other_field = tracing::field::Empty,
-                    )
-                }),
-            )
-            .layer(cors)
-            .with_state(state)
-            .into_make_service();
-    
-        match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", &config.base.port)).await {
-            Ok(listener) => {
-                if let Ok(addr) = listener.local_addr() {
-                    tracing::info!("new service listening on {addr}");
-                }
-    
-                axum::serve(listener, router)
-                    .await
-                    .map_err(|err| ServerError::InitError(err.to_string()))?;
+    let client_router_ptr = get_client_router(config);
+    let client_router = unsafe {
+        if client_router_ptr.is_null() {
+            &Router::new()
+        } else {
+            &*client_router_ptr
+        }
+    };
+
+    let svc = Router::new()
+        .route("/:asset_type/*asset_path", get(get_asset))
+        .nest("/client", client_router.clone())
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
+                let matched_path = request
+                    .extensions()
+                    .get::<MatchedPath>()
+                    .map(MatchedPath::as_str);
+
+                info_span!(
+                    "http_request",
+                    method = ?request.method(),
+                    matched_path,
+                    some_other_field = tracing::field::Empty,
+                )
+            }),
+        )
+        .layer(cors)
+        .with_state(state)
+        .into_make_service();
+
+    match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", &config.base.port)).await {
+        Ok(listener) => {
+            if let Ok(addr) = listener.local_addr() {
+                tracing::info!("new service listening on {addr}");
             }
-            Err(err) => {
-                tracing::error!("Error starting listener: {err}");
-                panic!("{err}")
-            }
+
+            axum::serve(listener, svc)
+                .await
+                .map_err(|err| ServerError::InitError(err.to_string()))?;
+        }
+        Err(err) => {
+            tracing::error!("Error starting listener: {err}");
+            panic!("{err}")
         }
     }
 
+    // drop client router
+    unsafe {
+        let _ = Box::from_raw(client_router_ptr);
+    };
 
     Ok(())
 }
@@ -136,22 +145,22 @@ pub async fn initialize_app(config: &ServiceConfig) -> ServerResult<()> {
     serve_app(&config).await
 }
 
-fn get_client_router(config: &ServiceConfig) -> ServerResult<SharedRouter> {
+fn get_client_router(config: &ServiceConfig) -> *mut Router<HandlerState> {
     let max_upload_size = config.base.max_upload_size;
+    let mut router = std::ptr::null_mut();
+
     if config.auth.modes.contains(&ServiceAuthMode::Client) {
         let svc_router = ServiceRouter {
             svc_type: ServiceType::Rest,
             auth_mode: ServiceAuthMode::Client,
         };
 
-        println!("calling router get...");
-        let r = svc_router
-            .get(max_upload_size)?;
-
-        Ok(r)
-    } else {
-        Err(ServerError::InternalError("unable to load client router".to_string()))
+        if let Ok(r) = svc_router.get(max_upload_size) {
+            router = r;
+        }
     }
+
+    router
 }
 
 #[cfg(test)]

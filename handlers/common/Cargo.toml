@@ -6,7 +6,7 @@ edition = "2024"
 [features]
 default = ["prelude"]
 prelude = []
-plugin = ["dep:libloading"]
+plugin = ["dep:libloading", "dep:tokio", "dep:rand"]
 tools = ["dep:chacha20poly1305", "dep:hex"]
 rest = ["prelude", "tools", "jwt"]
 jwt = ["dep:jsonwebtoken"]
@@ -14,6 +14,7 @@ jwt = ["dep:jsonwebtoken"]
 [dependencies]
 axum.workspace = true
 axum-macros.workspace = true
+tokio = { workspace = true, optional = true, features = ["sync"] }
 ppd_shared.workspace = true
 ppd_bk.workspace = true
 ppd_fs.workspace = true
@@ -25,3 +26,4 @@ mime_guess = "2.0.5"
 chrono = "0.4.40"
 chacha20poly1305 = { version = "0.10.1", optional = true }
 hex = { version = "0.4.3", optional = true }
+rand = { version = "0.9.2", optional = true }

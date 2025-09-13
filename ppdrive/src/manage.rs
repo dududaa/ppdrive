@@ -1,7 +1,6 @@
 use std::{
     io::{Read, Write},
-    net::{TcpListener, TcpStream},
-    sync::Arc,
+    net::{TcpListener, TcpStream}, sync::Arc
 };
 
 use bincode::{Decode, Encode, config};
@@ -11,9 +10,7 @@ use ppd_shared::{
     plugin::{HasDependecies, Plugin},
 };
 
-use handlers::plugin::service::Service;
-use tokio_util::sync::CancellationToken;
-
+use handlers::plugin::service::{Service, ServiceInfo};
 use crate::errors::{AppResult, Error};
 
 pub struct ServiceManager {
@@ -42,31 +39,38 @@ impl ServiceManager {
                             ) {
                                 Ok((cmd, _)) => match cmd {
                                     ServiceCommand::Add(config) => {
-                                        let info = ServiceInfo::new(config);
-                                        let token = info.token.clone();
-
-                                        let id = info.id.clone();
-                                        let config = info.config.clone();
+                                        let info = ServiceInfo::new(&config)?;
+                                        
+                                        let shared_info = Arc::new(info);
+                                        let info_clone = shared_info.clone();
 
                                         tokio::spawn(async move {
                                             // start the service
+                                            let id = info_clone.id().clone();
                                             let svc = Service::from(&config);
-                                            tokio::select! {
-                                                res = svc.start(config.clone()) => {
-                                                    match res {
-                                                      Ok(_) => tracing::info!("{} started with id {} on port {}", svc.ty(), id, svc.port()),
-                                                      Err(err) => tracing::error!("unable to start service {} on port {}: {err}", svc.ty(), svc.port())
-                                                    }
-                                                }
-                                                _ = token.cancelled() => {}
-                                            };
+
+                                            match svc.start(config.clone(), info_clone) {
+                                                Ok(_) => tracing::info!(
+                                                    "{} started with id {id} on port {}",
+                                                    svc.ty(),
+                                                    svc.port()
+                                                ),
+                                                Err(err) => tracing::error!(
+                                                    "unable to start service {} on port {}: {err}",
+                                                    svc.ty(),
+                                                    svc.port()
+                                                ),
+                                            }
+
                                         });
 
-                                        let id = info.id;
-                                        self.list.push(info);
-
-                                        let resp = Response::success(id).message(format!("service added to manager with id {id}. run 'ppdrive list' to see running services."));
-                                        resp.write(&mut socket)?;
+                                        if let Some(info) = Arc::into_inner(shared_info) {
+                                            let id = info.id().clone();
+                                            self.list.push(info);
+    
+                                            let resp = Response::success(id).message(format!("service added to manager with id {id}. run 'ppdrive list' to see running services."));
+                                            resp.write(&mut socket)?;
+                                        }
                                     }
 
                                     ServiceCommand::Cancel(id) => {
@@ -74,13 +78,11 @@ impl ServiceManager {
                                             .list
                                             .iter()
                                             .enumerate()
-                                            .find(|item| item.1.id == id);
+                                            .find(|item| item.1.id() == &id);
 
                                         let resp = match item {
-                                            Some((idx, info)) => {
-                                                info.token.cancel();
+                                            Some((idx, _info)) => {
                                                 self.list.remove(idx);
-
                                                 Response::success(()).message(format!("service {id} removed from manager successfully."))
                                             }
                                             None => Response::error(()).message(format!("unable to cancel service with id {id}. it's propably not running.")),
@@ -155,7 +157,7 @@ impl ServiceManager {
                 println!("{id}\t | {port}")
             }
         } else {
-            println!("no service started");
+            println!("no service running");
         }
 
         Ok(())
@@ -197,22 +199,6 @@ impl Default for ServiceManager {
     }
 }
 
-pub struct ServiceInfo {
-    id: u8,
-    config: ServiceConfig,
-    token: Arc<CancellationToken>,
-}
-
-impl ServiceInfo {
-    fn new(config: ServiceConfig) -> Self {
-        Self {
-            id: rand::random(),
-            config,
-            token: Arc::new(CancellationToken::new()),
-        }
-    }
-}
-
 /// serializable [ServiceInfo].
 #[derive(Encode, Decode, Clone)]
 pub struct ServiceItem {
@@ -223,8 +209,8 @@ pub struct ServiceItem {
 impl From<&ServiceInfo> for ServiceItem {
     fn from(value: &ServiceInfo) -> Self {
         ServiceItem {
-            id: value.id,
-            port: value.config.base.port,
+            id: *value.id(),
+            port: value.config().base.port,
         }
     }
 }

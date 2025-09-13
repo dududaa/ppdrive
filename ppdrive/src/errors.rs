@@ -1,5 +1,6 @@
 use bincode::error::{DecodeError, EncodeError};
 use ppd_shared::errors::Error as SharedError;
+use handlers::errors::HandlerError;
 use std::fmt::Display;
 
 pub type AppResult<T> = Result<T, Error>;
@@ -37,6 +38,12 @@ impl From<std::io::Error> for Error {
 
 impl From<SharedError> for Error {
     fn from(value: SharedError) -> Self {
+        Error::InternalError(value.to_string())
+    }
+}
+
+impl From<HandlerError> for Error {
+    fn from(value: HandlerError) -> Self {
         Error::InternalError(value.to_string())
     }
 }

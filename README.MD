@@ -2,12 +2,12 @@
 
 **PPDRIVE** is a free and open-source cloud storage service written in Rust. PPDRIVE service provides a set of RESTful APIs that allows you to manage your remote and local files via secure and blazing fast operations.
 
-If you're building your own version of Google Drive, Microsoft's OneDrive or even Dropbox, PPDRIVE provides a robust, secure, and extensible solution. You can also integrate PPDRIVE into your own applications as an alternative to AWS S3. Building self-hosted media streaming platforms? Build faster using PPDRIVE at zero cost.
+If you're building your own version of Google Drive, Microsoft's OneDrive, Dropbox...etc, PPDRIVE provides a robust, secure, and extensible APIs that allows your users to interact with your server's file system at application level. You can also integrate PPDRIVE into your own applications as an alternative to AWS S3. Building self-hosted media streaming platforms? Build faster using PPDRIVE at zero cost.
 
 ---
 
 ## Why PPDRIVE?
-- **Privacy and Data Control**: All your user, application and business data stay on your server. PPDRIVE does not host, spy or use your data in any way.
+- **Privacy and Data Control**: All your user, application and business data stay on your server. PPDRIVE does not send, spy or use your data in any way.
 - **No vendor lock-in. No hidden charges**: Unlike AWS, GCP and other commercial alternatives, you don't need to pay for anything.
 - **Full Ownership**: We don't collect any "insight" or gain access to any of your data.
 - **Ease of Use**: Flexible service management tools for installing plugins, viewing or cancelling running services.
