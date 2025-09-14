@@ -170,10 +170,3 @@ pub extern "C" fn load_router(max_upload_size: usize) -> *mut Router<HandlerStat
 
     Box::into_raw(boxed)
 }
-
-#[unsafe(no_mangle)]
-pub extern "C" fn free_router(ptr: *mut Router<HandlerState>) {
-    if !ptr.is_null() {
-        unsafe { let _ = Box::from_raw(ptr); }
-    }
-}

@@ -1,4 +1,4 @@
-use std::sync::{mpsc::Sender, Arc};
+use std::sync::{Arc};
 
 use crate::app::{initialize_app, start_logger};
 use errors::ServerError;
@@ -20,17 +20,11 @@ async fn launch_svc(config: Arc<ServiceConfig>) -> ServerResult<()> {
 }
 
 #[no_mangle]
-pub extern "C" fn start_svc(config: *const ServiceConfig, tx: *const Sender<Arc<Runtime>>) {
+pub extern "C" fn start_svc(config: *const ServiceConfig) {
     let config = unsafe { Arc::from_raw(config) };
-    let tx = unsafe { Arc::from_raw(tx) };
 
     if let Ok(rt) = Runtime::new() {
-        let rtc = Arc::new(rt);
-        if let Err(err) = tx.send(rtc.clone()) {
-            tracing::error!("unable to send service runtime: {err}")
-        }
-
-        rtc.block_on(async {
+        rt.block_on(async {
             if let Err(err) = launch_svc(config).await {
                 tracing::error!("{err}");
                 panic!("{err}")

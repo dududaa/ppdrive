@@ -11,10 +11,10 @@ mod manage;
 
 #[tokio::main]
 async fn main() -> AppResult<()> {
-    let _guard = start_logger()?;
+    let guard = start_logger()?;
     let cli = Cli::parse();
 
-    if let Err(err) = cli.run() {
+    if let Err(err) = cli.run(guard).await {
         tracing::error!("{err}")
     }
 

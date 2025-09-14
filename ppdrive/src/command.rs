@@ -1,8 +1,7 @@
-use clap::{Parser, Subcommand, ValueEnum};
 use crate::{errors::AppResult, manage::ServiceManager};
-use ppd_shared::opts::{
-    ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType,
-};
+use clap::{Parser, Subcommand, ValueEnum};
+use ppd_shared::opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType};
+use tracing_appender::non_blocking::WorkerGuard;
 
 /// A free and open-source cloud storage service.
 #[derive(Parser, Debug)]
@@ -17,7 +16,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn run(self) -> AppResult<()> {
+    pub async fn run(self, guard: WorkerGuard) -> AppResult<()> {
         let port = self.port.clone();
 
         match self.command {
@@ -28,24 +27,24 @@ impl Cli {
             } => match select {
                 StartOptions::Manager => {
                     let mut manager = ServiceManager::default();
-                    manager.start(port)?;
+                    manager.start(port, guard).await?;
                 }
                 _ => {
                     let config = ServiceConfig {
                         ty: select.into(),
                         base: base_config,
-                        auth
+                        auth,
                     };
 
                     tracing::info!("adding service to service manager...");
-                    ServiceManager::add(config, port)?;
+                    ServiceManager::add(config, port).await?;
                 }
             },
             CliCommand::Stop { id } => {
-                ServiceManager::cancel(id, port)?;
+                ServiceManager::cancel(id, port).await?;
             }
             CliCommand::List => {
-                ServiceManager::list(port)?;
+                ServiceManager::list(port).await?;
             }
             _ => unimplemented!("this command is not supported"),
         }
@@ -75,7 +74,7 @@ enum CliCommand {
     Install,
 
     /// list services running in service manager
-    List
+    List,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]

@@ -1,20 +1,19 @@
-use std::{
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
-    sync::Arc,
-};
-
 use bincode::{Decode, Encode, config};
 
 use ppd_shared::{
     opts::ServiceConfig,
     plugin::{HasDependecies, Plugin},
 };
+use tokio_util::sync::CancellationToken;
+use tracing::instrument;
+use tracing_appender::non_blocking::WorkerGuard;
 
 use crate::errors::{AppResult, Error};
 use handlers::plugin::service::Service;
-use tokio::runtime::Runtime;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
+#[derive(Debug)]
 pub struct ServiceManager {
     list: Vec<ServiceInfo>,
 }
@@ -22,18 +21,19 @@ pub struct ServiceManager {
 impl ServiceManager {
     /// start the service manager at the provided port. this is a tcp listener opened at the
     /// connected port.
-    pub fn start(&mut self, port: Option<u16>) -> AppResult<()> {
+    #[instrument]
+    pub async fn start(&mut self, port: Option<u16>, _guard: WorkerGuard) -> AppResult<()> {
         let addr = Self::addr(port);
-        let listener = TcpListener::bind(&addr)?;
+        let listener = TcpListener::bind(&addr).await?;
         tracing::info!("service manager listening at {}", addr);
 
         loop {
-            match listener.accept() {
+            match listener.accept().await {
                 Ok((mut socket, _)) => {
                     // we're expecting one connection at a time, so we don't need to start
                     // multiple threads
                     let mut buf = [0u8; 1024];
-                    if let Ok(n) = socket.read(&mut buf) {
+                    if let Ok(n) = socket.read(&mut buf).await {
                         if n > 0 {
                             match bincode::decode_from_slice::<ServiceCommand, _>(
                                 &buf,
@@ -41,60 +41,65 @@ impl ServiceManager {
                             ) {
                                 Ok((cmd, _)) => match cmd {
                                     ServiceCommand::Add(config) => {
-                                        let mut info = ServiceInfo::new(&config);
+                                        let info = ServiceInfo::new(&config);
+                                        let token = info.token.clone();
 
-                                        let (tx, rx) = std::sync::mpsc::channel::<Arc<Runtime>>();
-                                        let shared_tx = Arc::new(tx);
+                                        let id = info.id.clone();
 
                                         tokio::spawn(async move {
-                                            let svc = Service::from(&config);
-                                            if let Err(err) = svc.start(config.clone(), shared_tx) {
-                                                tracing::error!("unable to start service: {err}")
-                                            }
+                                            let handle = tokio::spawn(async move {
+                                                let svc = Service::from(&config);
+                                                tokio::select! {
+                                                    _ = token.cancelled() => {
+                                                        tracing::info!("service has been stopped...");
+                                                    },
+                                                    start = svc.start(config.clone()) => {
+                                                        if let Err(err) = start {
+                                                            tracing::error!("unable to start service: {err}")
+                                                        }
+                                                    },
+                                                }
+                                            });
+
+                                            handle.await.ok()
                                         });
 
-                                        if let Ok(rt) = rx.recv() {
-                                            let rt = Arc::into_inner(rt);
-                                            tracing::info!(
-                                                "service runtime received. preparing to add service with runtime status: {}...",
-                                                rt.is_some()
-                                            );
+                                        self.list.push(info);
 
-                                            info.runtime = rt;
-
-                                            let id = info.id;
-                                            self.list.push(info);
-
-                                            let resp = Response::success(id).message(format!("service added to manager with id {id}. run 'ppdrive list' to see running services."));
-                                            resp.write(&mut socket)?;
-                                        }
+                                        let resp = Response::success(id).message(format!("service added to manager with id {id}. run 'ppdrive list' to see running services."));
+                                        resp.write(&mut socket).await?;
                                     }
 
                                     ServiceCommand::Cancel(id) => {
-                                        let item = self.list.iter().position(|item| item.id == id);
+                                        let item = self
+                                            .list
+                                            .iter()
+                                            .enumerate()
+                                            .find(|(_, item)| item.id == id);
 
                                         let resp = match item {
-                                            Some(idx) => {
-                                                let item = self.list.remove(idx);
-                                                tracing::debug!("active runtime {}", item.runtime.is_some());
+                                            Some((idx, item)) => {
+                                                item.token.cancel();
+                                                self.list.remove(idx);
 
                                                 Response::success(()).message(format!("service {id} removed from manager successfully."))
                                             }
                                             None => Response::error(()).message(format!("unable to cancel service with id {id}. it's propably not running.")),
                                         };
 
-                                        resp.write(&mut socket)?;
+                                        resp.write(&mut socket).await?;
                                     }
 
                                     ServiceCommand::List => {
                                         let items: Vec<ServiceItem> =
                                             self.list.iter().map(|s| s.into()).collect();
+
                                         let resp = Response::success(items).message(format!(
                                             "list generated for {} service(s)",
                                             self.list.len()
                                         ));
 
-                                        resp.write(&mut socket)?;
+                                        resp.write(&mut socket).await?;
                                     }
                                 },
                                 Err(err) => {
@@ -113,7 +118,7 @@ impl ServiceManager {
     }
 
     /// add a new service to the manager
-    pub fn add(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
+    pub async fn add(config: ServiceConfig, port: Option<u16>) -> AppResult<()> {
         let svc = Service::from(&config);
         tracing::info!(
             "starting service {:?} with auth modes {:?}",
@@ -125,22 +130,22 @@ impl ServiceManager {
         svc.preload()?;
 
         // message service manager to load service
-        let resp = Self::send_command::<u8>(ServiceCommand::Add(config), port)?;
+        let resp = Self::send_command::<u8>(ServiceCommand::Add(config), port).await?;
         resp.log();
 
         Ok(())
     }
 
     /// cancel a service in the manager
-    pub fn cancel(id: u8, port: Option<u16>) -> AppResult<()> {
-        let resp = Self::send_command::<()>(ServiceCommand::Cancel(id), port)?;
+    pub async fn cancel(id: u8, port: Option<u16>) -> AppResult<()> {
+        let resp = Self::send_command::<()>(ServiceCommand::Cancel(id), port).await?;
         resp.log();
 
         Ok(())
     }
 
-    pub fn list(port: Option<u16>) -> AppResult<()> {
-        let resp = Self::send_command::<Vec<ServiceItem>>(ServiceCommand::List, port)?;
+    pub async fn list(port: Option<u16>) -> AppResult<()> {
+        let resp = Self::send_command::<Vec<ServiceItem>>(ServiceCommand::List, port).await?;
         let list = &resp.body;
 
         resp.log();
@@ -159,19 +164,24 @@ impl ServiceManager {
     }
 
     /// send a command to manager's tcp connection
-    fn send_command<T: Encode + Decode<()>>(
+    async fn send_command<T: Encode + Decode<()>>(
         cmd: ServiceCommand,
         port: Option<u16>,
     ) -> AppResult<Response<T>> {
         match bincode::encode_to_vec(cmd, config::standard()) {
             Ok(data) => {
                 let addr = Self::addr(port);
-                let mut stream = TcpStream::connect(addr)?;
-                stream.write_all(&data)?;
+                let mut stream = TcpStream::connect(addr).await?;
+                stream.write_all(&data).await?;
+
+                tracing::debug!("request sent");
+                stream.readable().await?;
+                tracing::debug!("reading response...");
 
                 let mut buf = [0u8; 1024];
-                stream.read(&mut buf)?;
+                let n = stream.try_read(&mut buf)?;
 
+                tracing::debug!("response received {n}");
                 let resp = bincode::decode_from_slice(&buf, config::standard())?;
 
                 Ok(resp.0)
@@ -194,10 +204,11 @@ impl Default for ServiceManager {
     }
 }
 
+#[derive(Debug)]
 pub struct ServiceInfo {
     id: u8,
     config: ServiceConfig,
-    runtime: Option<Runtime>,
+    token: CancellationToken,
 }
 
 impl ServiceInfo {
@@ -205,7 +216,7 @@ impl ServiceInfo {
         Self {
             id: rand::random(),
             config: config.clone(),
-            runtime: None,
+            token: CancellationToken::new(),
         }
     }
 }
@@ -279,9 +290,9 @@ impl<T: Encode + Decode<()>> Response<T> {
         }
     }
 
-    fn write(&self, socket: &mut TcpStream) -> AppResult<()> {
+    async fn write(&self, socket: &mut TcpStream) -> AppResult<()> {
         let data = bincode::encode_to_vec(&self, config::standard())?;
-        socket.write_all(&data)?;
+        socket.write_all(&data).await?;
 
         Ok(())
     }

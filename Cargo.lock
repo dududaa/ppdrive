@@ -1948,6 +1948,7 @@ dependencies = [
  "ppd_shared",
  "rand 0.9.2",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",

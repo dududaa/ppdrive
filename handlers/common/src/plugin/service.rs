@@ -1,6 +1,4 @@
-use std::{
-    sync::{Arc, mpsc::Sender},
-};
+use std::sync::Arc;
 
 use super::router::ServiceRouter;
 use crate::HandlerResult;
@@ -9,8 +7,6 @@ use ppd_shared::{
     opts::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::{HasDependecies, Plugin},
 };
-use tokio::runtime::Runtime;
-
 #[derive(Debug)]
 pub struct Service<'a> {
     ty: &'a ServiceType,
@@ -20,25 +16,19 @@ pub struct Service<'a> {
 
 impl<'a> Service<'a> {
     /// start a rest or grpc service
-    pub fn start(
-        &self,
-        config: ServiceConfig,
-        tx: Arc<Sender<Arc<Runtime>>>,
-    ) -> HandlerResult<()> {
+    pub async fn start(&self, config: ServiceConfig) -> HandlerResult<()> {
         let filename = self.output()?;
 
         let cfg_ptr = Arc::new(config);
         let cfg_raw = Arc::into_raw(cfg_ptr);
 
-        let tx_raw = Arc::into_raw(tx);
-
         let lib = self.load(filename)?;
-        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig, *const Sender<Arc<Runtime>>)> = unsafe {
+        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig)> = unsafe {
             lib.get(b"start_svc")
                 .expect("unable to load start_server Symbol")
         };
 
-        unsafe { start(cfg_raw, tx_raw) };
+        unsafe { start(cfg_raw) };
 
         Ok(())
     }
