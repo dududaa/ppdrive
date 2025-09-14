@@ -26,7 +26,7 @@ impl Cli {
                 auth,
             } => match select {
                 StartOptions::Manager => {
-                    let mut manager = ServiceManager::default();
+                    let manager = ServiceManager::default();
                     manager.start(port, guard).await?;
                 }
                 _ => {

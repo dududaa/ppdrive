@@ -1,6 +1,7 @@
 use bincode::error::{DecodeError, EncodeError};
 use ppd_shared::errors::Error as SharedError;
 use handlers::errors::HandlerError;
+use tokio::task::JoinError;
 use std::fmt::Display;
 
 pub type AppResult<T> = Result<T, Error>;
@@ -44,6 +45,12 @@ impl From<SharedError> for Error {
 
 impl From<HandlerError> for Error {
     fn from(value: HandlerError) -> Self {
+        Error::InternalError(value.to_string())
+    }
+}
+
+impl From<JoinError> for Error {
+    fn from(value: JoinError) -> Self {
         Error::InternalError(value.to_string())
     }
 }

@@ -8,6 +8,7 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 mod command;
 mod errors;
 mod manage;
+mod ops;
 
 #[tokio::main]
 async fn main() -> AppResult<()> {
