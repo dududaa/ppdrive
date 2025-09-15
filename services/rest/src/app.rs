@@ -6,7 +6,6 @@ use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
 use handlers::plugin::router::ServiceRouter;
 use ppd_shared::opts::{ServiceAuthMode, ServiceConfig, ServiceType};
-use ppd_shared::plugin::{TTRaw, PluginTransport};
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
@@ -45,7 +44,7 @@ fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
-async fn serve_app(config: &ServiceConfig, tx: TTRaw<CancellationToken>) -> ServerResult<()> {
+async fn serve_app(config: &ServiceConfig, token: *mut CancellationToken) -> ServerResult<()> {
     tracing::debug!("preparing to serve app...");
     let state = HandlerState::new(config).await?;
     let origins = &config.base.allowed_origins;
@@ -100,17 +99,12 @@ async fn serve_app(config: &ServiceConfig, tx: TTRaw<CancellationToken>) -> Serv
                 tracing::info!("new service listening on {addr}");
             }
 
-            let token = CancellationToken::new();
-            let token_clone = token.clone();
-
-            let tx = PluginTransport::from_raw(tx);
-            tracing::debug!("preparing to send token over");
-            tx.send(token).await?;
-
-            tracing::debug!("token sent to host and should be received");
-            tokio::select! {
-                _ = token_clone.cancelled() => {},
-                _ = axum::serve(listener, svc) => {}
+            if !token.is_null() {
+                let token = unsafe { Box::from_raw(token) };
+                tokio::select! {
+                    _ = token.cancelled() => {},
+                    _ = axum::serve(listener, svc) => {}
+                }
             }
 
             // axum::serve(listener, svc)
@@ -153,10 +147,10 @@ pub fn start_logger() -> ServerResult<LoggerGuard> {
     Ok(guard)
 }
 
-pub async fn initialize_app(config: &ServiceConfig, tx: TTRaw<CancellationToken>) -> ServerResult<()> {
+pub async fn initialize_app(config: &ServiceConfig, token: *mut CancellationToken) -> ServerResult<()> {
     // start ppdrive app
     init_secrets().await?;
-    serve_app(&config, tx).await
+    serve_app(&config, token).await
 }
 
 fn get_client_router(config: &ServiceConfig) -> *mut Router<HandlerState> {
@@ -184,6 +178,7 @@ mod tests {
         opts::{ServiceAuthMode, ServiceConfig},
         plugin::{Plugin, PluginTransport},
     };
+    use tokio_util::sync::CancellationToken;
 
     use crate::{app::serve_app, ServerResult};
 
@@ -197,8 +192,9 @@ mod tests {
         config.base.port = 5000;
         config.auth.modes.push(ServiceAuthMode::Client);
 
-        let tx = PluginTransport::new(None);
-        let ca = serve_app(&config, tx.into_raw()).await;
+        let token = Box::new(CancellationToken::new());
+        let token = Box::into_raw(token);
+        let ca = serve_app(&config, token).await;
         if let Err(err) = &ca {
             println!("err: {err}")
         }

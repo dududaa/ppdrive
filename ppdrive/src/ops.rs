@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use bincode::{Decode, Encode, config};
 use handlers::plugin::service::Service;
-use ppd_shared::{opts::{ServiceConfig, ServiceRequest}, plugin::PluginTransport};
+use ppd_shared::opts::{ServiceConfig, ServiceRequest};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
@@ -11,7 +11,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     errors::{AppResult, Error},
-    manage::{ServiceInfo, ServiceTask, Manager},
+    manage::{Manager, ServiceInfo, ServiceTask},
 };
 
 /// adds a new service to the task pool
@@ -19,48 +19,27 @@ async fn start_service(
     manager: Manager,
     config: ServiceConfig,
     socket: &mut TcpStream,
-    server_addr: String,
 ) -> AppResult<()> {
+    let token = CancellationToken::new();
     let mut task = ServiceTask::new(&config);
-    
-    let tx = PluginTransport::new(Some(server_addr));
-    let tx_clone = tx.clone();
-    
-    tracing::debug!("spawning new service...");
+    task.token = Some(token.clone());
+
     tokio::spawn(async move {
+        tracing::debug!("calling start with tx...");
         let svc = Service::from(&config);
-        tracing::debug!("calling start with tx");
-        if let Err(err) = svc.start::<CancellationToken>(config.clone(), tx_clone) {
+        if let Err(err) = svc.start::<CancellationToken>(config.clone(), token) {
             tracing::error!("unable to start server: {err}")
         }
     });
-    
-    // wait for token to be sent by tx
-    let token_await = manager.token_await.load(Ordering::Relaxed);
-    
-    loop {
-        tracing::debug!("listening for input...");
-        if !token_await {
-            tracing::debug!("incoming token received...");
-            manager.token_await.store(true, Ordering::Relaxed);
-            break;
-        }
-    }
-
-    match tx.recv().await {
-        Some(token) => task.token = Some(token),
-        None => tracing::error!("could not receive token"),
-    }
 
     let mut tasks = manager.tasks.lock().await;
     let id = task.id.clone();
     tasks.push(task);
 
     std::mem::drop(tasks); // drop tasks MutexGuard to prevent deadlock
-    let resp = Response::success(id)
-        .message(format!(
-            "service added to manager with id {id}. run 'ppdrive list' to see running services."
-        ));
+    let resp = Response::success(id).message(format!(
+        "service added to manager with id {id}. run 'ppdrive list' to see running services."
+    ));
 
     resp.write(socket).await?;
 
@@ -68,11 +47,7 @@ async fn start_service(
 }
 
 /// stop a running service with the given id
-async fn stop_service(
-    manager: Manager,
-    id: u8,
-    socket: &mut TcpStream,
-) -> AppResult<()> {
+async fn stop_service(manager: Manager, id: u8, socket: &mut TcpStream) -> AppResult<()> {
     let mut tasks = manager.tasks.lock().await;
     let item = tasks.iter().enumerate().find(|(_, item)| item.id == id);
 
@@ -112,7 +87,6 @@ async fn list_services(manager: Manager, socket: &mut TcpStream) -> AppResult<()
 pub async fn process_request(
     socket: &mut TcpStream,
     manager: Manager,
-    server_addr: String,
 ) -> AppResult<()> {
     let mut buf = [0u8; 1024];
     let n = socket.read(&mut buf).await?;
@@ -120,24 +94,18 @@ pub async fn process_request(
     if n <= 0 {
         return Err(Error::InternalError("invalid packet received".to_string()));
     }
-    
+
     let (req, _) = bincode::decode_from_slice::<ServiceRequest, _>(&buf, config::standard())?;
 
     match req {
-        ServiceRequest::Add(config) => {
-            start_service(manager, config, socket, server_addr).await
-        }
+        ServiceRequest::Add(config) => start_service(manager, config, socket).await,
 
-        ServiceRequest::Cancel(id) => {
-            stop_service(manager, id, socket).await
-        }
+        ServiceRequest::Cancel(id) => stop_service(manager, id, socket).await,
 
-        ServiceRequest::List => {
-            list_services(manager, socket).await
-        }
+        ServiceRequest::List => list_services(manager, socket).await,
 
         ServiceRequest::TokenReceived => {
-            manager.token_await.store(false, Ordering::Relaxed);
+            manager.token_await.store(false, Ordering::SeqCst);
             Ok(())
         }
     }

@@ -36,16 +36,14 @@ impl ServiceManager {
         let listener = TcpListener::bind(&addr).await?;
 
         let manager = Arc::new(self);
-        tracing::info!("service manager listening at {}", addr);
+        tracing::info!("ppdrive service manager listening at {}", addr);
 
         loop {
             let tasks = manager.clone();
-            let addr = addr.clone();
-
             match listener.accept().await {
                 Ok((mut socket, _)) => {
                     tokio::spawn(async move {
-                        if let Err(err) = process_request(&mut socket, tasks, addr).await {
+                        if let Err(err) = process_request(&mut socket, tasks).await {
                             tracing::error!("unable to process request: {err}")
                         }
                     });
