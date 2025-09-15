@@ -1,4 +1,3 @@
-use std::env::set_var;
 use axum::http::header::{
     ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
 };
@@ -6,6 +5,7 @@ use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
 use handlers::plugin::router::ServiceRouter;
 use ppd_shared::opts::{ServiceAuthMode, ServiceConfig, ServiceType};
+use std::env::set_var;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
@@ -147,7 +147,10 @@ pub fn start_logger() -> ServerResult<LoggerGuard> {
     Ok(guard)
 }
 
-pub async fn initialize_app(config: &ServiceConfig, token: *mut CancellationToken) -> ServerResult<()> {
+pub async fn initialize_app(
+    config: &ServiceConfig,
+    token: *mut CancellationToken,
+) -> ServerResult<()> {
     // start ppdrive app
     init_secrets().await?;
     serve_app(&config, token).await
@@ -176,7 +179,7 @@ mod tests {
     use handlers::plugin::router::ServiceRouter;
     use ppd_shared::{
         opts::{ServiceAuthMode, ServiceConfig},
-        plugin::{Plugin, PluginTransport},
+        plugin::Plugin,
     };
     use tokio_util::sync::CancellationToken;
 

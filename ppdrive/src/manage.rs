@@ -1,9 +1,9 @@
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{Arc, atomic::AtomicBool};
 
 use bincode::{Decode, Encode, config};
 
 use ppd_shared::{
-    opts::{ServiceConfig, ServiceRequest},
+    opts::ServiceConfig,
     plugin::{HasDependecies, Plugin},
 };
 use tokio_util::sync::CancellationToken;
@@ -12,7 +12,7 @@ use tracing_appender::non_blocking::WorkerGuard;
 
 use crate::{
     errors::{AppResult, Error},
-    ops::{Response, process_request},
+    ops::{process_request, Response, ServiceRequest},
 };
 use handlers::plugin::service::Service;
 use tokio::io::AsyncWriteExt;
@@ -24,7 +24,7 @@ pub type Manager = Arc<ServiceManager>;
 #[derive(Debug)]
 pub struct ServiceManager {
     pub tasks: Mutex<Vec<ServiceTask>>,
-    pub token_await: AtomicBool
+    pub token_await: AtomicBool,
 }
 
 impl ServiceManager {
@@ -136,7 +136,7 @@ impl Default for ServiceManager {
     fn default() -> Self {
         ServiceManager {
             tasks: Mutex::new(vec![]),
-            token_await: AtomicBool::new(true)
+            token_await: AtomicBool::new(true),
         }
     }
 }

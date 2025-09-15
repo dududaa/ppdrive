@@ -1,17 +1,7 @@
-use std::{path::PathBuf, sync::Arc};
-
-use bincode::config;
 use libloading::Library;
-use tokio::{
-    io::AsyncWriteExt,
-    net::TcpStream,
-    sync::{
-        Mutex,
-        mpsc::{self, Receiver, Sender},
-    },
-};
 
-use crate::{AppResult, errors::Error, opts::ServiceRequest, tools::root_dir};
+use crate::{AppResult, tools::root_dir};
+use std::path::PathBuf;
 
 pub trait Plugin {
     /// package name of the plugin, as declared in manifest (Cargo.toml)
@@ -147,75 +137,4 @@ pub trait HasDependecies: Plugin {
     }
 
     fn dependecies(&self) -> Vec<Box<dyn Plugin>>;
-}
-
-pub type TTRaw<T> = *const TTChannel<T>;
-type TransportInner<T> = Arc<TTChannel<T>>;
-
-/// A transport to send a oneshot message between plugins. Originally designed for exchaging
-/// cancellation tokens between service manager and services.
-pub struct PluginTransport<T>(TransportInner<T>);
-
-impl<T> PluginTransport<T> {
-    pub fn new(rx_addr: Option<String>) -> Self {
-        let (tx, rx) = mpsc::channel::<T>(1);
-        let state = TTChannelState { tx, rx, rx_addr };
-
-        let inner = Arc::new(Mutex::new(state));
-        Self(inner)
-    }
-
-    /// send the item and inform the server about the status
-    pub async fn send(&self, value: T) -> AppResult<()> {
-        let state = self.0.lock().await;
-        let tx = &state.tx;
-
-        tx.send(value)
-            .await
-            .map_err(|_| Error::ServerError("unable to send token".to_string()))?;
-
-        let addr = &state.rx_addr.clone();
-        std::mem::drop(state);
-
-        if let Some(addr) = addr {
-            let mut stream = TcpStream::connect(addr).await?;
-            let data = bincode::encode_to_vec(ServiceRequest::TokenReceived, config::standard())
-                .map_err(|err| Error::ServerError(err.to_string()))?;
-            stream.write(&mut data.as_slice()).await?;
-        }
-
-        Ok(())
-    }
-
-    pub async fn recv(self) -> Option<T> {
-        let mut state = self.0.lock().await;
-        tracing::debug!("receive state lock acquired");
-
-        state.rx.recv().await
-    }
-
-    pub fn into_raw(self) -> TTRaw<T> {
-        tracing::debug!("converting tx to raw...");
-        Arc::into_raw(self.0)
-    }
-
-    pub fn from_raw(ptr: TTRaw<T>) -> Self {
-        let inner = unsafe { Arc::from_raw(ptr) };
-        Self(inner)
-    }
-}
-
-impl<T> Clone for PluginTransport<T> {
-    fn clone(&self) -> Self {
-        let ptr = self.0.clone();
-
-        Self(ptr)
-    }
-}
-
-type TTChannel<T> = Mutex<TTChannelState<T>>;
-pub struct TTChannelState<T> {
-    tx: Sender<T>,
-    rx: Receiver<T>,
-    rx_addr: Option<String>,
 }

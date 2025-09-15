@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use bincode::{Decode, Encode, config};
 use handlers::plugin::service::Service;
-use ppd_shared::opts::{ServiceConfig, ServiceRequest};
+use ppd_shared::opts::ServiceConfig;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
@@ -84,10 +84,7 @@ async fn list_services(manager: Manager, socket: &mut TcpStream) -> AppResult<()
     Ok(())
 }
 
-pub async fn process_request(
-    socket: &mut TcpStream,
-    manager: Manager,
-) -> AppResult<()> {
+pub async fn process_request(socket: &mut TcpStream, manager: Manager) -> AppResult<()> {
     let mut buf = [0u8; 1024];
     let n = socket.read(&mut buf).await?;
 
@@ -167,4 +164,20 @@ impl<T: Encode + Decode<()>> Response<T> {
 enum ResponseType {
     Success,
     Error,
+}
+
+#[derive(Encode, Decode, Debug)]
+/// service management request type
+pub enum ServiceRequest {
+    /// add a new service with the provided config
+    Add(ServiceConfig),
+
+    /// cancel and remove a service with the given id
+    Cancel(u8),
+
+    /// list running services
+    List,
+
+    /// a request to confirm that service token has been sent to this management server
+    TokenReceived,
 }
