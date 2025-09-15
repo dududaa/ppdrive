@@ -1,5 +1,4 @@
 use std::env::set_var;
-
 use axum::http::header::{
     ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
 };
@@ -7,6 +6,8 @@ use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
 use handlers::plugin::router::ServiceRouter;
 use ppd_shared::opts::{ServiceAuthMode, ServiceConfig, ServiceType};
+use ppd_shared::plugin::{TTRaw, PluginTransport};
+use tokio_util::sync::CancellationToken;
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
@@ -15,7 +16,6 @@ use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::errors::ServerError;
 use crate::ServerResult;
 use handlers::{
     jwt::{BEARER_KEY, BEARER_VALUE},
@@ -45,7 +45,7 @@ fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
-async fn serve_app(config: &ServiceConfig) -> ServerResult<()> {
+async fn serve_app(config: &ServiceConfig, tx: TTRaw) -> ServerResult<()> {
     let state = HandlerState::new(config).await?;
     let origins = &config.base.allowed_origins;
 
@@ -99,9 +99,22 @@ async fn serve_app(config: &ServiceConfig) -> ServerResult<()> {
                 tracing::info!("new service listening on {addr}");
             }
 
-            axum::serve(listener, svc)
-                .await
-                .map_err(|err| ServerError::InitError(err.to_string()))?;
+            let token = CancellationToken::new();
+            let token_clone = token.clone();
+
+            let tx = PluginTransport::from_raw(tx);
+            tracing::debug!("preparing to send token over");
+            tx.send(token).await?;
+
+            tracing::debug!("token sent to host and should be received");
+            tokio::select! {
+                _ = token_clone.cancelled() => {},
+                _ = axum::serve(listener, svc) => {}
+            }
+
+            // axum::serve(listener, svc)
+            //     .await
+            //     .map_err(|err| ServerError::InitError(err.to_string()))?;
         }
         Err(err) => {
             tracing::error!("Error starting listener: {err}");
@@ -139,10 +152,10 @@ pub fn start_logger() -> ServerResult<LoggerGuard> {
     Ok(guard)
 }
 
-pub async fn initialize_app(config: &ServiceConfig) -> ServerResult<()> {
+pub async fn initialize_app(config: &ServiceConfig, tx: TTRaw) -> ServerResult<()> {
     // start ppdrive app
     init_secrets().await?;
-    serve_app(&config).await
+    serve_app(&config, tx).await
 }
 
 fn get_client_router(config: &ServiceConfig) -> *mut Router<HandlerState> {
@@ -168,7 +181,7 @@ mod tests {
     use handlers::plugin::router::ServiceRouter;
     use ppd_shared::{
         opts::{ServiceAuthMode, ServiceConfig},
-        plugin::Plugin,
+        plugin::{Plugin, PluginTransport},
     };
 
     use crate::{app::serve_app, ServerResult};
@@ -183,7 +196,8 @@ mod tests {
         config.base.port = 5000;
         config.auth.modes.push(ServiceAuthMode::Client);
 
-        let ca = serve_app(&config).await;
+        let tx = PluginTransport::new();
+        let ca = serve_app(&config, tx.into_raw()).await;
         if let Err(err) = &ca {
             println!("err: {err}")
         }

@@ -6,12 +6,13 @@ use ppd_shared::{
     opts::ServiceConfig,
     plugin::{HasDependecies, Plugin},
 };
+use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use tracing_appender::non_blocking::WorkerGuard;
 
 use crate::{
     errors::{AppResult, Error},
-    ops::{Response, ServiceCommand, TaskHandle, process_request},
+    ops::{Response, ServiceCommand, process_request},
 };
 use handlers::plugin::service::Service;
 use tokio::io::AsyncWriteExt;
@@ -143,7 +144,7 @@ impl Default for ServiceManager {
 pub struct ServiceTask {
     pub id: u8,
     pub config: ServiceConfig,
-    pub handle: Option<TaskHandle<()>>,
+    pub token: Option<CancellationToken>,
 }
 
 impl ServiceTask {
@@ -151,7 +152,7 @@ impl ServiceTask {
         Self {
             id: rand::random(),
             config: config.clone(),
-            handle: None,
+            token: None,
         }
     }
 }

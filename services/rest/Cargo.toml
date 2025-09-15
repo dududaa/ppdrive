@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 axum ={ workspace = true, features = ["multipart"]}
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio-util.workspace = true
 tower = "0.4.13"
 tower-http = { version = "0.5.1", features = [
     "cors",

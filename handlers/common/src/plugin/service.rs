@@ -5,8 +5,9 @@ use crate::HandlerResult;
 use libloading::Symbol;
 use ppd_shared::{
     opts::{ServiceAuthMode, ServiceConfig, ServiceType},
-    plugin::{HasDependecies, Plugin},
+    plugin::{HasDependecies, Plugin, PluginTransport, TTRaw},
 };
+
 #[derive(Debug)]
 pub struct Service<'a> {
     ty: &'a ServiceType,
@@ -16,19 +17,19 @@ pub struct Service<'a> {
 
 impl<'a> Service<'a> {
     /// start a rest or grpc service
-    pub fn start(&self, config: ServiceConfig) -> HandlerResult<()> {
+    pub fn start(&self, config: ServiceConfig, tx: PluginTransport) -> HandlerResult<()> {
         let filename = self.output()?;
 
         let cfg_ptr = Arc::new(config);
         let cfg_raw = Arc::into_raw(cfg_ptr);
 
         let lib = self.load(filename)?;
-        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig)> = unsafe {
+        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig, TTRaw)> = unsafe {
             lib.get(b"start_svc")
                 .expect("unable to load start_server Symbol")
         };
 
-        unsafe { start(cfg_raw) };
+        unsafe { start(cfg_raw, tx.into_raw()) };
 
         Ok(())
     }

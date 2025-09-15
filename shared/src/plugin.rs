@@ -1,8 +1,10 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use libloading::Library;
+use tokio::sync::{mpsc::{self, Receiver, Sender}, Mutex};
+use tokio_util::sync::CancellationToken;
 
-use crate::{AppResult, tools::root_dir};
+use crate::{AppResult, errors::Error, tools::root_dir};
 
 pub trait Plugin {
     /// package name of the plugin, as declared in manifest (Cargo.toml)
@@ -138,4 +140,69 @@ pub trait HasDependecies: Plugin {
     }
 
     fn dependecies(&self) -> Vec<Box<dyn Plugin>>;
+}
+
+pub type TTRaw<T> = *const TTChannel<T>;
+type TransportInner<T> = Arc<TTChannel<T>>;
+
+pub struct PluginTransport<T>(TransportInner<T>);
+
+impl<T> PluginTransport<T> {
+    pub fn new() -> Self {
+        let c = mpsc::channel::<T>(1);
+        let inner = Arc::new(Mutex::new(c.into()));
+        Self(inner)
+    }
+
+    pub async fn send(&self, value: T) -> AppResult<()> {
+        let mut state = self.0.lock().await;
+        let tx = &state.tx;
+
+        tx.send(value)
+            .await
+            .map_err(|_| Error::ServerError("unable to send token".to_string()))?;
+
+        state.sent = true;
+        Ok(())
+    }
+
+    pub async fn recv(self) -> Option<T> {
+        let mut state = self
+            .0
+            .lock()
+            .await;
+
+
+        state.rx.recv().await
+    }
+
+    pub fn into_raw(self) -> TTRaw<T> {
+        Arc::into_raw(self.0)
+    }
+
+    pub fn from_raw(ptr: TTRaw<T>) -> Self {
+        let inner = unsafe { Arc::from_raw(ptr) };
+        Self(inner)
+    }
+}
+
+impl<T> Clone for PluginTransport<T> {
+    fn clone(&self) -> Self {
+        let ptr = self.0.clone();
+
+        Self(ptr)
+    }
+}
+
+type TTChannel<T> = Mutex<TTChannelState<T>>;
+pub struct TTChannelState<T> {
+    tx: Sender<T>,
+    rx: Receiver<T>,
+    sent: bool
+}
+
+impl<T> From<(Sender<T>, Receiver<T>)> for TTChannelState<T> {
+    fn from(value: (Sender<T>, Receiver<T>)) -> Self {
+        Self { tx: value.0, rx: value.1, sent: false }
+    }
 }

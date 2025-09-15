@@ -5,17 +5,15 @@ use std::{
 
 use bincode::{Decode, Encode, config};
 use handlers::plugin::service::Service;
-use ppd_shared::opts::ServiceConfig;
+use ppd_shared::{opts::ServiceConfig, plugin::PluginTransport};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-    task::{JoinError, JoinHandle},
+    io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, task::{JoinError, JoinHandle}
 };
 
 use crate::{
     errors::{AppResult, Error},
     manage::{ServiceInfo, ServiceTask, TaskList},
-};
+}; 
 
 /// adds a new service to the task pool
 async fn start_service(
@@ -27,17 +25,29 @@ async fn start_service(
     let mut task = ServiceTask::new(&config);
     let id = task.id.clone();
 
-    let handle = spawn_service(async move {
+    let tx = PluginTransport::new();
+    let tx_clone = tx.clone();
+
+    tracing::debug!("spawning new servince...");
+    tokio::spawn(async move {
         let svc = Service::from(&config);
-        if let Err(err) = svc.start(config.clone()) {
+        if let Err(err) = svc.start(config.clone(), tx_clone) {
             tracing::error!("unable to start server: {err}")
         }
     });
 
-    task.handle = Some(handle);
-    tasks.push(task);
+    tracing::debug!("awaiting token...");
+    match tx.recv().await {
+        Some(token) => {
+            tracing::debug!("service token received");
+            task.token = Some(token)
+        }
+        None => tracing::error!("could not receive token")
+    }
 
+    tasks.push(task);
     std::mem::drop(tasks); // drop tasks MutexGuard to prevent deadlock
+
     let resp = Response::success(id).message(format!(
         "service added to manager with id {id}. run 'ppdrive list' to see running services."
     ));
@@ -56,13 +66,11 @@ async fn stop_service(
 
     let resp = match item {
         Some((idx, item)) => {
-            // if let Some(handle) = &item.handle {
-            //     handle.abort();
-            // }
+            if let Some(token) = &item.token {
+                token.cancel();
+            }
 
-            let item = tasks.remove(idx);
-            std::mem::drop(item);
-
+            tasks.remove(idx);
             Response::success(())
                 .message(format!("service {id} removed from manager successfully."))
         }
