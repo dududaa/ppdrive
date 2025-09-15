@@ -20,26 +20,23 @@ impl Cli {
         let port = self.port.clone().unwrap_or(5025);
 
         match self.command {
-            CliCommand::Start {
-                select,
+            CliCommand::Start => {
+                let manager = ServiceManager::default();
+                manager.start(port, guard).await?;
+            }
+            CliCommand::Run {
+                svc,
                 base_config,
                 auth,
-            } => match select {
-                StartOptions::Manager => {
-                    let manager = ServiceManager::default();
-                    manager.start(port, guard).await?;
-                }
-                _ => {
-                    let config = ServiceConfig {
-                        ty: select.into(),
-                        base: base_config,
-                        auth,
-                    };
+            } => {
+                let config = ServiceConfig {
+                    ty: svc,
+                    base: base_config,
+                    auth,
+                };
 
-                    tracing::info!("adding service to service manager...");
-                    ServiceManager::add(config, port).await?;
-                }
-            },
+                ServiceManager::add(config, port).await?;
+            }
             CliCommand::Stop { id } => {
                 ServiceManager::cancel(id, port).await?;
             }
@@ -55,10 +52,12 @@ impl Cli {
 
 #[derive(Subcommand, Debug)]
 enum CliCommand {
-    /// start a service or service manager
-    Start {
-        #[arg(value_enum)]
-        select: StartOptions,
+    /// start ppdrive service manager
+    Start,
+
+    /// run a ppdrive service
+    Run {
+        svc: ServiceType,
 
         #[command(flatten)]
         base_config: ServiceBaseConfig,
