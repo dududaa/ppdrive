@@ -25,7 +25,6 @@ async fn start_service(
     task.token = Some(token.clone());
 
     tokio::spawn(async move {
-        tracing::debug!("calling start with tx...");
         let svc = Service::from(&config);
         if let Err(err) = svc.start::<CancellationToken>(config.clone(), token) {
             tracing::error!("unable to start server: {err}")

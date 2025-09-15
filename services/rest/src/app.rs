@@ -45,7 +45,6 @@ fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
 }
 
 async fn serve_app(config: &ServiceConfig, token: *mut CancellationToken) -> ServerResult<()> {
-    tracing::debug!("preparing to serve app...");
     let state = HandlerState::new(config).await?;
     let origins = &config.base.allowed_origins;
 
