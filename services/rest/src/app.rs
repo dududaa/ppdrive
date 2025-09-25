@@ -187,7 +187,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_app() -> ServerResult<()> {
         let svc = ServiceRouter::default();
-        svc.preload()?;
+        svc.preload(true)?;
 
         let mut config = ServiceConfig::default();
         config.base.db_url = "sqlite://db.sqlite".to_string();

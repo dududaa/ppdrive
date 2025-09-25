@@ -16,3 +16,8 @@ handlers = { workspace = true, features = ["rest"] }
 ppd_shared.workspace = true
 ppd_bk.workspace = true
 ppd_fs.workspace = true
+
+[dev-dependencies]
+axum-test = "16"
+futures = "0.3.31"
+serial_test = "3.2.0"

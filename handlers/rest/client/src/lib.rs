@@ -7,6 +7,7 @@ use axum_macros::debug_handler;
 use user::*;
 
 use crate::errors::ServerError;
+
 use handlers::{
     jwt::{TokenType, create_jwt},
     prelude::{
@@ -140,7 +141,7 @@ async fn create_bucket(
 }
 
 /// Routes for external clients.
-pub fn client_routes(max_upload_size: usize) -> Router<HandlerState> {
+fn client_routes(max_upload_size: usize) -> Router<HandlerState> {
     let limit = mb_to_bytes(max_upload_size);
 
     Router::new()

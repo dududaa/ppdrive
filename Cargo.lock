@@ -2400,11 +2400,14 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "axum-macros",
+ "axum-test",
+ "futures",
  "handlers",
  "ppd_bk",
  "ppd_fs",
  "ppd_shared",
  "serde_json",
+ "serial_test",
  "tokio",
  "uuid",
 ]
