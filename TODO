@@ -1,3 +1,4 @@
-- Add Client Router tests
+- ~~Add Client Router tests~~
 - Add "Create Client" cli command
 - Start writing first tutorial
+- Implement Direct and Zero auth type for Rest Service
