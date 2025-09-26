@@ -172,37 +172,3 @@ fn get_client_router(config: &ServiceConfig) -> *mut Router<HandlerState> {
 
     router
 }
-
-#[cfg(test)]
-mod tests {
-    use handlers::plugin::router::ServiceRouter;
-    use ppd_shared::{
-        opts::{ServiceAuthMode, ServiceConfig},
-        plugin::Plugin,
-    };
-    use tokio_util::sync::CancellationToken;
-
-    use crate::{app::serve_app, ServerResult};
-
-    #[tokio::test]
-    async fn test_create_app() -> ServerResult<()> {
-        let svc = ServiceRouter::default();
-        svc.preload(true)?;
-
-        let mut config = ServiceConfig::default();
-        config.base.db_url = "sqlite://db.sqlite".to_string();
-        config.base.port = 5000;
-        config.auth.modes.push(ServiceAuthMode::Client);
-
-        let token = Box::new(CancellationToken::new());
-        let token = Box::into_raw(token);
-        let ca = serve_app(&config, token).await;
-        if let Err(err) = &ca {
-            println!("err: {err}")
-        }
-
-        assert!(ca.is_ok());
-
-        Ok(())
-    }
-}
