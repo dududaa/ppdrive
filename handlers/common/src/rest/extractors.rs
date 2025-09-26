@@ -96,11 +96,7 @@ where
 
 async fn get_local_user(state: &HandlerState, header: &HeaderValue) -> HandlerResult<RequestUser> {
     let secrets = state.secrets();
-    // let db = state.db();
-
     let claims = decode_jwt(header, secrets.jwt_secret())?;
-    // let user = Users::get(db, &claims.sub).await?;
-    // let id = user.id().to_owned();
-
+    
     Ok(RequestUser { id: claims.sub })
 }

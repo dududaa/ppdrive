@@ -125,8 +125,9 @@ pub async fn get_folder_size(folder_path: &str, size: &mut u64) -> Result<(), Er
 
 pub fn get_env(key: &str) -> Result<String, Error> {
     let value = std::env::var(key).map_err(|err| {
-        tracing::error!("unable to get var {key}: {err}");
-        Error::ServerError(err.to_string())
+        let msg = format!("unable to get var {key}: {err}");
+        tracing::error!(msg);
+        Error::ServerError(msg)
     })?;
 
     Ok(value)
