@@ -123,16 +123,6 @@ pub async fn get_folder_size(folder_path: &str, size: &mut u64) -> Result<(), Er
     Ok(())
 }
 
-pub fn get_env(key: &str) -> Result<String, Error> {
-    let value = std::env::var(key).map_err(|err| {
-        let msg = format!("unable to get var {key}: {err}");
-        tracing::error!(msg);
-        Error::ServerError(msg)
-    })?;
-
-    Ok(value)
-}
-
 pub fn mb_to_bytes(value: usize) -> usize {
     value * 1024 * 1000
 }

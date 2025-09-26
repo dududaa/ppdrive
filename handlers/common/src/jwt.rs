@@ -2,12 +2,12 @@ use std::str::from_utf8;
 
 use axum::http::HeaderValue;
 use chrono::Utc;
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::HandlerError;
 
-use ppd_shared::tools::get_env;
+use ppd_shared::opts::ServiceConfig;
 
 pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
 pub const BEARER_VALUE: &str = "Bearer";
@@ -25,8 +25,12 @@ pub struct Claims {
     pub ty: TokenType,
 }
 
-pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Claims, HandlerError> {
-    let token = extract_jwt(header_value)?;
+pub(crate) fn decode_jwt(
+    header_value: &HeaderValue,
+    secret: &[u8],
+    config: &ServiceConfig,
+) -> Result<Claims, HandlerError> {
+    let token = extract_jwt(header_value, &config.auth.bearer)?;
 
     let mut validation = Validation::default();
     validation.algorithms = vec![Algorithm::HS512];
@@ -37,9 +41,7 @@ pub(crate) fn decode_jwt(header_value: &HeaderValue, secret: &[u8]) -> Result<Cl
     Ok(decoded.claims)
 }
 
-fn extract_jwt(header_value: &HeaderValue) -> Result<String, HandlerError> {
-    let bearer = get_env(BEARER_KEY)?;
-
+fn extract_jwt(header_value: &HeaderValue, bearer: &str) -> Result<String, HandlerError> {
     let bearer = format!("{} ", bearer);
     let bearer = bearer.as_str();
 

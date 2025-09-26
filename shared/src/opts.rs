@@ -82,6 +82,9 @@ pub struct ServiceAuthConfig {
     /// external url to be used for authentication.
     #[arg(long("auth-url"))]
     pub url: Option<String>,
+
+    #[arg(long("jwt-bearer"), default_value_t = DEFAULT_JWT_BEARER.to_string())]
+    pub bearer: String
 }
 
 impl Default for ServiceAuthConfig {
@@ -91,6 +94,7 @@ impl Default for ServiceAuthConfig {
             access_exp: DEFAULT_ACCESS_TOKEN_EXP,
             refresh_exp: DEFAULT_REFRESH_TOKEN_EXP,
             url: None,
+            bearer: DEFAULT_JWT_BEARER.to_string()
         }
     }
 }
@@ -109,4 +113,5 @@ mod constants {
     pub const DEFAULT_MAX_UPLOAD: usize = 10;
     pub const DEFAULT_ACCESS_TOKEN_EXP: i64 = 900;
     pub const DEFAULT_REFRESH_TOKEN_EXP: i64 = 86400;
+    pub const DEFAULT_JWT_BEARER: &'static str = "Bearer";
 }

@@ -8,6 +8,7 @@ use axum::{
     extract::{FromRef, FromRequestParts},
     http::{HeaderValue, header::AUTHORIZATION, request::Parts},
 };
+use ppd_shared::opts::ServiceConfig;
 
 pub struct RequestUser {
     id: u64,
@@ -42,7 +43,7 @@ where
                         unimplemented!("external url feature not implemented.")
                     }
                     None => {
-                        let user = get_local_user(&state, &auth).await?;
+                        let user = get_local_user(&state, &auth, &config).await?;
                         Ok(ClientUser(user))
                     }
                 }
@@ -94,9 +95,9 @@ where
     }
 }
 
-async fn get_local_user(state: &HandlerState, header: &HeaderValue) -> HandlerResult<RequestUser> {
+async fn get_local_user(state: &HandlerState, header: &HeaderValue, config: &ServiceConfig) -> HandlerResult<RequestUser> {
     let secrets = state.secrets();
-    let claims = decode_jwt(header, secrets.jwt_secret())?;
+    let claims = decode_jwt(header, secrets.jwt_secret(), config)?;
     
     Ok(RequestUser { id: claims.sub })
 }
