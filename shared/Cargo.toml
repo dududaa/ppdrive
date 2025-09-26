@@ -7,9 +7,8 @@ edition = "2024"
 tracing.workspace = true
 bincode.workspace = true
 libloading.workspace = true
-clap = {workspace = true, features = ["derive"]}
-serde = {workspace = true, features = ["derive"]}
+clap = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["fs", "io-util"] }
 toml = "0.9.5"
 chacha20poly1305 = "0.10.1"
-
