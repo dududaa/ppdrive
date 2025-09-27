@@ -19,7 +19,7 @@ pub struct Service<'a> {
 
 impl<'a> Service<'a> {
     /// start a rest or grpc service
-    pub fn start<T>(&self, config: ServiceConfig, token: CancellationToken) -> HandlerResult<()> {
+    pub fn start(&self, config: ServiceConfig, token: CancellationToken) -> HandlerResult<()> {
         let filename = self.output()?;
 
         let cfg_ptr = Arc::new(config);

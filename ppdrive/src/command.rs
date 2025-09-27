@@ -24,7 +24,11 @@ impl Cli {
                 let manager = ServiceManager::default();
                 manager.start(port, guard).await?;
             }
-            
+
+            CliCommand::Status => {
+                ServiceManager::check_status(port).await?;
+            }
+
             CliCommand::Run {
                 svc,
                 base_config,
@@ -60,6 +64,9 @@ impl Cli {
 enum CliCommand {
     /// start ppdrive service manager
     Start,
+
+    /// check whether ppdrive instance is running (on the specified port).
+    Status,
 
     /// run a ppdrive service
     Run {

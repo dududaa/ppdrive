@@ -127,6 +127,17 @@ impl ServiceManager {
         Ok(())
     }
 
+    /// check if ppdrive instance is running on a given port. we do this by attempting to read
+    /// list of exisiting services. request failure most likely means ppdrive is not running.
+    pub async fn check_status(port: u16) -> AppResult<()> {
+        match Self::list(port).await {
+            Ok(_) => tracing::info!("ppdrive is running on port {port}"),
+            Err(_) => tracing::error!("ppdrive is not running. run with 'ppdrive start' or check logs if starting fails.")
+        }
+
+        Ok(())
+    }
+
     /// send a command to manager's tcp connection
     async fn send_request<T: Encode + Decode<()>>(
         cmd: ServiceRequest,
