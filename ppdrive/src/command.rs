@@ -44,13 +44,17 @@ impl Cli {
 
                 ServiceManager::add(config, port).await?;
             }
-            CliCommand::Stop { id } => {
-                ServiceManager::cancel(id, port).await?;
-            }
+            CliCommand::Stop { id } => match id {
+                Some(id) => ServiceManager::cancel(id, port).await?,
+                None => ServiceManager::stop(port).await?,
+            },
             CliCommand::List => {
                 ServiceManager::list(port).await?;
             }
-            CliCommand::CreateClient { svc_id, client_name } => {
+            CliCommand::CreateClient {
+                svc_id,
+                client_name,
+            } => {
                 ServiceManager::create_client(port, svc_id, client_name).await?;
             }
             _ => unimplemented!("this command is not supported"),
@@ -83,18 +87,16 @@ enum CliCommand {
         yes_auto_install: bool,
     },
 
-    /// stop a running service
-    Stop { id: u8 },
+    /// stop ppdrive or a running service.
+    /// if id is provided, this will try to stop a running service else, the manager will stopped.
+    Stop { id: Option<u8> },
 
-    /// create a new client for the specified service 
-    CreateClient {
-        svc_id: u8,
-        client_name: String
-    },
+    /// create a new client for the specified service
+    CreateClient { svc_id: u8, client_name: String },
 
     /// list services running in service manager
     List,
-    
+
     /// install a module
     Install,
 }

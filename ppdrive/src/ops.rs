@@ -1,7 +1,8 @@
 use bincode::{Decode, Encode, config};
 use handlers::{
     db::{init_db, migration::run_migrations},
-    plugin::service::Service, tools::create_client,
+    plugin::service::Service,
+    tools::create_client,
 };
 use ppd_shared::{opts::ServiceConfig, tools::AppSecrets};
 use tokio::{
@@ -85,14 +86,15 @@ async fn list_services(manager: Manager, socket: &mut TcpStream) -> AppResult<()
 }
 
 /// create new client for a specified
-async fn create_new_client(
-    manager: Manager,
-    svc_id: u8,
-    client_name: String,
-) -> AppResult<String> {
+async fn create_new_client(manager: Manager, svc_id: u8, client_name: String) -> AppResult<String> {
     let tasks = manager.tasks.lock().await;
-    let task = tasks.iter().find(|t| t.id == svc_id).ok_or(Error::InternalError(format!("service with id {svc_id} does not exist.")))?;
-    
+    let task = tasks
+        .iter()
+        .find(|t| t.id == svc_id)
+        .ok_or(Error::InternalError(format!(
+            "service with id {svc_id} does not exist."
+        )))?;
+
     let db_url = &task.config.base.db_url;
     run_migrations(db_url)
         .await
@@ -126,10 +128,15 @@ pub async fn process_request(socket: &mut TcpStream, manager: Manager) -> AppRes
 
         ServiceRequest::List => list_services(manager, socket).await,
 
+        ServiceRequest::Stop => {
+            manager.token.cancel();
+            Ok(())
+        }
+
         ServiceRequest::CreateClient(svc_id, client_name) => {
             let resp = match create_new_client(manager, svc_id, client_name).await {
                 Ok(token) => Response::success(()).message(format!("client token {token}")),
-                Err(err) => Response::error(()).message(err.to_string())
+                Err(err) => Response::error(()).message(err.to_string()),
             };
 
             resp.write(socket).await?;
@@ -207,6 +214,9 @@ pub enum ServiceRequest {
 
     /// list running services
     List,
+
+    /// stop ppdrive
+    Stop,
 
     CreateClient(u8, String),
 }

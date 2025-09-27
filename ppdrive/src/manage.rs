@@ -132,8 +132,17 @@ impl ServiceManager {
     pub async fn check_status(port: u16) -> AppResult<()> {
         match Self::list(port).await {
             Ok(_) => tracing::info!("ppdrive is running on port {port}"),
-            Err(_) => tracing::error!("ppdrive is not running. run with 'ppdrive start' or check logs if starting fails.")
+            Err(_) => tracing::error!(
+                "ppdrive is not running. run with 'ppdrive start' or check logs if starting fails."
+            ),
         }
+
+        Ok(())
+    }
+
+    pub async fn stop(port: u16) -> AppResult<()> {
+        let resp = Self::send_request::<()>(ServiceRequest::Stop, port).await?;
+        resp.log();
 
         Ok(())
     }
