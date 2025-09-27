@@ -103,6 +103,13 @@ impl ServiceManager {
         Ok(())
     }
 
+    pub async fn create_client(port: u16, svc_id: u8, client_name: String) -> AppResult<()> {
+        let resp = Self::send_request::<()>(ServiceRequest::CreateClient(svc_id, client_name), port).await?;
+        resp.log();
+
+        Ok(())
+    }
+
     /// send a command to manager's tcp connection
     async fn send_request<T: Encode + Decode<()>>(
         cmd: ServiceRequest,

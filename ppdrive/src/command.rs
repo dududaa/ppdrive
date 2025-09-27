@@ -45,6 +45,9 @@ impl Cli {
             CliCommand::List => {
                 ServiceManager::list(port).await?;
             }
+            CliCommand::CreateClient { svc_id, client_name } => {
+                ServiceManager::create_client(port, svc_id, client_name).await?;
+            }
             _ => unimplemented!("this command is not supported"),
         }
 
@@ -75,11 +78,17 @@ enum CliCommand {
     /// stop a running service
     Stop { id: u8 },
 
-    /// install a module
-    Install,
+    /// create a new client for the specified service 
+    CreateClient {
+        svc_id: u8,
+        client_name: String
+    },
 
     /// list services running in service manager
     List,
+    
+    /// install a module
+    Install,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]

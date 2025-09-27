@@ -1,8 +1,11 @@
 use std::sync::atomic::Ordering;
 
 use bincode::{Decode, Encode, config};
-use handlers::plugin::service::Service;
-use ppd_shared::opts::ServiceConfig;
+use handlers::{
+    db::{init_db, migration::run_migrations},
+    plugin::service::Service, tools::create_client,
+};
+use ppd_shared::{opts::ServiceConfig, tools::AppSecrets};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
@@ -83,6 +86,31 @@ async fn list_services(manager: Manager, socket: &mut TcpStream) -> AppResult<()
     Ok(())
 }
 
+/// create new client for a specified
+async fn create_new_client(
+    manager: Manager,
+    svc_id: u8,
+    client_name: String,
+) -> AppResult<String> {
+    let tasks = manager.tasks.lock().await;
+    let task = tasks.iter().find(|t| t.id == svc_id).ok_or(Error::InternalError(format!("service with id {svc_id} does not exist.")))?;
+    
+    let db_url = &task.config.base.db_url;
+    run_migrations(db_url)
+        .await
+        .map_err(|err| Error::InternalError(format!("unable to run migration: {err}")))?;
+
+    let db = init_db(db_url)
+        .await
+        .map_err(|err| Error::InternalError(format!("unable to get db instance: {err}")))?;
+
+    let secrets = AppSecrets::read().await?;
+
+    let token = create_client(&db, &secrets, &client_name).await?;
+
+    Ok(token)
+}
+
 pub async fn process_request(socket: &mut TcpStream, manager: Manager) -> AppResult<()> {
     let mut buf = [0u8; 1024];
     let n = socket.read(&mut buf).await?;
@@ -99,6 +127,16 @@ pub async fn process_request(socket: &mut TcpStream, manager: Manager) -> AppRes
         ServiceRequest::Cancel(id) => stop_service(manager, id, socket).await,
 
         ServiceRequest::List => list_services(manager, socket).await,
+
+        ServiceRequest::CreateClient(svc_id, client_name) => {
+            let resp = match create_new_client(manager, svc_id, client_name).await {
+                Ok(token) => Response::success(()).message(format!("client token {token}")),
+                Err(err) => Response::error(()).message(err.to_string())
+            };
+
+            resp.write(socket).await?;
+            Ok(())
+        }
 
         ServiceRequest::TokenReceived => {
             manager.token_await.store(false, Ordering::SeqCst);
@@ -176,6 +214,8 @@ pub enum ServiceRequest {
 
     /// list running services
     List,
+
+    CreateClient(u8, String),
 
     /// a request to confirm that service token has been sent to this management server
     TokenReceived,

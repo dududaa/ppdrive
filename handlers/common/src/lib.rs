@@ -18,4 +18,7 @@ pub mod tools;
 #[cfg(feature = "rest")]
 pub mod rest;
 
+#[cfg(feature = "db")]
+pub use ppd_bk::db;
+
 pub type HandlerResult<T> = Result<T, HandlerError>;

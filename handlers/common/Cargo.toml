@@ -10,6 +10,7 @@ plugin = ["dep:libloading", "dep:tokio"]
 tools = ["dep:chacha20poly1305", "dep:hex"]
 rest = ["prelude", "tools", "jwt"]
 jwt = ["dep:jsonwebtoken"]
+db = []
 
 [dependencies]
 axum.workspace = true
