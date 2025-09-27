@@ -1,4 +1,8 @@
 - ~~Add Client Router tests~~
+- ~~Start manager async~~
+- Check manager status
+- Stop manager
 - Add "Create Client" cli command
+- Bundle
 - Start writing first tutorial
 - Implement Direct and Zero auth type for Rest Service

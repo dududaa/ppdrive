@@ -24,6 +24,7 @@ impl Cli {
                 let manager = ServiceManager::default();
                 manager.start(port, guard).await?;
             }
+            
             CliCommand::Run {
                 svc,
                 base_config,

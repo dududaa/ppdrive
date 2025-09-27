@@ -1,4 +1,4 @@
-use std::sync::{Arc, atomic::AtomicBool};
+use std::sync::Arc;
 
 use bincode::{Decode, Encode, config};
 
@@ -12,7 +12,7 @@ use tracing_appender::non_blocking::WorkerGuard;
 
 use crate::{
     errors::{AppResult, Error},
-    ops::{process_request, Response, ServiceRequest},
+    ops::{Response, ServiceRequest, process_request},
 };
 use handlers::plugin::service::Service;
 use tokio::io::AsyncWriteExt;
@@ -24,19 +24,34 @@ pub type Manager = Arc<ServiceManager>;
 #[derive(Debug)]
 pub struct ServiceManager {
     pub tasks: Mutex<Vec<ServiceTask>>,
-    pub token_await: AtomicBool,
+
+    /// cancellation token used for stopping this manager
+    pub token: CancellationToken,
 }
 
 impl ServiceManager {
     /// start the service manager at the provided port. this is a tcp listener opened at the
     /// connected port.
     #[instrument]
-    pub async fn start(self, port: u16, _guard: WorkerGuard) -> AppResult<()> {
-        let addr = Self::addr(port);
-        let listener = TcpListener::bind(&addr).await?;
+    pub async fn start(self, port: u16, guard: WorkerGuard) -> AppResult<()> {
+        let port_clone = port.clone();
+        tokio::spawn(async move {
+            let token = self.token.clone();
+            tokio::select! {
+               _ = self.run(port_clone, guard) => {}
+               _ = token.cancelled() => {}
+            }
+        });
 
+        tracing::info!("run 'ppdrive status {port}' to check manager status.");
+        Ok(())
+    }
+
+    async fn run(self, port: u16, _guard: WorkerGuard) -> AppResult<()> {
+        let addr = Self::addr(port);
+
+        let listener = TcpListener::bind(&addr).await?;
         let manager = Arc::new(self);
-        tracing::info!("ppdrive service manager listening at {}", addr);
 
         loop {
             let tasks = manager.clone();
@@ -104,7 +119,9 @@ impl ServiceManager {
     }
 
     pub async fn create_client(port: u16, svc_id: u8, client_name: String) -> AppResult<()> {
-        let resp = Self::send_request::<()>(ServiceRequest::CreateClient(svc_id, client_name), port).await?;
+        let resp =
+            Self::send_request::<()>(ServiceRequest::CreateClient(svc_id, client_name), port)
+                .await?;
         resp.log();
 
         Ok(())
@@ -144,7 +161,7 @@ impl Default for ServiceManager {
     fn default() -> Self {
         ServiceManager {
             tasks: Mutex::new(vec![]),
-            token_await: AtomicBool::new(true),
+            token: CancellationToken::new(),
         }
     }
 }

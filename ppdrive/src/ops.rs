@@ -1,5 +1,3 @@
-use std::sync::atomic::Ordering;
-
 use bincode::{Decode, Encode, config};
 use handlers::{
     db::{init_db, migration::run_migrations},
@@ -137,11 +135,6 @@ pub async fn process_request(socket: &mut TcpStream, manager: Manager) -> AppRes
             resp.write(socket).await?;
             Ok(())
         }
-
-        ServiceRequest::TokenReceived => {
-            manager.token_await.store(false, Ordering::SeqCst);
-            Ok(())
-        }
     }
 }
 
@@ -216,7 +209,4 @@ pub enum ServiceRequest {
     List,
 
     CreateClient(u8, String),
-
-    /// a request to confirm that service token has been sent to this management server
-    TokenReceived,
 }
