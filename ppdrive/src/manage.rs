@@ -38,20 +38,27 @@ impl ServiceManager {
         tokio::spawn(async move {
             let token = self.token.clone();
             tokio::select! {
-               _ = self.run(port_clone, guard) => {}
+               run = self.run(port_clone, guard) => {
+                    if let Err(err) = run {
+                        tracing::error!("cannot start ppdrive {err}")
+                    }
+               }
                _ = token.cancelled() => {}
             }
         });
 
-        tracing::info!("run 'ppdrive status {port}' to check manager status.");
+        tracing::info!("run 'ppdrive status --port {port}' to check manager status.");
         Ok(())
     }
 
+    #[instrument]
     async fn run(self, port: u16, _guard: WorkerGuard) -> AppResult<()> {
         let addr = Self::addr(port);
 
         let listener = TcpListener::bind(&addr).await?;
         let manager = Arc::new(self);
+
+        tracing::debug!("starting manager at {port}");
 
         loop {
             let tasks = manager.clone();
