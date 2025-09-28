@@ -30,6 +30,9 @@
 !shared/
 !shared/**
 
+!manager/
+!manager/**
+
 !nnn.md
 
 **migrations

@@ -1,83 +1,19 @@
-use std::sync::Arc;
-
 use bincode::{Decode, Encode, config};
 
 use ppd_shared::{
-    opts::ServiceConfig,
+    opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest},
     plugin::{HasDependecies, Plugin},
 };
-use tokio_util::sync::CancellationToken;
-use tracing::instrument;
-use tracing_appender::non_blocking::WorkerGuard;
 
-use crate::{
-    errors::{AppResult, Error},
-    ops::{Response, ServiceRequest, process_request},
-};
+use crate::errors::{AppResult, Error};
 use handlers::plugin::service::Service;
 use tokio::io::AsyncWriteExt;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::Mutex;
-
-pub type Manager = Arc<ServiceManager>;
+use tokio::net::TcpStream;
 
 #[derive(Debug)]
-pub struct ServiceManager {
-    pub tasks: Mutex<Vec<ServiceTask>>,
-
-    /// cancellation token used for stopping this manager
-    pub token: CancellationToken,
-}
+pub struct ServiceManager;
 
 impl ServiceManager {
-    /// start the service manager at the provided port. this is a tcp listener opened at the
-    /// connected port.
-    #[instrument]
-    pub async fn start(self, port: u16, guard: WorkerGuard) -> AppResult<()> {
-        let port_clone = port.clone();
-        tokio::spawn(async move {
-            let token = self.token.clone();
-            tokio::select! {
-               run = self.run(port_clone, guard) => {
-                    if let Err(err) = run {
-                        tracing::error!("cannot start ppdrive {err}")
-                    }
-               }
-               _ = token.cancelled() => {}
-            }
-        });
-
-        tracing::info!("run 'ppdrive status --port {port}' to check manager status.");
-        Ok(())
-    }
-
-    #[instrument]
-    async fn run(self, port: u16, _guard: WorkerGuard) -> AppResult<()> {
-        let addr = Self::addr(port);
-
-        let listener = TcpListener::bind(&addr).await?;
-        let manager = Arc::new(self);
-
-        tracing::debug!("starting manager at {port}");
-
-        loop {
-            let tasks = manager.clone();
-            match listener.accept().await {
-                Ok((mut socket, _)) => {
-                    tokio::spawn(async move {
-                        if let Err(err) = process_request(&mut socket, tasks).await {
-                            tracing::error!("unable to process request: {err}")
-                        }
-                    });
-                }
-                Err(err) => {
-                    tracing::error!("{err}");
-                    break Ok(());
-                }
-            }
-        }
-    }
-
     /// add a new service to the manager
     pub async fn add(config: ServiceConfig, port: u16) -> AppResult<()> {
         let svc = Service::from(&config);
@@ -181,47 +117,5 @@ impl ServiceManager {
 
     fn addr(port: u16) -> String {
         format!("0.0.0.0:{}", port)
-    }
-}
-
-impl Default for ServiceManager {
-    fn default() -> Self {
-        ServiceManager {
-            tasks: Mutex::new(vec![]),
-            token: CancellationToken::new(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ServiceTask {
-    pub id: u8,
-    pub config: ServiceConfig,
-    pub token: Option<CancellationToken>,
-}
-
-impl ServiceTask {
-    pub fn new(config: &ServiceConfig) -> Self {
-        Self {
-            id: rand::random(),
-            config: config.clone(),
-            token: None,
-        }
-    }
-}
-
-/// serializable [ServiceInfo].
-#[derive(Encode, Decode, Clone)]
-pub struct ServiceInfo {
-    id: u8,
-    port: u16,
-}
-
-impl From<&ServiceTask> for ServiceInfo {
-    fn from(value: &ServiceTask) -> Self {
-        ServiceInfo {
-            id: value.id,
-            port: value.config.base.port,
-        }
     }
 }

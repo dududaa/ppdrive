@@ -1,7 +1,10 @@
-use bincode::{Decode, Encode};
+use bincode::{Decode, Encode, config};
 use clap::{Args, ValueEnum};
 use constants::*;
 use std::fmt::Display;
+use tokio::{io::AsyncWriteExt, net::TcpStream};
+
+use crate::{AppResult, errors::Error};
 
 #[derive(
     Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Default, Debug, Encode, Decode,
@@ -84,7 +87,7 @@ pub struct ServiceAuthConfig {
     pub url: Option<String>,
 
     #[arg(long("jwt-bearer"), default_value_t = DEFAULT_JWT_BEARER.to_string())]
-    pub bearer: String
+    pub bearer: String,
 }
 
 impl Default for ServiceAuthConfig {
@@ -94,7 +97,7 @@ impl Default for ServiceAuthConfig {
             access_exp: DEFAULT_ACCESS_TOKEN_EXP,
             refresh_exp: DEFAULT_REFRESH_TOKEN_EXP,
             url: None,
-            bearer: DEFAULT_JWT_BEARER.to_string()
+            bearer: DEFAULT_JWT_BEARER.to_string(),
         }
     }
 }
@@ -105,6 +108,89 @@ pub struct ServiceConfig {
     pub base: ServiceBaseConfig,
     pub auth: ServiceAuthConfig,
     pub auto_install: bool,
+}
+
+#[derive(Encode, Decode, Clone)]
+pub struct ServiceInfo {
+    pub id: u8,
+    pub port: u16,
+}
+
+#[derive(Encode, Decode, Debug)]
+/// service management request type
+pub enum ServiceRequest {
+    /// add a new service with the provided config
+    Add(ServiceConfig),
+
+    /// cancel and remove a service with the given id
+    Cancel(u8),
+
+    /// list running services
+    List,
+
+    /// stop ppdrive
+    Stop,
+
+    CreateClient(u8, String),
+}
+
+#[derive(Encode, Decode)]
+pub struct Response<T: Encode + Decode<()>> {
+    ty: ResponseType,
+    body: T,
+    msg: Option<String>,
+}
+
+impl<T: Encode + Decode<()>> Response<T> {
+    pub fn success(body: T) -> Response<T> {
+        Response {
+            ty: ResponseType::Success,
+            body,
+            msg: None,
+        }
+    }
+
+    pub fn error(body: T) -> Response<T> {
+        Response {
+            ty: ResponseType::Error,
+            body,
+            msg: None,
+        }
+    }
+
+    pub fn message(mut self, msg: String) -> Self {
+        self.msg = Some(msg);
+        self
+    }
+
+    pub fn log(&self) {
+        use ResponseType::*;
+
+        let msg = self.msg.clone().unwrap_or("no message".to_string());
+
+        match self.ty {
+            Success => tracing::info!("{msg}"),
+            Error => tracing::error!("{msg}"),
+        }
+    }
+
+    pub fn body(&self) -> &T {
+        &self.body
+    }
+
+    pub async fn write(&self, socket: &mut TcpStream) -> AppResult<()> {
+        let data = bincode::encode_to_vec(&self, config::standard())
+            .map_err(|err| Error::ServerError(err.to_string()))?;
+        socket.write_all(&data).await?;
+
+        Ok(())
+    }
+}
+
+#[derive(Encode, Decode)]
+enum ResponseType {
+    Success,
+    Error,
 }
 
 mod constants {

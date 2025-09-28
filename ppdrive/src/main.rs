@@ -8,14 +8,12 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 mod command;
 mod errors;
 mod manage;
-mod ops;
 
 #[tokio::main]
 async fn main() -> AppResult<()> {
-    let guard = start_logger()?;
     let cli = Cli::parse();
 
-    if let Err(err) = cli.run(guard).await {
+    if let Err(err) = cli.run().await {
         tracing::error!("{err}")
     }
 
@@ -23,7 +21,10 @@ async fn main() -> AppResult<()> {
 }
 
 fn start_logger() -> AppResult<tracing_appender::non_blocking::WorkerGuard> {
-    let log_file = OpenOptions::new().create(true).append(true).open("ppd.log")?;
+    let log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("ppd.log")?;
     let (writer, guard) = non_blocking_logger(log_file);
 
     if let Err(err) = tracing_subscriber::registry()

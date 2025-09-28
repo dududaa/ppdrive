@@ -7,7 +7,7 @@ members = [
     "modules/bookkeeper",
     "shared",
     "handlers/common",
-    "handlers/rest/client",
+    "handlers/rest/client", "manager",
 ]
 
 [workspace.dependencies]

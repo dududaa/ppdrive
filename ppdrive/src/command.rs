@@ -1,7 +1,6 @@
 use crate::{errors::AppResult, manage::ServiceManager};
 use clap::{Parser, Subcommand, ValueEnum};
 use ppd_shared::opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType};
-use tracing_appender::non_blocking::WorkerGuard;
 
 /// A free and open-source cloud storage service.
 #[derive(Parser, Debug)]
@@ -16,13 +15,13 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub async fn run(self, guard: WorkerGuard) -> AppResult<()> {
+    pub async fn run(self) -> AppResult<()> {
         let port = self.port.clone().unwrap_or(5025);
 
         match self.command {
             CliCommand::Start => {
-                let manager = ServiceManager::default();
-                manager.start(port, guard).await?;
+                // let manager = ServiceManager::default();
+                // manager.start(port, guard).await?;
             }
 
             CliCommand::Status => {
