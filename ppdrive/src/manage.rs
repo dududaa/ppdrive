@@ -11,9 +11,9 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
 #[derive(Debug)]
-pub struct ServiceManager;
+pub struct PPDrive;
 
-impl ServiceManager {
+impl PPDrive {
     /// add a new service to the manager
     pub async fn add(config: ServiceConfig, port: u16) -> AppResult<()> {
         let svc = Service::from(&config);

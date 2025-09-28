@@ -1,4 +1,4 @@
-use crate::{errors::AppResult, manage::ServiceManager};
+use crate::{errors::AppResult, manage::PPDrive};
 use clap::{Parser, Subcommand, ValueEnum};
 use ppd_shared::opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType};
 
@@ -25,7 +25,7 @@ impl Cli {
             }
 
             CliCommand::Status => {
-                ServiceManager::check_status(port).await?;
+                PPDrive::check_status(port).await?;
             }
 
             CliCommand::Run {
@@ -41,20 +41,20 @@ impl Cli {
                     auto_install,
                 };
 
-                ServiceManager::add(config, port).await?;
+                PPDrive::add(config, port).await?;
             }
             CliCommand::Stop { id } => match id {
-                Some(id) => ServiceManager::cancel(id, port).await?,
-                None => ServiceManager::stop(port).await?,
+                Some(id) => PPDrive::cancel(id, port).await?,
+                None => PPDrive::stop(port).await?,
             },
             CliCommand::List => {
-                ServiceManager::list(port).await?;
+                PPDrive::list(port).await?;
             }
             CliCommand::CreateClient {
                 svc_id,
                 client_name,
             } => {
-                ServiceManager::create_client(port, svc_id, client_name).await?;
+                PPDrive::create_client(port, svc_id, client_name).await?;
             }
             _ => unimplemented!("this command is not supported"),
         }
