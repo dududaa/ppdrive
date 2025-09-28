@@ -19,7 +19,7 @@ async fn start_service(
     manager: Manager,
     config: ServiceConfig,
     socket: &mut TcpStream,
-) -> AppResult<()> {
+) -> AppResult<u8> {
     let token = CancellationToken::new();
     let mut task = ServiceTask::new(&config);
     task.token = Some(token.clone());
@@ -36,7 +36,7 @@ async fn start_service(
     tasks.push(task);
 
     std::mem::drop(tasks); // drop tasks MutexGuard to prevent deadlock
-    let resp = Response::success(id).message(format!(
+    let resp = Response::success(id.clone()).message(format!(
         "service added to manager with id {id}. run 'ppdrive list' to see running services."
     ));
 
@@ -44,7 +44,7 @@ async fn start_service(
         .await
         .map_err(|err| anyhow!(err.to_string()))?;
 
-    Ok(())
+    Ok(id)
 }
 
 /// stop a running service with the given id
@@ -127,7 +127,10 @@ pub async fn process_request(socket: &mut TcpStream, manager: Manager) -> AppRes
     let (req, _) = bincode::decode_from_slice::<ServiceRequest, _>(&buf, config::standard())?;
 
     match req {
-        ServiceRequest::Add(config) => start_service(manager, config, socket).await,
+        ServiceRequest::Add(config) => {
+            start_service(manager, config, socket).await?;
+            Ok(())
+        }
 
         ServiceRequest::Cancel(id) => stop_service(manager, id, socket).await,
 

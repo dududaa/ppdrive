@@ -17,3 +17,6 @@ rand = { version = "0.9.2" }
 ppd_shared.workspace = true
 handlers = { workspace = true, features = ["plugin", "db", "tools"] }
 bincode.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["time"]}

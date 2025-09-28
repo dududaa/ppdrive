@@ -8,6 +8,9 @@ use crate::ops::process_request;
 
 mod ops;
 
+#[cfg(test)]
+mod tests;
+
 pub type AppResult<T> = anyhow::Result<T>;
 pub type Manager = Arc<ServiceManager>;
 
@@ -24,15 +27,6 @@ pub struct ServiceManager {
 }
 
 impl ServiceManager {
-    fn new(port: Option<u16>) -> Self {
-        let mut manager = Self::default();
-        if let Some(port) = port {
-            manager.port = port;
-        }
-
-        manager
-    }
-
     /// start the service manager at the provided port. this is a tcp listener opened at the
     /// connected port.
     async fn start(self) -> AppResult<()> {
@@ -56,11 +50,11 @@ impl ServiceManager {
         let manager = Arc::new(self);
 
         loop {
-            let tasks = manager.clone();
+            let manager = manager.clone();
             match listener.accept().await {
                 Ok((mut socket, _)) => {
                     tokio::spawn(async move {
-                        if let Err(err) = process_request(&mut socket, tasks).await {
+                        if let Err(err) = process_request(&mut socket, manager).await {
                             tracing::error!("unable to process request: {err}")
                         }
                     });
@@ -71,6 +65,25 @@ impl ServiceManager {
                 }
             }
         }
+    }
+
+    fn addr(&self) -> String {
+        format!("0.0.0.0:{}", self.port)
+    }
+
+    fn new(port: Option<u16>) -> Self {
+        let mut manager = Self::default();
+        if let Some(port) = port {
+            manager.port = port;
+        }
+
+        manager
+    }
+
+    /// service manager used for tests
+    #[cfg(test)]
+    fn test() -> Self {
+        Self::new(None)
     }
 }
 
@@ -104,7 +117,6 @@ impl ServiceTask {
 #[tokio::main]
 async fn main() -> AppResult<()> {
     let args: Vec<String> = std::env::args().collect();
-
     let port = args.get(1).map(|p| p.parse().unwrap_or(DEFAULT_PORT));
 
     let manager = ServiceManager::new(port);
