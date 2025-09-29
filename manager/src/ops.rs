@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::anyhow;
 use bincode::config;
 use handlers::{
@@ -12,11 +14,11 @@ use ppd_shared::{
 use tokio::{io::AsyncReadExt, net::TcpStream};
 use tokio_util::sync::CancellationToken;
 
-use crate::{AppResult, Manager, ServiceTask};
+use crate::{AppResult, SharedManager, ServiceManager, ServiceTask};
 
 /// adds a new service to the task pool
-async fn start_service(
-    manager: Manager,
+pub async fn start_service(
+    manager: SharedManager,
     config: ServiceConfig,
     socket: &mut TcpStream,
 ) -> AppResult<u8> {
@@ -48,7 +50,7 @@ async fn start_service(
 }
 
 /// stop a running service with the given id
-async fn stop_service(manager: Manager, id: u8, socket: &mut TcpStream) -> AppResult<()> {
+async fn stop_service(manager: SharedManager, id: u8, socket: &mut TcpStream) -> AppResult<()> {
     let mut tasks = manager.tasks.lock().await;
     let item = tasks.iter().enumerate().find(|(_, item)| item.id == id);
 
@@ -75,7 +77,7 @@ async fn stop_service(manager: Manager, id: u8, socket: &mut TcpStream) -> AppRe
 }
 
 /// list running services
-async fn list_services(manager: Manager, socket: &mut TcpStream) -> AppResult<()> {
+pub async fn list_services(manager: SharedManager, socket: &mut TcpStream) -> AppResult<()> {
     let tasks = manager.tasks.lock().await;
     let items: Vec<ServiceInfo> = tasks.iter().map(|s| s.into()).collect();
 
@@ -90,7 +92,7 @@ async fn list_services(manager: Manager, socket: &mut TcpStream) -> AppResult<()
 }
 
 /// create new client for a specified
-async fn create_new_client(manager: Manager, svc_id: u8, client_name: String) -> AppResult<String> {
+async fn create_new_client(manager: SharedManager, svc_id: u8, client_name: String) -> AppResult<String> {
     let tasks = manager.tasks.lock().await;
     let task = tasks
         .iter()
@@ -116,7 +118,10 @@ async fn create_new_client(manager: Manager, svc_id: u8, client_name: String) ->
     Ok(token)
 }
 
-pub async fn process_request(socket: &mut TcpStream, manager: Manager) -> AppResult<()> {
+pub async fn process_request(
+    socket: &mut TcpStream,
+    manager: Arc<ServiceManager>,
+) -> AppResult<()> {
     let mut buf = [0u8; 1024];
     let n = socket.read(&mut buf).await?;
 

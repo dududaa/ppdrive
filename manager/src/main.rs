@@ -11,26 +11,30 @@ mod ops;
 #[cfg(test)]
 mod tests;
 
-pub type AppResult<T> = anyhow::Result<T>;
-pub type Manager = Arc<ServiceManager>;
+#[cfg(test)]
+use tokio::{net::TcpStream, task::JoinHandle};
 
 const DEFAULT_PORT: u16 = 5025;
 
-#[derive(Debug)]
-pub struct ServiceManager {
-    pub tasks: Mutex<Vec<ServiceTask>>,
+type AppResult<T> = anyhow::Result<T>;
+type SharedManager = Arc<ServiceManager>;
 
-    /// cancellation token used for stopping this manager
-    pub token: CancellationToken,
-
-    port: u16,
+struct Manager {
+    inner: SharedManager,
 }
 
-impl ServiceManager {
+impl Manager {
+    fn new(port: Option<u16>) -> Self {
+        let inner = ServiceManager::new(port);
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+
     /// start the service manager at the provided port. this is a tcp listener opened at the
     /// connected port.
-    async fn start(self) -> AppResult<()> {
-        let token = self.token.clone();
+    async fn start(&self) -> AppResult<()> {
+        let token = self.token();
         tokio::select! {
            run = self.run() => {
                 if let Err(err) = run {
@@ -43,14 +47,12 @@ impl ServiceManager {
         Ok(())
     }
 
-    async fn run(self) -> AppResult<()> {
-        let addr = format!("0.0.0.0:{}", self.port);
-
+    async fn run(&self) -> AppResult<()> {
+        let addr = self.addr();
         let listener = TcpListener::bind(&addr).await?;
-        let manager = Arc::new(self);
 
         loop {
-            let manager = manager.clone();
+            let manager = self.inner.clone();
             match listener.accept().await {
                 Ok((mut socket, _)) => {
                     tokio::spawn(async move {
@@ -68,9 +70,70 @@ impl ServiceManager {
     }
 
     fn addr(&self) -> String {
-        format!("0.0.0.0:{}", self.port)
+        format!("0.0.0.0:{}", self.inner.port)
     }
 
+    fn token(&self) -> CancellationToken {
+        self.inner.token.clone()
+    }
+
+    #[cfg(test)]
+    fn close(self) {
+        self.inner.token.cancel();
+    }
+
+    #[cfg(test)]
+    async fn tcp_stream(&self) -> AppResult<TcpStream> {
+        let stream = TcpStream::connect(self.addr()).await?;
+        Ok(stream)
+    }
+
+    #[cfg(test)]
+    /// start manager in the background and return the handle
+    async fn start_background(&self) -> JoinHandle<AppResult<()>> {
+        use std::time::Duration;
+
+        use tokio::time::sleep;
+
+        let s = self.clone();
+        let handle = tokio::spawn(async move { s.start().await });
+        
+        // wait a few seconds for tcp listener to be ready
+        sleep(Duration::from_secs(5)).await;
+        handle
+    }
+
+    #[cfg(test)]
+    fn shared(&self) -> SharedManager {
+        self.inner.clone()
+    }
+}
+
+impl Default for Manager {
+    fn default() -> Self {
+        Self::new(None)
+    }
+}
+
+impl Clone for Manager {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ServiceManager {
+    tasks: Mutex<Vec<ServiceTask>>,
+
+    /// cancellation token used for stopping this manager
+    token: CancellationToken,
+
+    port: u16,
+}
+
+impl ServiceManager {
     fn new(port: Option<u16>) -> Self {
         let mut manager = Self::default();
         if let Some(port) = port {
@@ -78,12 +141,6 @@ impl ServiceManager {
         }
 
         manager
-    }
-
-    /// service manager used for tests
-    #[cfg(test)]
-    fn test() -> Self {
-        Self::new(None)
     }
 }
 
@@ -119,7 +176,7 @@ async fn main() -> AppResult<()> {
     let args: Vec<String> = std::env::args().collect();
     let port = args.get(1).map(|p| p.parse().unwrap_or(DEFAULT_PORT));
 
-    let manager = ServiceManager::new(port);
+    let manager = Manager::new(port);
     manager.start().await?;
 
     Ok(())

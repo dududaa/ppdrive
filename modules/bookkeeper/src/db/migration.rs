@@ -14,18 +14,18 @@ use crate::{
 };
 
 pub async fn run_migrations(url: &str) -> DBResult<()> {
-    let config = ConfigBuilder::new()
+    let mut config = ConfigBuilder::new()
         .db_url(url)
-        .migrations_dir(root_dir()?.join("migrations"))
+        .metadata_path(root_dir()?.join("modeller"))
         .build();
 
-    Clients::write_stream(&config).await?;
-    Buckets::write_stream(&config).await?;
-    Mimes::write_stream(&config).await?;
-    BucketMimes::write_stream(&config).await?;
-    Users::write_stream(&config).await?;
-    Assets::write_stream(&config).await?;
-    AssetPermissions::write_stream(&config).await?;
+    Clients::write_stream(&mut config);
+    Buckets::write_stream(&mut config);
+    Mimes::write_stream(&mut config);
+    BucketMimes::write_stream(&mut config);
+    Users::write_stream(&mut config);
+    Assets::write_stream(&mut config);
+    AssetPermissions::write_stream(&mut config);
 
     run_modeller(&config).await?;
     Ok(())
