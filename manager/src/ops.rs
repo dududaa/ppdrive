@@ -50,7 +50,7 @@ pub async fn start_service(
 }
 
 /// stop a running service with the given id
-async fn stop_service(manager: SharedManager, id: u8, socket: &mut TcpStream) -> AppResult<()> {
+pub async fn stop_service(manager: SharedManager, id: u8, socket: &mut TcpStream) -> AppResult<()> {
     let mut tasks = manager.tasks.lock().await;
     let item = tasks.iter().enumerate().find(|(_, item)| item.id == id);
 
@@ -142,7 +142,7 @@ pub async fn process_request(
         ServiceRequest::List => list_services(manager, socket).await,
 
         ServiceRequest::Stop => {
-            manager.token.cancel();
+            manager.close().await;
             Ok(())
         }
 

@@ -77,6 +77,7 @@ impl Manager {
         self.inner.token.clone()
     }
 
+    #[cfg(test)]
     async fn close(self) {
         self.inner.close().await;
     }
