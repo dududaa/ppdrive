@@ -77,9 +77,8 @@ impl Manager {
         self.inner.token.clone()
     }
 
-    #[cfg(test)]
-    fn close(self) {
-        self.inner.token.cancel();
+    async fn close(self) {
+        self.inner.close().await;
     }
 
     #[cfg(test)]
@@ -97,7 +96,7 @@ impl Manager {
 
         let s = self.clone();
         let handle = tokio::spawn(async move { s.start().await });
-        
+
         // wait a few seconds for tcp listener to be ready
         sleep(Duration::from_secs(5)).await;
         handle
@@ -141,6 +140,21 @@ impl ServiceManager {
         }
 
         manager
+    }
+
+    async fn close(&self) {
+        // cancel running tasks/services
+        let tasks = self.tasks.lock().await;
+        if !tasks.is_empty() {
+            tasks.iter().for_each(|t| {
+                if let Some(token) = &t.token {
+                    token.cancel();
+                }
+            });
+        }
+
+        // cancel manager
+        self.token.cancel();
     }
 }
 

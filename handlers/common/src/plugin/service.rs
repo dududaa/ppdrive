@@ -39,6 +39,15 @@ impl<'a> Service<'a> {
         Ok(())
     }
 
+    /// preload service and its dependencies
+    pub fn init(&self) -> HandlerResult<()> {
+        let auto_install = self.auto_install();
+        self.preload_deps(auto_install)?;
+        self.preload(auto_install)?;
+
+        Ok(())
+    }
+
     pub fn ty(&self) -> &ServiceType {
         &self.ty
     }

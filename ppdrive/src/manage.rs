@@ -1,9 +1,6 @@
 use bincode::{Decode, Encode, config};
 
-use ppd_shared::{
-    opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest},
-    plugin::{HasDependecies, Plugin},
-};
+use ppd_shared::opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest};
 
 use crate::errors::{AppResult, Error};
 use handlers::plugin::service::Service;
@@ -17,15 +14,7 @@ impl PPDrive {
     /// add a new service to the manager
     pub async fn add(config: ServiceConfig, port: u16) -> AppResult<()> {
         let svc = Service::from(&config);
-        tracing::info!(
-            "starting service {:?} with auth modes {:?}",
-            svc.ty(),
-            svc.modes()
-        );
-
-        let auto_install = svc.auto_install();
-        svc.preload_deps(auto_install)?;
-        svc.preload(auto_install)?;
+        svc.init()?;
 
         // message service manager to load service
         let resp = Self::send_request::<u8>(ServiceRequest::Add(config), port).await?;

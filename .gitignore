@@ -41,6 +41,7 @@
 **.ppdrive_secret
 **test-assets
 **delete-assets
+**ppd.log
 
 !handlers/
 !handlers/**
