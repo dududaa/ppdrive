@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use ppd_shared::opts::ServiceConfig;
+use rbatis::RBatis;
 use tokio::{net::TcpListener, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 
@@ -174,6 +175,7 @@ pub struct ServiceTask {
     pub id: u8,
     pub config: ServiceConfig,
     pub token: Option<CancellationToken>,
+    db: Arc<RBatis>
 }
 
 impl ServiceTask {
@@ -182,6 +184,7 @@ impl ServiceTask {
             id: rand::random(),
             config: config.clone(),
             token: None,
+            db: Arc::new(RBatis::new())
         }
     }
 }

@@ -4,8 +4,10 @@ use axum::http::header::{
 use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
 use handlers::plugin::router::ServiceRouter;
+use ppd_bk::RBatis;
 use ppd_shared::opts::{ServiceAuthMode, ServiceConfig, ServiceType};
 use std::env::set_var;
+use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
@@ -44,8 +46,9 @@ fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
-async fn serve_app(config: &ServiceConfig, token: *mut CancellationToken) -> ServerResult<()> {
-    let state = HandlerState::new(config).await?;
+async fn serve_app(config: &ServiceConfig, db: *const RBatis, token: *mut CancellationToken) -> ServerResult<()> {
+    let db = unsafe { Arc::from_raw(db) };
+    let state = HandlerState::new(config, db).await?;
     let origins = &config.base.allowed_origins;
 
     let cors = CorsLayer::new()
@@ -140,11 +143,12 @@ pub fn start_logger() -> ServerResult<LoggerGuard> {
 
 pub async fn initialize_app(
     config: &ServiceConfig,
+    db: *const RBatis,
     token: *mut CancellationToken,
 ) -> ServerResult<()> {
     // start ppdrive app
     init_secrets().await?;
-    serve_app(&config, token).await
+    serve_app(&config, db, token).await
 }
 
 fn get_client_router(config: &ServiceConfig) -> *mut Router<HandlerState> {

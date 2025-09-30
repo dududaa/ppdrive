@@ -19,8 +19,13 @@ pub async fn start_service(
     socket: &mut TcpStream,
 ) -> AppResult<u8> {
     let token = CancellationToken::new();
+    let db_url = &config.base.db_url;
+
+    let db = init_db(&db_url).await.map_err(|err| anyhow!(err))?;
     let mut task = ServiceTask::new(&config);
+
     task.token = Some(token.clone());
+    task.db = Arc::new(db);
 
     tokio::spawn(async move {
         let svc = Service::from(&config);
@@ -101,17 +106,11 @@ pub async fn create_new_client(
             "service with id {svc_id} does not exist."
         )))?;
 
-    let db_url = &task.config.base.db_url;
-    println!("initializing db...");
-    let db = init_db(db_url)
-        .await
-        .map_err(|err| anyhow!(format!("unable to get db instance: {err}")))?;
-
     println!("loading secrets...");
     let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
 
     println!("creating token...");
-    let token = create_client(&db, &secrets, &client_name)
+    let token = create_client(&task.db, &secrets, &client_name)
         .await
         .map_err(|err| anyhow!(err))?;
 

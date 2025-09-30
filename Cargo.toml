@@ -29,3 +29,5 @@ ppd_fs = { path = "modules/fs" }
 handlers = { path = "handlers/common", default-features = false }
 rest_client = { path = "handlers/rest/client" }
 libloading = "0.8.8"
+rbs = { version = "4.5.51" }
+rbatis = { version = "4.5.51" }

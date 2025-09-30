@@ -4,13 +4,14 @@ use rbdc_mysql::MysqlDriver;
 use rbdc_pg::PgDriver;
 use rbdc_sqlite::SqliteDriver;
 
-use crate::{DBResult, errors::Error, models::mime::Mimes};
+use crate::{db::migration::run_migrations, errors::Error, models::mime::Mimes, DBResult};
 
 pub mod migration;
 
 pub async fn init_db(url: &str) -> DBResult<RBatis> {
     use DatabaseType::*;
 
+    run_migrations(url).await?;
     let db_type = url.try_into()?;
     let rb = RBatis::new();
 

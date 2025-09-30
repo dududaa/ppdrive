@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use axum::{Router, routing::IntoMakeService};
 use axum_test::TestServer;
 use handlers::prelude::opts::LoginToken;
 use handlers::prelude::state::HandlerState;
 use handlers::tools::create_client;
-use ppd_bk::db::migration::run_migrations;
+use ppd_bk::db::init_db;
 use ppd_bk::RBatis;
 use ppd_shared::opts::ServiceConfig;
 use ppd_shared::tools::AppSecrets;
@@ -26,9 +28,12 @@ impl TestApp {
         let router = unsafe { Box::from_raw(ptr) };
 
         let config = ServiceConfig::default();
-        run_migrations(&config.base.db_url).await.expect("unable to run db migrations");
+        let db_url = &config.base.db_url;
 
-        let state = HandlerState::new(&config)
+        let db = init_db(db_url).await.expect("unable to init database");
+        let db = Arc::new(db);
+
+        let state = HandlerState::new(&config, db)
             .await
             .expect("unable to create app state");
 
