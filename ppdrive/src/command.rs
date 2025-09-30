@@ -1,3 +1,5 @@
+use std::process::Command;
+
 use crate::{errors::AppResult, manage::PPDrive};
 use clap::{Parser, Subcommand, ValueEnum};
 use ppd_shared::opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType};
@@ -20,8 +22,20 @@ impl Cli {
 
         match self.command {
             CliCommand::Start => {
-                // let manager = ServiceManager::default();
-                // manager.start(port, guard).await?;
+                let prog = if cfg!(debug_assertions) {
+                    "cargo"
+                } else {
+                    "manager"
+                };
+                let mut cmd = Command::new(prog);
+
+                if cfg!(debug_assertions) {
+                    cmd.args(["run", "--bin", "manager"]);
+                }
+
+                cmd.arg(port.to_string());
+                let mut child = cmd.spawn()?;
+                child.wait()?;
             }
 
             CliCommand::Status => {

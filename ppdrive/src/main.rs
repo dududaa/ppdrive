@@ -12,6 +12,7 @@ mod manage;
 #[tokio::main]
 async fn main() -> AppResult<()> {
     let cli = Cli::parse();
+    let _gaurd = start_logger()?;
 
     if let Err(err) = cli.run().await {
         tracing::error!("{err}")
@@ -25,6 +26,7 @@ fn start_logger() -> AppResult<tracing_appender::non_blocking::WorkerGuard> {
         .create(true)
         .append(true)
         .open("ppd.log")?;
+    
     let (writer, guard) = non_blocking_logger(log_file);
 
     if let Err(err) = tracing_subscriber::registry()
