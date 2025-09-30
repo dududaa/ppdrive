@@ -2,11 +2,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use bincode::config;
-use handlers::{
-    db::{init_db, migration::run_migrations},
-    plugin::service::Service,
-    tools::create_client,
-};
+use handlers::{db::init_db, plugin::service::Service, tools::create_client};
 use ppd_shared::{
     opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest},
     tools::AppSecrets,
@@ -14,7 +10,7 @@ use ppd_shared::{
 use tokio::{io::AsyncReadExt, net::TcpStream};
 use tokio_util::sync::CancellationToken;
 
-use crate::{AppResult, SharedManager, ServiceManager, ServiceTask};
+use crate::{AppResult, ServiceManager, ServiceTask, SharedManager};
 
 /// adds a new service to the task pool
 pub async fn start_service(
@@ -92,7 +88,11 @@ pub async fn list_services(manager: SharedManager, socket: &mut TcpStream) -> Ap
 }
 
 /// create new client for a specified
-async fn create_new_client(manager: SharedManager, svc_id: u8, client_name: String) -> AppResult<String> {
+pub async fn create_new_client(
+    manager: SharedManager,
+    svc_id: u8,
+    client_name: String,
+) -> AppResult<String> {
     let tasks = manager.tasks.lock().await;
     let task = tasks
         .iter()
@@ -102,15 +102,15 @@ async fn create_new_client(manager: SharedManager, svc_id: u8, client_name: Stri
         )))?;
 
     let db_url = &task.config.base.db_url;
-    run_migrations(db_url)
-        .await
-        .map_err(|err| anyhow!(format!("unable to run migration: {err}")))?;
-
+    println!("initializing db...");
     let db = init_db(db_url)
         .await
         .map_err(|err| anyhow!(format!("unable to get db instance: {err}")))?;
 
+    println!("loading secrets...");
     let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
+
+    println!("creating token...");
     let token = create_client(&db, &secrets, &client_name)
         .await
         .map_err(|err| anyhow!(err))?;

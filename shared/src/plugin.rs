@@ -57,8 +57,8 @@ pub trait Plugin {
     /// prepare plugin for loading. attempts to install plugin (and its dependencies) if it's not installed.
     /// If `prompt` is true, users will
     fn preload(&self, auto_install: bool) -> AppResult<()> {
-        #[cfg(debug_assertions)]
-        self.remove()?;
+        // #[cfg(debug_assertions)]
+        // self.remove()?;
 
         let filename = self.output()?;
         let mut install = if auto_install { "y" } else { "n" };
@@ -81,13 +81,15 @@ pub trait Plugin {
                     "required module \"{}\" is missing. install the module and try again.",
                     self.package_name()
                 )));
+            } else {
+                println!("installing \"{}\" plugin ...", self.package_name());
+                self.install()?;
+
             }
+        } else {
+            println!("package \"{}\" is available. skipping installation...", self.package_name());
         }
 
-        if install == "y" {
-            println!("installing \"{}\" plugin ...", self.package_name());
-            self.install()?;
-        }
 
         Ok(())
     }

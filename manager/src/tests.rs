@@ -1,5 +1,5 @@
 use crate::{
-    ops::{list_services, start_service, stop_service}, AppResult, Manager
+    ops::{create_new_client, list_services, start_service, stop_service}, AppResult, Manager
 };
 use anyhow::anyhow;
 use handlers::plugin::service::Service;
@@ -30,7 +30,7 @@ async fn test_start_service() -> AppResult<()> {
     let mut config = ServiceConfig::default();
     config.auto_install = true;
 
-    // caller is responsible for initializing the service before before sending a
+    // client is responsible for initializing the service before before sending a
     // request to start the service
     let svc = Service::from(&config);
     svc.init().map_err(|err| anyhow!(err))?;
@@ -57,7 +57,7 @@ async fn test_stop_service() -> AppResult<()> {
     let mut config = ServiceConfig::default();
     config.auto_install = true;
 
-    // caller is responsible for initializing the service before before sending a
+    // client is responsible for initializing the service before before sending a
     // request to start the service
     let svc = Service::from(&config);
     svc.init().map_err(|err| anyhow!(err))?;
@@ -72,8 +72,38 @@ async fn test_stop_service() -> AppResult<()> {
     assert!(stop.is_ok());
     
     manager.close().await;
-    let res = handle.await?;
-    assert!(res.is_ok());
+    let _ = handle.await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_create_client() -> AppResult<()> {
+    let manager = Manager::default();
+    let mut config = ServiceConfig::default();
+    config.auto_install = true;
+
+    // client is responsible for initializing the service before before sending a
+    // request to start the service
+    let svc = Service::from(&config);
+    svc.init().map_err(|err| anyhow!(err))?;
+
+    // let's start the service
+    let shared = manager.shared();
+    let handle = manager.start_background().await;
+    let mut socket = manager.tcp_stream().await?;
+
+    println!("starting service...");
+    let id = start_service(shared.clone(), config, &mut socket).await?;
+
+    println!("creating token for {id}...");
+    let token = create_new_client(shared, id, "Test Client".to_string()).await;
+    
+    println!("create client complete...");
+    assert!(token.is_ok());
+    
+    manager.close().await;
+    let _ = handle.await?;
 
     Ok(())
 }

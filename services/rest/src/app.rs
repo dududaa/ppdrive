@@ -105,10 +105,6 @@ async fn serve_app(config: &ServiceConfig, token: *mut CancellationToken) -> Ser
                     _ = axum::serve(listener, svc) => {}
                 }
             }
-
-            // axum::serve(listener, svc)
-            //     .await
-            //     .map_err(|err| ServerError::InitError(err.to_string()))?;
         }
         Err(err) => {
             tracing::error!("Error starting listener: {err}");
