@@ -34,8 +34,7 @@ impl Cli {
                 }
 
                 cmd.arg(port.to_string());
-                let mut child = cmd.spawn()?;
-                child.wait()?;
+                cmd.spawn()?;
             }
 
             CliCommand::Status => {

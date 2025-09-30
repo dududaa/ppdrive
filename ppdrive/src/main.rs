@@ -12,7 +12,7 @@ mod manage;
 #[tokio::main]
 async fn main() -> AppResult<()> {
     let cli = Cli::parse();
-    let _gaurd = start_logger()?;
+    let _guard = start_logger()?;
 
     if let Err(err) = cli.run().await {
         tracing::error!("{err}")
