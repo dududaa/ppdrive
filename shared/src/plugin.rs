@@ -57,8 +57,8 @@ pub trait Plugin {
     /// prepare plugin for loading. attempts to install plugin (and its dependencies) if it's not installed.
     /// If `prompt` is true, users will
     fn preload(&self, auto_install: bool) -> AppResult<()> {
-        // #[cfg(debug_assertions)]
-        // self.remove()?;
+        #[cfg(debug_assertions)]
+        self.remove()?;
 
         let filename = self.output()?;
         let mut install = if auto_install { "y" } else { "n" };

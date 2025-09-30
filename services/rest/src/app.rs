@@ -61,18 +61,19 @@ async fn serve_app(config: &ServiceConfig, token: *mut CancellationToken) -> Ser
         .allow_methods(Any);
 
     set_var(BEARER_KEY, BEARER_VALUE);
+    
     let client_router_ptr = get_client_router(config);
     let client_router = unsafe {
         if client_router_ptr.is_null() {
-            &Router::new()
+            Box::new(Router::new())
         } else {
-            &*client_router_ptr
+            Box::from_raw(client_router_ptr)
         }
     };
 
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", client_router.clone())
+        .nest("/client", *client_router)
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request
@@ -111,11 +112,6 @@ async fn serve_app(config: &ServiceConfig, token: *mut CancellationToken) -> Ser
             panic!("{err}")
         }
     }
-
-    // drop client router
-    unsafe {
-        let _ = Box::from_raw(client_router_ptr);
-    };
 
     Ok(())
 }
