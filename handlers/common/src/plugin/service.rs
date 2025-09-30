@@ -3,6 +3,7 @@ use std::sync::Arc;
 use super::router::ServiceRouter;
 use crate::HandlerResult;
 use libloading::Symbol;
+use ppd_bk::RBatis;
 use ppd_shared::{
     opts::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::{HasDependecies, Plugin},
@@ -19,22 +20,24 @@ pub struct Service<'a> {
 
 impl<'a> Service<'a> {
     /// start a rest or grpc service
-    pub fn start(&self, config: ServiceConfig, token: CancellationToken) -> HandlerResult<()> {
+    pub fn start(&self, config: ServiceConfig, db: Arc<RBatis>, token: CancellationToken) -> HandlerResult<()> {
         let filename = self.output()?;
 
         let cfg_ptr = Arc::new(config);
         let cfg_raw = Arc::into_raw(cfg_ptr);
 
+        let db_raw = Arc::into_raw(db);
+
         let token = Box::new(token);
         let token_raw = Box::into_raw(token);
 
         let lib = self.load(filename)?;
-        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig, *mut CancellationToken)> = unsafe {
+        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig, *const RBatis, *mut CancellationToken)> = unsafe {
             lib.get(b"start_svc")
                 .expect("unable to load start_server Symbol")
         };
 
-        unsafe { start(cfg_raw, token_raw) };
+        unsafe { start(cfg_raw, db_raw, token_raw) };
 
         Ok(())
     }

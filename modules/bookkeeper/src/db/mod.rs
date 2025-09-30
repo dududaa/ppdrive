@@ -11,10 +11,9 @@ pub mod migration;
 pub async fn init_db(url: &str) -> DBResult<RBatis> {
     use DatabaseType::*;
 
-    run_migrations(url).await?;
     let db_type = url.try_into()?;
     let rb = RBatis::new();
-
+    
     match db_type {
         Sqlite => rb.init(SqliteDriver {}, url)?,
         MySql => rb.init(MysqlDriver {}, url)?,
@@ -29,7 +28,8 @@ pub async fn init_db(url: &str) -> DBResult<RBatis> {
             println!("{err}")
         }
     });
-
+    
+    run_migrations(url).await?;
     Ok(rb)
 }
 
