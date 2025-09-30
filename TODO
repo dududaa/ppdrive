@@ -3,6 +3,7 @@
 - ~~Check manager status~~
 - ~~Stop manager~~
 - Add "Create Client" cli command
+- Reinstall dependencies on start
 - Bundling
 - Start writing first tutorial
 - Implement Direct and Zero auth type for Rest Service
