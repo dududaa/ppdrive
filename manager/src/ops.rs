@@ -145,7 +145,7 @@ pub async fn process_request(
 
         ServiceRequest::CreateClient(svc_id, client_name) => {
             let resp = match create_new_client(manager, svc_id, client_name).await {
-                Ok(token) => Response::success(()).message(format!("client token {token}")),
+                Ok(token) => Response::success(()).message(format!("client created: {token}")),
                 Err(err) => Response::error(()).message(err.to_string()),
             };
 
