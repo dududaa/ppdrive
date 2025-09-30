@@ -68,15 +68,15 @@ async fn serve_app(config: &ServiceConfig, db: *const RBatis, token: *mut Cancel
     let client_router_ptr = get_client_router(config);
     let client_router = unsafe {
         if client_router_ptr.is_null() {
-            Box::new(Router::new())
+            &Router::new()
         } else {
-            Box::from_raw(client_router_ptr)
+            &*client_router_ptr
         }
     };
 
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", *client_router)
+        .nest("/client", client_router.clone())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request
@@ -115,6 +115,9 @@ async fn serve_app(config: &ServiceConfig, db: *const RBatis, token: *mut Cancel
             panic!("{err}")
         }
     }
+
+    // drop router
+    let _ = unsafe { Box::from_raw(client_router_ptr) };
 
     Ok(())
 }

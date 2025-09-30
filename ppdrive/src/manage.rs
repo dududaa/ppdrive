@@ -16,7 +16,6 @@ impl PPDrive {
         let svc = Service::from(&config);
         svc.init()?;
 
-        // message service manager to load service
         let resp = Self::send_request::<u8>(ServiceRequest::Add(config), port).await?;
         resp.log();
 
