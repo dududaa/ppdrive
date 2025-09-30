@@ -2,7 +2,8 @@
 - ~~Start manager async~~
 - ~~Check manager status~~
 - ~~Stop manager~~
-- Add "Create Client" cli command
+- ~~Add "Create Client" cli command~~
+- fix/unblock test_create_client
 - Reinstall dependencies on start
 - Bundling
 - Start writing first tutorial
