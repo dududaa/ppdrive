@@ -14,7 +14,6 @@ pub trait Plugin {
         use std::process::Command;
 
         let args = vec!["build", "-p", self.package_name()];
-
         let mut child = Command::new("cargo").args(args).spawn()?;
         child.wait()?;
 
