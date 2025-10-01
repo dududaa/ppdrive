@@ -17,7 +17,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub async fn run(self) -> AppResult<()> {
+    pub fn run(self) -> AppResult<()> {
         let port = self.port.clone().unwrap_or(5025);
 
         match self.command {
@@ -38,7 +38,7 @@ impl Cli {
             }
 
             CliCommand::Status => {
-                PPDrive::check_status(port).await?;
+                PPDrive::check_status(port)?;
             }
 
             CliCommand::Run {
@@ -54,20 +54,20 @@ impl Cli {
                     auto_install,
                 };
 
-                PPDrive::add(config, port).await?;
+                PPDrive::add(config, port)?;
             }
             CliCommand::Stop { id } => match id {
-                Some(id) => PPDrive::cancel(id, port).await?,
-                None => PPDrive::stop(port).await?,
+                Some(id) => PPDrive::cancel(id, port)?,
+                None => PPDrive::stop(port)?,
             },
             CliCommand::List => {
-                PPDrive::list(port).await?;
+                PPDrive::list(port)?;
             }
             CliCommand::CreateClient {
                 svc_id,
                 client_name,
             } => {
-                PPDrive::create_client(port, svc_id, client_name).await?;
+                PPDrive::create_client(port, svc_id, client_name)?;
             }
             _ => unimplemented!("this command is not supported"),
         }
