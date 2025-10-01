@@ -7,7 +7,7 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 
 mod command;
 mod errors;
-mod manage;
+mod imp;
 
 fn main() -> AppResult<()> {
     let cli = Cli::parse();
