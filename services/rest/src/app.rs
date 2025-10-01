@@ -149,7 +149,6 @@ pub async fn initialize_app(
     db: *const RBatis,
     token: *mut CancellationToken,
 ) -> ServerResult<()> {
-    // start ppdrive app
     init_secrets().await?;
     serve_app(&config, db, token).await
 }
