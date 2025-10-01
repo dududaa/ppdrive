@@ -3,7 +3,7 @@
 - ~~Check manager status~~
 - ~~Stop manager~~
 - ~~Add "Create Client" cli command~~
-- implement ppdrive sync
+- ~~implement ppdrive sync~~
 - fix/unblock test_create_client
 - Reinstall dependencies on start
 - Bundling
