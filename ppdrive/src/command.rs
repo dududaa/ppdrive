@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use crate::{errors::AppResult, manage::PPDrive};
+use crate::{errors::AppResult, imp::PPDrive};
 use clap::{Parser, Subcommand, ValueEnum};
 use ppd_shared::opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType};
 
