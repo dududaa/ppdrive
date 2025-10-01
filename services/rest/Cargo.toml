@@ -24,11 +24,3 @@ tracing-appender.workspace = true
 ppd_shared.workspace = true
 ppd_bk.workspace = true
 handlers = { workspace = true, features = ["plugin", "rest"] }
-
-[dev-dependencies]
-axum-test = "16"
-futures = "0.3.31"
-serial_test = "3.2.0"
-rest_client.workspace = true
-ppd_fs.workspace = true
-serde_json.workspace = true
