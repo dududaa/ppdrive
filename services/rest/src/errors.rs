@@ -1,4 +1,4 @@
-use std::{env::VarError, fmt::Display, string::FromUtf8Error};
+use std::{env::VarError, error::Error, fmt::Display, string::FromUtf8Error};
 
 use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoResponse};
 use ppd_shared::errors::Error as SharedError;
@@ -87,3 +87,5 @@ impl From<FromUtf8Error> for ServerError {
         ServerError::InitError(value.to_string())
     }
 }
+
+impl Error for ServerError  {}

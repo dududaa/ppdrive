@@ -20,7 +20,7 @@ pub async fn start_service(
 ) -> AppResult<u8> {
     let db_url = &config.base.db_url;
     let db = init_db(&db_url).await.map_err(|err| anyhow!(err))?;
-    
+
     let token = CancellationToken::new();
     let db = Arc::new(db);
 
@@ -28,12 +28,8 @@ pub async fn start_service(
     task.token = Some(token.clone());
     task.db = db.clone();
 
-    tokio::spawn(async move {
-        let svc = Service::from(&config);
-        if let Err(err) = svc.start(config.clone(), db, token) {
-            tracing::error!("unable to start server: {err}")
-        }
-    });
+    let svc = Service::from(&config);
+    svc.start(config.clone(), db, token).await.map_err(|err| anyhow!(err))?;
 
     let mut tasks = manager.tasks.lock().await;
     let id = task.id.clone();

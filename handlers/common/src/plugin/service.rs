@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use super::router::ServiceRouter;
-use crate::HandlerResult;
+use crate::{HandlerResult, errors::HandlerError};
 use libloading::Symbol;
 use ppd_bk::RBatis;
 use ppd_shared::{
@@ -10,35 +10,34 @@ use ppd_shared::{
 };
 use tokio_util::sync::CancellationToken;
 
+pub type CallResult = Pin<Box<dyn Future<Output = Result<(), HandlerError>>>>;
+
 #[derive(Debug)]
 pub struct Service<'a> {
     ty: &'a ServiceType,
     port: &'a u16,
     modes: &'a [ServiceAuthMode],
-    auto_install: &'a bool
+    auto_install: &'a bool,
 }
 
 impl<'a> Service<'a> {
     /// start a rest or grpc service
-    pub fn start(&self, config: ServiceConfig, db: Arc<RBatis>, token: CancellationToken) -> HandlerResult<()> {
+    pub async fn start(
+        &self,
+        config: ServiceConfig,
+        db: Arc<RBatis>,
+        token: CancellationToken,
+    ) -> HandlerResult<()> {
         let filename = self.output()?;
-
-        let cfg_ptr = Arc::new(config);
-        let cfg_raw = Arc::into_raw(cfg_ptr);
-
-        let db_raw = Arc::into_raw(db);
-
-        let token = Box::new(token);
-        let token_raw = Box::into_raw(token);
+        let config = Arc::new(config);
 
         let lib = self.load(filename)?;
-        let start: Symbol<unsafe extern "C" fn(*const ServiceConfig, *const RBatis, *mut CancellationToken)> = unsafe {
+        let start_service: Symbol<fn(Arc<ServiceConfig>, Arc<RBatis>, CancellationToken)> = unsafe {
             lib.get(b"start_svc")
                 .expect("unable to load start_server Symbol")
         };
 
-        unsafe { start(cfg_raw, db_raw, token_raw) };
-
+        start_service(config, db, token);
         Ok(())
     }
 
@@ -74,7 +73,7 @@ impl<'a> From<&'a ServiceConfig> for Service<'a> {
             ty: &value.ty,
             port: &value.base.port,
             modes: &value.auth.modes,
-            auto_install: &value.auto_install
+            auto_install: &value.auto_install,
         }
     }
 }

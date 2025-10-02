@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{sync::Arc};
 
-use crate::app::{initialize_app, start_logger};
+use crate::app::{run_app, start_logger};
 use errors::ServerError;
 use ppd_bk::RBatis;
 use ppd_shared::opts::ServiceConfig;
@@ -13,29 +13,26 @@ pub type ServerResult<T> = Result<T, ServerError>;
 
 async fn launch_svc(
     config: Arc<ServiceConfig>,
-    db: *const RBatis,
-    token: *mut CancellationToken,
+    db: Arc<RBatis>,
+    token: CancellationToken,
 ) -> ServerResult<()> {
     let _guard = start_logger()?;
-    initialize_app(&config, db, token).await?;
+    run_app(config, db, token).await?;
 
     Ok(())
 }
 
 #[no_mangle]
-pub extern "C" fn start_svc(
-    config: *const ServiceConfig,
-    db: *const RBatis,
-    token: *mut CancellationToken,
+pub fn start_svc(
+    config: Arc<ServiceConfig>,
+    db: Arc<RBatis>,
+    token: CancellationToken,
 ) {
-    let config = unsafe { Arc::from_raw(config) };
-
     if let Ok(rt) = Runtime::new() {
         rt.block_on(async {
             if let Err(err) = launch_svc(config, db, token).await {
-                tracing::error!("{err}");
                 panic!("{err}")
             }
-        });
+        })
     }
 }

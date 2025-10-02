@@ -46,9 +46,12 @@ fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
-async fn serve_app(config: &ServiceConfig, db: *const RBatis, token: *mut CancellationToken) -> ServerResult<()> {
-    let db = unsafe { Arc::from_raw(db) };
-    let state = HandlerState::new(config, db).await?;
+async fn serve_app(
+    config: Arc<ServiceConfig>,
+    db: Arc<RBatis>,
+    token: CancellationToken,
+) -> ServerResult<()> {
+    let state = HandlerState::new(&config, db).await?;
     let origins = &config.base.allowed_origins;
 
     let cors = CorsLayer::new()
@@ -64,8 +67,8 @@ async fn serve_app(config: &ServiceConfig, db: *const RBatis, token: *mut Cancel
         .allow_methods(Any);
 
     set_var(BEARER_KEY, BEARER_VALUE);
-    
-    let client_router = get_client_router(config)?;
+
+    let client_router = get_client_router(&config)?;
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
         .nest("/client", client_router)
@@ -93,13 +96,10 @@ async fn serve_app(config: &ServiceConfig, db: *const RBatis, token: *mut Cancel
             if let Ok(addr) = listener.local_addr() {
                 tracing::info!("new service listening on {addr}");
             }
-
-            if !token.is_null() {
-                let token = unsafe { Box::from_raw(token) };
-                tokio::select! {
-                    _ = token.cancelled() => {},
-                    _ = axum::serve(listener, svc) => {}
-                }
+            
+            tokio::select! {
+                _ = token.cancelled() => {},
+                _ = axum::serve(listener, svc) => {}
             }
         }
         Err(err) => {
@@ -133,13 +133,13 @@ pub fn start_logger() -> ServerResult<LoggerGuard> {
     Ok(guard)
 }
 
-pub async fn initialize_app(
-    config: &ServiceConfig,
-    db: *const RBatis,
-    token: *mut CancellationToken,
+pub async fn run_app(
+    config: Arc<ServiceConfig>,
+    db: Arc<RBatis>,
+    token: CancellationToken,
 ) -> ServerResult<()> {
     init_secrets().await?;
-    serve_app(&config, db, token).await
+    serve_app(config, db, token).await
 }
 
 fn get_client_router(config: &ServiceConfig) -> ServerResult<Router<HandlerState>> {
