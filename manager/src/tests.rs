@@ -11,7 +11,7 @@ async fn test_start_and_stop_manager() -> AppResult<()> {
     let handle = manager.start_background().await;
 
     // check list of running services to be sure manager is running
-    let mut socket = manager.tcp_stream().await?;
+    let mut socket = manager.connect().await?;
     let shared = manager.shared();
     let check = list_services(shared, &mut socket).await;
     assert!(check.is_ok());
@@ -38,7 +38,7 @@ async fn test_start_service() -> AppResult<()> {
     // let's start the service
     let shared = manager.shared();
     let handle = manager.start_background().await;
-    let mut socket = manager.tcp_stream().await?;
+    let mut socket = manager.connect().await?;
 
     let start = start_service(shared, config, &mut socket).await;
     assert!(start.is_ok());
@@ -65,7 +65,7 @@ async fn test_stop_service() -> AppResult<()> {
     // let's start the service
     let shared = manager.shared();
     let handle = manager.start_background().await;
-    let mut socket = manager.tcp_stream().await?;
+    let mut socket = manager.connect().await?;
 
     let id = start_service(shared.clone(), config, &mut socket).await?;
     let stop = stop_service(shared, id, &mut socket).await;
@@ -91,15 +91,10 @@ async fn test_create_client() -> AppResult<()> {
     // let's start the service
     let shared = manager.shared();
     let handle = manager.start_background().await;
-    let mut socket = manager.tcp_stream().await?;
+    let mut socket = manager.connect().await?;
 
-    println!("starting service...");
     let id = start_service(shared.clone(), config, &mut socket).await?;
-
-    println!("creating token for {id}...");
     let token = create_new_client(shared, id, "Test Client".to_string()).await;
-    
-    println!("create client complete...");
     assert!(token.is_ok());
     
     manager.close().await;

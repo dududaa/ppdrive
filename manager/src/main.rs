@@ -84,7 +84,7 @@ impl Manager {
     }
 
     #[cfg(test)]
-    async fn tcp_stream(&self) -> AppResult<TcpStream> {
+    async fn connect(&self) -> AppResult<TcpStream> {
         let stream = TcpStream::connect(self.addr()).await?;
         Ok(stream)
     }
