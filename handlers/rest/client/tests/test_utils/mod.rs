@@ -24,9 +24,7 @@ pub struct TestApp {
 
 impl TestApp {
     pub async fn new() -> Self {
-        let ptr = load_router(10);
-        let router = unsafe { Box::from_raw(ptr) };
-
+        let router = load_router(10);
         let config = ServiceConfig::default();
         let db_url = &config.base.db_url;
 
@@ -40,7 +38,7 @@ impl TestApp {
         let db = state.db().clone();
 
         let svc = Router::new()
-            .nest("/client", *router)
+            .nest("/client", router)
             .with_state(state)
             .into_make_service();
 

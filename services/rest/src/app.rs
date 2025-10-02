@@ -65,18 +65,10 @@ async fn serve_app(config: &ServiceConfig, db: *const RBatis, token: *mut Cancel
 
     set_var(BEARER_KEY, BEARER_VALUE);
     
-    let client_router_ptr = get_client_router(config);
-    let client_router = unsafe {
-        if client_router_ptr.is_null() {
-            &Router::new()
-        } else {
-            &*client_router_ptr
-        }
-    };
-
+    let client_router = get_client_router(config)?;
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", client_router.clone())
+        .nest("/client", client_router)
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request
@@ -116,9 +108,6 @@ async fn serve_app(config: &ServiceConfig, db: *const RBatis, token: *mut Cancel
         }
     }
 
-    // drop router
-    let _ = unsafe { Box::from_raw(client_router_ptr) };
-
     Ok(())
 }
 
@@ -153,9 +142,9 @@ pub async fn initialize_app(
     serve_app(&config, db, token).await
 }
 
-fn get_client_router(config: &ServiceConfig) -> *mut Router<HandlerState> {
+fn get_client_router(config: &ServiceConfig) -> ServerResult<Router<HandlerState>> {
     let max_upload_size = config.base.max_upload_size;
-    let mut router = std::ptr::null_mut();
+    let mut router = Router::new();
 
     if config.auth.modes.contains(&ServiceAuthMode::Client) {
         let svc_router = ServiceRouter {
@@ -163,10 +152,8 @@ fn get_client_router(config: &ServiceConfig) -> *mut Router<HandlerState> {
             auth_mode: ServiceAuthMode::Client,
         };
 
-        if let Ok(r) = svc_router.get(max_upload_size) {
-            router = r;
-        }
+        router = svc_router.get(max_upload_size)?;
     }
 
-    router
+    Ok(router)
 }

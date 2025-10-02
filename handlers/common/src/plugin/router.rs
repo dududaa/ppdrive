@@ -18,12 +18,12 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get<T>(&self, max_upload_size: usize) -> HandlerResult<*mut T> {
+    pub fn get<T>(&self, max_upload_size: usize) -> HandlerResult<T> {
         let filename = self.output()?;
         let lib = self.load(filename)?;
 
         let ptr = unsafe {
-            let load_router: Symbol<fn(usize) -> *mut T> = lib.get(b"load_router")?;
+            let load_router: Symbol<fn(usize) -> T> = lib.get(b"load_router")?;
             load_router(max_upload_size)
         };
 
