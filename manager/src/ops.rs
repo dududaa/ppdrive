@@ -28,9 +28,6 @@ pub async fn start_service(
     task.token = Some(token.clone());
     task.db = db.clone();
 
-    let svc = Service::from(&config);
-    svc.start(config.clone(), db, token).await.map_err(|err| anyhow!(err))?;
-
     let mut tasks = manager.tasks.lock().await;
     let id = task.id.clone();
     tasks.push(task);
@@ -43,6 +40,13 @@ pub async fn start_service(
     resp.write(socket)
         .await
         .map_err(|err| anyhow!(err.to_string()))?;
+
+    tokio::spawn(async move {
+        let svc = Service::from(&config);
+        svc.start(config.clone(), db, token)
+            .await
+            .expect("unable to start service");
+    });
 
     Ok(id)
 }
@@ -136,6 +140,9 @@ pub async fn process_request(
 
         ServiceRequest::Stop => {
             manager.close().await;
+            let resp = Response::success(()).message("manager has been closed successully");
+            resp.write(socket).await.expect("unable to write response");
+
             Ok(())
         }
 

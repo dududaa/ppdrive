@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use super::router::ServiceRouter;
 use crate::HandlerResult;
@@ -9,6 +9,8 @@ use ppd_shared::{
     plugin::{HasDependecies, Plugin},
 };
 use tokio_util::sync::CancellationToken;
+
+pub type ServiceHandler = Pin<Arc<dyn Future<Output = ()>>>;
 
 #[derive(Debug)]
 pub struct Service<'a> {

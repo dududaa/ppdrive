@@ -11,14 +11,15 @@ pub struct PPDrive;
 
 impl PPDrive {
     /// add a new service to the manager
-    pub fn add(config: ServiceConfig, port: u16) -> AppResult<()> {
+    pub fn add(config: ServiceConfig, port: u16) -> AppResult<u8> {
         let svc = Service::from(&config);
         svc.init()?;
 
         let resp = Self::send_request::<u8>(ServiceRequest::Add(config), port)?;
         resp.log();
 
-        Ok(())
+        let id = resp.body();
+        Ok(id.clone())
     }
 
     /// cancel a service in the manager

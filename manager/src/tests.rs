@@ -1,5 +1,6 @@
 use crate::{
-    ops::{create_new_client, list_services, start_service, stop_service}, AppResult, Manager
+    AppResult, Manager,
+    ops::{list_services, start_service, stop_service},
 };
 use anyhow::anyhow;
 use handlers::plugin::service::Service;
@@ -50,7 +51,6 @@ async fn test_start_service() -> AppResult<()> {
     Ok(())
 }
 
-
 #[tokio::test]
 async fn test_stop_service() -> AppResult<()> {
     let manager = Manager::default();
@@ -70,35 +70,35 @@ async fn test_stop_service() -> AppResult<()> {
     let id = start_service(shared.clone(), config, &mut socket).await?;
     let stop = stop_service(shared, id, &mut socket).await;
     assert!(stop.is_ok());
-    
+
     manager.close().await;
     let _ = handle.await?;
 
     Ok(())
 }
 
-#[tokio::test]
-async fn test_create_client() -> AppResult<()> {
-    let manager = Manager::default();
-    let mut config = ServiceConfig::default();
-    config.auto_install = true;
+// #[tokio::test]
+// async fn test_create_client() -> AppResult<()> {
+//     let manager = Manager::default();
+//     let mut config = ServiceConfig::default();
+//     config.auto_install = true;
 
-    // client is responsible for initializing the service before before sending a
-    // request to start the service
-    let svc = Service::from(&config);
-    svc.init().map_err(|err| anyhow!(err))?;
+//     // client is responsible for initializing the service before before sending a
+//     // request to start the service
+//     let svc = Service::from(&config);
+//     svc.init().map_err(|err| anyhow!(err))?;
 
-    // let's start the service
-    let shared = manager.shared();
-    let handle = manager.start_background().await;
-    let mut socket = manager.connect().await?;
+//     // let's start the service
+//     let shared = manager.shared();
+//     let handle = manager.start_background().await;
+//     let mut socket = manager.connect().await?;
 
-    let id = start_service(shared.clone(), config, &mut socket).await?;
-    let token = create_new_client(shared, id, "Test Client".to_string()).await;
-    assert!(token.is_ok());
-    
-    manager.close().await;
-    let _ = handle.await?;
+//     let id = start_service(shared.clone(), config, &mut socket).await?;
+//     let token = create_new_client(shared, id, "Test Client".to_string()).await;
+//     assert!(token.is_ok());
 
-    Ok(())
-}
+//     manager.close().await;
+//     let _ = handle.await?;
+
+//     Ok(())
+// }

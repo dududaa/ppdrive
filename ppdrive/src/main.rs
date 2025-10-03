@@ -9,6 +9,9 @@ mod command;
 mod errors;
 mod imp;
 
+#[cfg(test)]
+mod tests;
+
 fn main() -> AppResult<()> {
     let cli = Cli::parse();
     let _guard = start_logger()?;

@@ -159,8 +159,8 @@ impl<T: Encode + Decode<()>> Response<T> {
         }
     }
 
-    pub fn message(mut self, msg: String) -> Self {
-        self.msg = Some(msg);
+    pub fn message(mut self, msg: impl Display) -> Self {
+        self.msg = Some(msg.to_string());
         self
     }
 

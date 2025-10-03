@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{path::Path, process::Command};
 
 use crate::{errors::AppResult, imp::PPDrive};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -22,19 +22,7 @@ impl Cli {
 
         match self.command {
             CliCommand::Start => {
-                let prog = if cfg!(debug_assertions) {
-                    "cargo"
-                } else {
-                    "manager"
-                };
-                let mut cmd = Command::new(prog);
-
-                if cfg!(debug_assertions) {
-                    cmd.args(["run", "--bin", "manager"]);
-                }
-
-                cmd.arg(port.to_string());
-                cmd.spawn()?;
+                start_manager::<String>(port, None)?;
             }
 
             CliCommand::Status => {
@@ -46,14 +34,14 @@ impl Cli {
                 base_config,
                 auth_config,
                 yes_auto_install: auto_install,
-                reload
+                reload,
             } => {
                 let mut config = ServiceConfig {
                     ty: svc,
                     base: base_config,
                     auth: auth_config,
                     auto_install,
-                    reload_deps: reload
+                    reload_deps: reload,
                 };
 
                 if config.reload_deps {
@@ -103,10 +91,10 @@ enum CliCommand {
         /// automatically install missing plugins and dependencies
         #[arg(default_value_t = false, short)]
         yes_auto_install: bool,
-        
+
         /// delete and reinstall all dependencies. this will set `auto-install` to true
         #[arg(default_value_t = false, short)]
-        reload: bool
+        reload: bool,
     },
 
     /// stop ppdrive or a running service.
@@ -138,4 +126,29 @@ impl From<StartOptions> for ServiceType {
             _ => unreachable!("service unknown"),
         }
     }
+}
+
+/// start the manager by running appropriate command based on environments. `current_dir` 
+/// is the directory from which we run the command.
+pub fn start_manager<P>(port: u16, current_dir: Option<P>) -> AppResult<()> where P: AsRef<Path> {
+    let prog = if cfg!(debug_assertions) {
+        "cargo"
+    } else {
+        "manager"
+    };
+    
+    let mut cmd = Command::new(prog);
+
+    if let Some(cd) = current_dir {
+        cmd.current_dir(cd);
+    }
+
+    if cfg!(debug_assertions) {
+        cmd.args(["run", "--bin", "manager"]);
+    }
+
+    cmd.arg(port.to_string());
+    cmd.spawn()?;
+
+    Ok(())
 }
