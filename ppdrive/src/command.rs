@@ -46,13 +46,19 @@ impl Cli {
                 base_config,
                 auth_config,
                 yes_auto_install: auto_install,
+                reload
             } => {
-                let config = ServiceConfig {
+                let mut config = ServiceConfig {
                     ty: svc,
                     base: base_config,
                     auth: auth_config,
                     auto_install,
+                    reload_deps: reload
                 };
+
+                if config.reload_deps {
+                    config.auto_install = true
+                }
 
                 PPDrive::add(config, port)?;
             }
@@ -97,6 +103,10 @@ enum CliCommand {
         /// automatically install missing plugins and dependencies
         #[arg(default_value_t = false, short)]
         yes_auto_install: bool,
+        
+        /// delete and reinstall all dependencies. this will set `auto-install` to true
+        #[arg(default_value_t = false, short)]
+        reload: bool
     },
 
     /// stop ppdrive or a running service.

@@ -1,7 +1,7 @@
-use std::{pin::Pin, sync::Arc};
+use std::sync::Arc;
 
 use super::router::ServiceRouter;
-use crate::{HandlerResult, errors::HandlerError};
+use crate::HandlerResult;
 use libloading::Symbol;
 use ppd_bk::RBatis;
 use ppd_shared::{
@@ -10,14 +10,13 @@ use ppd_shared::{
 };
 use tokio_util::sync::CancellationToken;
 
-pub type CallResult = Pin<Box<dyn Future<Output = Result<(), HandlerError>>>>;
-
 #[derive(Debug)]
 pub struct Service<'a> {
     ty: &'a ServiceType,
     port: &'a u16,
     modes: &'a [ServiceAuthMode],
     auto_install: &'a bool,
+    reload_deps: &'a bool,
 }
 
 impl<'a> Service<'a> {
@@ -44,8 +43,10 @@ impl<'a> Service<'a> {
     /// preload service and its dependencies
     pub fn init(&self) -> HandlerResult<()> {
         let auto_install = self.auto_install();
-        self.preload_deps(auto_install)?;
-        self.preload(auto_install)?;
+        let reload = self.reload_deps();
+
+        self.preload_deps(auto_install, reload)?;
+        self.preload(auto_install, reload)?;
 
         Ok(())
     }
@@ -65,6 +66,10 @@ impl<'a> Service<'a> {
     pub fn auto_install(&self) -> bool {
         *self.auto_install
     }
+
+    pub fn reload_deps(&self) -> bool {
+        *self.reload_deps
+    }
 }
 
 impl<'a> From<&'a ServiceConfig> for Service<'a> {
@@ -74,6 +79,7 @@ impl<'a> From<&'a ServiceConfig> for Service<'a> {
             port: &value.base.port,
             modes: &value.auth.modes,
             auto_install: &value.auto_install,
+            reload_deps: &value.reload_deps,
         }
     }
 }

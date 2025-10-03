@@ -108,6 +108,7 @@ pub struct ServiceConfig {
     pub base: ServiceBaseConfig,
     pub auth: ServiceAuthConfig,
     pub auto_install: bool,
+    pub reload_deps: bool
 }
 
 #[derive(Encode, Decode, Clone)]

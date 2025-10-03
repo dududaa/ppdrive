@@ -55,12 +55,13 @@ pub trait Plugin {
 
     /// prepare plugin for loading. attempts to install plugin (and its dependencies) if it's not installed.
     /// If `prompt` is true, users will
-    fn preload(&self, auto_install: bool) -> AppResult<()> {
-        // #[cfg(debug_assertions)]
-        // self.remove()?;
+    fn preload(&self, auto_install: bool, reload: bool) -> AppResult<()> {
+        if reload {
+            self.remove()?;
+        }
 
         let filename = self.output()?;
-        let mut install = if auto_install { "y" } else { "n" };
+        let mut install = if auto_install || reload { "y" } else { "n" };
         let mut promp_resp = String::new();
 
         if !filename.is_file() {
@@ -138,10 +139,10 @@ pub trait HasDependecies: Plugin {
         !self.dependecies().is_empty()
     }
 
-    fn preload_deps(&self, auto_install: bool) -> AppResult<()> {
+    fn preload_deps(&self, auto_install: bool, reload: bool) -> AppResult<()> {
         if self.has_dependencies() {
             for dep in self.dependecies() {
-                dep.preload(auto_install)?;
+                dep.preload(auto_install, reload)?;
             }
         }
 

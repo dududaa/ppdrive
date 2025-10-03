@@ -12,7 +12,8 @@ pub struct HandlerState {
 
 impl HandlerState {
     pub async fn new(config: &ServiceConfig, db: Arc<RBatis>) -> Result<Self, HandlerError> {
-        let secrets = Arc::new(AppSecrets::read().await?);
+        let secrets = AppSecrets::read().await?;
+        let secrets = Arc::new(secrets);
         let config = Arc::new(config.clone());
 
         let s = Self {

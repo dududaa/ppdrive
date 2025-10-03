@@ -21,17 +21,17 @@ impl AppSecrets {
     pub async fn read() -> AppResult<Self> {
         let secret_file = secret_filename()?;
         let mut secrets = tokio::fs::File::open(&secret_file).await?;
-
+        
         let mut secret_key = [0; 32];
         let mut nonce = [0; 24];
         let mut jwt_secret = [0; 32];
-
+        
         secrets.read_exact(&mut secret_key).await?;
+        
         secrets.seek(SeekFrom::Start(32)).await?;
-
         secrets.read_exact(&mut nonce).await?;
+        
         secrets.seek(SeekFrom::Start(32 + 24)).await?;
-
         secrets.read_exact(&mut jwt_secret).await?;
 
         Ok(Self {

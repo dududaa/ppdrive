@@ -4,7 +4,6 @@ use axum::http::header::{
 use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
 use handlers::plugin::router::ServiceRouter;
-use ppd_bk::RBatis;
 use ppd_shared::opts::{ServiceAuthMode, ServiceConfig, ServiceType};
 use std::env::set_var;
 use std::sync::Arc;
@@ -23,7 +22,6 @@ use handlers::{
     prelude::state::HandlerState,
     rest::get_asset,
 };
-use ppd_shared::tools::init_secrets;
 
 fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     match origins {
@@ -46,14 +44,12 @@ fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
-async fn serve_app(
+pub async fn serve_app(
     config: Arc<ServiceConfig>,
-    db: Arc<RBatis>,
+    state: HandlerState,
     token: CancellationToken,
 ) -> ServerResult<()> {
-    let state = HandlerState::new(&config, db).await?;
     let origins = &config.base.allowed_origins;
-
     let cors = CorsLayer::new()
         .allow_origin(to_origins(origins))
         .allow_headers([
@@ -96,7 +92,7 @@ async fn serve_app(
             if let Ok(addr) = listener.local_addr() {
                 tracing::info!("new service listening on {addr}");
             }
-            
+
             tokio::select! {
                 _ = token.cancelled() => {},
                 _ = axum::serve(listener, svc) => {}
@@ -131,15 +127,6 @@ pub fn start_logger() -> ServerResult<LoggerGuard> {
     }
 
     Ok(guard)
-}
-
-pub async fn run_app(
-    config: Arc<ServiceConfig>,
-    db: Arc<RBatis>,
-    token: CancellationToken,
-) -> ServerResult<()> {
-    init_secrets().await?;
-    serve_app(config, db, token).await
 }
 
 fn get_client_router(config: &ServiceConfig) -> ServerResult<Router<HandlerState>> {
