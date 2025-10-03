@@ -4,8 +4,11 @@
 - ~~Stop manager~~
 - ~~Add "Create Client" cli command~~
 - ~~implement ppdrive sync~~
-- fix/unblock test_create_client
-- Reinstall dependencies on start
+- ~~fix/unblock test_create_client~~
+- ~~Reinstall dependencies on start~~
+- run cargo test
+- happy clippy
+- Reduce dylib size
 - Bundling
 - Start writing first tutorial
 - Implement Direct and Zero auth type for Rest Service

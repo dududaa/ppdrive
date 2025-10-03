@@ -6,6 +6,7 @@ use handlers::prelude::opts::LoginToken;
 use handlers::prelude::state::HandlerState;
 use handlers::tools::create_client;
 use ppd_bk::db::init_db;
+use ppd_bk::db::migration::run_migrations;
 use ppd_bk::RBatis;
 use ppd_shared::opts::ServiceConfig;
 use ppd_shared::tools::AppSecrets;
@@ -31,6 +32,7 @@ impl TestApp {
         let db = init_db(db_url).await.expect("unable to init database");
         let db = Arc::new(db);
 
+        run_migrations(db_url).await.expect("unable to run migrations");
         let state = HandlerState::new(&config, db)
             .await
             .expect("unable to create app state");

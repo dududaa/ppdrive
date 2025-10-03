@@ -5,8 +5,10 @@ use crate::{
 use anyhow::anyhow;
 use handlers::plugin::service::Service;
 use ppd_shared::opts::ServiceConfig;
+use serial_test::serial;
 
 #[tokio::test]
+#[serial]
 async fn test_start_and_stop_manager() -> AppResult<()> {
     let manager = Manager::default();
     let handle = manager.start_background().await;
@@ -26,6 +28,7 @@ async fn test_start_and_stop_manager() -> AppResult<()> {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_start_service() -> AppResult<()> {
     let manager = Manager::default();
     let mut config = ServiceConfig::default();
@@ -52,6 +55,7 @@ async fn test_start_service() -> AppResult<()> {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_stop_service() -> AppResult<()> {
     let manager = Manager::default();
     let mut config = ServiceConfig::default();
