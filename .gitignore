@@ -33,8 +33,6 @@
 !manager/
 !manager/**
 
-!nnn.md
-
 **migrations
 **db.sqlite*
 **sqlite.db*

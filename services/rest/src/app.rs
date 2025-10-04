@@ -62,8 +62,8 @@ pub async fn serve_app(
         .allow_methods(Any);
 
     set_var(BEARER_KEY, BEARER_VALUE);
-
     let client_router = get_client_router(&config)?;
+    
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
         .nest("/client", client_router)
