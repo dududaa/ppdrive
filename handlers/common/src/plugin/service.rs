@@ -6,7 +6,7 @@ use libloading::Symbol;
 use ppd_bk::RBatis;
 use ppd_shared::{
     opts::{ServiceAuthMode, ServiceConfig, ServiceType},
-    plugin::{HasDependecies, Plugin},
+    plugin::{Module, Plugin},
 };
 use tokio_util::sync::CancellationToken;
 
@@ -95,7 +95,7 @@ impl<'a> Plugin for Service<'a> {
     }
 }
 
-impl<'a> HasDependecies for Service<'a> {
+impl<'a> Module for Service<'a> {
     fn dependecies(&self) -> Vec<Box<dyn Plugin>> {
         let routers: Vec<Box<dyn Plugin>> = self
             .modes

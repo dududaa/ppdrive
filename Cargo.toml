@@ -31,3 +31,11 @@ rest_client = { path = "handlers/rest/client" }
 libloading = "0.8.8"
 rbs = { version = "4.5.51" }
 rbatis = { version = "4.5.51" }
+
+[profile.release]
+opt-level = "z"        
+lto = true             
+codegen-units = 1      
+strip = "symbols"      
+panic = "abort"        
+debug = false

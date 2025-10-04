@@ -33,11 +33,12 @@ pub trait Plugin {
 
     /// install the plugin, depending on the environment.
     fn install(&self) -> AppResult<()> {
-        if cfg!(debug_assertions) {
-            self.install_local()?;
-        } else {
-            self.install_remote();
-        }
+
+        #[cfg(debug_assertions)]
+        self.install_local()?;
+
+        #[cfg(not(debug_assertions))]
+        self.install_remote();
 
         Ok(())
     }
@@ -134,7 +135,7 @@ pub trait Plugin {
     }
 }
 
-pub trait HasDependecies: Plugin {
+pub trait Module: Plugin {
     fn has_dependencies(&self) -> bool {
         !self.dependecies().is_empty()
     }
