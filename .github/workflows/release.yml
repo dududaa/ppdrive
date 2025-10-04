@@ -20,10 +20,12 @@ jobs:
             target: x86_64-unknown-linux-gnu
             artifact_name: ppdrive-linux.tar.gz
             bin_ext:
+
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: ppdrive-windows.zip
             bin_ext: .exe
+
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: ppdrive-macos.tar.gz
@@ -41,18 +43,15 @@ jobs:
 
       - name: Build
         run: |
-          cargo build --release --bin ppdrive_cli --target ${{ matrix.target }}
-          cargo build --release --bin ppdrive_server --target ${{ matrix.target }}
+          cargo build --release --bin ppdrive --target ${{ matrix.target }}
+          cargo build --release --bin manager --target ${{ matrix.target }}
 
       - name: Prepare Release Package
         run: |
           mkdir -p package
 
-          cp target/${{ matrix.target }}/release/ppdrive_cli${{ matrix.bin_ext }} package/ppdrive
-          cp target/${{ matrix.target }}/release/ppdrive_server${{ matrix.bin_ext }} package/
-
-          cp -r core/migrations package/
-          cp ppd_config.toml package/
+          cp target/${{ matrix.target }}/release/ppdrive${{ matrix.bin_ext }} package/
+          cp target/${{ matrix.target }}/release/manager${{ matrix.bin_ext }} package/
 
           mkdir -p dist
 
