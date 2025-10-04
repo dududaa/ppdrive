@@ -1,13 +1,15 @@
 # PPDRIVE (IN DEVELOPMENT)
 
-**PPDRIVE** is a free and open-source cloud storage service written in Rust. PPDRIVE service provides a set of RESTful APIs that allows you to manage your remote and local files via secure and blazing fast operations.
+**PPDRIVE** is a free, open-source cloud storage service built with Rust for speed, security, and reliability. It provides a powerful set of RESTful APIs (support other protocols coming soon) that let you manage both remote and local files through secure, lightning-fast operations.
 
-If you're building your own version of Google Drive, Microsoft's OneDrive, Dropbox...etc, PPDRIVE provides a robust, secure, and extensible APIs that allows your users to interact with your server's file system at application level. You can also integrate PPDRIVE into your own applications as an alternative to AWS S3. Building self-hosted media streaming platforms? Build faster using PPDRIVE at zero cost.
+Whether you're building your own version of Google Drive, OneDrive, or Dropbox, PPDRIVE gives you robust, secure, and extensible APIs that allow users to interact seamlessly with your server’s file system at the application level.
+
+Need an alternative to AWS S3? PPDRIVE integrates effortlessly into your existing applications. From self-hosted media streaming platforms to enterprise-grade storage solutions, PPDRIVE helps you build faster, stay in control, and pay nothing.
 
 ---
 
-# Motivation
-We notice that not every start-up, organization or developer wants their projects hooked to third-party cloud storage services. This could be due to concerns for long-term costs, privacy or vendor lock-in. However, most are left with no choice because limited alternatives are available. This is why we created PPDRIVE to provide flexible self-hosted set of APIs for remote file management and storage.
+## Motivation
+We notice that many startups, organizations, and developers prefer not to rely on third-party cloud storage services due to concerns about long-term costs, data privacy, and vendor lock-in. Unfortunately, the lack of viable alternatives often leaves them with limited choices. PPDRIVE was created to address this gap — offering a flexible, self-hosted suite of APIs for remote file management and storage.
 
 ---
 
@@ -48,7 +50,7 @@ We notice that not every start-up, organization or developer wants their project
 ---
 
 ## Installation
-Documentation comming soon
+Documentation coming soon
 
 ---
 
