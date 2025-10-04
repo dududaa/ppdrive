@@ -6,10 +6,10 @@ use handlers::prelude::opts::LoginToken;
 use handlers::prelude::state::HandlerState;
 use handlers::tools::create_client;
 use ppd_bk::db::init_db;
-use ppd_bk::db::migration::run_migrations;
+use ppd_bk::db::migration::clean_db;
 use ppd_bk::RBatis;
 use ppd_shared::opts::ServiceConfig;
-use ppd_shared::tools::AppSecrets;
+use ppd_shared::tools::{root_dir, AppSecrets};
 use rest_client::load_router;
 
 use crate::test_utils::functions::login_user_request;
@@ -26,19 +26,25 @@ pub struct TestApp {
 impl TestApp {
     pub async fn new() -> Self {
         let router = load_router(10);
-        let config = ServiceConfig::default();
-        let db_url = &config.base.db_url;
-
-        let db = init_db(db_url).await.expect("unable to init database");
+        
+        let db_filename = root_dir().expect("cannot get root_dir").join("test_db.sqlite");
+        let db_filename = db_filename.to_str().expect("cannot extract db url");
+        let db_url = format!("sqlite://{}", db_filename);
+        
+        if let Err(err) = clean_db().await {
+            println!("{err}")
+        }
+        let db = init_db(&db_url).await.expect("unable to init database");
         let db = Arc::new(db);
+        
+        let mut config = ServiceConfig::default();
+        config.base.db_url = db_url;
 
-        run_migrations(db_url).await.expect("unable to run migrations");
         let state = HandlerState::new(&config, db)
             .await
             .expect("unable to create app state");
 
         let db = state.db().clone();
-
         let svc = Router::new()
             .nest("/client", router)
             .with_state(state)
