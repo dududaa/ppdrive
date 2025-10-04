@@ -33,7 +33,7 @@ pub async fn start_service(
     tasks.push(task);
 
     std::mem::drop(tasks); // drop tasks MutexGuard to prevent deadlock
-    let resp = Response::success(id.clone()).message(format!(
+    let resp = Response::success(id).message(format!(
         "service added to manager with id {id}. run 'ppdrive list' to see running services."
     ));
 

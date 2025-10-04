@@ -87,8 +87,8 @@ impl PPDrive {
                 let mut stream = TcpStream::connect(addr)?;
                 stream.write_all(&data)?;
 
-                let mut buf = [0u8; 1024];
-                stream.read(&mut buf)?;
+                let mut buf = Vec::new();
+                stream.read_to_end(&mut buf)?;
                 let resp = bincode::decode_from_slice(&buf, config::standard())?;
 
                 Ok(resp.0)

@@ -8,8 +8,8 @@ pub type AppResult<T> = Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
-    EnvError(std::env::VarError),
-    IOError(std::io::Error),
+    Env(std::env::VarError),
+    IO(std::io::Error),
     Internal(String),
 }
 
@@ -18,8 +18,8 @@ impl Display for Error {
         use Error::*;
 
         match self {
-            EnvError(err) => write!(f, "{err}"),
-            IOError(err) => write!(f, "{err}"),
+            Env(err) => write!(f, "{err}"),
+            IO(err) => write!(f, "{err}"),
             Internal(msg) => write!(f, "{msg}"),
         }
     }
@@ -27,13 +27,13 @@ impl Display for Error {
 
 impl From<std::env::VarError> for Error {
     fn from(value: std::env::VarError) -> Self {
-        Error::EnvError(value)
+        Error::Env(value)
     }
 }
 
 impl From<std::io::Error> for Error {
     fn from(value: std::io::Error) -> Self {
-        Error::IOError(value)
+        Error::IO(value)
     }
 }
 
