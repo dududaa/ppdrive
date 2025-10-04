@@ -6,6 +6,11 @@ If you're building your own version of Google Drive, Microsoft's OneDrive, Dropb
 
 ---
 
+# Motivation
+We notice that not every start-up, organization or developer wants their projects hooked to third-party cloud storage services. This could be due to concerns for long-term costs, privacy or vendor lock-in. However, most are left with no choice because limited alternatives are available. This is why we created PPDRIVE to provide flexible self-hosted set of APIs for remote file management and storage.
+
+---
+
 ## Why PPDRIVE?
 - **Privacy and Data Control**: All your user, application and business data stay on your server. PPDRIVE does not send, spy or use your data in any way.
 - **No vendor lock-in. No hidden charges**: Unlike AWS, GCP and other commercial alternatives, you don't need to pay for anything.
@@ -57,6 +62,8 @@ If you would love to support by journey, please consider donating via any of the
 We welcome contributions to PPDRIVE! Here’s how you can help:
 
 - You can create a PPDRIVE Client for your favorite language or framework. Please check our REST API Docs to get started.
+
+- You can help improve code-level documentations.
 
 - Or you can contribute directly to PPDRIVE by helping us resolve an issue or implement our roadmap feature. Please follow these steps.
 

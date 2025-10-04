@@ -180,7 +180,7 @@ impl<T: Encode + Decode<()>> Response<T> {
     }
 
     pub async fn write(&self, socket: &mut TcpStream) -> AppResult<()> {
-        let data = bincode::encode_to_vec(&self, config::standard())
+        let data = bincode::encode_to_vec(self, config::standard())
             .map_err(|err| Error::ServerError(err.to_string()))?;
         socket.write_all(&data).await?;
 
@@ -195,10 +195,10 @@ enum ResponseType {
 }
 
 mod constants {
-    pub const DEFAULT_DB_URL: &'static str = "sqlite://db.sqlite";
+    pub const DEFAULT_DB_URL: &str = "sqlite://db.sqlite";
     pub const DEFAULT_SERVICE_PORT: u16 = 5000;
     pub const DEFAULT_MAX_UPLOAD: usize = 10;
     pub const DEFAULT_ACCESS_TOKEN_EXP: i64 = 900;
     pub const DEFAULT_REFRESH_TOKEN_EXP: i64 = 86400;
-    pub const DEFAULT_JWT_BEARER: &'static str = "Bearer";
+    pub const DEFAULT_JWT_BEARER: &str = "Bearer";
 }

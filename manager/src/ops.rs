@@ -19,7 +19,7 @@ pub async fn start_service(
     socket: &mut TcpStream,
 ) -> AppResult<u8> {
     let db_url = &config.base.db_url;
-    let db = init_db(&db_url).await.map_err(|err| anyhow!(err))?;
+    let db = init_db(db_url).await.map_err(|err| anyhow!(err))?;
 
     let token = CancellationToken::new();
     let db = Arc::new(db);
@@ -29,7 +29,7 @@ pub async fn start_service(
     task.db = db.clone();
 
     let mut tasks = manager.tasks.lock().await;
-    let id = task.id.clone();
+    let id = task.id;
     tasks.push(task);
 
     std::mem::drop(tasks); // drop tasks MutexGuard to prevent deadlock
@@ -122,12 +122,11 @@ pub async fn process_request(
     let mut buf = [0u8; 1024];
     let n = socket.read(&mut buf).await?;
 
-    if n <= 0 {
+    if n == 0 {
         return Err(anyhow!("invalid packet received"));
     }
 
     let (req, _) = bincode::decode_from_slice::<ServiceRequest, _>(&buf, config::standard())?;
-
     match req {
         ServiceRequest::Add(config) => {
             start_service(manager, config, socket).await?;

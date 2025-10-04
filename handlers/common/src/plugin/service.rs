@@ -1,4 +1,4 @@
-use std::{pin::Pin, sync::Arc};
+use std::sync::Arc;
 
 use super::router::ServiceRouter;
 use crate::HandlerResult;
@@ -10,7 +10,7 @@ use ppd_shared::{
 };
 use tokio_util::sync::CancellationToken;
 
-pub type ServiceHandler = Pin<Arc<dyn Future<Output = ()>>>;
+pub type ServiceSymbol<'a> = Symbol<'a, fn(Arc<ServiceConfig>, Arc<RBatis>, CancellationToken)>;
 
 #[derive(Debug)]
 pub struct Service<'a> {
@@ -33,7 +33,7 @@ impl<'a> Service<'a> {
         let config = Arc::new(config);
 
         let lib = self.load(filename)?;
-        let start_service: Symbol<fn(Arc<ServiceConfig>, Arc<RBatis>, CancellationToken)> = unsafe {
+        let start_service: ServiceSymbol = unsafe {
             lib.get(b"start_svc")
                 .expect("unable to load start_server Symbol")
         };
@@ -54,11 +54,11 @@ impl<'a> Service<'a> {
     }
 
     pub fn ty(&self) -> &ServiceType {
-        &self.ty
+        self.ty
     }
 
     pub fn port(&self) -> &u16 {
-        &self.port
+        self.port
     }
 
     pub fn modes(&self) -> &[ServiceAuthMode] {
@@ -103,7 +103,7 @@ impl<'a> HasDependecies for Service<'a> {
             .map(|mode| {
                 Box::new(ServiceRouter {
                     svc_type: *self.ty,
-                    auth_mode: mode.clone(),
+                    auth_mode: *mode,
                 }) as Box<dyn Plugin>
             })
             .collect();

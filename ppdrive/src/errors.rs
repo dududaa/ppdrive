@@ -8,9 +8,9 @@ pub type AppResult<T> = Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
-    VarError(std::env::VarError),
+    EnvError(std::env::VarError),
     IOError(std::io::Error),
-    InternalError(String),
+    Internal(String),
 }
 
 impl Display for Error {
@@ -18,16 +18,16 @@ impl Display for Error {
         use Error::*;
 
         match self {
-            VarError(err) => write!(f, "{err}"),
+            EnvError(err) => write!(f, "{err}"),
             IOError(err) => write!(f, "{err}"),
-            InternalError(msg) => write!(f, "{msg}"),
+            Internal(msg) => write!(f, "{msg}"),
         }
     }
 }
 
 impl From<std::env::VarError> for Error {
     fn from(value: std::env::VarError) -> Self {
-        Error::VarError(value)
+        Error::EnvError(value)
     }
 }
 
@@ -39,30 +39,30 @@ impl From<std::io::Error> for Error {
 
 impl From<SharedError> for Error {
     fn from(value: SharedError) -> Self {
-        Error::InternalError(value.to_string())
+        Error::Internal(value.to_string())
     }
 }
 
 impl From<HandlerError> for Error {
     fn from(value: HandlerError) -> Self {
-        Error::InternalError(value.to_string())
+        Error::Internal(value.to_string())
     }
 }
 
 impl From<JoinError> for Error {
     fn from(value: JoinError) -> Self {
-        Error::InternalError(value.to_string())
+        Error::Internal(value.to_string())
     }
 }
 
 impl From<DecodeError> for Error {
     fn from(value: DecodeError) -> Self {
-        Error::InternalError(value.to_string())
+        Error::Internal(value.to_string())
     }
 }
 
 impl From<EncodeError> for Error {
     fn from(value: EncodeError) -> Self {
-        Error::InternalError(value.to_string())
+        Error::Internal(value.to_string())
     }
 }

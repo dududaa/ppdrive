@@ -47,7 +47,7 @@ impl Mimes {
     }
 
     pub fn id(&self) -> u64 {
-        *&self.id.unwrap_or_default()
+        self.id.unwrap_or_default()
     }
 
     pub fn mime(&self) -> &str {

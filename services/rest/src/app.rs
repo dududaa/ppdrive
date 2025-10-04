@@ -28,14 +28,13 @@ fn to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
         Some(list) => {
             let headers: Vec<HeaderValue> = list
                 .iter()
-                .map(|s| match s.parse::<HeaderValue>() {
+                .filter_map(|s| match s.parse::<HeaderValue>() {
                     Ok(url) => Some(url),
                     Err(err) => {
                         tracing::error!("unable to pass cors origin {s}: {err}");
                         None
                     }
                 })
-                .flatten()
                 .collect();
 
             headers.into()

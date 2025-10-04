@@ -29,7 +29,7 @@ pub async fn create_or_update_asset(
     } = opts;
 
     // retrieve bucket and validate bucket ownership
-    let bucket = Buckets::get_by_pid(db, &bucket).await?;
+    let bucket = Buckets::get_by_pid(db, bucket).await?;
     if !bucket.validate_write(user_id) {
         return Err(Error::PermissionError(
             "you have not permission to write to this bucket".to_string(),

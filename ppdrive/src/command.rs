@@ -18,7 +18,7 @@ pub struct Cli {
 
 impl Cli {
     pub fn run(self) -> AppResult<()> {
-        let port = self.port.clone().unwrap_or(5025);
+        let port = self.port.unwrap_or(5025);
 
         match self.command {
             CliCommand::Start => {

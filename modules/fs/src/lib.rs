@@ -97,12 +97,10 @@ pub async fn read_asset(
 
                             if *asset.public() {
                                 filenames.push(html);
-                            } else {
-                                if let Some(user_id) = user_id {
-                                    let can_read = asset.can_read(db, user_id).await;
-                                    if (user_id == asset.user_id()) || can_read.is_ok() {
-                                        filenames.push(html);
-                                    }
+                            } else if let Some(user_id) = user_id {
+                                let can_read = asset.can_read(db, user_id).await;
+                                if (user_id == asset.user_id()) || can_read.is_ok() {
+                                    filenames.push(html);
                                 }
                             }
                         }

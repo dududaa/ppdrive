@@ -82,7 +82,7 @@ pub async fn create_asset(
         ));
     }
 
-    if &opts.asset_path == SECRETS_FILENAME {
+    if opts.asset_path == SECRETS_FILENAME {
         return Err(ServerError::AuthorizationError(
             "asset_path '{SECRET_FILE}' is reserved. please choose another path.".to_string(),
         ));

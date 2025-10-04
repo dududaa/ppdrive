@@ -119,9 +119,9 @@ impl Buckets {
                     }
                 }
                 None => {
-                    return Err(AppError::PermissionError(format!(
-                        "You need to specify mime list for custom mimetypes."
-                    )));
+                    return Err(AppError::PermissionError(
+                        "You need to specify mime list for custom mimetypes.".to_string(),
+                    ));
                 }
             }
         } else {
@@ -205,9 +205,9 @@ impl Buckets {
         }
 
         if partition_size.is_some() && partition.is_none() {
-            return Err(AppError::PermissionError(format!(
-                "You can not set partition size without settion partition."
-            )));
+            return Err(AppError::PermissionError(
+                "You can not set partition size without settion partition.".to_string(),
+            ));
         }
 
         let pid = Uuid::new_v4().to_string();
@@ -237,7 +237,7 @@ impl Buckets {
     }
 
     pub fn id(&self) -> u64 {
-        *&self.id.unwrap_or_default()
+        self.id.unwrap_or_default()
     }
 
     pub fn owner_id(&self) -> &u64 {
@@ -299,11 +299,8 @@ pub struct CreateBucketOptions {
 
     /// The mime type acceptable by a bucket.
     /// - "*" is the default and means all mime types are accepted.
-    /// - "custom" means a selection of mimetypes manually specified
-    /// by a user. Acceptable format should start with "custom" keyword
-    /// followed by a colon ":" and comma seprated mimetypes. Example, "custom:application/zip,audio/3gpp"
-    /// - You can specify a group of mimes using the `filetype` they
-    /// belong to (e.g, "audio", "video", "application"...etc).
+    /// - "custom" means a selection of mimetypes manually specified by a user. Acceptable format should start with "custom" keyword followed by a colon ":" and comma seprated mimetypes. Example, "custom:application/zip,audio/3gpp"
+    /// - You can specify a group of mimes using the `filetype` they belong to (e.g, "audio", "video", "application"...etc).
     /// - You can also specify a *list* of comma seprated groups e.g, "audio,video,application".
     pub accepts: Option<String>,
 

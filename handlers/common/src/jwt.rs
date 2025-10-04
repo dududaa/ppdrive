@@ -42,7 +42,7 @@ pub(crate) fn decode_jwt(
 }
 
 fn extract_jwt(header_value: &HeaderValue, bearer: &str) -> Result<String, HandlerError> {
-    let bearer = format!("{} ", bearer);
+    let bearer = format!("{bearer} ");
     let bearer = bearer.as_str();
 
     if let Ok(v) = from_utf8(header_value.as_bytes()) {

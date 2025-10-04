@@ -24,12 +24,12 @@ pub async fn get_asset(
         asset_path = asset_path.trim_end_matches("/").to_string();
     }
 
-    if &asset_path == SECRETS_FILENAME {
+    if asset_path == SECRETS_FILENAME {
         return Err(HandlerError::PermissionDenied("access denied".to_string()));
     }
 
     let db = state.db();
-    let user_id = user.map(|u| u.0.id().clone());
+    let user_id = user.map(|u| *u.0.id());
     let body = read_asset(db, &asset_path, &asset_type, &user_id).await?;
 
     let body = match body {

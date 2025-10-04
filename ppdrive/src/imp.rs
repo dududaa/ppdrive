@@ -18,8 +18,7 @@ impl PPDrive {
         let resp = Self::send_request::<u8>(ServiceRequest::Add(config), port)?;
         resp.log();
 
-        let id = resp.body();
-        Ok(id.clone())
+        Ok(*resp.body())
     }
 
     /// cancel a service in the manager
@@ -94,13 +93,13 @@ impl PPDrive {
 
                 Ok(resp.0)
             }
-            Err(err) => Err(Error::InternalError(format!(
+            Err(err) => Err(Error::Internal(format!(
                 "unable to encode service command: {err}"
             ))),
         }
     }
 
     fn addr(port: u16) -> String {
-        format!("0.0.0.0:{}", port)
+        format!("0.0.0.0:{port}")
     }
 }

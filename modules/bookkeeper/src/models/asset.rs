@@ -116,7 +116,7 @@ impl Assets {
         self.custom_path = custom_path;
         self.asset_path = asset_path;
 
-        Assets::update_by_map(db, &self, value! { "id": &self.id() }).await?;
+        Assets::update_by_map(db, self, value! { "id": &self.id() }).await?;
         Ok(())
     }
 
@@ -186,7 +186,7 @@ impl Assets {
     }
 
     pub fn id(&self) -> u64 {
-        *&self.id.unwrap_or_default()
+        self.id.unwrap_or_default()
     }
 
     pub fn public(&self) -> &bool {

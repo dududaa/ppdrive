@@ -28,7 +28,7 @@ crud!(Users {});
 impl_select!(Users { get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE ${key} = #{value} LIMIT 1`" });
 
 impl Users {
-    pub async fn get<'a>(rb: &RBatis, user_id: &u64) -> DBResult<Users> {
+    pub async fn get(rb: &RBatis, user_id: &u64) -> DBResult<Users> {
         let user = Users::get_by_key(rb, "id", user_id).await?;
         check_model(user, "user not found")
     }
@@ -89,7 +89,7 @@ impl Users {
     }
 
     pub fn id(&self) -> u64 {
-        *&self.id.unwrap_or_default()
+        self.id.unwrap_or_default()
     }
 
     pub fn role(&self) -> DBResult<UserRole> {

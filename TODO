@@ -6,7 +6,7 @@
 - ~~implement ppdrive sync~~
 - ~~fix/unblock test_create_client~~
 - ~~Reinstall dependencies on start~~
-- run cargo test
+- ~~run cargo test~~
 - happy clippy
 - Reduce dylib size
 - Bundling

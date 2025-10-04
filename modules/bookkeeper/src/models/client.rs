@@ -41,7 +41,7 @@ impl Clients {
 
     pub async fn update_key(&mut self, db: &RBatis, value: String) -> DBResult<()> {
         self.key = value;
-        Clients::update_by_map(db, &self, value! { "id": &self.id() }).await?;
+        Clients::update_by_map(db, self, value! { "id": &self.id() }).await?;
 
         Ok(())
     }

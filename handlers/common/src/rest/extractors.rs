@@ -43,7 +43,7 @@ where
                         unimplemented!("external url feature not implemented.")
                     }
                     None => {
-                        let user = get_local_user(&state, &auth, &config).await?;
+                        let user = get_local_user(&state, auth, &config).await?;
                         Ok(ClientUser(user))
                     }
                 }
