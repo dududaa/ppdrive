@@ -7,7 +7,7 @@
 - ~~fix/unblock test_create_client~~
 - ~~Reinstall dependencies on start~~
 - ~~run cargo test~~
-- happy clippy
+- ~happy clippy~~
 - Reduce dylib size
 - Bundling
 - Start writing first tutorial
