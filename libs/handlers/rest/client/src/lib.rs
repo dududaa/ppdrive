@@ -8,7 +8,7 @@ use user::*;
 
 use crate::errors::ServerError;
 
-use handlers::{
+use ppd_service::{
     jwt::{TokenType, create_jwt},
     prelude::{
         opts::{CreateUserClient, LoginToken, LoginUserClient},

@@ -23,4 +23,4 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing-appender.workspace = true
 ppd_shared.workspace = true
 ppd_bk.workspace = true
-handlers = { workspace = true, features = ["plugin", "rest"] }
+ppd-service = { workspace = true, features = ["plugin", "rest"] }

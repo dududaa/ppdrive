@@ -16,4 +16,4 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 clap = { workspace = true, features = ["derive"] }
 ppd_shared.workspace = true
 bincode.workspace = true
-handlers = { workspace = true, features = ["plugin"] }
+ppd-service = { workspace = true, features = ["plugin"] }

@@ -1,4 +1,4 @@
-//! functionalities shared by server handlers
+//! function used for creating services and service handlers (routers)
 
 use crate::errors::HandlerError;
 

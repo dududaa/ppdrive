@@ -3,7 +3,7 @@ use axum::http::header::{
 };
 use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
-use handlers::plugin::router::ServiceRouter;
+use ppd_service::plugin::router::ServiceRouter;
 use ppd_shared::opts::{ServiceAuthMode, ServiceConfig, ServiceType};
 use std::env::set_var;
 use std::sync::Arc;
@@ -17,7 +17,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::ServerResult;
-use handlers::{
+use ppd_service::{
     jwt::{BEARER_KEY, BEARER_VALUE},
     prelude::state::HandlerState,
     rest::get_asset,

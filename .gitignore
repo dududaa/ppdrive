@@ -21,8 +21,14 @@
 !ppdrive/
 !ppdrive/**
 
-!services/
-!services/**
+!manager/
+!manager/**
+
+!libs/
+!libs/**
+
+!service/
+!service/**
 
 !modules/
 !modules/**
@@ -30,8 +36,8 @@
 !shared/
 !shared/**
 
-!manager/
-!manager/**
+!docs/
+!docs/**
 
 **migrations
 **db.sqlite*
@@ -40,12 +46,6 @@
 **test-assets
 **delete-assets
 **ppd.log
-
-!handlers/
-!handlers/**
-
-!docs/
-!docs/**
 
 !.vscode
 !.vscode/**

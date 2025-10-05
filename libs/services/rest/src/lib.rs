@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::app::{serve_app, start_logger};
 use errors::ServerError;
-use handlers::prelude::state::HandlerState;
+use ppd_service::prelude::state::HandlerState;
 use ppd_bk::RBatis;
 use ppd_shared::{opts::ServiceConfig, tools::init_secrets};
 use tokio::runtime::Runtime;

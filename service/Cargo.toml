@@ -1,5 +1,5 @@
 [package]
-name = "handlers"
+name = "ppd-service"
 version = "0.1.0"
 edition = "2024"
 
