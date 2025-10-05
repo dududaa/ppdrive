@@ -7,7 +7,8 @@ members = [
     "modules/bookkeeper",
     "shared",
     "service",
-    "handlers/rest/client", "manager",
+    "libs/handlers/rest/client",
+    "manager",
 ]
 
 [workspace.dependencies]
@@ -33,9 +34,9 @@ rbs = { version = "4.5.51" }
 rbatis = { version = "4.5.51" }
 
 [profile.release]
-opt-level = "z"        
-lto = true             
-codegen-units = 1      
-strip = "symbols"      
-panic = "abort"        
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
 debug = false

@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-axum ={ workspace = true, features = ["multipart"]}
+axum = { workspace = true, features = ["multipart"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tokio-util.workspace = true
 tower = "0.4.13"
@@ -22,5 +22,5 @@ tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing-appender.workspace = true
 ppd_shared.workspace = true
-ppd_bk.workspace = true
+ppd_bk = { workspace = true, default-features = false, features = ["rbatis"] }
 ppd-service = { workspace = true, features = ["plugin", "rest"] }
