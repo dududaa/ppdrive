@@ -1,0 +1,82 @@
+name: Release ppd_rest
+
+on:
+  push:
+    tags:
+      - "v*" # Trigger only on version tags like v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ppd_rest Library
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin_ext: .so
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin_ext: .dll
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin_ext: .dylib
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Build Library
+        run: |
+          cargo build --lib ppd_rest --release --target ${{ matrix.target }}
+
+      - name: Prepare Artifact
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          LIB_NAME="libppd_rest${{ matrix.bin_ext }}"
+          cp target/${{ matrix.target }}/release/$LIB_NAME artifacts/$LIB_NAME
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppd_rest-${{ matrix.target }}
+          path: artifacts/
+
+  release:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display downloaded files (debug)
+        run: ls -R artifacts
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Automated release of `ppd_rest` dynamic libraries.
+            Includes builds for Linux, macOS, and Windows.
+          files: |
+            artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
