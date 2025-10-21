@@ -50,8 +50,14 @@ We notice that many startups, organizations, and developers prefer not to rely o
 ---
 
 ## Installation
-Documentation coming soon
+#### Linux
+```sh
+# Using curl
+bash <(curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh)
 
+# Or using wget
+bash <(wget -qO- https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh)
+```
 ---
 
 ## Support
