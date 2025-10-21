@@ -1,6 +1,6 @@
 [package]
 name = "ppd_rest"
-version = "0.27.20"
+version = "0.1.0"
 edition = "2021"
 
 [lib]
