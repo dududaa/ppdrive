@@ -16,7 +16,7 @@ We notice that many startups, organizations, and developers prefer not to rely o
 ## Why PPDRIVE?
 - **Privacy and Data Control**: All your user, application and business data stay on your server. PPDRIVE does not send, spy or use your data in any way.
 - **No vendor lock-in. No hidden charges**: Unlike AWS, GCP and other commercial alternatives, you don't need to pay for anything.
-- **Full Ownership**: We don't collect any "insight" or gain access to any of your data.
+- **Complete Ownership**: We don't collect any "insight" or gain access to any of your data.
 - **Ease of Use**: Flexible service management tools for installing plugins, viewing or cancelling running services.
 - **Security**: Secure by default.
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.

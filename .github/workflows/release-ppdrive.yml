@@ -84,5 +84,6 @@ jobs:
           files: |
             dist/**/*.tar.gz
             dist/**/*.zip
+          prerelease: ${{ contains(github.ref, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
