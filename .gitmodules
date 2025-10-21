@@ -1,0 +1,3 @@
+[submodule "homebrew-installer"]
+	path = homebrew-installer
+	url = https://github.com/dududaa/homebrew-ppdrive

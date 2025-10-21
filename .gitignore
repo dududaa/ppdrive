@@ -36,6 +36,9 @@
 !shared/
 !shared/**
 
+!homebrew-installer/
+!homebrew-installer/**
+
 !docs/
 !docs/**
 
