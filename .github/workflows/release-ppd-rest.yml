@@ -8,9 +8,12 @@ on:
 permissions:
   contents: write
 
+env:
+  LIB_NAME: ppd_rest
+
 jobs:
   build:
-    name: Build ppd_rest Library
+    name: Build $LIB_NAME Library
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -38,19 +41,25 @@ jobs:
 
       - name: Build Library
         run: |
-          cargo build -p ppd_rest --release --target ${{ matrix.target }}
+          cargo build -p $LIB_NAME --release --target ${{ matrix.target }}
 
       - name: Prepare Artifact
         shell: bash
         run: |
           mkdir -p artifacts
-          LIB_NAME="libppd_rest${{ matrix.bin_ext }}"
-          cp target/${{ matrix.target }}/release/$LIB_NAME artifacts/$LIB_NAME
+          LIB_OUTPUT="lib$LIB_NAME${{ matrix.bin_ext }}"
+
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp target/${{ matrix.target }}/release/$LIB_NAME.dll artifacts/$LIB_NAME
+          else
+            cp target/${{ matrix.target }}/release/$LIB_OUTPUT artifacts/$LIB_NAME
+          fi
+
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ppd_rest-${{ matrix.target }}
+          name: $LIB_NAME-${{ matrix.target }}
           path: artifacts/
 
   release:
@@ -74,7 +83,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            Automated release of `ppd_rest` dynamic libraries.
+            Automated release of `$LIB_NAME` dynamic libraries.
             Includes builds for Linux, macOS, and Windows.
           files: |
             artifacts/**/*
