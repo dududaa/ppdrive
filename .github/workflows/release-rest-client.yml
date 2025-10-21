@@ -38,7 +38,7 @@ jobs:
 
       - name: Build Library
         run: |
-          cargo build --lib rest_client --release --target ${{ matrix.target }}
+          cargo build -p rest_client --release --target ${{ matrix.target }}
 
       - name: Prepare Artifact
         shell: bash

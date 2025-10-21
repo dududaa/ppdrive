@@ -28,7 +28,7 @@ tokio-util = "0.7.16"
 uuid = "1.16.0"
 clap = "4.5.45"
 ppd_shared = { path = "shared" }
-ppd_bk = { path = "modules/bookkeeper" }
+ppd_bk = { path = "modules/bookkeeper", default-features = true }
 ppd_fs = { path = "modules/fs" }
 ppd-service = { path = "service", default-features = false }
 rest_client = { path = "handlers/rest/client" }

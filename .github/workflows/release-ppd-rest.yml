@@ -38,7 +38,7 @@ jobs:
 
       - name: Build Library
         run: |
-          cargo build --lib ppd_rest --release --target ${{ matrix.target }}
+          cargo build -p ppd_rest --release --target ${{ matrix.target }}
 
       - name: Prepare Artifact
         shell: bash
