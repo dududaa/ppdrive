@@ -9,6 +9,6 @@
 - ~~run cargo test~~
 - ~~happy clippy~~
 - ~~Reduce dylib size~~
-- Bundling
+- ~~Bundling~~
 - Start writing first tutorial
 - Implement Direct and Zero auth type for Rest Service
