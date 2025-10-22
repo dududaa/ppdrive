@@ -53,18 +53,20 @@ We notice that many startups, organizations, and developers prefer not to rely o
 #### 1. Install
 Run the following commands to install PPDRIVE.
 ###### Linux
+curl:
 ```sh
-# Using curl
-bash <(curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh)
+curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
+```
 
-# Or using wget
-bash <(wget -qO- https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh)
+wget:
+```sh
+wget -qO- https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
 ```
 
 ###### MacOS
+homebrew:
 ```sh
-brew tap dududaa/ppdrive
-brew install ppdrive
+brew tap dududaa/ppdrive && brew install ppdrive
 ```
 ---
 
