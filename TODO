@@ -12,7 +12,8 @@
 - ~~Bundling~~
 
 v0.1.0-beta.2
-- Updating logging format for production
+- Remove source code line number and filename from logging format in stdout
+- Check manager status by attempting to connect to its TCP stream rather than checking listed services
 - Plugin installation
 
 - Start writing first tutorial

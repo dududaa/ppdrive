@@ -16,5 +16,5 @@ pub mod errors;
 #[cfg(feature = "prelude")]
 pub mod validators;
 
-
+#[cfg(feature = "prelude")]
 type DBResult<T> = Result<T, Error>;

@@ -59,7 +59,9 @@ impl PPDrive {
     /// check if ppdrive instance is running on a given port. we do this by attempting to read
     /// list of exisiting services. request failure most likely means ppdrive is not running.
     pub fn check_status(port: u16) -> AppResult<()> {
-        match Self::list(port) {
+        let addr = Self::addr(port);
+
+        match TcpStream::connect(addr) {
             Ok(_) => tracing::info!("ppdrive is running on port {port}"),
             Err(_) => tracing::error!(
                 "ppdrive is not running. run with 'ppdrive start' or check logs if starting fails."
