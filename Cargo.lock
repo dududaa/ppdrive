@@ -1584,7 +1584,7 @@ dependencies = [
 
 [[package]]
 name = "manager"
-version = "0.1.0"
+version = "0.1.0-beta.3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2128,7 +2128,7 @@ dependencies = [
 
 [[package]]
 name = "ppdrive"
-version = "0.1.0-rc.1"
+version = "0.1.0-beta.3"
 dependencies = [
  "bincode",
  "clap",
