@@ -4,7 +4,7 @@ use crate::{errors::AppResult, imp::PPDrive};
 use clap::{Parser, Subcommand, ValueEnum};
 use ppd_shared::opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType};
 
-/// A free and open-source cloud storage service.
+/// PPDRIVE is a free, open-source cloud storage service built with Rust for speed, security, and reliability.
 #[derive(Parser, Debug)]
 #[command(version, about)]
 pub struct Cli {

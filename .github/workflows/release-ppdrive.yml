@@ -78,12 +78,52 @@ jobs:
         with:
           path: dist
 
+      - name: Set release body
+        id: set_body
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+            echo "body=# 🚀 PPDRIVE Pre-Release Notes
+            **Version:** ${{ github.ref_name }} 
+            **Date:** October 2025  
+
+            We’re excited to announce **PPDRIVE’s first official prerelease**!  
+            This marks a major milestone in the development of the PPDRIVE platform — bringing together our core components for task and service management.  
+
+            ---
+
+            ## 🧩 Included Updates
+
+            - **Compact Production Logging**  
+              Removed source code line number, filename and target from logging format in stdout
+
+            - **Simpler Status Checking**  
+              Check manager status by attempting to connect to its TCP stream rather than checking listed services.
+
+            - **Plugin Installation Live**  
+              Plugin installation now works live. 
+
+            - and other minor fixes
+
+            ---
+
+            ## ⚠️ Notes
+
+            This is a **prerelease build**, intended for early adopters and internal testing.  
+            Feedback and bug reports are highly appreciated as we prepare for the first stable release." >> $GITHUB_OUTPUT
+          else
+            echo "body=🎉 Stable release of ${LIB_NAME}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref, '-') }}
+          body: ${{ steps.set_body.outputs.body }}
           files: |
             dist/**/*.tar.gz
             dist/**/*.zip
-          prerelease: ${{ contains(github.ref, '-') }}
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

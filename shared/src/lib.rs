@@ -12,10 +12,13 @@ pub fn start_logger(log_filter: &str) -> AppResult<tracing_appender::non_blockin
     use tracing_appender::non_blocking;
     use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
+    use crate::tools::root_dir;
+
+    let filepath = root_dir()?.join("ppd.log");
     let log_file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open("ppd.log")?;
+        .open(filepath)?;
 
     #[cfg(debug_assertions)]
     let stdout_layer = fmt::layer().without_time().pretty();
