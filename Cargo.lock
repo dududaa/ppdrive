@@ -1936,8 +1936,6 @@ dependencies = [
  "tower 0.4.13",
  "tower-http",
  "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -1952,6 +1950,8 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -1964,8 +1964,6 @@ dependencies = [
  "ppd_shared",
  "tokio",
  "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]

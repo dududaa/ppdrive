@@ -11,10 +11,6 @@ use tokio_util::sync::CancellationToken;
 use tower_http::cors::{AllowOrigin, Any};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
-use tracing_appender::non_blocking;
-use tracing_subscriber::fmt;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::ServerResult;
 use ppd_service::{
@@ -104,28 +100,6 @@ pub async fn serve_app(
     }
 
     Ok(())
-}
-
-type LoggerGuard = tracing_appender::non_blocking::WorkerGuard;
-pub fn start_logger() -> ServerResult<LoggerGuard> {
-    let log_file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("ppd.log")?;
-    let (writer, guard) = non_blocking(log_file);
-
-    if let Err(err) = tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "ppd_rest=debug,tower_http=debug".into()),
-        )
-        .with(fmt::layer().with_ansi(false).pretty().with_writer(writer))
-        .try_init()
-    {
-        tracing::warn!("{err}")
-    }
-
-    Ok(guard)
 }
 
 fn get_client_router(config: &ServiceConfig) -> ServerResult<Router<HandlerState>> {

@@ -3,10 +3,17 @@ name = "ppd_shared"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+logger = ["dep:tracing-appender", "dep:tracing-subscriber"]
+
 [dependencies]
 tracing.workspace = true
 bincode.workspace = true
 libloading.workspace = true
+tracing-appender = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, features = [
+    "env-filter",
+], optional = true }
 clap = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["fs", "io-util"] }
