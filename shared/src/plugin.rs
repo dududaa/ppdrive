@@ -33,8 +33,7 @@ pub trait Plugin {
         let name = format!("{}{}", self.package_name(), self.ext());
         
         let url = format!("https://github.com/dududaa/ppdrive/releases/download/v{version}/{name}");
-        println!("url {url}");
-        tracing::info!("downloading {name} from {url}...");
+        println!("downloading {name} from {url}...");
         
         let resp = reqwest::blocking::get(url)?;
         match resp.status() {

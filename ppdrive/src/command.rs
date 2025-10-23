@@ -2,7 +2,7 @@ use std::{path::Path, process::Command};
 
 use crate::{errors::AppResult, imp::PPDrive};
 use clap::{Parser, Subcommand, ValueEnum};
-use ppd_shared::opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType};
+use ppd_shared::{opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType}, tools::root_dir};
 
 /// PPDRIVE is a free, open-source cloud storage service built with Rust for speed, security, and reliability.
 #[derive(Parser, Debug)]
@@ -132,9 +132,9 @@ impl From<StartOptions> for ServiceType {
 /// is the directory from which we run the command.
 pub fn start_manager<P>(port: u16, current_dir: Option<P>) -> AppResult<()> where P: AsRef<Path> {
     let prog = if cfg!(debug_assertions) {
-        "cargo"
+        "cargo".into()
     } else {
-        "manager"
+        root_dir()?.join("manager")
     };
     
     let mut cmd = Command::new(prog);

@@ -22,6 +22,7 @@ v0.1.0-beta.3
 - Release notes generated from github actions
 
 v0.1.0-rc.1
+- Fix: `ppdrive start` FileNotFoundError on macOS.
 - Allow users to configure ppd_secret filename, ppd_log filename, client route base and admin route base.
 - Allow users load config from filename.
 - Reserve ppd_log, ppd_secret, client_route...etc and prevent assets from using the reserved names.
