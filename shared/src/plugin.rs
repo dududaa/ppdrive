@@ -59,7 +59,7 @@ pub trait Plugin {
         self.install_local()?;
 
         #[cfg(not(debug_assertions))]
-        self.install_remote();
+        self.install_remote()?;
 
         Ok(())
     }

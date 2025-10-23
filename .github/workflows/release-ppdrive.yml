@@ -93,11 +93,11 @@ jobs:
 
             ## 🧩 Included Updates
 
-            - **Compact Production Logging**  
-              Removed source code line number, filename and target from logging format in stdout
+            - **Logger File Location**  
+              Logger file location changed to root directory in production.
 
-            - **Simpler Status Checking**  
-              Check manager status by attempting to connect to its TCP stream rather than checking listed services.
+            - **Automated Release Notes**  
+              Release notes to be generated from github actions.
 
             - **Plugin Installation Live**  
               Plugin installation now works live. 
