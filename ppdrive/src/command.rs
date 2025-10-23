@@ -3,6 +3,7 @@ use std::{path::Path, process::Command};
 use crate::{errors::AppResult, imp::PPDrive};
 use clap::{Parser, Subcommand, ValueEnum};
 use ppd_shared::{opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType}, tools::root_dir};
+use tracing::instrument;
 
 /// PPDRIVE is a free, open-source cloud storage service built with Rust for speed, security, and reliability.
 #[derive(Parser, Debug)]
@@ -17,6 +18,7 @@ pub struct Cli {
 }
 
 impl Cli {
+    #[instrument]
     pub fn run(self) -> AppResult<()> {
         let port = self.port.unwrap_or(5025);
 
