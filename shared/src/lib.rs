@@ -1,5 +1,3 @@
-use std::fs::OpenOptions;
-
 use crate::errors::Error;
 pub mod errors;
 pub mod opts;
@@ -10,6 +8,7 @@ pub type AppResult<T> = Result<T, Error>;
 
 #[cfg(feature = "logger")]
 pub fn start_logger(log_filter: &str) -> AppResult<tracing_appender::non_blocking::WorkerGuard> {
+    use std::fs::OpenOptions;
     use tracing_appender::non_blocking;
     use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 

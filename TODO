@@ -16,7 +16,7 @@ v0.1.0-beta.2
 - Check manager status by attempting to connect to its TCP stream rather than checking listed services
 - Plugin installation
 
-v0.1.1-beta.1
+v0.1.0-rc.1
 - Allow users to configure ppd_secret filename, ppd_log filename, client route base and admin route base.
 - Allow users load config from filename.
 - Reserve ppd_log, ppd_secret, client_route...etc and prevent assets from using the reserved names.

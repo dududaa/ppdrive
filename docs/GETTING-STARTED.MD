@@ -13,7 +13,7 @@ ppdrive run rest
 ```
 
 #### 2. Auth Mode
-In addition to specifying the Service Type, we also need to tell PPDRIVE what **Authentication Mode** (or auth mode) to run in. This will tell PPDRIVE how to protect your file system and authenticate incoming requests. What auth mode you choose **greatly depend on why and how you want to use PPDRIVE**. You can specify one or multiple auth modes. There are basically 4 auth modes and we'll quickly describe them.
+In addition to specifying the Service Type, we also need to tell PPDRIVE what **Authentication Mode** (or auth mode) to run in. This will tell PPDRIVE how to protect your filesystem and authenticate incoming requests. What auth mode you choose **greatly depend on why and how you want to use PPDRIVE**. You can specify one or multiple auth modes. There are basically 4 auth modes and we'll quickly describe them.
 
 ###### 2.1 Client Mode
 Client mode allows you to connect to PPDRIVE by using a generated **client token**. The token must be provided by external applications in order to perform administrative tasks. This mode should be set **if your goal is to connect PPDRIVE to an application you're building seperately**. For example, you might be building an invoicing app and want to upload PDF files to PPDRIVE. Client mode requires some extra steps. Please see [Setting Up for Client Mode](#setting-up-for-client-mode).

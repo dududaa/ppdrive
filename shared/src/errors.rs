@@ -1,5 +1,6 @@
 use std::{fmt::Display, io};
 use libloading::Error as LibLoadError;
+use reqwest::Error as ReqwestError;
 
 #[derive(Debug)]
 pub enum Error {
@@ -29,5 +30,11 @@ impl From<io::Error> for Error {
 impl From<LibLoadError> for Error  {
     fn from(value: LibLoadError) -> Self {
         Error::LibLoadError(value)
+    }
+}
+
+impl From<ReqwestError> for Error {
+    fn from(value: ReqwestError) -> Self {
+        Error::ServerError(value.to_string())
     }
 }

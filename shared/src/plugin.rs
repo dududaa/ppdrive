@@ -1,4 +1,5 @@
 use libloading::Library;
+use reqwest::StatusCode;
 
 use crate::{AppResult, errors::Error, tools::root_dir};
 use std::path::PathBuf;
@@ -27,8 +28,28 @@ pub trait Plugin {
 
     /// remote installation of the plugin. this involves downloading the binary from a remote
     /// server
-    fn install_remote(&self) {
-        unimplemented!()
+    fn install_remote(&self) -> AppResult<()> {
+        let version = env!("CARGO_PKG_VERSION");
+        let name = format!("{}{}", self.package_name(), self.ext());
+        
+        let url = format!("https://github.com/dududaa/ppdrive/releases/download/v{version}/{name}");
+        println!("url {url}");
+        tracing::info!("downloading {name} from {url}...");
+        
+        let resp = reqwest::blocking::get(url)?;
+        match resp.status() {
+            StatusCode::OK => {
+                let body = resp.bytes()?;
+                let output = self.output()?;
+                std::fs::write(output, body)?;
+        
+                Ok(())
+            }
+            _ => {
+                let msg = resp.text()?;
+                Err(Error::ServerError(format!("unable download {name}: {msg}")))
+            }
+        }
     }
 
     /// install the plugin, depending on the environment.
@@ -120,6 +141,11 @@ pub trait Plugin {
     /// the output filename path of the release build.
     #[cfg(debug_assertions)]
     fn release_path(&self) -> AppResult<PathBuf> {
+        #[cfg(target_os = "windows")]
+        let n = format!("target/debug/{}{}", self.package_name(), self.ext());
+        
+        
+        #[cfg(not(target_os = "windows"))]
         let n = format!("target/debug/lib{}{}", self.package_name(), self.ext());
 
         let p = root_dir()?.join(n);
