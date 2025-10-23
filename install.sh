@@ -11,7 +11,7 @@ ASSET_PATTERN="ppdrive-linux.tar.gz"
 
 download_latest_release() {
   echo "📦 Fetching latest release info..."
-  API_URL="https://api.github.com/repos/${REPO}/releases/256644837"
+  API_URL="https://api.github.com/repos/${REPO}/releases/256676098"
   DOWNLOAD_URL=$(curl -sL "$API_URL" | grep "browser_download_url" | grep "$ASSET_PATTERN" | cut -d '"' -f 4)
 
   if [[ -z "$DOWNLOAD_URL" ]]; then
