@@ -99,8 +99,8 @@ jobs:
             - **Automated Release Notes**  
               Release notes to be generated from github actions.
 
-            - **Plugin Installation Live**  
-              Plugin installation now works live. 
+            - **Service Start Failure**  
+              Troubleshooting service start failure
 
             - and other minor fixes
 
