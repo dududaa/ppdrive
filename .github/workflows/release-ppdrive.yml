@@ -95,14 +95,14 @@ jobs:
               echo
               echo '## 🧩 Included Updates'
               echo
-              echo '- **Compact Production Logging**'
-              echo '  Removed source code line number, filename and target from logging format in stdout'
+              echo '- **Logger File Location**'
+              echo '  Logger file location changed to root directory in production.'
               echo
-              echo '- **Simpler Status Checking**'
-              echo '  Check manager status by attempting to connect to its TCP stream rather than checking listed services.'
+              echo '- **Automated Release Notes**'
+              echo '  Release notes to be generated from github actions.'
               echo
-              echo '- **Plugin Installation Live**'
-              echo '  Plugin installation now works live.'
+              echo '- **Service Start Failure**  '
+              echo '  Troubleshooting service start failure'
               echo
               echo '- and other minor fixes'
               echo
