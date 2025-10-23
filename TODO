@@ -10,5 +10,10 @@
 - ~~happy clippy~~
 - ~~Reduce dylib size~~
 - ~~Bundling~~
+
+v0.1.0-beta.2
+- Updating logging format for production
+- Plugin installation
+
 - Start writing first tutorial
 - Implement Direct and Zero auth type for Rest Service

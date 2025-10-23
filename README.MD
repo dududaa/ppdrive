@@ -68,6 +68,16 @@ homebrew:
 ```sh
 brew tap dududaa/ppdrive && brew install ppdrive
 ```
+
+#### 2. Validate Installation
+```sh
+ppdrive --help
+```
+
+#### 3. Start
+```sh
+ppdrive start
+```
 ---
 
 ## Support
