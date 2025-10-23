@@ -85,7 +85,7 @@ jobs:
             {
               echo 'body<<EOF'
               echo '# 🚀 PPDRIVE Pre-Release Notes'
-              echo '**Version:** 0.1.0-beta.2'
+              echo '**Version:** ${GITHUB_REF_NAME}'
               echo '**Date:** October 2025'
               echo
               echo 'We’re excited to announce **PPDRIVE’s first official prerelease**!'
