@@ -166,7 +166,6 @@ impl<T: Encode + Decode<()>> Response<T> {
 
     pub fn log(&self) {
         use ResponseType::*;
-
         let msg = self.msg.clone().unwrap_or("no message".to_string());
 
         match self.ty {
