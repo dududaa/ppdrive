@@ -29,24 +29,20 @@ impl Cli {
                 PPDrive::check_status(port)?;
             }
 
-            CliCommand::Run {
+            CliCommand::Launch {
                 svc,
                 base_config,
                 auth_config,
                 yes_auto_install: auto_install,
-                reload,
+                remove_deps: reload,
             } => {
-                let mut config = ServiceConfig {
+                let config = ServiceConfig {
                     ty: svc,
                     base: base_config,
                     auth: auth_config,
                     auto_install,
                     reload_deps: reload,
                 };
-
-                if config.reload_deps {
-                    config.auto_install = true
-                }
 
                 PPDrive::add(config, port)?;
             }
@@ -78,8 +74,8 @@ enum CliCommand {
     /// check whether ppdrive instance is running (on the specified port).
     Status,
 
-    /// run a ppdrive service
-    Run {
+    /// launch a ppdrive service
+    Launch {
         svc: ServiceType,
 
         #[command(flatten)]
@@ -92,9 +88,11 @@ enum CliCommand {
         #[arg(default_value_t = false, short)]
         yes_auto_install: bool,
 
-        /// delete and reinstall all dependencies. this will set `auto-install` to true
+        /// removes all dependencies for the service you wish to run. Ideally, you should 
+        /// use this option with `-y | yes-auto-install` set to `true`. For example:
+        /// `ppdrive launch rest -ry`
         #[arg(default_value_t = false, short)]
-        reload: bool,
+        remove_deps: bool,
     },
 
     /// stop ppdrive or a running service.

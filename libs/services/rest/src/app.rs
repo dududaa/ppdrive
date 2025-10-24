@@ -3,8 +3,8 @@ use axum::http::header::{
 };
 use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
-use ppd_service::plugin::router::ServiceRouter;
-use ppd_shared::opts::{ServiceAuthMode, ServiceConfig, ServiceType};
+use ppd_service::plugin::router::Routers;
+use ppd_shared::opts::ServiceConfig;
 use std::env::set_var;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -59,12 +59,12 @@ pub async fn serve_app(
         .allow_methods(Any);
 
     set_var(BEARER_KEY, BEARER_VALUE);
-    let client_router = get_client_router(&config)?;
+    let routers = Routers::from(config.clone()).load()?;
     tracing::debug!("client router retrieved...");
-    
+
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", client_router)
+        .nest("/client", routers.client())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request
@@ -104,20 +104,4 @@ pub async fn serve_app(
 
     tracing::debug!("service launched...");
     Ok(())
-}
-
-fn get_client_router(config: &ServiceConfig) -> ServerResult<Router<HandlerState>> {
-    let max_upload_size = config.base.max_upload_size;
-    let mut router = Router::new();
-
-    if config.auth.modes.contains(&ServiceAuthMode::Client) {
-        let svc_router = ServiceRouter {
-            svc_type: ServiceType::Rest,
-            auth_mode: ServiceAuthMode::Client,
-        };
-
-        router = svc_router.get(max_upload_size)?;
-    }
-
-    Ok(router)
 }

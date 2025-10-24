@@ -4,24 +4,24 @@ This document shows demonstrates how to start running a PPDRIVE service. But bef
 #### 1. Service Type
 In order to run a PPDRIVE service, we must specify the **Service Type**. The Service Type is what tells PPDRIVE what protocol to use for serving your APIs. At the time of writing this documentation, we only support REST (or RESTful APIs) and this is the **default** choice. In future updates, we'll be adding support for gRPC, graphQL...etc. To run a service with a specific type, open your terminal and type:
 ```sh
-ppdrive run [service_type]
+ppdrive launch [service_type]
 ```
 
 For example, to run a REST service, you would type:
 ```sh
-ppdrive run rest
+ppdrive launch rest
 ```
 
 #### 2. Auth Mode
 In addition to specifying the Service Type, we also need to tell PPDRIVE what **Authentication Mode** (or auth mode) to run in. This will tell PPDRIVE how to protect your filesystem and authenticate incoming requests. What auth mode you choose **greatly depends on why and how you want to use PPDRIVE**. You can specify one or multiple auth modes. Here's how to specify auth modes(s) when starting a service:
 ```sh
-ppdrive run [service_type] --auth-modes [auth_modes]
+ppdrive launch [service_type] --auth-modes [auth_modes]
 
 # Example (single auth mode)
-ppdrive run rest --auth-modes client
+ppdrive launch rest --auth-modes client
 
 # Example (multiple auth modes)
-ppdrive run rest --auth-modes admin client
+ppdrive launch rest --auth-modes admin client
 ```
 There are basically 4 auth modes and we'll quickly describe them. 
 
