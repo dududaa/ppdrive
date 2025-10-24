@@ -93,18 +93,12 @@ jobs:
               echo
               echo '---'
               echo
-              echo '## 🧩 Included Updates'
+              echo '## Included Updates'
               echo
-              echo '- **Logger File Location**'
-              echo '  Logger file location changed to root directory in production.'
-              echo
-              echo '- **Automated Release Notes**'
-              echo '  Release notes to be generated from github actions.'
-              echo
-              echo '- **Service Start Failure**  '
-              echo '  Troubleshooting service start failure'
-              echo
-              echo '- and other minor fixes'
+              echo '- fix: Logger file location changed to root directory in production.'
+              echo '- update: Release notes to be generated from github actions.'
+              echo '- fix: Manager response logger working.'
+              echo '- and other minor fixes.'
               echo
               echo '---'
               echo
