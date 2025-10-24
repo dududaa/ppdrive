@@ -96,6 +96,7 @@ jobs:
               echo '## Included Updates'
               echo
               echo '- fix: Logger file location changed to root directory in production.'
+              echo '- update: Full compact logging.'
               echo '- update: Release notes to be generated from github actions.'
               echo '- fix: Manager response logger working.'
               echo '- and other minor fixes.'
