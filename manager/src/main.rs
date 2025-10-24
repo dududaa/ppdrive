@@ -191,7 +191,7 @@ impl ServiceTask {
 
 #[tokio::main]
 async fn main() -> AppResult<()> {
-    let _guard = start_logger("manager=debug");
+    let _guard = start_logger("manager=debug,ppd_service=debug");
     
     let args: Vec<String> = std::env::args().collect();
     let port = args.get(1).map(|p| p.parse().unwrap_or(DEFAULT_PORT));

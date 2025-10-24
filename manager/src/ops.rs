@@ -9,6 +9,7 @@ use ppd_shared::{
 };
 use tokio::{io::AsyncReadExt, net::TcpStream};
 use tokio_util::sync::CancellationToken;
+use tracing::Instrument;
 
 use crate::{AppResult, ServiceManager, ServiceTask, SharedManager};
 
@@ -47,7 +48,7 @@ pub async fn start_service(
             .await {
                 tracing::error!("service {id} failure: {err}")
             }
-    });
+    }.instrument(tracing::info_span!("ppd_start_service")));
 
     Ok(id)
 }

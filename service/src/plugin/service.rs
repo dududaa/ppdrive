@@ -2,7 +2,6 @@ use std::{net::TcpStream, sync::Arc};
 
 use super::router::ServiceRouter;
 use crate::HandlerResult;
-use libloading::Symbol;
 use ppd_bk::RBatis;
 use ppd_shared::{
     opts::{ServiceAuthMode, ServiceConfig, ServiceType},
@@ -10,7 +9,7 @@ use ppd_shared::{
 };
 use tokio_util::sync::CancellationToken;
 
-pub type ServiceSymbol<'a> = Symbol<'a, fn(Arc<ServiceConfig>, Arc<RBatis>, CancellationToken)>;
+pub type ServiceFn = fn(Arc<ServiceConfig>, Arc<RBatis>, CancellationToken);
 
 #[derive(Debug)]
 pub struct Service<'a> {
@@ -33,12 +32,13 @@ impl<'a> Service<'a> {
         let config = Arc::new(config);
 
         let lib = self.load(filename)?;
-        let start_service: ServiceSymbol = unsafe {
-            lib.get(b"start_svc")
-                .expect("unable to load start_server Symbol")
+        unsafe {
+            match lib.get::<ServiceFn>(b"start_svc") {
+                Ok(start_service) => start_service(config, db, token),
+                Err(err) => tracing::error!("unable to load start_server Symbol: {err}")
+            }
         };
 
-        start_service(config, db, token);
         Ok(())
     }
 

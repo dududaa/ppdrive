@@ -1,7 +1,7 @@
 [package]
 name = "ppd-service"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [features]
 default = ["prelude"]
@@ -28,3 +28,4 @@ mime_guess = "2.0.5"
 chrono = "0.4.40"
 chacha20poly1305 = { version = "0.10.1", optional = true }
 hex = { version = "0.4.3", optional = true }
+tracing.workspace = true
