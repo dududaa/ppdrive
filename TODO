@@ -25,6 +25,7 @@ v0.1.0-beta.3
 v0.1.0-rc.1
 - fix: validate service start status when a new service is run.
 - fix: log service start failure.
+- fix: fix service startup failure.
 
 v0.1.0-rc.2
 - Allow users to configure ppd_secret filename, ppd_log filename, client route base and admin route base.

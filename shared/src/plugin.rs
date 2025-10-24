@@ -103,7 +103,7 @@ pub trait Plugin {
                     self.package_name()
                 )));
             } else {
-                println!("installing \"{}\" plugin ...", self.package_name());
+                println!("installing \"{}\" plugin...", self.package_name());
                 self.install()?;
 
             }

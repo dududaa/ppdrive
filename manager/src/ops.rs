@@ -34,7 +34,7 @@ pub async fn start_service(
 
     std::mem::drop(tasks); // drop tasks MutexGuard to prevent deadlock
     let resp = Response::success(id).message(format!(
-        "service added to manager with id {id}. run 'ppdrive list' to see running services."
+        "service added to manager with id {id}."
     ));
 
     resp.write(socket)
@@ -43,9 +43,10 @@ pub async fn start_service(
 
     tokio::spawn(async move {
         let svc = Service::from(&config);
-        svc.start(config.clone(), db, token)
-            .await
-            .expect("unable to start service");
+        if let Err(err) = svc.start(config.clone(), db, token)
+            .await {
+                tracing::error!("service {id} failure: {err}")
+            }
     });
 
     Ok(id)
