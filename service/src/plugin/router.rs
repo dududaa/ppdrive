@@ -4,7 +4,7 @@
 use std::{str, sync::Arc};
 
 use axum::Router;
-use libloading::Symbol;
+use libloading::{Library, Symbol};
 use ppd_shared::{
     opts::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::Plugin,
@@ -15,20 +15,27 @@ use crate::{HandlerResult, prelude::state::HandlerState};
 type RouterType = Router<HandlerState>;
 type RawRouterType = *mut RouterType;
 
+#[allow(dead_code)]
+#[derive(Default)]
+pub struct RouterLoader {
+    ptr: RawRouterType,
+    lib: Option<Library>
+}
+
 #[derive(Default)]
 pub struct Routers {
     svc_type: ServiceType,
     svc_max_upload: usize,
     auth_modes: Vec<ServiceAuthMode>,
-    pub client: RawRouterType,
-    admin: RawRouterType,
-    direct: RawRouterType,
-    zero: RawRouterType,
+    client: RouterLoader,
+    admin: RouterLoader,
+    direct: RouterLoader,
+    zero: RouterLoader,
 }
 
 impl Routers {
     pub fn client(&self) -> RouterType {
-        Self::get_router(self.client)
+        Self::get_router(&self.client)
     }
 
     pub fn load(mut self) -> HandlerResult<Self> {
@@ -48,7 +55,9 @@ impl Routers {
         Ok(self)
     }
 
-    fn get_router(ptr: RawRouterType) -> RouterType {
+    fn get_router(ld: &RouterLoader) -> RouterType {
+        let ptr = ld.ptr;
+
         if ptr.is_null() {
             Router::new()
         } else {
@@ -56,7 +65,9 @@ impl Routers {
         }
     }
 
-    fn drop_router(ptr: RawRouterType) {
+    fn drop_router(ld: &RouterLoader) {
+        let ptr = ld.ptr;
+        
         if !ptr.is_null() {
             let _ = unsafe { Box::from_raw(ptr) };
         }
@@ -65,21 +76,21 @@ impl Routers {
 
 impl From<Arc<ServiceConfig>> for Routers {
     fn from(value: Arc<ServiceConfig>) -> Self {
-        Self {
-            svc_type: value.ty,
-            svc_max_upload: value.base.max_upload_size,
-            auth_modes: value.auth.modes.clone(),
-            ..Default::default()
-        }
+        let mut rts = Routers::default();
+        rts.svc_type = value.ty;
+        rts.svc_max_upload = value.base.max_upload_size;
+        rts.auth_modes = value.auth.modes.clone();
+
+        rts
     }
 }
 
 impl Drop for Routers {
     fn drop(&mut self) {
-        Self::drop_router(self.admin);
-        Self::drop_router(self.client);
-        Self::drop_router(self.zero);
-        Self::drop_router(self.direct);
+        Self::drop_router(&self.admin);
+        Self::drop_router(&self.client);
+        Self::drop_router(&self.zero);
+        Self::drop_router(&self.direct);
     }
 }
 
@@ -90,16 +101,16 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get(&self, max_upload_size: usize) -> HandlerResult<RawRouterType> {
+    pub fn get(&self, max_upload_size: usize) -> HandlerResult<RouterLoader> {
         let filename = self.output()?;
         let lib = self.load(filename)?;
 
-        let rtr = unsafe {
+        let ptr = unsafe {
             let load_router: Symbol<fn(usize) -> RawRouterType> = lib.get(b"load_router")?;
             load_router(max_upload_size)
         };
 
-        Ok(rtr)
+        Ok(RouterLoader { ptr, lib: Some(lib) })
     }
 }
 
