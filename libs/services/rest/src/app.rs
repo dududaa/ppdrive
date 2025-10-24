@@ -44,6 +44,7 @@ pub async fn serve_app(
     state: HandlerState,
     token: CancellationToken,
 ) -> ServerResult<()> {
+    tracing::debug!("serve app begins...");
     let origins = &config.base.allowed_origins;
     let cors = CorsLayer::new()
         .allow_origin(to_origins(origins))
@@ -59,6 +60,7 @@ pub async fn serve_app(
 
     set_var(BEARER_KEY, BEARER_VALUE);
     let client_router = get_client_router(&config)?;
+    tracing::debug!("client router retrieved...");
     
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
@@ -82,6 +84,7 @@ pub async fn serve_app(
         .with_state(state)
         .into_make_service();
 
+    tracing::debug!("service created...");
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", &config.base.port)).await {
         Ok(listener) => {
             if let Ok(addr) = listener.local_addr() {
@@ -99,6 +102,7 @@ pub async fn serve_app(
         }
     }
 
+    tracing::debug!("service launched...");
     Ok(())
 }
 
