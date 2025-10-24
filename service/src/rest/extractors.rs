@@ -72,7 +72,7 @@ where
     type Rejection = HandlerError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let client_key = parts.headers.get("x-ppd-client");
+        let client_key = parts.headers.get("ppd-client-token");
         let state = HandlerState::from_ref(state);
 
         match client_key {
@@ -89,7 +89,7 @@ where
                 Ok(ClientRoute(id))
             }
             _ => Err(HandlerError::AuthorizationError(
-                "missing 'x-client-key' headers".to_string(),
+                "missing 'ppd-client-token' in headers".to_string(),
             )),
         }
     }
