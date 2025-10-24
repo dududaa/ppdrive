@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{net::TcpStream, sync::Arc};
 
 use super::router::ServiceRouter;
 use crate::HandlerResult;
@@ -53,6 +53,11 @@ impl<'a> Service<'a> {
         Ok(())
     }
 
+    pub fn connect(&self) -> HandlerResult<()> {
+        TcpStream::connect(&self.addr())?;
+        Ok(())
+    }
+
     pub fn ty(&self) -> &ServiceType {
         self.ty
     }
@@ -71,6 +76,10 @@ impl<'a> Service<'a> {
 
     pub fn reload_deps(&self) -> bool {
         *self.reload_deps
+    }
+
+    fn addr(&self) -> String {
+        format!("0.0.0.0:{}", self.port())
     }
 }
 

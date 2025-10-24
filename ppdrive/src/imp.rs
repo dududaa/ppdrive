@@ -4,7 +4,7 @@ use ppd_shared::opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest};
 
 use crate::errors::{AppResult, Error};
 use ppd_service::plugin::service::Service;
-use std::{io::{Read, Write}, net::TcpStream};
+use std::{io::{Read, Write}, net::TcpStream, time::Duration};
 
 #[derive(Debug)]
 pub struct PPDrive;
@@ -15,9 +15,16 @@ impl PPDrive {
         let svc = Service::from(&config);
         svc.init()?;
 
-        let resp = Self::send_request::<u8>(ServiceRequest::Add(config), port)?;
+        let resp = Self::send_request::<u8>(ServiceRequest::Add(config.clone()), port)?;
         resp.log();
 
+        tracing::info!("waiting to validate service startup...");
+        std::thread::sleep(Duration::from_secs(2));
+
+        match svc.connect() {
+            Ok(_) => tracing::info!("service running with id {}", resp.body()),
+            Err(err) => tracing::error!("service fails to run: {err}\nPlease try \"ppdrive log\" for full details.")
+        }
         Ok(*resp.body())
     }
 
