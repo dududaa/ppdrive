@@ -54,7 +54,7 @@ pub async fn serve_app(
             ACCESS_CONTROL_ALLOW_ORIGIN,
             CONTENT_TYPE,
             AUTHORIZATION,
-            HeaderName::from_static("x-ppd-client"),
+            HeaderName::from_static("ppd-client-token"),
         ])
         .allow_methods(Any);
 
@@ -64,7 +64,7 @@ pub async fn serve_app(
 
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
-        .nest("/client", routers.client())
+        .nest("/client", unsafe { &*routers.client }.clone())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request
@@ -98,7 +98,6 @@ pub async fn serve_app(
         }
         Err(err) => {
             tracing::error!("Error starting listener: {err}");
-            panic!("{err}")
         }
     }
 

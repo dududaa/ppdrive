@@ -17,10 +17,10 @@ type RawRouterType = *mut RouterType;
 
 #[derive(Default)]
 pub struct Routers {
-    pub svc_type: ServiceType,
-    pub svc_max_upload: usize,
-    pub auth_modes: Vec<ServiceAuthMode>,
-    client: RawRouterType,
+    svc_type: ServiceType,
+    svc_max_upload: usize,
+    auth_modes: Vec<ServiceAuthMode>,
+    pub client: RawRouterType,
     admin: RawRouterType,
     direct: RawRouterType,
     zero: RawRouterType,
@@ -90,12 +90,12 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get<T>(&self, max_upload_size: usize) -> HandlerResult<T> {
+    pub fn get(&self, max_upload_size: usize) -> HandlerResult<RawRouterType> {
         let filename = self.output()?;
         let lib = self.load(filename)?;
 
         let rtr = unsafe {
-            let load_router: Symbol<fn(usize) -> T> = lib.get(b"load_router")?;
+            let load_router: Symbol<fn(usize) -> RawRouterType> = lib.get(b"load_router")?;
             load_router(max_upload_size)
         };
 
