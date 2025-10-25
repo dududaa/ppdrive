@@ -5,7 +5,7 @@ use chrono::Utc;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 
-use crate::{HandlerResult, errors::HandlerError, prelude::opts::LoginToken};
+use crate::{HandlerResult, errors::HandlerError, prelude::opts::LoginTokens};
 
 use ppd_shared::opts::ServiceConfig;
 
@@ -87,36 +87,39 @@ pub struct LoginOpts<'a> {
     pub user_id: &'a u64,
 }
 
-pub fn create_login_tokens(opts: LoginOpts) -> HandlerResult<LoginToken> {
-    let LoginOpts {
-        config,
-        jwt_secret,
-        access_exp,
-        refresh_exp,
-        user_id,
-    } = opts;
-
-    let default_access = config.auth.access_exp;
-    let default_refresh = config.auth.refresh_exp;
-
-    let access_exp = access_exp.unwrap_or(default_access);
-    let refresh_exp = refresh_exp.unwrap_or(default_refresh);
-
-    let access = if access_exp > 0 {
-        let access_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Access)?;
-
-        Some((access_token, access_exp))
-    } else {
-        None
-    };
-
-    let refresh = if refresh_exp > 0 {
-        let refresh_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Refresh)?;
-
-        Some((refresh_token, refresh_exp))
-    } else {
-        None
-    };
-
-    Ok(LoginToken { access, refresh })
+impl<'a> LoginOpts<'a> {
+    pub fn tokens(self) -> HandlerResult<LoginTokens> {
+        let LoginOpts {
+            config,
+            jwt_secret,
+            access_exp,
+            refresh_exp,
+            user_id,
+        } = self;
+    
+        let default_access = config.auth.access_exp;
+        let default_refresh = config.auth.refresh_exp;
+    
+        let access_exp = access_exp.unwrap_or(default_access);
+        let refresh_exp = refresh_exp.unwrap_or(default_refresh);
+    
+        let access = if access_exp > 0 {
+            let access_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Access)?;
+    
+            Some((access_token, access_exp))
+        } else {
+            None
+        };
+    
+        let refresh = if refresh_exp > 0 {
+            let refresh_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Refresh)?;
+    
+            Some((refresh_token, refresh_exp))
+        } else {
+            None
+        };
+    
+        Ok(LoginTokens { access, refresh })
+    }
 }
+

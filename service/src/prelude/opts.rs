@@ -13,7 +13,7 @@ pub struct LoginUserClient {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct LoginToken {
+pub struct LoginTokens {
     pub access: Option<(String, i64)>,
     pub refresh: Option<(String, i64)>,
 }

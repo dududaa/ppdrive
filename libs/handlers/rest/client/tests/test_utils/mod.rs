@@ -5,7 +5,7 @@ use axum_test::TestServer;
 use ppd_bk::RBatis;
 use ppd_bk::db::init_db;
 use ppd_bk::db::migration::clean_db;
-use ppd_service::prelude::opts::LoginToken;
+use ppd_service::prelude::opts::LoginTokens;
 use ppd_service::prelude::state::HandlerState;
 use ppd_service::tools::create_client;
 use ppd_shared::opts::ServiceConfig;
@@ -75,7 +75,7 @@ impl TestApp {
         let token = self.client_token().await;
         let resp = login_user_request(&self.server(), &token).await;
 
-        let tokens: LoginToken = resp.json();
+        let tokens: LoginTokens = resp.json();
         match tokens.access {
             Some(token) => token.0,
             None => panic!("unable to create user access token"),
