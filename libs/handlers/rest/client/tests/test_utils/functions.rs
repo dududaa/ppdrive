@@ -1,5 +1,5 @@
 use axum_test::{TestResponse, TestServer};
-use ppd_service::prelude::opts::{CreateUserClient, LoginUserClient};
+use ppd_service::prelude::opts::{CreateClientUser, LoginUserClient};
 use ppd_bk::models::bucket::CreateBucketOptions;
 
 use crate::test_utils::HEADER_USER_KEY;
@@ -20,7 +20,7 @@ pub async fn create_user_bucket(server: &TestServer, token: &str) -> TestRespons
 }
 
 pub async fn create_user_request(server: &TestServer, token: &str) -> TestResponse {
-    let data = CreateUserClient { max_bucket: None };
+    let data = CreateClientUser { max_bucket: None };
     server
         .post("/client/user/register")
         .json(&data)

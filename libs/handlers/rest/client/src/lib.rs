@@ -11,7 +11,7 @@ use crate::errors::ServerError;
 use ppd_service::{
     jwt::LoginOpts,
     prelude::{
-        opts::{CreateUserClient, LoginTokens, LoginUserClient},
+        opts::{CreateClientUser, LoginTokens, LoginUserClient},
         state::HandlerState,
     },
     rest::extractors::ClientExtractor,
@@ -30,7 +30,7 @@ mod errors;
 async fn create_user(
     State(state): State<HandlerState>,
     client: ClientExtractor,
-    Json(data): Json<CreateUserClient>,
+    Json(data): Json<CreateClientUser>,
 ) -> Result<String, ServerError> {
     let db = state.db();
     let user_id = Users::create_by_client(db, *client.id(), data.max_bucket).await?;

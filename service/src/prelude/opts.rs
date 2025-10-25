@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
-pub struct CreateUserClient {
+pub struct CreateClientUser {
     pub max_bucket: Option<u64>,
 }
 
