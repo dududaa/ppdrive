@@ -9,7 +9,7 @@ use ppd_bk::models::asset::AssetType;
 use ppd_fs::{AssetBody, read_asset};
 use ppd_shared::tools::SECRETS_FILENAME;
 
-use crate::{errors::HandlerError, prelude::state::HandlerState, rest::extractors::ClientUser};
+use crate::{errors::HandlerError, prelude::state::HandlerState, rest::extractors::UserExtractor};
 
 pub mod extractors;
 
@@ -17,7 +17,7 @@ pub mod extractors;
 pub async fn get_asset(
     Path((asset_type, mut asset_path)): Path<(AssetType, String)>,
     State(state): State<HandlerState>,
-    user: Option<ClientUser>,
+    user: Option<UserExtractor>,
 ) -> Result<Response<Body>, HandlerError> {
     
     if asset_path.ends_with("/") {
@@ -29,7 +29,7 @@ pub async fn get_asset(
     }
 
     let db = state.db();
-    let user_id = user.map(|u| *u.0.id());
+    let user_id = user.map(|u| u.id());
     let body = read_asset(db, &asset_path, &asset_type, &user_id).await?;
 
     let body = match body {

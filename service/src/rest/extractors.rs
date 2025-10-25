@@ -20,12 +20,16 @@ impl RequestUser {
     }
 }
 
-/// A user that client is making request for. This extractor MUST be added
-/// after [ClientRoute] to ensure that the client is valid.
-pub struct ClientUser(pub RequestUser);
+/// An extractor that accepts authorization token, verifies the token and returns user id.
+pub struct UserExtractor(pub u64);
+impl UserExtractor {
+    pub fn id(&self) -> u64 {
+        self.0
+    }
+}
 
 #[async_trait]
-impl<S> FromRequestParts<S> for ClientUser
+impl<S> FromRequestParts<S> for UserExtractor
 where
     HandlerState: FromRef<S>,
     S: Send + Sync,
@@ -44,7 +48,7 @@ where
                     }
                     None => {
                         let user = get_local_user(&state, auth, &config).await?;
-                        Ok(ClientUser(user))
+                        Ok(UserExtractor(user))
                     }
                 }
             }
@@ -55,16 +59,17 @@ where
     }
 }
 
-pub struct ClientRoute(u64);
+/// A middleware that accepts client token, validates it and return the client's id
+pub struct ClientExtractor(u64);
 
-impl ClientRoute {
+impl ClientExtractor {
     pub fn id(&self) -> &u64 {
         &self.0
     }
 }
 
 #[async_trait]
-impl<S> FromRequestParts<S> for ClientRoute
+impl<S> FromRequestParts<S> for ClientExtractor
 where
     HandlerState: FromRef<S>,
     S: Send + Sync,
@@ -86,7 +91,7 @@ where
                     .await
                     .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
-                Ok(ClientRoute(id))
+                Ok(ClientExtractor(id))
             }
             _ => Err(HandlerError::AuthorizationError(
                 "missing 'ppd-client-token' in headers".to_string(),
@@ -95,9 +100,9 @@ where
     }
 }
 
-async fn get_local_user(state: &HandlerState, header: &HeaderValue, config: &ServiceConfig) -> HandlerResult<RequestUser> {
+async fn get_local_user(state: &HandlerState, header: &HeaderValue, config: &ServiceConfig) -> HandlerResult<u64> {
     let secrets = state.secrets();
     let claims = decode_jwt(header, secrets.jwt_secret(), config)?;
     
-    Ok(RequestUser { id: claims.sub })
+    Ok(claims.sub)
 }

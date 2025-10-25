@@ -14,7 +14,7 @@ use ppd_service::{
         opts::{CreateUserClient, LoginToken, LoginUserClient},
         state::HandlerState,
     },
-    rest::extractors::ClientRoute,
+    rest::extractors::ClientExtractor,
 };
 use ppd_shared::tools::{SECRETS_FILENAME, mb_to_bytes};
 
@@ -29,7 +29,7 @@ mod user;
 #[debug_handler]
 async fn create_user(
     State(state): State<HandlerState>,
-    client: ClientRoute,
+    client: ClientExtractor,
     Json(data): Json<CreateUserClient>,
 ) -> Result<String, ServerError> {
     let db = state.db();
@@ -41,7 +41,7 @@ async fn create_user(
 #[debug_handler]
 async fn login_user(
     State(state): State<HandlerState>,
-    _: ClientRoute,
+    _: ClientExtractor,
     Json(data): Json<LoginUserClient>,
 ) -> Result<Json<LoginToken>, ServerError> {
     let LoginUserClient {
@@ -95,7 +95,7 @@ async fn login_user(
 #[debug_handler]
 async fn delete_user(
     Path(id): Path<String>,
-    client: ClientRoute,
+    client: ClientExtractor,
     State(state): State<HandlerState>,
 ) -> Result<String, ServerError> {
     let db = state.db();
@@ -124,7 +124,7 @@ async fn delete_user(
 #[debug_handler]
 async fn create_bucket(
     State(state): State<HandlerState>,
-    client: ClientRoute,
+    client: ClientExtractor,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
     let db = state.db();

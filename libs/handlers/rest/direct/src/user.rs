@@ -7,7 +7,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
 use crate::errors::ServerError;
-use ppd_service::{prelude::state::HandlerState, rest::extractors::ClientUser};
+use ppd_service::{prelude::state::HandlerState, rest::extractors::UserExtractor};
 use ppd_bk::models::{
     IntoSerializer,
     asset::{AssetType, Assets},
@@ -21,10 +21,10 @@ use ppd_fs::{auth::create_or_update_asset, opts::CreateAssetOptions};
 #[debug_handler]
 pub async fn get_user(
     State(state): State<HandlerState>,
-    ClientUser(user): ClientUser,
+    UserExtractor(user): UserExtractor,
 ) -> Result<Json<UserSerializer>, ServerError> {
     let db = state.db();
-    let user_model = Users::get(db, user.id()).await?;
+    let user_model = Users::get(db, &user).await?;
     let data = user_model.into_serializer(db).await?;
 
     Ok(Json(data))
@@ -33,11 +33,11 @@ pub async fn get_user(
 #[debug_handler]
 pub async fn create_user_bucket(
     State(state): State<HandlerState>,
-    ClientUser(user): ClientUser,
+    UserExtractor(user): UserExtractor,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
     let db = state.db();
-    let id = Buckets::create_by_user(db, data, *user.id()).await?;
+    let id = Buckets::create_by_user(db, data, user).await?;
 
     Ok(id)
 }
@@ -45,11 +45,9 @@ pub async fn create_user_bucket(
 #[debug_handler]
 pub async fn create_asset(
     State(state): State<HandlerState>,
-    ClientUser(user): ClientUser,
+    UserExtractor(user): UserExtractor,
     mut multipart: Multipart,
 ) -> Result<String, ServerError> {
-    let user_id = user.id();
-
     let mut opts = CreateAssetOptions::default();
     let mut tmp_file = None;
     let mut filesize = None;
@@ -89,7 +87,7 @@ pub async fn create_asset(
     }
 
     let db = state.db();
-    create_or_update_asset(db, user_id, &opts, &tmp_file, &filesize).await?;
+    create_or_update_asset(db, &user, &opts, &tmp_file, &filesize).await?;
     Ok("operation successful!".to_string())
 }
 
@@ -97,12 +95,12 @@ pub async fn create_asset(
 pub async fn delete_asset(
     Path((asset_type, asset_path)): Path<(AssetType, String)>,
     State(state): State<HandlerState>,
-    ClientUser(user): ClientUser,
+    UserExtractor(user): UserExtractor,
 ) -> Result<String, ServerError> {
     let db = state.db();
     let asset = Assets::get_by_path(db, &asset_path, &asset_type).await?;
 
-    if asset.user_id() == user.id() {
+    if asset.user_id() == &user {
         asset.delete(db).await?;
         Ok("operation successful".to_string())
     } else {
