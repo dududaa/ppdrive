@@ -146,7 +146,7 @@ fn client_routes(max_upload_size: usize) -> Router<HandlerState> {
 
     Router::new()
         // Routes used by client for administrative tasks. Requests to these routes
-        // require x-ppd-client header.
+        // require ppd-client-token header.
         .route("/user/register", post(create_user))
         .route("/user/login", post(login_user))
         .route("/user/:id", delete(delete_user))

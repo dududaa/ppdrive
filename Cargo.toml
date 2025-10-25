@@ -1,14 +1,22 @@
 [workspace]
 resolver = "3"
 members = [
+    # binaries
     "ppdrive",
-    "libs/services/rest",
-    "modules/fs",
-    "modules/bookkeeper",
+    "manager",
+
+    # core crates
     "shared",
     "service",
+
+    # modules
+    "modules/fs",
+    "modules/bookkeeper",
+
+    # libraries
+    "libs/services/rest",
     "libs/handlers/rest/client",
-    "manager",
+    "libs/handlers/rest/direct",
 ]
 
 [workspace.package]
