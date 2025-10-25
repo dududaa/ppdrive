@@ -34,13 +34,14 @@ pub enum ServiceAuthMode {
     Client,
     Direct,
     Zero,
+    Admin
 }
 
 /// configuration for each service created.
 #[derive(Debug, Args, Encode, Decode, Clone)]
 pub struct ServiceBaseConfig {
     /// url of database to be used by ppdrive.
-    #[arg(long("db-url"), default_value_t = DEFAULT_DB_URL.to_string())]
+    #[arg(long("database"), default_value_t = DEFAULT_DB_URL.to_string())]
     pub db_url: String,
 
     /// port on which to run service

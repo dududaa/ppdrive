@@ -69,15 +69,18 @@ homebrew:
 brew tap dududaa/ppdrive && brew install ppdrive
 ```
 
-#### 2. Validate Installation
-```sh
-ppdrive --help
-```
-
-#### 3. Start
+#### 2. Start
 ```sh
 ppdrive start
 ```
+
+#### 3. Launch
+```sh
+ppdrive launch rest
+```
+
+Please see [Getting Started](/docs/GETTING-STARTED.MD) for complete starter guide.
+
 ---
 
 ## Support
@@ -85,6 +88,8 @@ If you would love to support by journey, please consider donating via any of the
 
 - **Bitcoin BNB Smart Chain (BEP20):** 0x912f022d95c31b983e5efe21bf22094ba6fafe55
 - **Bitget BEP20 (Binance Smart Chain):** 0xd7a3da9faa4bd5c7ab0066391761a089e64a25d6
+
+---
 
 ## Contributing
 We welcome contributions to PPDRIVE! Here’s how you can help:
