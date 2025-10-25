@@ -26,6 +26,7 @@ pub struct Users {
 
 crud!(Users {});
 impl_select!(Users { get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE ${key} = #{value} LIMIT 1`" });
+impl_select!(Users { get_for_client(id: &str, client_id: &u64) -> Option => "`WHERE pid = #{id} AND client_id = #{client_id} LIMIT 1`" });
 
 impl Users {
     pub async fn get(rb: &RBatis, user_id: &u64) -> DBResult<Users> {

@@ -29,7 +29,7 @@ pub async fn get_asset(
     }
 
     let db = state.db();
-    let user_id = user.map(|u| u.id());
+    let user_id = user.map(|u| u.id().clone());
     let body = read_asset(db, &asset_path, &asset_type, &user_id).await?;
 
     let body = match body {
