@@ -98,8 +98,8 @@ impl<'a> From<&'a ServiceConfig> for Service<'a> {
 impl<'a> Plugin for Service<'a> {
     fn package_name(&self) -> &'static str {
         match &self.ty {
-            ServiceType::Rest => "ppd_rest",
-            ServiceType::Grpc => "ppd_grpc",
+            ServiceType::Rest => "ppd-rest",
+            ServiceType::Grpc => "ppd-grpc",
         }
     }
 }

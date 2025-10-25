@@ -32,7 +32,6 @@ ppd_shared = { path = "shared" }
 ppd_bk = { path = "modules/bookkeeper", default-features = false }
 ppd_fs = { path = "modules/fs" }
 ppd-service = { path = "service", default-features = false }
-rest_client = { path = "handlers/rest/client" }
 libloading = "0.8.8"
 rbs = { version = "4.5.51" }
 rbatis = { version = "4.5.51" }

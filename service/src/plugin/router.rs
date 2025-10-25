@@ -121,7 +121,8 @@ impl Plugin for ServiceRouter {
 
         match self.svc_type {
             Rest => match self.auth_mode {
-                Client => "rest_client",
+                Client => "rest-client",
+                Direct => "rest-direct",
                 _ => unimplemented!("loading plugin for this auth_mode is not supported"),
             },
             Grpc => unimplemented!("loading plugin for a grpc server is not implemented."),

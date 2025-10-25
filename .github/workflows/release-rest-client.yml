@@ -1,4 +1,4 @@
-name: Release rest_client
+name: Release rest-client
 
 on:
   push:
@@ -9,11 +9,11 @@ permissions:
   contents: write
 
 env:
-  LIB_NAME: rest_client
+  LIB_NAME: rest-client
 
 jobs:
   build:
-    name: Build rest_client Library
+    name: Build rest-client Library
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

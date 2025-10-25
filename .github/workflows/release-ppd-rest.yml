@@ -1,4 +1,4 @@
-name: Release ppd_rest
+name: Release ppd-rest
 
 on:
   push:
@@ -9,11 +9,11 @@ permissions:
   contents: write
 
 env:
-  LIB_NAME: ppd_rest
+  LIB_NAME: ppd-rest
 
 jobs:
   build:
-    name: Build ppd_rest Library
+    name: Build ppd-rest Library
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

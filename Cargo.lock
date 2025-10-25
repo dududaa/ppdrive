@@ -2042,6 +2042,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
+name = "ppd-rest"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "bincode",
+ "ppd-service",
+ "ppd_bk",
+ "ppd_shared",
+ "tokio",
+ "tokio-util",
+ "tower 0.4.13",
+ "tower-http 0.5.2",
+ "tracing",
+]
+
+[[package]]
 name = "ppd-service"
 version = "0.1.0-beta.3"
 dependencies = [
@@ -2091,22 +2107,6 @@ dependencies = [
  "ppd_shared",
  "serde",
  "tokio",
- "tracing",
-]
-
-[[package]]
-name = "ppd_rest"
-version = "0.1.0"
-dependencies = [
- "axum",
- "bincode",
- "ppd-service",
- "ppd_bk",
- "ppd_shared",
- "tokio",
- "tokio-util",
- "tower 0.4.13",
- "tower-http 0.5.2",
  "tracing",
 ]
 
@@ -2620,7 +2620,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rest_client"
+name = "rest-client"
 version = "0.1.0"
 dependencies = [
  "axum",

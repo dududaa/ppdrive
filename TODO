@@ -28,6 +28,7 @@ v0.1.0-rc.1
 - ~~fix: fix service startup failure.~~
 
 v0.1.0-rc.2
+- Add auth modes to service info
 - Allow users to configure ppd_secret filename, ppd_log filename, client route base and admin route base.
 - Allow users load config from filename.
 - Reserve ppd_log, ppd_secret, client_route...etc and prevent assets from using the reserved names.

@@ -1,5 +1,5 @@
 [package]
-name = "rest-client"
+name = "rest-direct"
 version = "0.1.0"
 edition = "2024"
 

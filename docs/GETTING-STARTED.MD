@@ -35,7 +35,7 @@ ppdrive launch [service_type] --auth-modes [auth_mode_1, auth_mode_2, ...]
 ppdrive launch rest --auth-modes client
 
 # Example (multiple auth modes)
-ppdrive launch rest --auth-modes admin client
+ppdrive launch rest --auth-modes admin,client
 ```
 There are basically 4 auth modes: _client_, _direct_, _admin_ and _zero_ mode. Let's quickly describe each of them. 
 
