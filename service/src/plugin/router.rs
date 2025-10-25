@@ -20,7 +20,7 @@ pub struct Routers {
     svc_type: ServiceType,
     svc_max_upload: usize,
     auth_modes: Vec<ServiceAuthMode>,
-    pub client: RawRouterType,
+    client: RawRouterType,
     admin: RawRouterType,
     direct: RawRouterType,
     zero: RawRouterType,
