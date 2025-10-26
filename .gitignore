@@ -18,8 +18,8 @@
 !migrate.sh
 !sqlite.sh
 
-!ppdrive/
-!ppdrive/**
+!cli/
+!cli/**
 
 !manager/
 !manager/**
@@ -27,8 +27,8 @@
 !libs/
 !libs/**
 
-!service/
-!service/**
+!core/
+!core/**
 
 !modules/
 !modules/**

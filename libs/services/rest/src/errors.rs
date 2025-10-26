@@ -3,7 +3,7 @@ use std::{env::VarError, error::Error, fmt::Display, string::FromUtf8Error};
 use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoResponse};
 use ppd_shared::errors::Error as SharedError;
 use ppd_bk::Error as DBError;
-use ppd_service::errors::HandlerError;
+use ppdrive::errors::HandlerError;
 
 #[derive(Debug)]
 pub enum ServerError {

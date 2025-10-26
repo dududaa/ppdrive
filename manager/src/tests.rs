@@ -3,7 +3,7 @@ use crate::{
     ops::{list_services, start_service, stop_service},
 };
 use anyhow::anyhow;
-use ppd_service::plugin::service::Service;
+use ppdrive::plugin::service::Service;
 use ppd_shared::opts::ServiceConfig;
 use serial_test::serial;
 

@@ -3,7 +3,7 @@ use bincode::{Decode, Encode, config};
 use ppd_shared::opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest};
 
 use crate::errors::{AppResult, Error};
-use ppd_service::plugin::service::Service;
+use ppdrive::plugin::service::Service;
 use std::{io::{Read, Write}, net::TcpStream, time::Duration};
 
 #[derive(Debug)]

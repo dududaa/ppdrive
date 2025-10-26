@@ -8,7 +8,7 @@ use axum_macros::debug_handler;
 
 use crate::errors::ServerError;
 
-use ppd_service::{
+use ppdrive::{
     jwt::LoginOpts,
     prelude::{
         opts::{CreateClientUser, LoginTokens, LoginUserClient},

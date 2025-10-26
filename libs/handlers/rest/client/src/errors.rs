@@ -4,7 +4,7 @@ use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoR
 use ppd_fs::errors::Error as FsError;
 use ppd_shared::errors::Error as SharedError;
 use ppd_bk::Error as DBError;
-use ppd_service::errors::HandlerError;
+use ppdrive::errors::HandlerError;
 
 #[derive(Debug)]
 pub enum ServerError {

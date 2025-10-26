@@ -1,5 +1,5 @@
 [package]
-name = "ppd-service"
+name = "ppdrive"
 version.workspace = true
 edition.workspace = true
 

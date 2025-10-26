@@ -2,12 +2,12 @@
 resolver = "3"
 members = [
     # binaries
-    "ppdrive",
+    "cli",
     "manager",
 
     # core crates
+    "core",
     "shared",
-    "service",
 
     # modules
     "modules/fs",
@@ -40,7 +40,7 @@ clap = "4.5.45"
 ppd_shared = { path = "shared" }
 ppd_bk = { path = "modules/bookkeeper", default-features = false }
 ppd_fs = { path = "modules/fs" }
-ppd-service = { path = "service", default-features = false }
+ppdrive = { path = "core", default-features = false }
 libloading = "0.8.8"
 rbs = { version = "4.5.51" }
 rbatis = { version = "4.5.51" }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use bincode::config;
-use ppd_service::{db::init_db, plugin::service::Service, tools::create_client};
+use ppdrive::{db::init_db, plugin::service::Service, tools::create_client};
 use ppd_shared::{
     opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest},
     tools::AppSecrets,

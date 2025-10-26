@@ -1,6 +1,6 @@
 use bincode::error::{DecodeError, EncodeError};
 use ppd_shared::errors::Error as SharedError;
-use ppd_service::errors::HandlerError;
+use ppdrive::errors::HandlerError;
 use tokio::task::JoinError;
 use std::fmt::Display;
 

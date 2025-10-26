@@ -3,7 +3,7 @@ use axum::http::header::{
 };
 use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
-use ppd_service::plugin::router::Routers;
+use ppdrive::plugin::router::Routers;
 use ppd_shared::opts::ServiceConfig;
 use std::env::set_var;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info_span;
 
 use crate::ServerResult;
-use ppd_service::{
+use ppdrive::{
     jwt::{BEARER_KEY, BEARER_VALUE},
     prelude::state::HandlerState,
     rest::get_asset,

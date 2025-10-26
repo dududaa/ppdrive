@@ -1,7 +1,11 @@
 [package]
-name = "ppdrive"
+name = "ppdrive-cli"
 version.workspace = true
 edition.workspace = true
+
+[[bin]]
+name = "ppdrive"
+path = "src/main.rs"
 
 [dependencies]
 tokio = { workspace = true, features = [
@@ -14,4 +18,4 @@ tracing.workspace = true
 clap = { workspace = true, features = ["derive"] }
 ppd_shared = { workspace = true, features = ["logger"] }
 bincode.workspace = true
-ppd-service = { workspace = true, features = ["plugin"] }
+ppdrive = { workspace = true, features = ["plugin"] }

@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::errors::ServerError;
 
-use ppd_service::{
+use ppdrive::{
     jwt::LoginOpts,
     prelude::{
         opts::{LoginTokens, UserCredentials},

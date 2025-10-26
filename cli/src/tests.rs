@@ -1,6 +1,6 @@
 use std::{net::TcpStream, thread::sleep, time::Duration};
 
-use ppd_service::plugin::service::Service;
+use ppdrive::plugin::service::Service;
 use ppd_shared::{opts::ServiceConfig, plugin::Plugin};
 
 use crate::{command::start_manager, errors::AppResult, imp::PPDrive};

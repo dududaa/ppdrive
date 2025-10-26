@@ -21,4 +21,4 @@ bincode.workspace = true
 tracing.workspace = true
 ppd_shared = { workspace = true, features = ["logger"] }
 ppd_bk = { workspace = true, features = ["rbatis"] }
-ppd-service = { workspace = true, features = ["plugin", "rest"] }
+ppdrive = { workspace = true, features = ["plugin", "rest"] }

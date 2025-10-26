@@ -1598,8 +1598,8 @@ dependencies = [
  "anyhow",
  "bincode",
  "futures",
- "ppd-service",
  "ppd_shared",
+ "ppdrive",
  "rand 0.9.2",
  "rbatis",
  "serial_test",
@@ -2056,37 +2056,14 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "bincode",
- "ppd-service",
  "ppd_bk",
  "ppd_shared",
+ "ppdrive",
  "tokio",
  "tokio-util",
  "tower 0.4.13",
  "tower-http 0.5.2",
  "tracing",
-]
-
-[[package]]
-name = "ppd-service"
-version = "0.1.0-beta.3"
-dependencies = [
- "axum",
- "axum-macros",
- "chacha20poly1305",
- "chrono",
- "hex",
- "jsonwebtoken",
- "libloading",
- "mime_guess",
- "ppd_bk",
- "ppd_fs",
- "ppd_shared",
- "serde",
- "sha3",
- "tokio",
- "tokio-util",
- "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -2141,10 +2118,33 @@ dependencies = [
 name = "ppdrive"
 version = "0.1.0-beta.3"
 dependencies = [
+ "axum",
+ "axum-macros",
+ "chacha20poly1305",
+ "chrono",
+ "hex",
+ "jsonwebtoken",
+ "libloading",
+ "mime_guess",
+ "ppd_bk",
+ "ppd_fs",
+ "ppd_shared",
+ "serde",
+ "sha3",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ppdrive-cli"
+version = "0.1.0-beta.3"
+dependencies = [
  "bincode",
  "clap",
- "ppd-service",
  "ppd_shared",
+ "ppdrive",
  "tokio",
  "tracing",
 ]
@@ -2637,10 +2637,10 @@ dependencies = [
  "axum-macros",
  "axum-test",
  "futures",
- "ppd-service",
  "ppd_bk",
  "ppd_fs",
  "ppd_shared",
+ "ppdrive",
  "rest-test-utils",
  "serde_json",
  "serial_test",
@@ -2656,10 +2656,10 @@ dependencies = [
  "axum-macros",
  "axum-test",
  "futures",
- "ppd-service",
  "ppd_bk",
  "ppd_fs",
  "ppd_shared",
+ "ppdrive",
  "serde_json",
  "serial_test",
  "tokio",
@@ -2673,10 +2673,10 @@ dependencies = [
  "axum",
  "axum-macros",
  "axum-test",
- "ppd-service",
  "ppd_bk",
  "ppd_fs",
  "ppd_shared",
+ "ppdrive",
  "rest-client",
  "serde_json",
  "tokio",
