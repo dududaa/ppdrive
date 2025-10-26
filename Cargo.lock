@@ -2641,6 +2641,7 @@ dependencies = [
  "ppd_bk",
  "ppd_fs",
  "ppd_shared",
+ "rest-test-utils",
  "serde_json",
  "serial_test",
  "tokio",
@@ -2661,6 +2662,23 @@ dependencies = [
  "ppd_shared",
  "serde_json",
  "serial_test",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "rest-test-utils"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-macros",
+ "axum-test",
+ "ppd-service",
+ "ppd_bk",
+ "ppd_fs",
+ "ppd_shared",
+ "rest-client",
+ "serde_json",
  "tokio",
  "uuid",
 ]

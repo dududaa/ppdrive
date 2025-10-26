@@ -16,7 +16,8 @@ members = [
     # libraries
     "libs/services/rest",
     "libs/handlers/rest/client",
-    "libs/handlers/rest/direct",
+    "libs/handlers/rest/direct", 
+    "libs/handlers/rest/test-utils",
 ]
 
 [workspace.package]
@@ -43,6 +44,7 @@ ppd-service = { path = "service", default-features = false }
 libloading = "0.8.8"
 rbs = { version = "4.5.51" }
 rbatis = { version = "4.5.51" }
+rest-test-utils.path = "libs/handlers/rest/test-utils"
 
 [profile.release]
 opt-level = "z"
