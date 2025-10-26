@@ -4,7 +4,7 @@ use rbs::value;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{DBResult, errors::Error as DBError};
+use crate::{errors::Error as DBError, DBResult};
 
 use super::{IntoSerializer, asset::Assets, check_model, permission::AssetPermissions};
 
@@ -16,10 +16,10 @@ pub struct Users {
     pid: String,
     role: u8,
     client_id: Option<u64>,
-    email: Option<String>,
+    username: Option<String>,
     password: Option<String>,
 
-    /// maximum bucket user can create
+    /// maximum accumulated size of buckets user can create
     max_bucket: Option<u64>,
     created_at: DateTime,
 }
@@ -45,7 +45,7 @@ impl Users {
     }
 
     pub async fn create_by_client(
-        rb: &RBatis,
+        db: &RBatis,
         client_id: u64,
         bucket_size: Option<u64>,
     ) -> DBResult<String> {
@@ -57,14 +57,34 @@ impl Users {
             id: None,
             pid,
             role,
-            email: None,
+            username: None,
             password: None,
             client_id: Some(client_id),
             max_bucket: bucket_size,
             created_at,
         };
 
-        Users::insert(rb, &user).await?;
+        Users::insert(db, &user).await?;
+        Ok(user.pid)
+    }
+
+    pub async fn create(db: &RBatis, username: String, password: String) -> DBResult<String> {
+        let pid = Uuid::new_v4().to_string();
+        let role: u8 = UserRole::General.into();
+        let created_at = DateTime::now();
+        
+        let user = Users {
+            id: None,
+            username: Some(username),
+            password: Some(password),
+            pid,
+            role,
+            client_id: None,
+            max_bucket: None,
+            created_at
+        };
+
+        Users::insert(db, &user).await?;
         Ok(user.pid)
     }
 
@@ -100,6 +120,10 @@ impl Users {
     pub fn client_id(&self) -> &Option<u64> {
         &self.client_id
     }
+
+    pub fn password(&self) -> &Option<String> {
+        &self.password
+    }
 }
 
 #[derive(Serialize)]
@@ -118,7 +142,7 @@ impl IntoSerializer for Users {
         // let role = &self.role();
         let Users {
             pid: id,
-            email,
+            username: email,
             created_at,
             role,
             max_bucket,

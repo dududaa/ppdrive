@@ -11,7 +11,15 @@ use uuid::Uuid;
 
 use crate::errors::ServerError;
 
-use ppd_service::{prelude::state::HandlerState, rest::extractors::UserExtractor};
+use ppd_service::{
+    jwt::LoginOpts,
+    prelude::{
+        opts::{LoginTokens, UserCredentials},
+        state::HandlerState,
+    },
+    rest::extractors::UserExtractor,
+    tools::{check_password, make_password},
+};
 use ppd_shared::tools::{SECRETS_FILENAME, mb_to_bytes};
 
 use ppd_bk::models::{
@@ -22,7 +30,52 @@ use ppd_bk::models::{
 };
 
 mod errors;
-// mod user;
+
+#[debug_handler]
+async fn register_user(
+    State(state): State<HandlerState>,
+    Json(data): Json<UserCredentials>,
+) -> Result<String, ServerError> {
+    let db = state.db();
+    let UserCredentials { username, password } = data;
+
+    let password = make_password(&password);
+    let user_id = Users::create(db, username, password).await?;
+
+    Ok(user_id)
+}
+
+#[debug_handler]
+async fn login_user(
+    State(state): State<HandlerState>,
+    Json(data): Json<UserCredentials>,
+) -> Result<Json<LoginTokens>, ServerError> {
+    let db = state.db();
+    let config = state.config();
+    let secrets = state.secrets();
+
+    let UserCredentials { username, password } = data;
+    let user = Users::get_by_key(db, "username", &username)
+        .await
+        .map_err(|err| ServerError::InternalError(err.to_string()))?
+        .ok_or(ServerError::AuthorizationError(format!(
+            "user with username '{username}' does not exist"
+        )))?;
+
+    let hashed = user.password().clone().unwrap_or(String::new());
+    check_password(&password, &hashed)?;
+
+    let login = LoginOpts {
+        user_id: &user.id(),
+        config: &config,
+        jwt_secret: secrets.jwt_secret(),
+        access_exp: None,
+        refresh_exp: None,
+    };
+
+    let tokens = login.tokens()?;
+    Ok(Json(tokens))
+}
 
 #[debug_handler]
 pub async fn get_user(
@@ -122,6 +175,8 @@ fn routes(max_upload_size: usize) -> Router<HandlerState> {
 
     Router::new()
         .route("/user", get(get_user))
+        .route("/user/register", post(register_user))
+        .route("/user/login", post(login_user))
         .route("/user/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))
         .route("/user/asset/:asset_type/*asset_path", delete(delete_asset))

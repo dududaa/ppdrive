@@ -35,7 +35,7 @@ async fn create_user(
     let db = state.db();
     let user_id = Users::create_by_client(db, *client.id(), data.max_bucket).await?;
 
-    Ok(user_id.to_string())
+    Ok(user_id)
 }
 
 #[debug_handler]

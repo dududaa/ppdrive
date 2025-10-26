@@ -1,6 +1,7 @@
 use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce, Error as XError};
 use ppd_bk::{models::client::Clients, RBatis};
 use ppd_shared::tools::AppSecrets;
+use sha3::{Digest, Sha3_256};
 use uuid::Uuid;
 use crate::{errors::HandlerError, HandlerResult};
 
@@ -65,4 +66,19 @@ impl From<XError> for HandlerError {
     fn from(value: XError) -> Self {
         HandlerError::InternalError(value.to_string())
     }
+}
+
+pub fn make_password(password: &str) -> String {
+    let hash_pass = Sha3_256::digest(password.to_string().as_bytes());
+    hex::encode(hash_pass)
+}
+
+pub fn check_password(password: &str, hashed: &str) -> HandlerResult<String> {
+    let h = make_password(password);
+
+    if *hashed != h {
+        return Err(HandlerError::AuthorizationError("wrong password!".to_string()));
+    }
+
+    Ok(h)
 }

@@ -7,7 +7,7 @@ edition.workspace = true
 default = ["prelude"]
 prelude = []
 plugin = ["dep:libloading", "dep:tokio"]
-tools = ["dep:chacha20poly1305", "dep:hex"]
+tools = ["dep:chacha20poly1305", "dep:hex", "dep:sha3"]
 rest = ["prelude", "tools", "jwt"]
 jwt = ["dep:jsonwebtoken"]
 db = []
@@ -29,3 +29,4 @@ chrono = "0.4.40"
 chacha20poly1305 = { version = "0.10.1", optional = true }
 hex = { version = "0.4.3", optional = true }
 tracing.workspace = true
+sha3 = { version = "0.10.8", optional = true }

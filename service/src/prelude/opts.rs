@@ -17,3 +17,9 @@ pub struct LoginTokens {
     pub access: Option<(String, i64)>,
     pub refresh: Option<(String, i64)>,
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct UserCredentials {
+    pub username: String,
+    pub password: String,
+}
