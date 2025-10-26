@@ -102,7 +102,7 @@ pub struct ServiceRouter {
 
 impl ServiceRouter {
     pub fn get(&self, max_upload_size: usize) -> HandlerResult<RouterLoader> {
-        let filename = self.output()?;
+        let filename = self.output_name()?;
         let lib = self.load(filename)?;
 
         let ptr = unsafe {

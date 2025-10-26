@@ -19,7 +19,7 @@ pub trait Plugin {
         child.wait()?;
 
         let release_path = self.release_path()?;
-        let output_path = self.output()?;
+        let output_path = self.output_name()?;
 
         std::fs::rename(release_path, output_path)?;
 
@@ -39,7 +39,7 @@ pub trait Plugin {
         match resp.status() {
             StatusCode::OK => {
                 let body = resp.bytes()?;
-                let output = self.output()?;
+                let output = self.output_name()?;
                 std::fs::write(output, body)?;
         
                 Ok(())
@@ -65,7 +65,7 @@ pub trait Plugin {
 
     /// remove the plugin
     fn remove(&self) -> AppResult<()> {
-        let filename = self.output()?;
+        let filename = self.output_name()?;
 
         if let Err(err) = std::fs::remove_file(&filename) {
             eprintln!("cannot remove previous plugin: {err}")
@@ -81,7 +81,7 @@ pub trait Plugin {
             self.remove()?;
         }
 
-        let filename = self.output()?;
+        let filename = self.output_name()?;
         let mut install = if auto_install || reload { "y" } else { "n" };
         let mut promp_resp = String::new();
 
@@ -140,23 +140,25 @@ pub trait Plugin {
     /// the output filename path of the release build.
     #[cfg(debug_assertions)]
     fn release_path(&self) -> AppResult<PathBuf> {
+        let package_name = self.package_name().replace("-", "_");
+
         #[cfg(target_os = "windows")]
-        let n = format!("target/debug/{}{}", self.package_name(), self.ext());
+        let n = format!("target/debug/{}{}", package_name, self.ext());
         
         
         #[cfg(not(target_os = "windows"))]
-        let n = format!("target/debug/lib{}{}", self.package_name(), self.ext());
+        let n = format!("target/debug/lib{}{}", package_name, self.ext());
 
         let p = root_dir()?.join(n);
         Ok(p)
     }
 
     /// output filename (path) of the plugin, relative to installation directory
-    fn output(&self) -> AppResult<PathBuf> {
-        let n = format!("{}{}", self.package_name(), self.ext());
-        let p = root_dir()?.join(n);
+    fn output_name(&self) -> AppResult<PathBuf> {
+        let name = format!("{}{}", self.package_name(), self.ext());
+        let path = root_dir()?.join(name);
 
-        Ok(p)
+        Ok(path)
     }
 }
 

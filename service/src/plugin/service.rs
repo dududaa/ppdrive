@@ -28,7 +28,7 @@ impl<'a> Service<'a> {
         db: Arc<RBatis>,
         token: CancellationToken,
     ) -> HandlerResult<()> {
-        let filename = self.output()?;
+        let filename = self.output_name()?;
         let config = Arc::new(config);
 
         let lib = self.load(filename)?;
