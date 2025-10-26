@@ -41,6 +41,8 @@ async fn test_client_user_create_bucket() {
 #[tokio::test]
 #[serial]
 async fn test_client_user_create_asset() {
+    clean_up_test_assets();
+
     let app = TestApp::new().await;
     let server = app.server();
 
@@ -97,18 +99,20 @@ async fn test_client_user_create_asset() {
         .await;
 
     resp.assert_status_ok();
+    clean_up_test_assets();
 }
 
 #[tokio::test]
 #[serial]
 async fn test_client_user_delete_asset() {
+    clean_up_test_assets();
     let app = TestApp::new().await;
     let server = app.server();
 
     let token = app.client_token().await;
     let bucket = create_client_bucket(&server, &token).await.text();
 
-    let asset_path = "delete-asset/great-folder";
+    let asset_path = "test-assets/great-folder";
     let asset_opts = CreateAssetOptions {
         asset_path: asset_path.to_string(),
         asset_type: AssetType::Folder,
@@ -136,8 +140,15 @@ async fn test_client_user_delete_asset() {
         .await;
 
     resp.assert_status_ok();
+    clean_up_test_assets();
 }
 
 fn asset_opts_str(opts: &CreateAssetOptions) -> String {
     serde_json::to_string(opts).expect("unable to create strigify asset options")
+}
+
+fn clean_up_test_assets() {
+    if let Err(err) = std::fs::remove_dir_all("test-assets") {
+        println!("{err}");
+    }
 }
