@@ -4,10 +4,10 @@ use serial_test::serial;
 
 use ppd_fs::opts::CreateAssetOptions;
 
-use crate::test_utils::{
-    functions::{create_client_bucket, create_user_bucket, create_user_request}, TestApp, HEADER_TOKEN_KEY, HEADER_USER_KEY
+use rest_test_utils::{
+    client::{create_client_bucket, create_user_bucket, create_user_request}, TestApp, HEADER_TOKEN_KEY, HEADER_USER_KEY
 };
-mod test_utils;
+// mod test_utils;
 
 #[tokio::test]
 #[serial]

@@ -1,10 +1,8 @@
 use serial_test::serial;
 
-use crate::test_utils::{
-    functions::{create_client_bucket, create_user_request, login_user_request}, TestApp, HEADER_TOKEN_KEY
+use rest_test_utils::{
+    client::{create_client_bucket, create_user_request, login_user_request}, TestApp, HEADER_TOKEN_KEY
 };
-
-mod test_utils;
 
 #[tokio::test]
 #[serial]
