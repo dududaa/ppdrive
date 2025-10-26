@@ -16,7 +16,7 @@ members = [
     # libraries
     "libs/services/rest",
     "libs/handlers/rest/client",
-    # "libs/handlers/rest/direct",
+    "libs/handlers/rest/direct",
 ]
 
 [workspace.package]

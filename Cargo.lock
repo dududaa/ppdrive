@@ -2638,6 +2638,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "rest-direct"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-macros",
+ "axum-test",
+ "futures",
+ "ppd-service",
+ "ppd_bk",
+ "ppd_fs",
+ "ppd_shared",
+ "serde_json",
+ "serial_test",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

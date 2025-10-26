@@ -53,10 +53,10 @@ where
 }
 
 /// This middleware checks if a given user is created by the client and returns the user id.
-/// WARNING: This may not be as performant as [UserExtractor] because it uses database for 
+/// WARNING: This may not be as performant as [UserExtractor] because it uses database for
 /// validation on every request.
 pub struct ClientUserExtractor {
-    id: u64
+    id: u64,
 }
 
 impl ClientUserExtractor {
@@ -99,15 +99,18 @@ where
                     .to_string(),
             ))?;
 
-        Ok(ClientUserExtractor{id: user.id()})
+        Ok(ClientUserExtractor { id: user.id() })
     }
 }
 
 /// An extractor that accepts authorization token, verifies the token and returns user id.
-pub struct UserExtractor(u64);
+pub struct UserExtractor {
+    id: u64,
+}
+
 impl UserExtractor {
     pub fn id(&self) -> &u64 {
-        &self.0
+        &self.id
     }
 }
 
@@ -130,8 +133,8 @@ where
                         unimplemented!("external url feature not implemented.")
                     }
                     None => {
-                        let user = get_local_user(&state, auth, &config).await?;
-                        Ok(UserExtractor(user))
+                        let id = get_local_user(&state, auth, &config).await?;
+                        Ok(UserExtractor { id })
                     }
                 }
             }
