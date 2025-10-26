@@ -47,12 +47,14 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts
-          LIB_OUTPUT="${{ env.LIB_NAME }}${{ matrix.bin_ext }}"
+          
+          RELEASE_OUTPUT="${{ env.LIB_NAME }}${{ matrix.bin_ext }}"
+          LIB_OUTPUT="${RELEASE_OUTPUT//-/_}"
 
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cp target/${{ matrix.target }}/release/$LIB_OUTPUT artifacts/$LIB_OUTPUT
+            cp target/${{ matrix.target }}/release/$LIB_OUTPUT artifacts/$RELEASE_OUTPUT
           else
-            cp target/${{ matrix.target }}/release/lib$LIB_OUTPUT artifacts/$LIB_OUTPUT
+            cp target/${{ matrix.target }}/release/lib$LIB_OUTPUT artifacts/$RELEASE_OUTPUT
           fi
 
       - name: Upload Artifact
