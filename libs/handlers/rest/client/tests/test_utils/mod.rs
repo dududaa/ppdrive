@@ -16,7 +16,8 @@ use crate::test_utils::functions::login_user_request;
 
 pub mod functions;
 
-const HEADER_NAME: &str = "ppd-client-token";
+pub const HEADER_TOKEN_KEY: &str = "ppd-client-token";
+pub const HEADER_USER_KEY: &str = "ppd-client-user";
 
 pub struct TestApp {
     pub db: RBatis,

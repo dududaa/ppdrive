@@ -4,7 +4,7 @@ use axum::{
     routing::{delete, get, post},
 };
 use axum_macros::debug_handler;
-use user::*;
+use auth::*;
 
 use crate::errors::ServerError;
 
@@ -24,7 +24,7 @@ use ppd_bk::models::{
 };
 
 mod errors;
-mod user;
+mod auth;
 
 #[debug_handler]
 async fn create_user(
@@ -147,16 +147,12 @@ fn client_routes(max_upload_size: usize) -> Router<HandlerState> {
     Router::new()
         // Routes used by client for administrative tasks. Requests to these routes
         // require ppd-client-token header.
-        .route("/user/register", post(create_user))
-        .route("/user/login", post(login_user))
-        .route("/user/:id", delete(delete_user))
         .route("/bucket", post(create_bucket))
-        // Routes accessible to users created/managed by clients. Requests to these routes
-        // do not required x-ppd-client header but may require authorization header
-        // if config.auth.url is not provided.
-        //
-        // Client users may access these routes directly using authorization header (without)
-        // contacting client server first.
+        .route("/user/:id", delete(delete_user))
+        .route("/user/login", post(login_user))
+        .route("/user/register", post(create_user))
+        // Routes used by client to operate on behalf of a user. Access to these requires both 
+        // ppd-client-token and ppd-client-user-headers
         .route("/user", get(get_user))
         .route("/user/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))

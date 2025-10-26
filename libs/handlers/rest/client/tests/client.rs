@@ -1,7 +1,7 @@
 use serial_test::serial;
 
 use crate::test_utils::{
-    functions::{create_client_bucket, create_user_request, login_user_request}, TestApp
+    functions::{create_client_bucket, create_user_request, login_user_request}, TestApp, HEADER_TOKEN_KEY
 };
 
 mod test_utils;
@@ -38,12 +38,11 @@ async fn test_client_delete_user() {
     let token = app.client_token().await;
 
     let server = app.server();
-    let resp = create_user_request(&server, &token).await;
+    let user_id = create_user_request(&server, &token).await.text();
 
-    let user_id = resp.text();
     let resp = server
         .delete(&format!("/client/user/{user_id}"))
-        .add_header("x-ppd-client", token)
+        .add_header(HEADER_TOKEN_KEY, token)
         .await;
 
     resp.assert_status_ok();
@@ -56,7 +55,7 @@ async fn test_client_create_bucket() {
     let token = app.client_token().await;
 
     let server = app.server();
-
     let resp = create_client_bucket(&server, &token).await;
+    
     resp.assert_status_ok();
 }
