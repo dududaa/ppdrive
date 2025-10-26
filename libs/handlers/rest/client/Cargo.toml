@@ -13,7 +13,7 @@ tokio ={ workspace = true, features = ["fs"] }
 uuid = { workspace = true, features = ["v4"] }
 axum-macros.workspace = true
 ppd-service = { workspace = true, features = ["rest"] }
-ppd_shared.workspace = true
+ppd_shared = { workspace = true }
 ppd_bk.workspace = true
 ppd_fs.workspace = true
 

@@ -75,6 +75,13 @@ pub async fn create_or_update_asset(
     match asset_type {
         AssetType::File => {
             if let Some(tmp) = tmp {
+                #[cfg(target_os = "linux")]
+                {
+                    tokio::fs::copy(tmp, &dest).await?;
+                    tokio::fs::remove_file(tmp).await?;
+                }
+
+                #[cfg(not(target_os = "linux"))]
                 tokio::fs::rename(tmp, &dest).await?;
             }
         }

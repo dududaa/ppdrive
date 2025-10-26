@@ -9,6 +9,7 @@ use ppd_service::prelude::opts::LoginTokens;
 use ppd_service::prelude::state::HandlerState;
 use ppd_service::tools::create_client;
 use ppd_shared::opts::ServiceConfig;
+pub use ppd_shared::start_logger;
 use ppd_shared::tools::{AppSecrets, root_dir};
 use rest_client::load_router;
 
