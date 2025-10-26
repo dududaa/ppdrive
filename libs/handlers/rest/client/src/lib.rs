@@ -141,7 +141,7 @@ async fn create_bucket(
 }
 
 /// Routes for external clients.
-fn client_routes(max_upload_size: usize) -> Router<HandlerState> {
+fn routes(max_upload_size: usize) -> Router<HandlerState> {
     let limit = mb_to_bytes(max_upload_size);
 
     Router::new()
@@ -162,6 +162,6 @@ fn client_routes(max_upload_size: usize) -> Router<HandlerState> {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn load_router(max_upload_size: usize) -> *mut Router<HandlerState> {
-    let bx = Box::new(client_routes(max_upload_size));
+    let bx = Box::new(routes(max_upload_size));
     Box::into_raw(bx)
 }
