@@ -127,7 +127,7 @@ async fn test_direct_user_delete_asset() {
     let token = app.direct_login().await;
 
     let bucket = create_user_bucket(&server, &token).await.text();
-    let asset_path = "delete-asset/great-folder";
+    let asset_path = "test-assets/great-folder";
     let asset_opts = CreateAssetOptions {
         asset_path: asset_path.to_string(),
         asset_type: AssetType::Folder,

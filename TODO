@@ -27,11 +27,11 @@ v0.1.0-rc.1
 - ~~fix: log service start failure.~~
 - ~~fix: fix service startup failure.~~
 - ~~Add auth modes to service info list~~
-- Test Direct router
-- Allow users load config from filename.
-- validate rest API inputs
+- ~~Test Direct router~~
 - cli: List tokens 
 - cli: Refresh token
+- Allow users to load config from filename.
+- validate rest API inputs
 
 v0.1.0-rc.2
 - cli: create admin
