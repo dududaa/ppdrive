@@ -63,6 +63,7 @@ pub async fn serve_app(
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))
         .nest("/client", routers.client())
+        .nest("/direct", routers.direct())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request

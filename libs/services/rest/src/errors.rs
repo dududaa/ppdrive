@@ -22,7 +22,6 @@ impl Display for ServerError {
         match self {
             ServerError::InitError(msg) => write!(f, "{msg}"),
             ServerError::InternalError(msg) => write!(f, "{msg}"),
-            // ServerError::FsError(err) => write!(f, "{err}"),
             ServerError::CommonError(err) => write!(f, "{err}"),
             ServerError::DBError(err) => write!(f, "{err}"),
             ServerError::AuthorizationError(msg) => write!(f, "{msg}"),

@@ -5,32 +5,30 @@ use axum_test::TestServer;
 use ppd_bk::RBatis;
 use ppd_bk::db::init_db;
 use ppd_bk::db::migration::clean_db;
-use ppdrive::prelude::opts::LoginTokens;
-use ppdrive::prelude::state::HandlerState;
-use ppdrive::tools::create_client;
 use ppd_shared::opts::ServiceConfig;
 pub use ppd_shared::start_logger;
 use ppd_shared::tools::{AppSecrets, root_dir};
-use rest_client::load_router;
+use ppdrive::prelude::opts::LoginTokens;
+use ppdrive::prelude::state::HandlerState;
+use ppdrive::tools::create_client;
 
-use crate::client::login_user_request;
+use rest_client::load_router as client_router;
+use rest_direct::load_router as direct_router;
+
+use crate::direct::login_user_request;
 
 pub mod client;
-
-pub const HEADER_TOKEN_KEY: &str = "ppd-client-token";
-pub const HEADER_USER_KEY: &str = "ppd-client-user";
+pub mod direct;
 
 pub struct TestApp {
     pub db: RBatis,
     pub svc: IntoMakeService<Router<()>>,
-    rt_ptr: *mut Router<HandlerState>,
+    client_rtr: *mut Router<HandlerState>,
+    direct_rtr: *mut Router<HandlerState>,
 }
 
 impl TestApp {
     pub async fn new() -> Self {
-        let rt_ptr = load_router(10);
-        let router = (unsafe { &*rt_ptr }).clone();
-
         let db_filename = root_dir()
             .expect("cannot get root_dir")
             .join("test_db.sqlite");
@@ -46,17 +44,26 @@ impl TestApp {
         let mut config = ServiceConfig::default();
         config.base.db_url = db_url;
 
+        let (client_rtr, client_router) = Self::unwrap_router(client_router(10));
+        let (direct_rtr, direct_router) = Self::unwrap_router(direct_router(10));
+
         let state = HandlerState::new(&config, db)
             .await
             .expect("unable to create app state");
 
         let db = state.db().clone();
         let svc = Router::new()
-            .nest("/client", router)
+            .nest("/client", client_router)
+            .nest("/direct", direct_router)
             .with_state(state)
             .into_make_service();
 
-        Self { db, svc, rt_ptr }
+        Self {
+            db,
+            svc,
+            client_rtr,
+            direct_rtr,
+        }
     }
 
     pub async fn client_token(&self) -> String {
@@ -72,13 +79,12 @@ impl TestApp {
     }
 
     #[allow(dead_code)]
-    pub async fn user_token(&self) -> String {
-        let token = self.client_token().await;
-        let resp = login_user_request(&self.server(), &token).await;
+    pub async fn direct_login(&self) -> String {
+        let resp = login_user_request(&self.server()).await;
 
         let tokens: LoginTokens = resp.json();
         match tokens.access {
-            Some(token) => token.0,
+            Some(token) => format!("Bearer {}", token.0),
             None => panic!("unable to create user access token"),
         }
     }
@@ -86,12 +92,30 @@ impl TestApp {
     pub fn server(&self) -> TestServer {
         TestServer::new(self.svc.clone()).expect("unable to create test server")
     }
+
+    fn unwrap_router(
+        ptr: *mut Router<HandlerState>,
+    ) -> (*mut Router<HandlerState>, Router<HandlerState>) {
+        (ptr, unsafe { &*ptr }.clone())
+    }
 }
 
 impl Drop for TestApp {
     fn drop(&mut self) {
-        if !self.rt_ptr.is_null() {
-            let _ = unsafe { Box::from_raw(self.rt_ptr) };
+        unsafe {
+            if !self.client_rtr.is_null() {
+                let _ = Box::from_raw(self.client_rtr);
+            }
+
+            if !self.direct_rtr.is_null() {
+                let _ = Box::from_raw(self.direct_rtr);
+            }
         }
+    }
+}
+
+pub fn clean_up_test_assets() {
+    if let Err(err) = std::fs::remove_dir_all("test-assets") {
+        println!("{err}");
     }
 }

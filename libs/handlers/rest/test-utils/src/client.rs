@@ -1,7 +1,9 @@
 use axum_test::{TestResponse, TestServer};
 use ppdrive::prelude::opts::{CreateClientUser, LoginUserClient};
 use ppd_bk::models::bucket::CreateBucketOptions;
-use super::{HEADER_TOKEN_KEY, HEADER_USER_KEY};
+
+pub const HEADER_TOKEN_KEY: &str = "ppd-client-token";
+pub const HEADER_USER_KEY: &str = "ppd-client-user";
 
 #[allow(dead_code)]
 pub async fn create_user_bucket(server: &TestServer, token: &str) -> TestResponse {

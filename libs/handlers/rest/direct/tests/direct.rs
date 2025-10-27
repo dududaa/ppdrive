@@ -4,29 +4,53 @@ use serial_test::serial;
 
 use ppd_fs::opts::CreateAssetOptions;
 
-use crate::test_utils::{functions::create_user_bucket, TestApp};
-mod test_utils;
+use rest_test_utils::{
+    clean_up_test_assets, direct::{create_user_bucket, login_user_request, register_user}, TestApp
+};
 
 #[tokio::test]
 #[serial]
-/// retrieve an authenticated user (created by client) using their access token
-async fn test_client_user_get_userinfo() {
+async fn test_rest_direct_register_user() {
     let app = TestApp::new().await;
     let server = app.server();
 
-    let token = app.user_token().await;
-    let resp = server.get("/client/user").authorization_bearer(&token);
+    let resp = register_user(&server).await;
+    resp.assert_status_ok();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_rest_direct_login() {
+    let app = TestApp::new().await;
+    let server = app.server();
+
+    let mut resp = register_user(&server).await;
+    resp.assert_status_ok();
+
+    resp = login_user_request(&server).await;
+    resp.assert_status_ok();
+}
+
+#[tokio::test]
+#[serial]
+/// retrieve an authenticated user using their access token
+async fn test_direct_user_get_userinfo() {
+    let app = TestApp::new().await;
+    let server = app.server();
+
+    let token = app.direct_login().await;
+    let resp = server.get("/direct/user").authorization_bearer(&token);
 
     resp.await.assert_status_ok();
 }
 
 #[tokio::test]
 #[serial]
-async fn test_client_user_create_bucket() {
+async fn test_direct_user_create_bucket() {
     let app = TestApp::new().await;
     let server = app.server();
 
-    let token = app.user_token().await;
+    let token = app.direct_login().await;
     let resp = create_user_bucket(&server, &token).await;
 
     resp.assert_status_ok();
@@ -34,11 +58,13 @@ async fn test_client_user_create_bucket() {
 
 #[tokio::test]
 #[serial]
-async fn test_client_user_create_asset() {
+async fn test_direct_user_create_asset() {
+    clean_up_test_assets();
+
     let app = TestApp::new().await;
     let server = app.server();
 
-    let token = app.user_token().await;
+    let token = app.direct_login().await;
     let bucket = create_user_bucket(&server, &token).await.text();
 
     let asset_path = "test-assets/great-folder";
@@ -52,14 +78,14 @@ async fn test_client_user_create_asset() {
     // this should fail without authorization
     let mut opts = asset_opts_str(&asset_opts);
     let multipart = MultipartForm::new().add_text("options", &opts);
-    let mut resp = server.post("/client/user/asset").multipart(multipart).await;
+    let mut resp = server.post("/direct/user/asset").multipart(multipart).await;
 
     resp.assert_status_not_ok();
 
     // create folder asset
     let multipart = MultipartForm::new().add_text("options", &opts);
     resp = server
-        .post("/client/user/asset")
+        .post("/direct/user/asset")
         .multipart(multipart)
         .authorization_bearer(&token)
         .await;
@@ -81,21 +107,24 @@ async fn test_client_user_create_asset() {
         .add_text("options", &opts);
 
     resp = server
-        .post("/client/user/asset")
+        .post("/direct/user/asset")
         .multipart(multipart)
         .authorization_bearer(token)
         .await;
 
     resp.assert_status_ok();
+    clean_up_test_assets();
 }
 
 #[tokio::test]
 #[serial]
-async fn test_client_user_delete_asset() {
+async fn test_direct_user_delete_asset() {
+    clean_up_test_assets();
+
     let app = TestApp::new().await;
     let server = app.server();
 
-    let token = app.user_token().await;
+    let token = app.direct_login().await;
 
     let bucket = create_user_bucket(&server, &token).await.text();
     let asset_path = "delete-asset/great-folder";
@@ -110,14 +139,16 @@ async fn test_client_user_delete_asset() {
     let opts = asset_opts_str(&asset_opts);
     let multipart = MultipartForm::new().add_text("options", &opts);
     let _ = server
-        .post("/client/user/asset")
+        .post("/direct/user/asset")
         .multipart(multipart)
         .authorization_bearer(&token)
         .await;
 
-    let path = format!("/client/user/asset/Folder/{asset_path}");
+    let path = format!("/direct/user/asset/Folder/{asset_path}");
     let resp = server.delete(&path).authorization_bearer(&token).await;
+    
     resp.assert_status_ok();
+    clean_up_test_assets();
 }
 
 fn asset_opts_str(opts: &CreateAssetOptions) -> String {

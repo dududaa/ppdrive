@@ -38,6 +38,10 @@ impl Routers {
         Self::get_router(&self.client)
     }
 
+    pub fn direct(&self) -> RouterType {
+        Self::get_router(&self.direct)
+    }
+
     pub fn load(mut self) -> HandlerResult<Self> {
         for mode in &self.auth_modes {
             let rtr = ServiceRouter {
@@ -48,6 +52,7 @@ impl Routers {
             let ptr = rtr.get(self.svc_max_upload)?;
             match mode {
                 ServiceAuthMode::Client => self.client = ptr,
+                ServiceAuthMode::Direct => self.client = ptr,
                 _ => unimplemented!(),
             }
         }

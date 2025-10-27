@@ -1,7 +1,8 @@
 use serial_test::serial;
 
 use rest_test_utils::{
-    client::{create_client_bucket, create_user_request, login_user_request}, TestApp, HEADER_TOKEN_KEY
+    TestApp,
+    client::{HEADER_TOKEN_KEY, create_client_bucket, create_user_request, login_user_request},
 };
 
 #[tokio::test]
@@ -54,6 +55,6 @@ async fn test_client_create_bucket() {
 
     let server = app.server();
     let resp = create_client_bucket(&server, &token).await;
-    
+
     resp.assert_status_ok();
 }

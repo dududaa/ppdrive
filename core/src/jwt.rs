@@ -45,16 +45,20 @@ fn extract_jwt(header_value: &HeaderValue, bearer: &str) -> Result<String, Handl
     let bearer = format!("{bearer} ");
     let bearer = bearer.as_str();
 
-    if let Ok(v) = from_utf8(header_value.as_bytes()) {
-        if v.starts_with(bearer) {
-            let ext = v.trim_start_matches(bearer);
-            return Ok(ext.to_owned());
+    match from_utf8(header_value.as_bytes()) {
+        Ok(v) => {
+            if v.starts_with(bearer) {
+                let ext = v.trim_start_matches(bearer);
+                Ok(ext.to_owned())
+            } else {
+                Err(HandlerError::AuthorizationError("unsupported bearer".to_string()))
+            }
         }
+        Err(err) => Err(HandlerError::AuthorizationError(
+            format!("Error extracting jwt: {err}"),
+        ))
     }
 
-    Err(HandlerError::AuthorizationError(
-        "Error extracting jwt".to_string(),
-    ))
 }
 
 pub fn create_jwt(

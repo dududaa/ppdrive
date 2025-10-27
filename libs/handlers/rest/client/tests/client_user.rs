@@ -5,7 +5,9 @@ use serial_test::serial;
 use ppd_fs::opts::CreateAssetOptions;
 
 use rest_test_utils::{
-    client::{create_client_bucket, create_user_bucket, create_user_request}, TestApp, HEADER_TOKEN_KEY, HEADER_USER_KEY
+    clean_up_test_assets, client::{
+        create_client_bucket, create_user_bucket, create_user_request, HEADER_TOKEN_KEY, HEADER_USER_KEY
+    }, TestApp
 };
 
 #[tokio::test]
@@ -17,7 +19,7 @@ async fn test_client_user_get_userinfo() {
 
     let token = app.client_token().await;
     let user_id = create_user_request(&server, &token).await.text();
-    
+
     let resp = server
         .get("/client/user")
         .add_header(HEADER_TOKEN_KEY, token)
@@ -145,10 +147,4 @@ async fn test_client_user_delete_asset() {
 
 fn asset_opts_str(opts: &CreateAssetOptions) -> String {
     serde_json::to_string(opts).expect("unable to create strigify asset options")
-}
-
-fn clean_up_test_assets() {
-    if let Err(err) = std::fs::remove_dir_all("test-assets") {
-        println!("{err}");
-    }
 }
