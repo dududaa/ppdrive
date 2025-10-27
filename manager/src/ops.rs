@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use bincode::config;
-use ppdrive::{db::init_db, plugin::service::Service, tools::create_client};
 use ppd_shared::{
     opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest},
     tools::AppSecrets,
 };
+use ppdrive::{db::init_db, plugin::service::Service, tools::create_client};
 use tokio::{io::AsyncReadExt, net::TcpStream};
 use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
@@ -34,21 +34,21 @@ pub async fn start_service(
     tasks.push(task);
 
     std::mem::drop(tasks); // drop tasks MutexGuard to prevent deadlock
-    let resp = Response::success(id).message(format!(
-        "service added to manager with id {id}."
-    ));
+    let resp = Response::success(id).message(format!("service added to manager with id {id}."));
 
     resp.write(socket)
         .await
         .map_err(|err| anyhow!(err.to_string()))?;
 
-    tokio::spawn(async move {
-        let svc = Service::from(&config);
-        if let Err(err) = svc.start(config.clone(), db, token)
-            .await {
+    tokio::spawn(
+        async move {
+            let svc = Service::from(&config);
+            if let Err(err) = svc.start(config.clone(), db, token).await {
                 tracing::error!("service {id} failure: {err}")
             }
-    }.instrument(tracing::info_span!("ppd_start_service")));
+        }
+        .instrument(tracing::info_span!("ppd_start_service")),
+    );
 
     Ok(id)
 }
@@ -136,7 +136,6 @@ pub async fn process_request(
         }
 
         ServiceRequest::Cancel(id) => stop_service(manager, id, socket).await,
-
         ServiceRequest::List => list_services(manager, socket).await,
 
         ServiceRequest::Stop => {
@@ -164,6 +163,8 @@ impl From<&ServiceTask> for ServiceInfo {
         Self {
             id: value.id,
             port: value.config.base.port,
+            ty: value.config.ty,
+            auth_modes: value.config.auth.modes.clone(),
         }
     }
 }

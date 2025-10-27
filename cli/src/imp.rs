@@ -4,7 +4,11 @@ use ppd_shared::opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest};
 
 use crate::errors::{AppResult, Error};
 use ppdrive::plugin::service::Service;
-use std::{io::{Read, Write}, net::TcpStream, time::Duration};
+use std::{
+    io::{Read, Write},
+    net::TcpStream,
+    time::Duration,
+};
 
 #[derive(Debug)]
 pub struct PPDrive;
@@ -23,7 +27,9 @@ impl PPDrive {
 
         match svc.connect() {
             Ok(_) => tracing::info!("service running with id {}", resp.body()),
-            Err(err) => tracing::error!("service fails to run: {err}\nPlease try \"ppdrive log\" for full details.")
+            Err(err) => tracing::error!(
+                "service fails to run: {err}\nPlease try \"ppdrive log\" for full details."
+            ),
         }
         Ok(*resp.body())
     }
@@ -42,11 +48,19 @@ impl PPDrive {
 
         resp.log();
         if !list.is_empty() {
+            println!(" id\t | port\t | type\t | auth-modes");
             for svc in list {
-                let id = svc.id;
-                let port = svc.port;
-                println!("id\t | port");
-                println!("{id}\t | {port}")
+                let ServiceInfo {
+                    id,
+                    port,
+                    auth_modes,
+                    ty,
+                } = svc;
+
+                let modes: Vec<String> = auth_modes.iter().map(|m| format!("{m}")).collect();
+                let modes: String = modes.join(", ");
+
+                println!(" {id}\t | {port}\t | {ty}\t | {modes}")
             }
         } else {
             println!("no service running");

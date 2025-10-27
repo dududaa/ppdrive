@@ -22,7 +22,7 @@ impl Display for ServiceType {
             ServiceType::Grpc => "grpc",
         };
 
-        writeln!(f, "{o}")
+        write!(f, "{o}")
     }
 }
 
@@ -34,7 +34,22 @@ pub enum ServiceAuthMode {
     Client,
     Direct,
     Zero,
-    Admin
+    Admin,
+}
+
+impl Display for ServiceAuthMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ServiceAuthMode::*;
+
+        let s = match self {
+            Client => "client",
+            Direct => "direct",
+            Zero => "zero",
+            Admin => "admin",
+        };
+
+        write!(f, "{s}")
+    }
 }
 
 /// configuration for each service created.
@@ -109,13 +124,15 @@ pub struct ServiceConfig {
     pub base: ServiceBaseConfig,
     pub auth: ServiceAuthConfig,
     pub auto_install: bool,
-    pub reload_deps: bool
+    pub reload_deps: bool,
 }
 
 #[derive(Encode, Decode, Clone)]
 pub struct ServiceInfo {
     pub id: u8,
     pub port: u16,
+    pub auth_modes: Vec<ServiceAuthMode>,
+    pub ty: ServiceType,
 }
 
 #[derive(Encode, Decode, Debug)]
