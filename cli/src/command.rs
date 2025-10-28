@@ -58,7 +58,7 @@ impl Cli {
                     ClientCommand::Create { service_id: svc_id, client_name } => {
                         PPDrive::create_client(port, svc_id, client_name)?;
                     },
-                    ClientCommand::Refresh { service_id: svc_id, client_key } => {
+                    ClientCommand::Refresh { service_id: svc_id, client_id: client_key } => {
                         PPDrive::refresh_client_token(port, svc_id, client_key)?;
                     }
                     _ => unimplemented!()
@@ -133,8 +133,8 @@ enum ClientCommand {
         #[arg(long("svc-id"))]
         service_id: u8, 
 
-        #[arg(long("key"))]
-        client_key: String 
+        #[arg(long("client-id"))]
+        client_id: String 
     },
 
     List,

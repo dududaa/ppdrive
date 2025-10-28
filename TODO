@@ -30,8 +30,8 @@ v0.1.0-rc.1
 - ~~Test Direct router~~
 - cli: List tokens 
 - cli: Refresh token
-- Allow users to load config from filename.
 - validate rest API inputs
+- Allow users to load config from filename.
 
 v0.1.0-rc.2
 - cli: create admin

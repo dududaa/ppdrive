@@ -115,12 +115,12 @@ async fn create_new_client(
 async fn refresh_client_token(
     manager: SharedManager,
     svc_id: u8,
-    client_key: String,
+    client_id: String,
 ) -> AppResult<String> {
     let task = manager.get_task(svc_id).await?;
     let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
     
-    let token = regenerate_token(&task.db, &secrets, &client_key)
+    let token = regenerate_token(&task.db, &secrets, &client_id)
         .await
         .map_err(|err| anyhow!(err))?;
 
@@ -166,8 +166,8 @@ pub async fn process_request(
             Ok(())
         }
 
-        ServiceRequest::RefreshClientToken(svc_id, client_key) => {
-            let resp = match refresh_client_token(manager, svc_id, client_key).await {
+        ServiceRequest::RefreshClientToken(svc_id, client_id) => {
+            let resp = match refresh_client_token(manager, svc_id, client_id).await {
                 Ok(token) => Response::success(Some(token)).message(format!("client token regenerated successfully.")),
                 Err(err) => Response::error(None).message(err.to_string()),
             };
