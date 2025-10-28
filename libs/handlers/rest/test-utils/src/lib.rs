@@ -71,11 +71,11 @@ impl TestApp {
             .await
             .expect("unable to create app secrets");
 
-        let token = create_client(&self.db, &secrets, "Test Client")
+        let client = create_client(&self.db, &secrets, "Test Client")
             .await
             .expect("unable to create client token");
 
-        token
+        client.token().to_string()
     }
 
     #[allow(dead_code)]

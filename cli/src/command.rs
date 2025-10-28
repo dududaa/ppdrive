@@ -121,13 +121,19 @@ enum CliCommand {
 enum ClientCommand {
     /// create a new client and receive the client token.
     Create {
+        #[arg(long("svc-id"))]
         service_id: u8, 
+        
+        #[arg(long("name"))]
         client_name: String 
     },
-
+    
     /// refresh token for a given client.
     Refresh { 
+        #[arg(long("svc-id"))]
         service_id: u8, 
+
+        #[arg(long("key"))]
         client_key: String 
     },
 

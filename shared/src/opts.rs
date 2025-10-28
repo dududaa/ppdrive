@@ -156,19 +156,25 @@ pub enum ServiceRequest {
 
 #[derive(Encode, Decode)]
 pub struct ClientDetails {
-    key: String,
+    id: String,
     token: String
+}
+
+impl ClientDetails {
+    pub fn token(&self) -> &str {
+        &self.token
+    }
 }
 
 impl From<(String, String)> for ClientDetails {
     fn from((key, token): (String, String)) -> Self {
-        ClientDetails { key, token }
+        ClientDetails { id: key, token }
     }
 }
 
 impl Display for ClientDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = format!("id: {}\ntoken: {}", self.key, self.token);
+        let s = format!("id: {}\ntoken: {}", self.id, self.token);
         write!(f, "{s}")
     }
 }

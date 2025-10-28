@@ -23,7 +23,6 @@ ppd_fs.workspace = true
 libloading = { workspace = true, optional = true }
 serde.workspace = true
 jsonwebtoken = { version = "9.3.1", optional = true }
-uuid = { workspace = true, features = ["v4"] }
 mime_guess = "2.0.5"
 chrono = "0.4.40"
 chacha20poly1305 = { version = "0.10.1", optional = true }

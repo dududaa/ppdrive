@@ -116,15 +116,15 @@ async fn refresh_client_token(
     manager: SharedManager,
     svc_id: u8,
     client_key: String,
-) -> AppResult<ClientDetails> {
+) -> AppResult<String> {
     let task = manager.get_task(svc_id).await?;
     let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
     
-    let client = regenerate_token(&task.db, &secrets, &client_key)
+    let token = regenerate_token(&task.db, &secrets, &client_key)
         .await
         .map_err(|err| anyhow!(err))?;
 
-    Ok(client)
+    Ok(token)
 }
 
 pub async fn process_request(
@@ -158,8 +158,8 @@ pub async fn process_request(
 
         ServiceRequest::CreateClient(svc_id, client_name) => {
             let resp = match create_new_client(manager, svc_id, client_name).await {
-                Ok(client) => Response::success(()).message(format!("client created successfully.\n{client}")),
-                Err(err) => Response::error(()).message(err.to_string()),
+                Ok(client) => Response::success(Some(client)).message(format!("client created successfully.")),
+                Err(err) => Response::error(None).message(err.to_string()),
             };
 
             resp.write(socket).await.map_err(|err| anyhow!(err))?;
@@ -168,8 +168,8 @@ pub async fn process_request(
 
         ServiceRequest::RefreshClientToken(svc_id, client_key) => {
             let resp = match refresh_client_token(manager, svc_id, client_key).await {
-                Ok(client) => Response::success(()).message(format!("client token regenerated successfully.\n{client}")),
-                Err(err) => Response::error(()).message(err.to_string()),
+                Ok(token) => Response::success(Some(token)).message(format!("client token regenerated successfully.")),
+                Err(err) => Response::error(None).message(err.to_string()),
             };
     
             resp.write(socket).await.map_err(|err| anyhow!(err))?;

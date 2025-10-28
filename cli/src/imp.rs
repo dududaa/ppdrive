@@ -1,6 +1,6 @@
 use bincode::{Decode, Encode, config};
 
-use ppd_shared::opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest};
+use ppd_shared::opts::{ClientDetails, Response, ServiceConfig, ServiceInfo, ServiceRequest};
 
 use crate::errors::{AppResult, Error};
 use ppdrive::plugin::service::Service;
@@ -71,17 +71,25 @@ impl PPDrive {
 
     pub fn create_client(port: u16, svc_id: u8, client_name: String) -> AppResult<()> {
         let resp =
-            Self::send_request::<()>(ServiceRequest::CreateClient(svc_id, client_name), port)?;
+            Self::send_request::<Option<ClientDetails>>(ServiceRequest::CreateClient(svc_id, client_name), port)?;
+        
         resp.log();
+        if let Some(client) = resp.body() {
+            println!("{client}");
+        }
 
         Ok(())
     }
 
     pub fn refresh_client_token(port: u16, svc_id: u8, client_key: String) -> AppResult<()> {
         let resp =
-            Self::send_request::<()>(ServiceRequest::RefreshClientToken(svc_id, client_key), port)?;
+            Self::send_request::<Option<String>>(ServiceRequest::RefreshClientToken(svc_id, client_key), port)?;
         
         resp.log();
+        if let Some(token) = resp.body() {
+            println!("{token}");
+        }
+        
         Ok(())
     }
 

@@ -2,30 +2,29 @@ use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce, Error as 
 use ppd_bk::{models::client::Clients, RBatis};
 use ppd_shared::{opts::ClientDetails, tools::AppSecrets};
 use sha3::{Digest, Sha3_256};
-use uuid::Uuid;
 use crate::{errors::HandlerError, HandlerResult};
 
-/// creates a new client and returns the client's key
-pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> HandlerResult<ClientDetails> {
-    let client_key = Uuid::new_v4().to_string();
-    let token = generate_token(secrets, &client_key)?;
-    
-    Clients::create(rb, client_key.clone(), name.to_string()).await?;
-    Ok((client_key, token).into())
-}
-
 /// generate a token for client's id
-fn generate_token(secrets: &AppSecrets, client_id: &str) -> HandlerResult<String> {
+fn generate_token(secrets: &AppSecrets, client_key: &str) -> HandlerResult<String> {
     let key = secrets.secret_key();
     let nonce_key = secrets.nonce();
 
     let nonce = XNonce::from_slice(nonce_key);
     let cipher = XChaCha20Poly1305::new(key.into());
 
-    let encrypt = cipher.encrypt(nonce, client_id.as_bytes())?;
+    let encrypt = cipher.encrypt(nonce, client_key.as_bytes())?;
     let encode = hex::encode(&encrypt);
 
     Ok(encode)
+}
+
+/// creates a new client and returns the client's key
+pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> HandlerResult<ClientDetails> {
+    let client_key = Clients::new_key();
+    let token = generate_token(secrets, &client_key)?;
+    
+    let id = Clients::create(rb, client_key, name.to_string()).await?;
+    Ok((id, token).into())
 }
 
 /// validate that a given client token exists
@@ -41,11 +40,11 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Ha
 
     let decrypt = cipher.decrypt(nonce, decode.as_slice())?;
 
-    let id =
+    let key =
         String::from_utf8(decrypt)
         .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
-    let client = Clients::get(rb, &id).await?;
+    let client = Clients::get_with_key(rb, &key).await?;
     Ok(client.id())
 }
 
@@ -53,15 +52,13 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Ha
 pub async fn regenerate_token(
     db: &RBatis,
     secrets: &AppSecrets,
-    current_key: &str,
-) -> HandlerResult<ClientDetails> {
-    let mut client = Clients::get(db, current_key).await?;
-    let new_key = Uuid::new_v4().to_string();
+    client_id: &str,
+) -> HandlerResult<String> {
+    let mut client = Clients::get(db, client_id).await?;
+    client.update_key(db).await?;
 
-    client.update_key(db, new_key.clone()).await?;
     let token = generate_token(secrets, client.key())?;
-
-    Ok((new_key, token).into())
+    Ok(token)
 }
 
 impl From<XError> for HandlerError {
