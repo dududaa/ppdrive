@@ -151,13 +151,21 @@ pub enum ServiceRequest {
     Stop,
 
     CreateClient(u8, String),
-    RefreshClientToken(u8, String)
+    RefreshClientToken(u8, String),
+    GetClientList(u8)
 }
 
 #[derive(Encode, Decode)]
 pub struct ClientDetails {
     id: String,
     token: String
+}
+
+#[derive(Encode, Decode)]
+pub struct ClientInfo {
+    pub id: String,
+    pub name: String,
+    pub created_at: String
 }
 
 impl ClientDetails {

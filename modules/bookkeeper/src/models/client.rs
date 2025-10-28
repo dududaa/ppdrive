@@ -1,5 +1,6 @@
 use modeller::prelude::*;
-use rbatis::{RBatis, crud, impl_select};
+use ppd_shared::opts::ClientInfo;
+use rbatis::{crud, impl_select, rbdc::DateTime, RBatis};
 use rbs::value;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -21,6 +22,8 @@ pub struct Clients {
 
     #[modeller(length = 120)]
     name: String,
+
+    created_at: DateTime,
 }
 
 crud!(Clients {});
@@ -45,6 +48,7 @@ impl Clients {
             pid: pid.to_string(),
             key,
             name,
+            created_at: DateTime::now()
         };
 
         Clients::insert(rb, &value).await?;
@@ -72,5 +76,16 @@ impl Clients {
 
     pub fn pid(&self) -> &str {
         &self.pid
+    }
+}
+
+impl From<&Clients> for ClientInfo {
+    fn from(value: &Clients) -> Self {
+        let Clients { pid, name, created_at, .. } = value;
+        ClientInfo {
+            id: pid.clone(),
+            name: name.clone(),
+            created_at: created_at.to_string()
+        }
     }
 }

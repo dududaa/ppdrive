@@ -1,6 +1,6 @@
 use bincode::{Decode, Encode, config};
 
-use ppd_shared::opts::{ClientDetails, Response, ServiceConfig, ServiceInfo, ServiceRequest};
+use ppd_shared::opts::{ClientDetails, ClientInfo, Response, ServiceConfig, ServiceInfo, ServiceRequest};
 
 use crate::errors::{AppResult, Error};
 use ppdrive::plugin::service::Service;
@@ -48,7 +48,7 @@ impl PPDrive {
 
         resp.log();
         if !list.is_empty() {
-            println!(" id\t | port\t | type\t | auth-modes");
+            println!(" ID\t | Port\t | Type\t | Auth-modes");
             for svc in list {
                 let ServiceInfo {
                     id,
@@ -81,15 +81,31 @@ impl PPDrive {
         Ok(())
     }
 
-    pub fn refresh_client_token(port: u16, svc_id: u8, client_key: String) -> AppResult<()> {
+    pub fn refresh_client_token(port: u16, svc_id: u8, client_id: String) -> AppResult<()> {
         let resp =
-            Self::send_request::<Option<String>>(ServiceRequest::RefreshClientToken(svc_id, client_key), port)?;
+            Self::send_request::<Option<String>>(ServiceRequest::RefreshClientToken(svc_id, client_id), port)?;
         
         resp.log();
         if let Some(token) = resp.body() {
             println!("{token}");
         }
         
+        Ok(())
+    }
+
+    pub fn get_client_list(port: u16, svc_id: u8) -> AppResult<()> {
+        let resp = Self::send_request::<Vec<ClientInfo>>(ServiceRequest::GetClientList(svc_id), port)?;
+        resp.log();
+
+        let clients = resp.body();
+        if !clients.is_empty() {
+            println!(" ID\t | Name\t | Date Created ");
+            for client in clients {
+                let ClientInfo { id, name, created_at } = client;
+                println!(" {id}\t | {name}\t | {created_at}\t");
+            }
+        }
+
         Ok(())
     }
 

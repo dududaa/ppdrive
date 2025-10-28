@@ -61,7 +61,9 @@ impl Cli {
                     ClientCommand::Refresh { service_id: svc_id, client_id: client_key } => {
                         PPDrive::refresh_client_token(port, svc_id, client_key)?;
                     }
-                    _ => unimplemented!()
+                    ClientCommand::List { service_id } => {
+                        PPDrive::get_client_list(port, service_id)?;
+                    }
                 }
             },
             _ => unimplemented!("this command is not supported"),
@@ -132,12 +134,15 @@ enum ClientCommand {
     Refresh { 
         #[arg(long("svc-id"))]
         service_id: u8, 
-
+        
         #[arg(long("client-id"))]
         client_id: String 
     },
-
-    List,
+    
+    List {
+        #[arg(long("svc-id"))]
+        service_id: u8, 
+    },
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]

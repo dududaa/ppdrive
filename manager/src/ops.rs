@@ -3,10 +3,14 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use bincode::config;
 use ppd_shared::{
-    opts::{ClientDetails, Response, ServiceConfig, ServiceInfo, ServiceRequest},
+    opts::{ClientDetails, ClientInfo, Response, ServiceConfig, ServiceInfo, ServiceRequest},
     tools::AppSecrets,
 };
-use ppdrive::{db::init_db, plugin::service::Service, tools::{create_client, regenerate_token}};
+use ppdrive::{
+    db::init_db,
+    plugin::service::Service,
+    tools::{create_client, get_clients, regenerate_token},
+};
 use tokio::{io::AsyncReadExt, net::TcpStream};
 use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
@@ -103,7 +107,7 @@ async fn create_new_client(
 ) -> AppResult<ClientDetails> {
     let task = manager.get_task(svc_id).await?;
     let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
-    
+
     let client = create_client(&task.db, &secrets, &client_name)
         .await
         .map_err(|err| anyhow!(err))?;
@@ -119,12 +123,20 @@ async fn refresh_client_token(
 ) -> AppResult<String> {
     let task = manager.get_task(svc_id).await?;
     let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
-    
+
     let token = regenerate_token(&task.db, &secrets, &client_id)
         .await
         .map_err(|err| anyhow!(err))?;
 
     Ok(token)
+}
+
+/// create new client for a specified
+async fn get_client_list(manager: SharedManager, svc_id: u8) -> AppResult<Vec<ClientInfo>> {
+    let task = manager.get_task(svc_id).await?;
+    let clients = get_clients(&task.db).await.map_err(|err| anyhow!(err))?;
+
+    Ok(clients)
 }
 
 pub async fn process_request(
@@ -158,7 +170,9 @@ pub async fn process_request(
 
         ServiceRequest::CreateClient(svc_id, client_name) => {
             let resp = match create_new_client(manager, svc_id, client_name).await {
-                Ok(client) => Response::success(Some(client)).message(format!("client created successfully.")),
+                Ok(client) => {
+                    Response::success(Some(client)).message(format!("client created successfully."))
+                }
                 Err(err) => Response::error(None).message(err.to_string()),
             };
 
@@ -168,10 +182,24 @@ pub async fn process_request(
 
         ServiceRequest::RefreshClientToken(svc_id, client_id) => {
             let resp = match refresh_client_token(manager, svc_id, client_id).await {
-                Ok(token) => Response::success(Some(token)).message(format!("client token regenerated successfully.")),
+                Ok(token) => Response::success(Some(token))
+                    .message(format!("client token regenerated successfully.")),
                 Err(err) => Response::error(None).message(err.to_string()),
             };
-    
+
+            resp.write(socket).await.map_err(|err| anyhow!(err))?;
+            Ok(())
+        }
+
+        ServiceRequest::GetClientList(svc_id) => {
+            let resp = match get_client_list(manager, svc_id).await {
+                Ok(clients) => {
+                    let len = clients.len();
+                    Response::success(clients).message(format!("total {} clients available.", len))
+                }
+                Err(err) => Response::error(vec![]).message(err.to_string()),
+            };
+
             resp.write(socket).await.map_err(|err| anyhow!(err))?;
             Ok(())
         }

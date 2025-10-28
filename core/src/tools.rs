@@ -1,6 +1,6 @@
 use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce, Error as XError};
 use ppd_bk::{models::client::Clients, RBatis};
-use ppd_shared::{opts::ClientDetails, tools::AppSecrets};
+use ppd_shared::{opts::{ClientDetails, ClientInfo}, tools::AppSecrets};
 use sha3::{Digest, Sha3_256};
 use crate::{errors::HandlerError, HandlerResult};
 
@@ -61,10 +61,11 @@ pub async fn regenerate_token(
     Ok(token)
 }
 
-impl From<XError> for HandlerError {
-    fn from(value: XError) -> Self {
-        HandlerError::InternalError(value.to_string())
-    }
+
+pub async fn get_clients(db: &RBatis) -> HandlerResult<Vec<ClientInfo>> {
+    let clients = Clients::select_all(db).await.map_err(|err| HandlerError::InternalError(err.to_string()))?;
+    let results = clients.iter().map(|c| c.into()).collect();
+    Ok(results)
 }
 
 pub fn make_password(password: &str) -> String {
@@ -80,4 +81,10 @@ pub fn check_password(password: &str, hashed: &str) -> HandlerResult<String> {
     }
 
     Ok(h)
+}
+
+impl From<XError> for HandlerError {
+    fn from(value: XError) -> Self {
+        HandlerError::InternalError(value.to_string())
+    }
 }
