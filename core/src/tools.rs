@@ -1,18 +1,17 @@
 use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce, Error as XError};
 use ppd_bk::{models::client::Clients, RBatis};
-use ppd_shared::tools::AppSecrets;
+use ppd_shared::{opts::ClientDetails, tools::AppSecrets};
 use sha3::{Digest, Sha3_256};
 use uuid::Uuid;
 use crate::{errors::HandlerError, HandlerResult};
 
 /// creates a new client and returns the client's key
-pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> HandlerResult<String> {
-    let client_id = Uuid::new_v4();
-    let client_id = client_id.to_string();
-
-    let token = generate_token(secrets, &client_id)?;
-    Clients::create(rb, client_id, name.to_string()).await?;
-    Ok(token)
+pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> HandlerResult<ClientDetails> {
+    let client_key = Uuid::new_v4().to_string();
+    let token = generate_token(secrets, &client_key)?;
+    
+    Clients::create(rb, client_key.clone(), name.to_string()).await?;
+    Ok((client_key, token).into())
 }
 
 /// generate a token for client's id
@@ -43,7 +42,8 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Ha
     let decrypt = cipher.decrypt(nonce, decode.as_slice())?;
 
     let id =
-        String::from_utf8(decrypt).map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
+        String::from_utf8(decrypt)
+        .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
     let client = Clients::get(rb, &id).await?;
     Ok(client.id())
@@ -54,12 +54,14 @@ pub async fn regenerate_token(
     db: &RBatis,
     secrets: &AppSecrets,
     current_key: &str,
-) -> HandlerResult<String> {
+) -> HandlerResult<ClientDetails> {
     let mut client = Clients::get(db, current_key).await?;
     let new_key = Uuid::new_v4().to_string();
 
-    client.update_key(db, new_key).await?;
-    generate_token(secrets, client.key())
+    client.update_key(db, new_key.clone()).await?;
+    let token = generate_token(secrets, client.key())?;
+
+    Ok((new_key, token).into())
 }
 
 impl From<XError> for HandlerError {

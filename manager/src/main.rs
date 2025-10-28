@@ -144,6 +144,19 @@ impl ServiceManager {
         manager
     }
 
+    pub async fn get_task(&self, svc_id: u8) -> AppResult<ServiceTask> {
+        let tasks = self.tasks.lock().await;
+
+        let task = tasks
+            .iter()
+            .find(|t| t.id == svc_id)
+            .ok_or(anyhow::Error::msg(format!(
+                "service with id {svc_id} does not exist."
+            )))?;
+
+        Ok(task.clone())
+    }
+
     async fn close(&self) {
         // cancel running tasks/services
         let tasks = self.tasks.lock().await;
@@ -170,12 +183,12 @@ impl Default for ServiceManager {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ServiceTask {
     pub id: u8,
     pub config: ServiceConfig,
     pub token: Option<CancellationToken>,
-    db: Arc<RBatis>
+    db: Arc<RBatis>,
 }
 
 impl ServiceTask {
@@ -184,7 +197,7 @@ impl ServiceTask {
             id: rand::random(),
             config: config.clone(),
             token: None,
-            db: Arc::new(RBatis::new())
+            db: Arc::new(RBatis::new()),
         }
     }
 }
@@ -192,7 +205,7 @@ impl ServiceTask {
 #[tokio::main]
 async fn main() -> AppResult<()> {
     let _guard = start_logger("manager=debug,ppdrive=debug");
-    
+
     let args: Vec<String> = std::env::args().collect();
     let port = args.get(1).map(|p| p.parse().unwrap_or(DEFAULT_PORT));
 

@@ -53,12 +53,17 @@ impl Cli {
             CliCommand::List => {
                 PPDrive::list(port)?;
             }
-            CliCommand::CreateClient {
-                svc_id,
-                client_name,
-            } => {
-                PPDrive::create_client(port, svc_id, client_name)?;
-            }
+            CliCommand::Client { command } => {
+                match command {
+                    ClientCommand::Create { service_id: svc_id, client_name } => {
+                        PPDrive::create_client(port, svc_id, client_name)?;
+                    },
+                    ClientCommand::Refresh { service_id: svc_id, client_key } => {
+                        PPDrive::refresh_client_token(port, svc_id, client_key)?;
+                    }
+                    _ => unimplemented!()
+                }
+            },
             _ => unimplemented!("this command is not supported"),
         }
 
@@ -100,13 +105,33 @@ enum CliCommand {
     Stop { id: Option<u8> },
 
     /// create a new client for the specified service
-    CreateClient { svc_id: u8, client_name: String },
-
+    // CreateClient { svc_id: u8, client_name: String },
+    Client {
+        #[command(subcommand)]
+        command: ClientCommand
+    },
     /// list services running in service manager
     List,
 
     /// install a module
     Install,
+}
+
+#[derive(Subcommand, Debug)]
+enum ClientCommand {
+    /// create a new client and receive the client token.
+    Create {
+        service_id: u8, 
+        client_name: String 
+    },
+
+    /// refresh token for a given client.
+    Refresh { 
+        service_id: u8, 
+        client_key: String 
+    },
+
+    List,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]

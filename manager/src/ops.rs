@@ -3,10 +3,10 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use bincode::config;
 use ppd_shared::{
-    opts::{Response, ServiceConfig, ServiceInfo, ServiceRequest},
+    opts::{ClientDetails, Response, ServiceConfig, ServiceInfo, ServiceRequest},
     tools::AppSecrets,
 };
-use ppdrive::{db::init_db, plugin::service::Service, tools::create_client};
+use ppdrive::{db::init_db, plugin::service::Service, tools::{create_client, regenerate_token}};
 use tokio::{io::AsyncReadExt, net::TcpStream};
 use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
@@ -96,25 +96,35 @@ pub async fn list_services(manager: SharedManager, socket: &mut TcpStream) -> Ap
 }
 
 /// create new client for a specified
-pub async fn create_new_client(
+async fn create_new_client(
     manager: SharedManager,
     svc_id: u8,
     client_name: String,
-) -> AppResult<String> {
-    let tasks = manager.tasks.lock().await;
-    let task = tasks
-        .iter()
-        .find(|t| t.id == svc_id)
-        .ok_or(anyhow::Error::msg(format!(
-            "service with id {svc_id} does not exist."
-        )))?;
-
+) -> AppResult<ClientDetails> {
+    let task = manager.get_task(svc_id).await?;
     let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
-    let token = create_client(&task.db, &secrets, &client_name)
+    
+    let client = create_client(&task.db, &secrets, &client_name)
         .await
         .map_err(|err| anyhow!(err))?;
 
-    Ok(token)
+    Ok(client)
+}
+
+/// create new client for a specified
+async fn refresh_client_token(
+    manager: SharedManager,
+    svc_id: u8,
+    client_key: String,
+) -> AppResult<ClientDetails> {
+    let task = manager.get_task(svc_id).await?;
+    let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
+    
+    let client = regenerate_token(&task.db, &secrets, &client_key)
+        .await
+        .map_err(|err| anyhow!(err))?;
+
+    Ok(client)
 }
 
 pub async fn process_request(
@@ -148,10 +158,20 @@ pub async fn process_request(
 
         ServiceRequest::CreateClient(svc_id, client_name) => {
             let resp = match create_new_client(manager, svc_id, client_name).await {
-                Ok(token) => Response::success(()).message(format!("client created: {token}")),
+                Ok(client) => Response::success(()).message(format!("client created successfully.\n{client}")),
                 Err(err) => Response::error(()).message(err.to_string()),
             };
 
+            resp.write(socket).await.map_err(|err| anyhow!(err))?;
+            Ok(())
+        }
+
+        ServiceRequest::RefreshClientToken(svc_id, client_key) => {
+            let resp = match refresh_client_token(manager, svc_id, client_key).await {
+                Ok(client) => Response::success(()).message(format!("client token regenerated successfully.\n{client}")),
+                Err(err) => Response::error(()).message(err.to_string()),
+            };
+    
             resp.write(socket).await.map_err(|err| anyhow!(err))?;
             Ok(())
         }

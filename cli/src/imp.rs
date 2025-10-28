@@ -77,6 +77,14 @@ impl PPDrive {
         Ok(())
     }
 
+    pub fn refresh_client_token(port: u16, svc_id: u8, client_key: String) -> AppResult<()> {
+        let resp =
+            Self::send_request::<()>(ServiceRequest::RefreshClientToken(svc_id, client_key), port)?;
+        
+        resp.log();
+        Ok(())
+    }
+
     /// check if ppdrive instance is running on a given port. we do this by attempting to read
     /// list of exisiting services. request failure most likely means ppdrive is not running.
     pub fn check_status(port: u16) -> AppResult<()> {

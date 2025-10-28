@@ -151,6 +151,26 @@ pub enum ServiceRequest {
     Stop,
 
     CreateClient(u8, String),
+    RefreshClientToken(u8, String)
+}
+
+#[derive(Encode, Decode)]
+pub struct ClientDetails {
+    key: String,
+    token: String
+}
+
+impl From<(String, String)> for ClientDetails {
+    fn from((key, token): (String, String)) -> Self {
+        ClientDetails { key, token }
+    }
+}
+
+impl Display for ClientDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = format!("id: {}\ntoken: {}", self.key, self.token);
+        write!(f, "{s}")
+    }
 }
 
 #[derive(Encode, Decode)]
