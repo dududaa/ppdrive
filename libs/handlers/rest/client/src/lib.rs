@@ -8,18 +8,14 @@ use axum_macros::debug_handler;
 
 use crate::errors::ServerError;
 
-use ppdrive::{
-    jwt::LoginOpts,
-    prelude::{
-        opts::{CreateClientUser, LoginTokens, LoginUserClient},
-        state::HandlerState,
-    },
-    rest::extractors::ClientExtractor,
+use ppd_shared::{
+    api::{CreateBucketOptions, CreateClientUser, LoginTokens, LoginUserClient},
+    tools::{SECRETS_FILENAME, mb_to_bytes},
 };
-use ppd_shared::tools::{SECRETS_FILENAME, mb_to_bytes};
+use ppdrive::{jwt::LoginOpts, prelude::state::HandlerState, rest::extractors::ClientExtractor};
 
 use ppd_bk::models::{
-    bucket::{Buckets, CreateBucketOptions},
+    bucket::Buckets,
     user::{UserRole, Users},
 };
 
@@ -126,7 +122,7 @@ fn routes(max_upload_size: usize) -> Router<HandlerState> {
         .route("/user/register", post(create_user))
         .route("/user/:id", delete(delete_user))
         .route("/bucket", post(create_bucket))
-        // Routes used by client to operate on behalf of a user. Access to these routes requires 
+        // Routes used by client to operate on behalf of a user. Access to these routes requires
         // both  `ppd-client-token` and `ppd-client-user` headers
         .route("/user", get(get_user))
         .route("/user/asset", post(create_asset))

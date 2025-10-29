@@ -7,8 +7,10 @@ use ppd_bk::db::init_db;
 use ppd_bk::db::migration::clean_db;
 use ppd_shared::opts::ServiceConfig;
 pub use ppd_shared::start_logger;
-use ppd_shared::tools::{AppSecrets, root_dir};
-use ppdrive::prelude::opts::LoginTokens;
+use ppd_shared::{
+    api::LoginTokens,
+    tools::{AppSecrets, root_dir},
+};
 use ppdrive::prelude::state::HandlerState;
 use ppdrive::tools::create_client;
 
@@ -71,7 +73,7 @@ impl TestApp {
             .await
             .expect("unable to create app secrets");
 
-        let client = create_client(&self.db, &secrets, "Test Client")
+        let client = create_client(&self.db, &secrets, "Test Client", None)
             .await
             .expect("unable to create client token");
 

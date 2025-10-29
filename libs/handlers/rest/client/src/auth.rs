@@ -7,14 +7,14 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
 use crate::errors::ServerError;
-use ppdrive::{prelude::state::HandlerState, rest::extractors::ClientUserExtractor};
 use ppd_bk::models::{
     IntoSerializer,
     asset::{AssetType, Assets},
-    bucket::{Buckets, CreateBucketOptions},
+    bucket::Buckets,
     user::{UserSerializer, Users},
 };
-use ppd_shared::tools::SECRETS_FILENAME;
+use ppd_shared::{api::CreateBucketOptions, tools::SECRETS_FILENAME};
+use ppdrive::{prelude::state::HandlerState, rest::extractors::ClientUserExtractor};
 
 use ppd_fs::{auth::create_or_update_asset, opts::CreateAssetOptions};
 

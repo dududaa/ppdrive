@@ -11,21 +11,21 @@ use uuid::Uuid;
 
 use crate::errors::ServerError;
 
+use ppd_shared::{
+    api::{CreateBucketOptions, LoginTokens, UserCredentials},
+    tools::{SECRETS_FILENAME, mb_to_bytes},
+};
 use ppdrive::{
     jwt::LoginOpts,
-    prelude::{
-        opts::{LoginTokens, UserCredentials},
-        state::HandlerState,
-    },
+    prelude::state::HandlerState,
     rest::extractors::UserExtractor,
     tools::{check_password, make_password},
 };
-use ppd_shared::tools::{SECRETS_FILENAME, mb_to_bytes};
 
 use ppd_bk::models::{
     IntoSerializer,
     asset::{AssetType, Assets},
-    bucket::{Buckets, CreateBucketOptions},
+    bucket::Buckets,
     user::{UserSerializer, Users},
 };
 

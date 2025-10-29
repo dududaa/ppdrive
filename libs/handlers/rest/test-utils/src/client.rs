@@ -1,6 +1,5 @@
 use axum_test::{TestResponse, TestServer};
-use ppdrive::prelude::opts::{CreateClientUser, LoginUserClient};
-use ppd_bk::models::bucket::CreateBucketOptions;
+use ppd_shared::api::{CreateClientUser, LoginUserClient, CreateBucketOptions};
 
 pub const HEADER_TOKEN_KEY: &str = "ppd-client-token";
 pub const HEADER_USER_KEY: &str = "ppd-client-user";

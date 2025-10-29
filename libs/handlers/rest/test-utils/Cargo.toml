@@ -10,7 +10,7 @@ tokio = { workspace = true, features = ["fs"] }
 uuid = { workspace = true, features = ["v4"] }
 axum-macros.workspace = true
 ppdrive = { workspace = true, features = ["rest", "plugin"] }
-ppd_shared = { workspace = true, features = ["logger"] }
+ppd_shared = { workspace = true, features = ["logger", "api"] }
 ppd_bk.workspace = true
 ppd_fs.workspace = true
 rest-client = { path = "../client" }
