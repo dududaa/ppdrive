@@ -6,6 +6,7 @@ use crate::{
     },
 };
 use modeller::prelude::*;
+use ppd_shared::api::CreateBucketOptions;
 use rbatis::{RBatis, crud, impl_select};
 use rbs::value;
 use serde::{Deserialize, Serialize};
@@ -194,7 +195,6 @@ impl Buckets {
             public,
         } = opts;
 
-        let accepts = accepts.unwrap_or(String::from("*"));
         if let Some(folder) = &partition {
             let b = Buckets::get_by_key(db, "root_folder", folder).await?;
             if b.is_some() {
@@ -210,7 +210,9 @@ impl Buckets {
             ));
         }
 
+        let accepts = accepts.unwrap_or(String::from("*"));
         let pid = Uuid::new_v4().to_string();
+
         let data = Buckets {
             id: None,
             pid,
@@ -288,22 +290,4 @@ impl From<u8> for BucketOwnerType {
 struct OwnerInfo {
     id: u64,
     ty: BucketOwnerType,
-}
-
-#[derive(Deserialize, Serialize, Default)]
-pub struct CreateBucketOptions {
-    pub partition: Option<String>,
-
-    /// can be set if there's partition
-    pub partition_size: Option<u64>,
-
-    /// The mime type acceptable by a bucket.
-    /// - "*" is the default and means all mime types are accepted.
-    /// - "custom" means a selection of mimetypes manually specified by a user. Acceptable format should start with "custom" keyword followed by a colon ":" and comma seprated mimetypes. Example, "custom:application/zip,audio/3gpp"
-    /// - You can specify a group of mimes using the `filetype` they belong to (e.g, "audio", "video", "application"...etc).
-    /// - You can also specify a *list* of comma seprated groups e.g, "audio,video,application".
-    pub accepts: Option<String>,
-
-    pub label: String,
-    pub public: Option<bool>,
 }

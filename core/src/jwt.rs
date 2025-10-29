@@ -5,9 +5,9 @@ use chrono::Utc;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 
-use crate::{HandlerResult, errors::HandlerError, prelude::opts::LoginTokens};
+use crate::{HandlerResult, errors::HandlerError};
 
-use ppd_shared::opts::ServiceConfig;
+use ppd_shared::{api::LoginTokens, opts::ServiceConfig};
 
 pub const BEARER_KEY: &str = "PPDRIVE_BEARER_KEY";
 pub const BEARER_VALUE: &str = "Bearer";
@@ -51,14 +51,15 @@ fn extract_jwt(header_value: &HeaderValue, bearer: &str) -> Result<String, Handl
                 let ext = v.trim_start_matches(bearer);
                 Ok(ext.to_owned())
             } else {
-                Err(HandlerError::AuthorizationError("unsupported bearer".to_string()))
+                Err(HandlerError::AuthorizationError(
+                    "unsupported bearer".to_string(),
+                ))
             }
         }
-        Err(err) => Err(HandlerError::AuthorizationError(
-            format!("Error extracting jwt: {err}"),
-        ))
+        Err(err) => Err(HandlerError::AuthorizationError(format!(
+            "Error extracting jwt: {err}"
+        ))),
     }
-
 }
 
 pub fn create_jwt(
@@ -100,30 +101,29 @@ impl<'a> LoginOpts<'a> {
             refresh_exp,
             user_id,
         } = self;
-    
+
         let default_access = config.auth.access_exp;
         let default_refresh = config.auth.refresh_exp;
-    
+
         let access_exp = access_exp.unwrap_or(default_access);
         let refresh_exp = refresh_exp.unwrap_or(default_refresh);
-    
+
         let access = if access_exp > 0 {
             let access_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Access)?;
-    
+
             Some((access_token, access_exp))
         } else {
             None
         };
-    
+
         let refresh = if refresh_exp > 0 {
             let refresh_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Refresh)?;
-    
+
             Some((refresh_token, refresh_exp))
         } else {
             None
         };
-    
+
         Ok(LoginTokens { access, refresh })
     }
 }
-

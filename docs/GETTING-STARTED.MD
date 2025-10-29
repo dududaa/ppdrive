@@ -40,7 +40,11 @@ ppdrive launch rest --auth-modes admin,client
 There are basically 4 auth modes: _client_, _direct_, _admin_ and _zero_ mode. Let's quickly describe each of them. 
 
 #### 2.1 Client Mode
-Client mode allows you to connect to PPDRIVE by using a generated **client token**. The token must be provided by external applications in order to perform administrative tasks. This mode should be set if your goal is to **connect PPDRIVE to an application you're building seperately**. For example, you might be building an invoicing app and want to upload PDF files to PPDRIVE so you can share with customers. Client mode requires some extra steps. Please see [Setting Up for Client Mode](#setting-up-for-client-mode).
+Client mode allows you to connect to PPDRIVE by using a generated **client token**. The token must be provided by external applications in order to perform administrative tasks. The primary goal of this mode is to **connect PPDRIVE to another application you're building seperately**. For example, you might be building an invoicing app and want to upload PDF files to PPDRIVE so you can share with customers. To run PPDRIVE in client mode, run:
+```sh
+ppdrive launch --auth-modes client
+```
+Please see [Client API](/docs/apis/rest/CLIENT.MD) to start sending requests to PPDRIVE in client mode.
 
 #### 2.2 Direct Mode
 This mode tells PPDRIVE to allow users to interact _directly_ with your filesystem using their login credentials. You don't need a client token. This is the ideal choice if you're building a client application that **allows users to files/folders in an authenticated manner**. An example is when you're building a mobile app that works like Dropbox or Google Drive. You simply develop the user interface (UI) and interact directly with PPDRIVE API.

@@ -55,8 +55,8 @@ impl Cli {
             }
             CliCommand::Client { command } => {
                 match command {
-                    ClientCommand::Create { service_id: svc_id, client_name } => {
-                        PPDrive::create_client(port, svc_id, client_name)?;
+                    ClientCommand::Create { service_id: svc_id, client_name, max_bucket_size } => {
+                        PPDrive::create_client(port, svc_id, client_name, max_bucket_size)?;
                     },
                     ClientCommand::Refresh { service_id: svc_id, client_id: client_key } => {
                         PPDrive::refresh_client_token(port, svc_id, client_key)?;
@@ -127,7 +127,11 @@ enum ClientCommand {
         service_id: u8, 
         
         #[arg(long("name"))]
-        client_name: String 
+        client_name: String,
+
+        #[arg(long)] 
+        /// total maximum size of buckets that this client can create
+        max_bucket_size: Option<u64>
     },
     
     /// refresh token for a given client.

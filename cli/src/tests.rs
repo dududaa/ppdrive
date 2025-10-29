@@ -39,7 +39,7 @@ fn test_create_client() -> AppResult<()> {
     let config = ServiceConfig::default();
     let id = PPDrive::add(config, port)?;
 
-    PPDrive::create_client(port, id, "Test Client".to_string())?;
+    PPDrive::create_client(port, id, "Test Client".to_string(), None)?;
     PPDrive::stop(port)?;
 
     Ok(())

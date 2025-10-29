@@ -122,12 +122,12 @@ fn routes(max_upload_size: usize) -> Router<HandlerState> {
     Router::new()
         // Routes used by client for administrative tasks. Requests to these routes
         // require ppd-client-token header.
-        .route("/bucket", post(create_bucket))
-        .route("/user/:id", delete(delete_user))
         .route("/user/login", post(login_user))
         .route("/user/register", post(create_user))
-        // Routes used by client to operate on behalf of a user. Access to these requires both
-        // ppd-client-token and ppd-client-user-headers
+        .route("/user/:id", delete(delete_user))
+        .route("/bucket", post(create_bucket))
+        // Routes used by client to operate on behalf of a user. Access to these routes requires 
+        // both  `ppd-client-token` and `ppd-client-user` headers
         .route("/user", get(get_user))
         .route("/user/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))

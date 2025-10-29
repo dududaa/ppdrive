@@ -5,6 +5,7 @@ edition.workspace = true
 
 [features]
 logger = ["dep:tracing-appender", "dep:tracing-subscriber"]
+api = []
 
 [dependencies]
 tracing.workspace = true

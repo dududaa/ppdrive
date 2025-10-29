@@ -23,6 +23,8 @@ pub struct Clients {
     #[modeller(length = 120)]
     name: String,
 
+    max_bucket_size: Option<u64>,
+
     created_at: DateTime,
 }
 
@@ -41,13 +43,14 @@ impl Clients {
         check_model(client, "client not found")
     }
 
-    pub async fn create(rb: &RBatis, key: String, name: String) -> DBResult<String> {
+    pub async fn create(rb: &RBatis, key: String, name: String, max_bucket_size: Option<u64>) -> DBResult<String> {
         let pid = Uuid::new_v4().to_string();
         let value = Clients {
             id: None,
             pid: pid.to_string(),
             key,
             name,
+            max_bucket_size,
             created_at: DateTime::now()
         };
 

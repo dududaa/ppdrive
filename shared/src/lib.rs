@@ -4,6 +4,9 @@ pub mod opts;
 pub mod plugin;
 pub mod tools;
 
+#[cfg(feature = "api")]
+pub mod api;
+
 pub type AppResult<T> = Result<T, Error>;
 
 #[cfg(feature = "logger")]

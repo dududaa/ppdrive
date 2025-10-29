@@ -1,8 +1,11 @@
-use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305, XNonce, Error as XError};
-use ppd_bk::{models::client::Clients, RBatis};
-use ppd_shared::{opts::{ClientDetails, ClientInfo}, tools::AppSecrets};
+use crate::{HandlerResult, errors::HandlerError};
+use chacha20poly1305::{Error as XError, KeyInit, XChaCha20Poly1305, XNonce, aead::Aead};
+use ppd_bk::{RBatis, models::client::Clients};
+use ppd_shared::{
+    opts::{ClientDetails, ClientInfo},
+    tools::AppSecrets,
+};
 use sha3::{Digest, Sha3_256};
-use crate::{errors::HandlerError, HandlerResult};
 
 /// generate a token for client's id
 fn generate_token(secrets: &AppSecrets, client_key: &str) -> HandlerResult<String> {
@@ -19,11 +22,16 @@ fn generate_token(secrets: &AppSecrets, client_key: &str) -> HandlerResult<Strin
 }
 
 /// creates a new client and returns the client's key
-pub async fn create_client(rb: &RBatis, secrets: &AppSecrets, name: &str) -> HandlerResult<ClientDetails> {
+pub async fn create_client(
+    rb: &RBatis,
+    secrets: &AppSecrets,
+    name: &str,
+    max_bucket_size: Option<u64>,
+) -> HandlerResult<ClientDetails> {
     let client_key = Clients::new_key();
     let token = generate_token(secrets, &client_key)?;
-    
-    let id = Clients::create(rb, client_key, name.to_string()).await?;
+
+    let id = Clients::create(rb, client_key, name.to_string(), max_bucket_size).await?;
     Ok((id, token).into())
 }
 
@@ -40,8 +48,7 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Ha
 
     let decrypt = cipher.decrypt(nonce, decode.as_slice())?;
 
-    let key =
-        String::from_utf8(decrypt)
+    let key = String::from_utf8(decrypt)
         .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
     let client = Clients::get_with_key(rb, &key).await?;
@@ -61,9 +68,10 @@ pub async fn regenerate_token(
     Ok(token)
 }
 
-
 pub async fn get_clients(db: &RBatis) -> HandlerResult<Vec<ClientInfo>> {
-    let clients = Clients::select_all(db).await.map_err(|err| HandlerError::InternalError(err.to_string()))?;
+    let clients = Clients::select_all(db)
+        .await
+        .map_err(|err| HandlerError::InternalError(err.to_string()))?;
     let results = clients.iter().map(|c| c.into()).collect();
     Ok(results)
 }
@@ -77,7 +85,9 @@ pub fn check_password(password: &str, hashed: &str) -> HandlerResult<String> {
     let h = make_password(password);
 
     if *hashed != h {
-        return Err(HandlerError::AuthorizationError("wrong password!".to_string()));
+        return Err(HandlerError::AuthorizationError(
+            "wrong password!".to_string(),
+        ));
     }
 
     Ok(h)
