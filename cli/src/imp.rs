@@ -111,14 +111,21 @@ impl PPDrive {
 
         let clients = resp.body();
         if !clients.is_empty() {
-            println!(" ID\t | Name\t | Date Created ");
+            println!(" ID\t\t\t\t | Name\t | Date Created\t | Max Bucket Size ");
             for client in clients {
                 let ClientInfo {
                     id,
                     name,
+                    max_bucket_size,
                     created_at,
                 } = client;
-                println!(" {id}\t | {name}\t | {created_at}\t");
+
+                let max_size = match max_bucket_size {
+                    Some(s) => format!("{s}MB"),
+                    None => "unlimited".to_string()
+                };
+
+                println!(" {id}\t\t\t\t | {name}\t | {created_at}\t | {max_size}");
             }
         }
 

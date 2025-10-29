@@ -166,6 +166,7 @@ pub struct ClientInfo {
     pub id: String,
     pub name: String,
     pub created_at: String,
+    pub max_bucket_size: Option<u64>
 }
 
 impl ClientDetails {

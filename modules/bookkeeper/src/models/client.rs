@@ -96,12 +96,15 @@ impl From<&Clients> for ClientInfo {
         let Clients {
             pid,
             name,
+            max_bucket_size,
             created_at,
             ..
         } = value;
+
         ClientInfo {
             id: pid.clone(),
             name: name.clone(),
+            max_bucket_size: *max_bucket_size,
             created_at: created_at.to_string(),
         }
     }
