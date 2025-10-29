@@ -87,7 +87,7 @@ impl Default for ServiceBaseConfig {
 #[derive(Debug, Args, Clone, Encode, Decode)]
 pub struct ServiceAuthConfig {
     /// authentication modes for the service.
-    #[arg(long("auth-mode"), default_values = ["client"])]
+    #[arg(long("auth-modes"), default_values = ["client"], num_args(1..=4), value_delimiter(','))]
     pub modes: Vec<ServiceAuthMode>,
 
     /// JWT access token expiration for the service (seconds).
@@ -152,20 +152,20 @@ pub enum ServiceRequest {
 
     CreateClient(u8, String),
     RefreshClientToken(u8, String),
-    GetClientList(u8)
+    GetClientList(u8),
 }
 
 #[derive(Encode, Decode)]
 pub struct ClientDetails {
     id: String,
-    token: String
+    token: String,
 }
 
 #[derive(Encode, Decode)]
 pub struct ClientInfo {
     pub id: String,
     pub name: String,
-    pub created_at: String
+    pub created_at: String,
 }
 
 impl ClientDetails {

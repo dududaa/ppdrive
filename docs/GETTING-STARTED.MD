@@ -29,7 +29,7 @@ ppdrive launch rest
 ## 2. Auth Mode
 In addition to specifying the Service Type, we also need to tell PPDRIVE what **Authentication Mode** (or auth mode) to use. This way, PPDRIVE knows how to protect your filesystem and authenticate incoming requests. What auth mode you choose **greatly depends on why and how you want to use PPDRIVE**. You can specify one or multiple auth modes:
 ```sh
-ppdrive launch [service_type] --auth-modes [auth_mode_1, auth_mode_2, ...]
+ppdrive launch [service_type] --auth-modes [auth_mode_1,auth_mode_2, ...]
 
 # Example (single auth mode)
 ppdrive launch rest --auth-modes client
