@@ -42,8 +42,9 @@ ppd_bk = { path = "modules/bookkeeper", default-features = false }
 ppd_fs = { path = "modules/fs" }
 ppdrive = { path = "core", default-features = false }
 libloading = "0.8.8"
-rbs = { version = "4.5.51" }
-rbatis = { version = "4.5.51" }
+rbs = "4.5.51" 
+rbatis = "4.5.51" 
+validator = "0.20.0"
 rest-test-utils.path = "libs/handlers/rest/test-utils"
 
 [profile.release]
