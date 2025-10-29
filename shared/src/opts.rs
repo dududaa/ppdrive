@@ -87,7 +87,7 @@ impl Default for ServiceBaseConfig {
 #[derive(Debug, Args, Clone, Encode, Decode)]
 pub struct ServiceAuthConfig {
     /// authentication modes for the service.
-    #[arg(long("auth-modes"), value_enum, default_values = ["client"])]
+    #[arg(long("auth-mode"), default_values = ["client"])]
     pub modes: Vec<ServiceAuthMode>,
 
     /// JWT access token expiration for the service (seconds).
