@@ -14,7 +14,10 @@ use ppd_bk::models::{
     user::{UserSerializer, Users},
 };
 use ppd_shared::{api::CreateBucketOptions, tools::SECRETS_FILENAME};
-use ppdrive::{prelude::state::HandlerState, rest::extractors::ClientUserExtractor};
+use ppdrive::{
+    prelude::state::HandlerState,
+    rest::extractors::{BucketSizeValidator, ClientUserExtractor},
+};
 
 use ppd_fs::{auth::create_or_update_asset, opts::CreateAssetOptions};
 
@@ -37,6 +40,8 @@ pub async fn create_user_bucket(
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
     let db = state.db();
+
+    user.validate_bucket_size(db, &data.partition_size).await?;
     let id = Buckets::create_by_user(db, data, *user.id()).await?;
 
     Ok(id)

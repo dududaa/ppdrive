@@ -36,7 +36,7 @@ pub async fn create_client(
 }
 
 /// validate that a given client token exists
-pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> HandlerResult<u64> {
+pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> HandlerResult<(u64, Option<u64>)> {
     let decode =
         hex::decode(token).map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
@@ -52,7 +52,7 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Ha
         .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
     let client = Clients::get_with_key(rb, &key).await?;
-    Ok(client.id())
+    Ok((client.id(), client.max_bucket_size().clone()))
 }
 
 /// Regenerate token for a given client.

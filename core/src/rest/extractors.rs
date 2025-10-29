@@ -8,15 +8,29 @@ use axum::{
     extract::{FromRef, FromRequestParts},
     http::{HeaderValue, header::AUTHORIZATION, request::Parts},
 };
+use ppd_bk::RBatis;
+use ppd_bk::models::bucket::Buckets;
 use ppd_bk::models::user::Users;
 use ppd_shared::opts::ServiceConfig;
 
 /// A middleware that accepts client token, validates it and return the client's id
-pub struct ClientExtractor(u64);
+pub struct ClientExtractor {
+    id: u64,
+    max_bucket_size: Option<u64>
+}
 
-impl ClientExtractor {
-    pub fn id(&self) -> &u64 {
-        &self.0
+impl BucketSizeValidator for ClientExtractor {
+    fn id(&self) -> &u64 {
+        &self.id
+    }
+    
+    fn max_bucket_size(&self) -> &Option<u64> {
+        &self.max_bucket_size
+    }
+
+    async fn current_size(&self, db: &RBatis) -> HandlerResult<u64> {
+        let size = Buckets::client_total_bucket_size(db, self.id()).await?;
+        Ok(size)
     }
 }
 
@@ -44,11 +58,11 @@ where
         let state = HandlerState::from_ref(state);
         let secrets = state.secrets();
 
-        let id = verify_client(state.db(), secrets.deref(), token)
+        let (id, max_bucket_size) = verify_client(state.db(), secrets.deref(), token)
             .await
             .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
-        Ok(ClientExtractor(id))
+        Ok(ClientExtractor { id, max_bucket_size })
     }
 }
 
@@ -57,11 +71,24 @@ where
 /// validation on every request.
 pub struct ClientUserExtractor {
     id: u64,
+    max_bucket_size: Option<u64>,
 }
 
 impl ClientUserExtractor {
-    pub fn id(&self) -> &u64 {
+}
+
+impl BucketSizeValidator for ClientUserExtractor {
+    fn id(&self) -> &u64 {
         &self.id
+    }
+    
+    fn max_bucket_size(&self) -> &Option<u64> {
+        &self.max_bucket_size
+    }
+
+    async fn current_size(&self, db: &RBatis) -> HandlerResult<u64> {
+        let size = Buckets::user_total_bucket_size(db, self.id()).await?;
+        Ok(size)
     }
 }
 
@@ -99,7 +126,10 @@ where
                     .to_string(),
             ))?;
 
-        Ok(ClientUserExtractor { id: user.id() })
+        Ok(ClientUserExtractor {
+            id: user.id(),
+            max_bucket_size: user.max_bucket_size().clone(),
+        })
     }
 }
 
@@ -154,4 +184,32 @@ async fn get_local_user(
     let claims = decode_jwt(header, secrets.jwt_secret(), config)?;
 
     Ok(claims.sub)
+}
+
+pub trait BucketSizeValidator {
+    fn id(&self) -> &u64;
+    fn max_bucket_size(&self) -> &Option<u64>;
+
+    #[allow(async_fn_in_trait)]
+    async fn current_size(&self, db: &RBatis) -> HandlerResult<u64>;
+
+    #[allow(async_fn_in_trait)]
+    async fn validate_bucket_size(&self, db: &RBatis, bucket_size: &Option<u64>) -> HandlerResult<()> {
+        if let Some(max_size) = self.max_bucket_size() {
+            let size = bucket_size.ok_or(HandlerError::PermissionDenied(
+                "you must provide \"partition_size\" option for this bucket".to_string(),
+            ))?;
+
+            let current_size = self.current_size(db).await?;
+            let total_size = current_size + size;
+
+            if total_size > *max_size {
+                return Err(HandlerError::PermissionDenied(
+                    "total bucket size for this user is exceeded".to_string(),
+                ));
+            }
+        }
+
+        Ok(())
+    }
 }

@@ -1,6 +1,6 @@
 use modeller::prelude::*;
 use ppd_shared::opts::ClientInfo;
-use rbatis::{crud, impl_select, rbdc::DateTime, RBatis};
+use rbatis::{RBatis, crud, impl_select, rbdc::DateTime};
 use rbs::value;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -12,7 +12,7 @@ use super::check_model;
 #[derive(Serialize, Deserialize, Modeller)]
 pub struct Clients {
     id: Option<u64>,
-    
+
     #[modeller(unique)]
     pid: String,
 
@@ -43,7 +43,12 @@ impl Clients {
         check_model(client, "client not found")
     }
 
-    pub async fn create(rb: &RBatis, key: String, name: String, max_bucket_size: Option<u64>) -> DBResult<String> {
+    pub async fn create(
+        rb: &RBatis,
+        key: String,
+        name: String,
+        max_bucket_size: Option<u64>,
+    ) -> DBResult<String> {
         let pid = Uuid::new_v4().to_string();
         let value = Clients {
             id: None,
@@ -51,7 +56,7 @@ impl Clients {
             key,
             name,
             max_bucket_size,
-            created_at: DateTime::now()
+            created_at: DateTime::now(),
         };
 
         Clients::insert(rb, &value).await?;
@@ -80,15 +85,24 @@ impl Clients {
     pub fn pid(&self) -> &str {
         &self.pid
     }
+
+    pub fn max_bucket_size(&self) -> &Option<u64> {
+        &self.max_bucket_size
+    }
 }
 
 impl From<&Clients> for ClientInfo {
     fn from(value: &Clients) -> Self {
-        let Clients { pid, name, created_at, .. } = value;
+        let Clients {
+            pid,
+            name,
+            created_at,
+            ..
+        } = value;
         ClientInfo {
             id: pid.clone(),
             name: name.clone(),
-            created_at: created_at.to_string()
+            created_at: created_at.to_string(),
         }
     }
 }

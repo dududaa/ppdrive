@@ -124,6 +124,10 @@ impl Users {
     pub fn password(&self) -> &Option<String> {
         &self.password
     }
+
+    pub fn max_bucket_size(&self) -> &Option<u64> {
+        &self.max_bucket
+    }
 }
 
 #[derive(Serialize)]
