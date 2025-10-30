@@ -229,6 +229,12 @@ impl Buckets {
             public,
         } = opts;
 
+        if let Some(size) = partition_size {
+            if size <= 0 {
+                return Err(AppError::PermissionError("partition_size must be non-zero".to_string()))
+            }
+        }
+
         if let Some(folder) = &partition {
             let b = Buckets::get_by_key(db, "root_folder", folder).await?;
             if b.is_some() {
@@ -240,7 +246,7 @@ impl Buckets {
 
         if partition_size.is_some() && partition.is_none() {
             return Err(AppError::PermissionError(
-                "You can not set partition size without settion partition.".to_string(),
+                "You can not set \"partition_size\" without setting \"partition\".".to_string(),
             ));
         }
 
