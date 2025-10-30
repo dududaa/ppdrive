@@ -45,7 +45,7 @@ impl Routers {
     pub fn load(mut self) -> HandlerResult<Self> {
         for mode in &self.auth_modes {
             let rtr = ServiceRouter {
-                svc_type: self.svc_type.clone(),
+                svc_type: self.svc_type,
                 auth_mode: *mode,
             };
 

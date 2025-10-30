@@ -36,10 +36,10 @@ pub async fn read_asset(
     // if asset has custom path and custom path is not provided in url,
     // we return an error. The purpose of custom path is to conceal the
     // original path
-    if let Some(custom_path) = asset.custom_path() {
-        if custom_path != asset_path {
-            return Err(Error::NotFound("asset not found".to_string()));
-        }
+    if let Some(custom_path) = asset.custom_path()
+        && custom_path != asset_path
+    {
+        return Err(Error::NotFound("asset not found".to_string()));
     }
 
     // check if current user has read permission

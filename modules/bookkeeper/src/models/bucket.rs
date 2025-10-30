@@ -65,34 +65,46 @@ impl Buckets {
 
     async fn user_buckets(db: &RBatis, user_id: &u64) -> DBResult<Vec<Buckets>> {
         let owner_type = u8::from(BucketOwnerType::User);
-        let buckets = Buckets::select_by_map(db, value! {
-            "owner_id": user_id,
-            "owner_type": owner_type
-        }).await?;
+        let buckets = Buckets::select_by_map(
+            db,
+            value! {
+                "owner_id": user_id,
+                "owner_type": owner_type
+            },
+        )
+        .await?;
 
         Ok(buckets)
     }
 
     async fn client_buckets(db: &RBatis, client_id: &u64) -> DBResult<Vec<Buckets>> {
         let owner_type = u8::from(BucketOwnerType::Client);
-        let buckets = Buckets::select_by_map(db, value! {
-            "owner_id": client_id,
-            "owner_type": owner_type
-        }).await?;
+        let buckets = Buckets::select_by_map(
+            db,
+            value! {
+                "owner_id": client_id,
+                "owner_type": owner_type
+            },
+        )
+        .await?;
 
         Ok(buckets)
     }
 
     pub async fn user_total_bucket_size(db: &RBatis, user_id: &u64) -> DBResult<u64> {
         let buckets = Buckets::user_buckets(db, user_id).await?;
-        let size = buckets.iter().fold(0, |acc, b| acc + b.partition_size.unwrap_or_default());
+        let size = buckets
+            .iter()
+            .fold(0, |acc, b| acc + b.partition_size.unwrap_or_default());
 
         Ok(size)
     }
 
     pub async fn client_total_bucket_size(db: &RBatis, client_id: &u64) -> DBResult<u64> {
         let buckets = Buckets::client_buckets(db, client_id).await?;
-        let size = buckets.iter().fold(0, |acc, b| acc + b.partition_size.unwrap_or_default());
+        let size = buckets
+            .iter()
+            .fold(0, |acc, b| acc + b.partition_size.unwrap_or_default());
 
         Ok(size)
     }
@@ -118,12 +130,11 @@ impl Buckets {
 
     /// validate whether a given user can write to this bucket
     pub fn validate_write(&self, user_id: &u64) -> bool {
-        if !self.public() {
-            if let BucketOwnerType::User = self.owner_type() {
-                if self.owner_id() != user_id {
-                    return false;
-                }
-            }
+        if !self.public()
+            && let BucketOwnerType::User = self.owner_type()
+            && self.owner_id() != user_id
+        {
+            return false;
         }
 
         true
@@ -229,10 +240,12 @@ impl Buckets {
             public,
         } = opts;
 
-        if let Some(size) = partition_size {
-            if size <= 0 {
-                return Err(AppError::PermissionError("partition_size must be non-zero".to_string()))
-            }
+        if let Some(size) = partition_size
+            && size < 1
+        {
+            return Err(AppError::PermissionError(
+                "partition_size must be minimum of 1".to_string(),
+            ));
         }
 
         if let Some(folder) = &partition {

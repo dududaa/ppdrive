@@ -54,7 +54,7 @@ impl<'a> Service<'a> {
     }
 
     pub fn connect(&self) -> HandlerResult<()> {
-        TcpStream::connect(&self.addr())?;
+        TcpStream::connect(self.addr())?;
         Ok(())
     }
 

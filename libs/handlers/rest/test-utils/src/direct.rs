@@ -27,7 +27,7 @@ pub async fn register_user(server: &TestServer) -> TestResponse {
 }
 
 pub async fn login_user_request(server: &TestServer) -> TestResponse {
-    register_user(&server).await;
+    register_user(server).await;
     
     server
         .post("/direct/user/login")

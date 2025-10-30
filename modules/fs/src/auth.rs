@@ -129,12 +129,11 @@ pub async fn create_or_update_asset(
 
     // share asset with collaborators
     let asset = asset?;
-    if public {
-        if let Some(sharing) = sharing {
-            if !sharing.is_empty() {
-                asset.share(db, sharing).await?;
-            }
-        }
+    if public
+        && let Some(sharing) = sharing
+        && !sharing.is_empty()
+    {
+        asset.share(db, sharing).await?;
     }
 
     Ok(())
@@ -157,10 +156,10 @@ pub async fn delete_asset(db: &RBatis, path: &str, asset_type: &AssetType) -> Fs
                 AssetType::Folder
             };
 
-            if let Some(path) = path.to_str() {
-                if let Ok(child) = Assets::get_by_path(db, path, &child_type).await {
-                    child.delete(db).await?;
-                }
+            if let Some(path) = path.to_str()
+                && let Ok(child) = Assets::get_by_path(db, path, &child_type).await
+            {
+                child.delete(db).await?;
             }
         }
     }

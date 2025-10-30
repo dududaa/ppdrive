@@ -104,7 +104,7 @@ async fn create_new_client(
     manager: SharedManager,
     svc_id: u8,
     client_name: String,
-    max_bucket_size: Option<u64>
+    max_bucket_size: Option<u64>,
 ) -> AppResult<ClientDetails> {
     let task = manager.get_task(svc_id).await?;
     let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
@@ -171,9 +171,8 @@ pub async fn process_request(
 
         ServiceRequest::CreateClient(svc_id, client_name, bucket_size) => {
             let resp = match create_new_client(manager, svc_id, client_name, bucket_size).await {
-                Ok(client) => {
-                    Response::success(Some(client)).message(format!("client created successfully."))
-                }
+                Ok(client) => Response::success(Some(client))
+                    .message("client created successfully."),
                 Err(err) => Response::error(None).message(err.to_string()),
             };
 
@@ -184,7 +183,7 @@ pub async fn process_request(
         ServiceRequest::RefreshClientToken(svc_id, client_id) => {
             let resp = match refresh_client_token(manager, svc_id, client_id).await {
                 Ok(token) => Response::success(Some(token))
-                    .message(format!("client token regenerated successfully.")),
+                    .message("client token regenerated successfully."),
                 Err(err) => Response::error(None).message(err.to_string()),
             };
 

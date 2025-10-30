@@ -12,7 +12,11 @@ use ppd_shared::{
     api::{CreateBucketOptions, CreateClientUser, LoginTokens, LoginUserClient},
     tools::{SECRETS_FILENAME, mb_to_bytes},
 };
-use ppdrive::{jwt::LoginOpts, prelude::state::HandlerState, rest::extractors::{BucketSizeValidator, ClientExtractor}};
+use ppdrive::{
+    jwt::LoginOpts,
+    prelude::state::HandlerState,
+    rest::extractors::{BucketSizeValidator, ClientExtractor},
+};
 
 use ppd_bk::models::{
     bucket::Buckets,
@@ -100,13 +104,15 @@ async fn create_bucket(
 ) -> Result<String, ServerError> {
     let db = state.db();
 
-    client.validate_bucket_size(db, &data.partition_size).await?;
-    if let Some(partition) = &data.partition {
-        if partition == SECRETS_FILENAME {
-            return Err(ServerError::PermissionDenied(
-                "partition name {SECRET_FILE} is not allowed".to_string(),
-            ));
-        }
+    client
+        .validate_bucket_size(db, &data.partition_size)
+        .await?;
+    if let Some(partition) = &data.partition
+        && partition == SECRETS_FILENAME
+    {
+        return Err(ServerError::PermissionDenied(
+            "partition name {SECRET_FILE} is not allowed".to_string(),
+        ));
     }
 
     let bucket_id = Buckets::create_by_client(db, data, *client.id()).await?;

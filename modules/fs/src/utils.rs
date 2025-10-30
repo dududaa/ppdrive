@@ -29,12 +29,12 @@ pub async fn create_asset_parents(
             .filter(|p| p != &&"/")
             .collect();
 
-        if let Some(first) = paths.first() {
-            if first.starts_with("/") {
-                return Err(Error::ServerError(
-                    "asset path cannot start with an '/'".to_string(),
-                ));
-            }
+        if let Some(first) = paths.first()
+            && first.starts_with("/")
+        {
+            return Err(Error::ServerError(
+                "asset path cannot start with an '/'".to_string(),
+            ));
         }
 
         let folder_type = u8::from(&AssetType::Folder);

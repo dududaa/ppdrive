@@ -27,7 +27,7 @@ pub async fn create_user_request(server: &TestServer, token: &str) -> TestRespon
 }
 
 pub async fn login_user_request(server: &TestServer, token: &str) -> TestResponse {
-    let resp = create_user_request(&server, &token).await;
+    let resp = create_user_request(server, token).await;
     let user_id = resp.text();
 
     let data = LoginUserClient {

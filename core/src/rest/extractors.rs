@@ -128,7 +128,7 @@ where
 
         Ok(ClientUserExtractor {
             id: user.id(),
-            max_bucket_size: user.max_bucket_size().clone(),
+            max_bucket_size: *user.max_bucket_size(),
         })
     }
 }

@@ -52,7 +52,7 @@ pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> Ha
         .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
     let client = Clients::get_with_key(rb, &key).await?;
-    Ok((client.id(), client.max_bucket_size().clone()))
+    Ok((client.id(), *client.max_bucket_size()))
 }
 
 /// Regenerate token for a given client.
