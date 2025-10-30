@@ -2,6 +2,8 @@
 #### Setting Up for Client Requests
 This section shows how to connect to PPDRIVE in client mode. Before you start, please make sure a PPDRIVE service is running in [Client Mode](../../GETTING-STARTED.MD#21-client-mode) and you have the `ID` of the service. You can check running services with `ppdrive list` command and see `Auth-modes` column:
 
+![PPDrive Client List](../../assets/ppdrive_svc_list.png)
+
 Once you confirm that a service is running in client mode and you have its `ID`, follow these steps:
 1. Create a new client for the service:
 ```sh
@@ -10,17 +12,20 @@ ppdrive client create --svc-id [ID] --name [client_name]
 
   - `svc-id` is self-explanatory, right?
   - `name` is the name assigned to your client. Hint: Use a name you can easily associate with the client. For example, "Raymond Edutech App". Please note that `name` is required for creating a client but **not unique**.
-  [img=../../assets/ppd_create_client.png]
-  
-  If you think your token is compromised, you can refresh it with:
+
+  If the client is successfully created, the client's `id` and secret `token` would be printed like this:
+
+  ![PPDrive Create Client](../../assets/ppd_create_client.png)
+
+2. After the client is created, copy and save token **securely** in your client application **<span color=red>TOKENS MUST BE KEPT SECRET!</span>** Do not expose your client token to public APIs. For example, you may save it in your environment variables:
 ```sh
-ppdrive client refresh --svc-id [ID] --client-id [ID]
+PPD_TOKEN=74352d4a4df...
 ```
 
-2. After the client is created, copy and save token **securely** in your client application. **<span color=red>TOKENS MUST BE KEPT SECRET!</span>** Do not expose your client token to public APIs. For example, you may save it in your environment variables:
-```sh
-PPD_TOKEN=12345678910...
-```
+  If you think your token is compromised, you can refresh it with:
+  ```sh
+  ppdrive client refresh --svc-id [ID] --client-id [ID]
+  ```
 
 3. Add the token to `ppd-client-token` header and send requests to [available endpoints](#api-endpoints).
 ```js
