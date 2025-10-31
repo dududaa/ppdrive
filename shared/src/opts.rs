@@ -246,6 +246,7 @@ impl<T: Encode + Decode<()>> Response<T> {
     pub async fn write(&self, socket: &mut TcpStream) -> AppResult<()> {
         let data = bincode::encode_to_vec(self, config::standard())
             .map_err(|err| Error::ServerError(err.to_string()))?;
+        
         socket.write_all(&data).await?;
 
         Ok(())

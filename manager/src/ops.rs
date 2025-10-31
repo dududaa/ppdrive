@@ -145,7 +145,11 @@ pub async fn process_request(
     manager: Arc<ServiceManager>,
 ) -> AppResult<()> {
     let mut buf = [0u8; 1024];
-    socket.read(&mut buf).await?;
+    let n = socket.read(&mut buf).await?;
+
+    if n == 0 {
+        return Ok(());
+    }
 
     let (req, _) = bincode::decode_from_slice::<ServiceRequest, _>(&buf, config::standard())?;
     match req {

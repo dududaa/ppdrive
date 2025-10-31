@@ -120,9 +120,9 @@ PPDRIVE is open-source software licensed under the [MIT License](#/LICENSE).
 ---
 
 ## Acknowledgments
+We ride on the shoulders of giants! We'll just mention a few:
 - Dududaa: PPDRIVE is part of our ongoing Dududaa community project. You can [find us on Discord](https://discord.gg/BeVPFS7wkp).
 - Rust: The systems programming language used to build PPDRIVE.
-- Axum: A Rust-based web application framework that focuses on ergonomics and modularity.
+- Tokio: For Axum web framework and several other crates that simplify asynchronous Rust.
 - RBatis: RBatis serves as a drive for our modeller crate and record management within PPDRIVE.
-- Docker: For containerizing the service.
 - Community: Thanks to the open-source community for their valuable contributions!
