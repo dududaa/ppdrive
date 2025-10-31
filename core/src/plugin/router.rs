@@ -19,7 +19,7 @@ type RawRouterType = *mut RouterType;
 #[derive(Default)]
 pub struct RouterLoader {
     ptr: RawRouterType,
-    lib: Option<Library>
+    lib: Option<Library>,
 }
 
 #[derive(Default)]
@@ -74,7 +74,7 @@ impl Routers {
 
     fn drop_router(ld: &RouterLoader) {
         let ptr = ld.ptr;
-        
+
         if !ptr.is_null() {
             let _ = unsafe { Box::from_raw(ptr) };
         }
@@ -111,11 +111,15 @@ impl ServiceRouter {
         let lib = self.load(filename)?;
 
         let ptr = unsafe {
-            let load_router: Symbol<fn(*const ServiceConfig) -> RawRouterType> = lib.get(b"load_router")?;
+            let load_router: Symbol<fn(*const ServiceConfig) -> RawRouterType> =
+                lib.get(&self.symbol_name())?;
             load_router(Arc::into_raw(config))
         };
 
-        Ok(RouterLoader { ptr, lib: Some(lib) })
+        Ok(RouterLoader {
+            ptr,
+            lib: Some(lib),
+        })
     }
 }
 

@@ -13,7 +13,7 @@ mod errors;
 pub type ServerResult<T> = Result<T, ServerError>;
 
 #[no_mangle]
-pub fn start_svc(config: Arc<ServiceConfig>, db: Arc<RBatis>, token: CancellationToken) {
+pub fn ppd_rest(config: Arc<ServiceConfig>, db: Arc<RBatis>, token: CancellationToken) {
     if let Ok(rt) = Runtime::new() {
         rt.block_on(async {
             let _guard =

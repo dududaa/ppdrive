@@ -185,7 +185,7 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn load_router(config: *const ServiceConfig) -> *mut Router<HandlerState> {
+pub extern "C" fn rest_direct(config: *const ServiceConfig) -> *mut Router<HandlerState> {
     let config = unsafe { Arc::from_raw(config) };
     let bx = Box::new(routes(config));
     Box::into_raw(bx)

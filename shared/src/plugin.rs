@@ -8,6 +8,11 @@ pub trait Plugin {
     /// package name of the plugin, as declared in manifest (Cargo.toml)
     fn package_name(&self) -> &'static str;
 
+    fn symbol_name(&self) -> Vec<u8> {
+        let name = self.package_name().replace("-", "_");
+        name.as_bytes().to_vec()
+    }
+
     /// local installation of the plugin. this involves building the plugin from source code
     /// and moving the binary to route.
     #[cfg(debug_assertions)]

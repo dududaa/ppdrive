@@ -14,8 +14,8 @@ use ppd_shared::{
 use ppdrive::prelude::state::HandlerState;
 use ppdrive::tools::create_client;
 
-use rest_client::load_router as client_router;
-use rest_direct::load_router as direct_router;
+use rest_client::rest_client as client_router;
+use rest_direct::rest_direct as direct_router;
 
 use crate::direct::login_user_request;
 
