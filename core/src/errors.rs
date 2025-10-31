@@ -18,7 +18,7 @@ pub enum HandlerError {
     AuthorizationError(String),
     IOError(String),
     NotFound(String),
-    PermissionDenied(String),
+    PermissionError(String),
 }
 
 impl Display for HandlerError {
@@ -32,7 +32,7 @@ impl Display for HandlerError {
             HandlerError::AuthorizationError(msg) => write!(f, "{msg}"),
             HandlerError::IOError(msg) => write!(f, "{msg}"),
             HandlerError::NotFound(msg) => write!(f, "{msg}"),
-            HandlerError::PermissionDenied(msg) => write!(f, "{msg}"),
+            HandlerError::PermissionError(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -72,7 +72,7 @@ impl IntoResponse for HandlerError {
         let resp = match self {
             HandlerError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
             HandlerError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            HandlerError::PermissionDenied(msg) => (StatusCode::FORBIDDEN, msg),
+            HandlerError::PermissionError(msg) => (StatusCode::FORBIDDEN, msg),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
 

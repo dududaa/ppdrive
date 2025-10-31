@@ -9,7 +9,7 @@ use ppd_bk::models::asset::AssetType;
 use ppd_fs::{AssetBody, read_asset};
 use ppd_shared::tools::SECRETS_FILENAME;
 
-use crate::{errors::HandlerError, prelude::state::HandlerState, rest::extractors::UserExtractor};
+use crate::{errors::HandlerError, prelude::state::HandlerState, rest::extractors::{BucketSizeValidator, UserExtractor}};
 
 pub mod extractors;
 
@@ -25,7 +25,7 @@ pub async fn get_asset(
     }
 
     if asset_path == SECRETS_FILENAME {
-        return Err(HandlerError::PermissionDenied("access denied".to_string()));
+        return Err(HandlerError::PermissionError("access denied".to_string()));
     }
 
     let db = state.db();

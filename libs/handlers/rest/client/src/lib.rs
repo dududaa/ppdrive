@@ -64,6 +64,7 @@ async fn login_user(
         jwt_secret: secrets.jwt_secret(),
         access_exp,
         refresh_exp,
+        user_max_bucket: *user.max_bucket_size()
     };
 
     let tokens = login.tokens()?;

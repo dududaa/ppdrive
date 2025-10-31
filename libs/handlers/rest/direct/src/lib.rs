@@ -19,7 +19,7 @@ use ppd_shared::{
 use ppdrive::{
     jwt::LoginOpts,
     prelude::state::HandlerState,
-    rest::extractors::UserExtractor,
+    rest::extractors::{BucketSizeValidator, UserExtractor},
     tools::{check_password, make_password},
 };
 
@@ -72,6 +72,7 @@ async fn login_user(
         jwt_secret: secrets.jwt_secret(),
         access_exp: None,
         refresh_exp: None,
+        user_max_bucket: *user.max_bucket_size()
     };
 
     let tokens = login.tokens()?;
@@ -97,6 +98,8 @@ pub async fn create_user_bucket(
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
     let db = state.db();
+
+    user.validate_bucket_size(db, &data.partition_size).await?;
     let id = Buckets::create_by_user(db, data, *user.id()).await?;
 
     Ok(id)

@@ -133,11 +133,21 @@ where
 /// An extractor that accepts authorization token, verifies the token and returns user id.
 pub struct UserExtractor {
     id: u64,
+    max_bucket_size: Option<f64>,
 }
 
-impl UserExtractor {
-    pub fn id(&self) -> &u64 {
+impl BucketSizeValidator for UserExtractor {
+    fn id(&self) -> &u64 {
         &self.id
+    }
+
+    fn max_bucket_size(&self) -> &Option<f64> {
+        &self.max_bucket_size
+    }
+
+    async fn current_size(&self, db: &RBatis) -> HandlerResult<f64> {
+        let size = Buckets::user_total_bucket_size(db, self.id()).await?;
+        Ok(size)
     }
 }
 
@@ -160,8 +170,8 @@ where
                         unimplemented!("external url feature not implemented.")
                     }
                     None => {
-                        let id = get_local_user(&state, auth, &config).await?;
-                        Ok(UserExtractor { id })
+                        let user = get_local_user(&state, auth, &config).await?;
+                        Ok(user)
                     }
                 }
             }
@@ -176,11 +186,11 @@ async fn get_local_user(
     state: &HandlerState,
     header: &HeaderValue,
     config: &ServiceConfig,
-) -> HandlerResult<u64> {
+) -> HandlerResult<UserExtractor> {
     let secrets = state.secrets();
     let claims = decode_jwt(header, secrets.jwt_secret(), config)?;
 
-    Ok(claims.sub)
+    Ok(UserExtractor { id: *claims.sub(), max_bucket_size: *claims.user_bucket_size() })
 }
 
 pub trait BucketSizeValidator {
@@ -193,7 +203,7 @@ pub trait BucketSizeValidator {
     #[allow(async_fn_in_trait)]
     async fn validate_bucket_size(&self, db: &RBatis, bucket_size: &Option<f64>) -> HandlerResult<()> {
         if let Some(max_size) = self.max_bucket_size() {
-            let size = bucket_size.ok_or(HandlerError::PermissionDenied(
+            let size = bucket_size.ok_or(HandlerError::PermissionError(
                 "you must provide \"partition_size\" option for this bucket".to_string(),
             ))?;
 
@@ -201,7 +211,7 @@ pub trait BucketSizeValidator {
             let total_size = current_size + size;
 
             if total_size > *max_size {
-                return Err(HandlerError::PermissionDenied(
+                return Err(HandlerError::PermissionError(
                     "total bucket size for this user is exceeded".to_string(),
                 ));
             }

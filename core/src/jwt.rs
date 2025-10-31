@@ -20,9 +20,28 @@ pub enum TokenType {
 
 #[derive(Deserialize, Serialize)]
 pub struct Claims {
-    pub sub: u64,
-    pub exp: i64,
-    pub ty: TokenType,
+    sub: u64,
+    exp: i64,
+    ty: TokenType,
+    user_bucket_size: Option<f64>
+}
+
+impl Claims {
+    pub fn sub(&self) -> &u64 {
+        &self.sub
+    }
+
+    pub fn exp(&self) -> &i64 {
+        &self.exp
+    } 
+
+    pub fn ty(&self) -> &TokenType {
+        &self.ty
+    }
+
+    pub fn user_bucket_size(&self) -> &Option<f64> {
+        &self.user_bucket_size
+    }
 }
 
 pub(crate) fn decode_jwt(
@@ -67,6 +86,7 @@ pub fn create_jwt(
     secret: &[u8],
     exp: i64,
     ty: TokenType,
+    user_bucket_size: Option<f64>
 ) -> Result<String, HandlerError> {
     let exp = Utc::now()
         .checked_add_signed(chrono::Duration::seconds(exp))
@@ -77,6 +97,7 @@ pub fn create_jwt(
         sub: user_id.to_owned(),
         exp,
         ty,
+        user_bucket_size
     };
 
     let header = Header::new(Algorithm::HS512);
@@ -90,6 +111,7 @@ pub struct LoginOpts<'a> {
     pub access_exp: Option<i64>,
     pub refresh_exp: Option<i64>,
     pub user_id: &'a u64,
+    pub user_max_bucket: Option<f64>
 }
 
 impl<'a> LoginOpts<'a> {
@@ -100,6 +122,7 @@ impl<'a> LoginOpts<'a> {
             access_exp,
             refresh_exp,
             user_id,
+            user_max_bucket
         } = self;
 
         let default_access = config.auth.access_exp;
@@ -109,7 +132,7 @@ impl<'a> LoginOpts<'a> {
         let refresh_exp = refresh_exp.unwrap_or(default_refresh);
 
         let access = if access_exp > 0 {
-            let access_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Access)?;
+            let access_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Access, user_max_bucket.clone())?;
 
             Some((access_token, access_exp))
         } else {
@@ -117,7 +140,7 @@ impl<'a> LoginOpts<'a> {
         };
 
         let refresh = if refresh_exp > 0 {
-            let refresh_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Refresh)?;
+            let refresh_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Refresh, user_max_bucket)?;
 
             Some((refresh_token, refresh_exp))
         } else {
