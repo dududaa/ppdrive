@@ -26,3 +26,4 @@ serde_json = "1.0.140"
 uuid = { version = "1.16.0", features = ["v4"] }
 modeller = { git = "http://www.github.com/prodbyola/modeller", package = "modeller" }
 ppd_shared = { workspace = true, features = ["api"] }
+nanoid = "0.4.0"

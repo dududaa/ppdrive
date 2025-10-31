@@ -1,4 +1,5 @@
 use modeller::prelude::*;
+use nanoid::nanoid;
 use ppd_shared::opts::ClientInfo;
 use rbatis::{RBatis, crud, impl_select, rbdc::DateTime};
 use rbs::value;
@@ -71,7 +72,7 @@ impl Clients {
     }
 
     pub fn new_key() -> String {
-        Uuid::new_v4().to_string()
+        nanoid!(10, &nanoid::alphabet::SAFE)
     }
 
     pub fn key(&self) -> &str {
