@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use rbatis::RBatis;
 use rbdc_mssql::MssqlDriver;
 use rbdc_mysql::MysqlDriver;
@@ -11,7 +13,7 @@ pub mod migration;
 pub async fn init_db(url: &str) -> DBResult<RBatis> {
     use DatabaseType::*;
 
-    let db_type = url.try_into()?;
+    let db_type = url.parse()?;
     let rb = RBatis::new();
     
     match db_type {
@@ -40,10 +42,10 @@ enum DatabaseType {
     MsSql,
 }
 
-impl<'a> TryFrom<&'a str> for DatabaseType {
-    type Error = Error;
+impl FromStr for DatabaseType {
+    type Err = Error;
 
-    fn try_from(url: &'a str) -> Result<Self, Self::Error> {
+    fn from_str(url: &str) -> Result<Self, Self::Err> {
         use DatabaseType::*;
 
         if url.starts_with("mysql") {
