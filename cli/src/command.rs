@@ -131,7 +131,7 @@ enum ClientCommand {
 
         #[arg(long)] 
         /// total maximum size of buckets that this client can create
-        max_bucket_size: Option<u64>
+        max_bucket_size: Option<f64>
     },
     
     /// refresh token for a given client.

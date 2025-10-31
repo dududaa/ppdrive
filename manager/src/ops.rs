@@ -104,7 +104,7 @@ async fn create_new_client(
     manager: SharedManager,
     svc_id: u8,
     client_name: String,
-    max_bucket_size: Option<u64>,
+    max_bucket_size: Option<f64>,
 ) -> AppResult<ClientDetails> {
     let task = manager.get_task(svc_id).await?;
     let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;

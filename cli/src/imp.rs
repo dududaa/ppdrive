@@ -75,7 +75,7 @@ impl PPDrive {
         port: u16,
         svc_id: u8,
         client_name: String,
-        bucket_size: Option<u64>,
+        bucket_size: Option<f64>,
     ) -> AppResult<()> {
         let resp = Self::send_request::<Option<ClientDetails>>(
             ServiceRequest::CreateClient(svc_id, client_name, bucket_size),

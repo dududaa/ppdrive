@@ -150,7 +150,7 @@ pub enum ServiceRequest {
     /// stop ppdrive
     Stop,
 
-    CreateClient(u8, String, Option<u64>),
+    CreateClient(u8, String, Option<f64>),
     RefreshClientToken(u8, String),
     GetClientList(u8),
 }
