@@ -145,11 +145,7 @@ pub async fn process_request(
     manager: Arc<ServiceManager>,
 ) -> AppResult<()> {
     let mut buf = [0u8; 1024];
-    let n = socket.read(&mut buf).await?;
-
-    if n == 0 {
-        return Err(anyhow!("invalid packet received"));
-    }
+    socket.read(&mut buf).await?;
 
     let (req, _) = bincode::decode_from_slice::<ServiceRequest, _>(&buf, config::standard())?;
     match req {
@@ -201,6 +197,13 @@ pub async fn process_request(
             };
 
             resp.write(socket).await.map_err(|err| anyhow!(err))?;
+            Ok(())
+        }
+
+        ServiceRequest::CheckStatus => {
+            let resp = Response::success(());
+            resp.write(socket).await.map_err(|err| anyhow!(err))?;
+
             Ok(())
         }
     }

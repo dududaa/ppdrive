@@ -1,8 +1,11 @@
-use std::{path::Path, process::Command};
+use std::{path::Path, process::Command, thread::sleep, time::Duration};
 
 use crate::{errors::AppResult, imp::PPDrive};
 use clap::{Parser, Subcommand, ValueEnum};
-use ppd_shared::{opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType}, tools::root_dir};
+use ppd_shared::{
+    opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType},
+    tools::root_dir,
+};
 
 /// PPDRIVE is a free, open-source cloud storage service built with Rust for speed, security, and reliability.
 #[derive(Parser, Debug)]
@@ -22,7 +25,18 @@ impl Cli {
 
         match self.command {
             CliCommand::Start => {
+                tracing::info!("start ppdrive manager...");
                 start_manager::<String>(port, None)?;
+
+                tracing::info!("checking ppdrive status...");
+                sleep(Duration::from_secs(2));
+
+                match PPDrive::check_status(port) {
+                    Ok(_) => tracing::info!("ppdrive started successfully."),
+                    Err(err) => tracing::info!(
+                        "fail to connect to ppdrive manager {err}.\nPlease check logs for more info."
+                    ),
+                }
             }
 
             CliCommand::Status => {
@@ -53,17 +67,22 @@ impl Cli {
             CliCommand::List => {
                 PPDrive::list(port)?;
             }
-            CliCommand::Client { command } => {
-                match command {
-                    ClientCommand::Create { service_id: svc_id, client_name, max_bucket_size } => {
-                        PPDrive::create_client(port, svc_id, client_name, max_bucket_size)?;
-                    },
-                    ClientCommand::Refresh { service_id: svc_id, client_id: client_key } => {
-                        PPDrive::refresh_client_token(port, svc_id, client_key)?;
-                    }
-                    ClientCommand::List { service_id } => {
-                        PPDrive::get_client_list(port, service_id)?;
-                    }
+            CliCommand::Client { command } => match command {
+                ClientCommand::Create {
+                    service_id: svc_id,
+                    client_name,
+                    max_bucket_size,
+                } => {
+                    PPDrive::create_client(port, svc_id, client_name, max_bucket_size)?;
+                }
+                ClientCommand::Refresh {
+                    service_id: svc_id,
+                    client_id: client_key,
+                } => {
+                    PPDrive::refresh_client_token(port, svc_id, client_key)?;
+                }
+                ClientCommand::List { service_id } => {
+                    PPDrive::get_client_list(port, service_id)?;
                 }
             },
             _ => unimplemented!("this command is not supported"),
@@ -95,7 +114,7 @@ enum CliCommand {
         #[arg(default_value_t = false, short)]
         yes_auto_install: bool,
 
-        /// removes all dependencies for the service you wish to run. Ideally, you should 
+        /// removes all dependencies for the service you wish to run. Ideally, you should
         /// use this option with `-y | yes-auto-install` set to `true`. For example:
         /// `ppdrive launch rest -ry`
         #[arg(default_value_t = false, short)]
@@ -110,7 +129,7 @@ enum CliCommand {
     // CreateClient { svc_id: u8, client_name: String },
     Client {
         #[command(subcommand)]
-        command: ClientCommand
+        command: ClientCommand,
     },
     /// list services running in service manager
     List,
@@ -124,28 +143,28 @@ enum ClientCommand {
     /// create a new client and receive the client token.
     Create {
         #[arg(long("svc-id"))]
-        service_id: u8, 
-        
+        service_id: u8,
+
         #[arg(long("name"))]
         client_name: String,
 
-        #[arg(long)] 
+        #[arg(long)]
         /// total maximum size of buckets that this client can create
-        max_bucket_size: Option<f64>
+        max_bucket_size: Option<f64>,
     },
-    
+
     /// refresh token for a given client.
-    Refresh { 
+    Refresh {
         #[arg(long("svc-id"))]
-        service_id: u8, 
-        
+        service_id: u8,
+
         #[arg(long("client-id"))]
-        client_id: String 
+        client_id: String,
     },
-    
+
     List {
         #[arg(long("svc-id"))]
-        service_id: u8, 
+        service_id: u8,
     },
 }
 
@@ -166,15 +185,18 @@ impl From<StartOptions> for ServiceType {
     }
 }
 
-/// start the manager by running appropriate command based on environments. `current_dir` 
+/// start the manager by running appropriate command based on environments. `current_dir`
 /// is the directory from which we run the command.
-pub fn start_manager<P>(port: u16, current_dir: Option<P>) -> AppResult<()> where P: AsRef<Path> {
+pub fn start_manager<P>(port: u16, current_dir: Option<P>) -> AppResult<()>
+where
+    P: AsRef<Path>,
+{
     let prog = if cfg!(debug_assertions) {
         "cargo".into()
     } else {
         root_dir()?.join("manager")
     };
-    
+
     let mut cmd = Command::new(prog);
 
     if let Some(cd) = current_dir {

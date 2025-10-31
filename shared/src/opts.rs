@@ -150,9 +150,21 @@ pub enum ServiceRequest {
     /// stop ppdrive
     Stop,
 
+    /// create a new client.
+    /// 
+    /// accepts `service_id`, `client_name` and `max_bucket_size` assigned to the client.
     CreateClient(u8, String, Option<f64>),
+
+    /// reresh token for service's client.
+    /// 
+    /// accepts `service_id` and `client_id`.
     RefreshClientToken(u8, String),
+
+    /// get list of service's clients.
     GetClientList(u8),
+
+    /// check if ppdrive manager is running.
+    CheckStatus
 }
 
 #[derive(Encode, Decode)]

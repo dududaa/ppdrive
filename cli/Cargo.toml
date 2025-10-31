@@ -8,12 +8,6 @@ name = "ppdrive"
 path = "src/main.rs"
 
 [dependencies]
-tokio = { workspace = true, features = [
-    "macros",
-    "rt-multi-thread",
-    "net",
-    "time",
-] }
 tracing.workspace = true
 clap = { workspace = true, features = ["derive"] }
 ppd_shared = { workspace = true, features = ["logger"] }
