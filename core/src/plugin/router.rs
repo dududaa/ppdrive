@@ -47,7 +47,7 @@ impl Routers {
 
         for mode in modes {
             let router = ServiceRouter {
-                svc_type: svc_type.clone(),
+                svc_type,
                 auth_mode: *mode,
             };
 

@@ -132,7 +132,7 @@ impl<'a> LoginOpts<'a> {
         let refresh_exp = refresh_exp.unwrap_or(default_refresh);
 
         let access = if access_exp > 0 {
-            let access_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Access, user_max_bucket.clone())?;
+            let access_token = create_jwt(user_id, jwt_secret, access_exp, TokenType::Access, user_max_bucket)?;
 
             Some((access_token, access_exp))
         } else {
