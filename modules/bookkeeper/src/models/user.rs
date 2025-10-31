@@ -68,7 +68,7 @@ impl Users {
         Ok(user.pid)
     }
 
-    pub async fn create(db: &RBatis, username: String, password: String) -> DBResult<String> {
+    pub async fn create_direct(db: &RBatis, username: String, password: String) -> DBResult<String> {
         let pid = Uuid::new_v4().to_string();
         let role: u8 = UserRole::General.into();
         let created_at = DateTime::now();

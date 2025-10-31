@@ -41,7 +41,7 @@ async fn register_user(
     let UserCredentials { username, password } = data;
 
     let password = make_password(&password);
-    let user_id = Users::create(db, username, password).await?;
+    let user_id = Users::create_direct(db, username, password).await?;
 
     Ok(user_id)
 }

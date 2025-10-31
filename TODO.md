@@ -32,12 +32,12 @@ v0.1.0-rc.1
 - ~~cli: Refresh token~~
 - ~~fs: max-bucket-size validation~~
 - ~~chore: prevent non-zero max bucket size.~~
-- fs: account activation policy
-- chore: validate rest API inputs
-- chore: use random numbers to create client key instead of uuid
+- auth: account activation policy.
+- chore(api): validate rest API inputs
+- chore(client): use random numbers to create client key instead of uuid
+- chore(confi)g: specify root dir for a service.
 - ~~chore: accept Mb values as f64 from API inputs~~
-- cli: validate manager launch
-
+- ~~cli: validate manager launch~~
 
 v0.1.0-rc.2
 - config: Allow users to load config from filename.
