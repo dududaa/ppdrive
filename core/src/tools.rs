@@ -26,7 +26,7 @@ pub async fn create_client(
     rb: &RBatis,
     secrets: &AppSecrets,
     name: &str,
-    max_bucket_size: Option<u64>,
+    max_bucket_size: Option<f64>,
 ) -> HandlerResult<ClientDetails> {
     let client_key = Clients::new_key();
     let token = generate_token(secrets, &client_key)?;
@@ -36,7 +36,7 @@ pub async fn create_client(
 }
 
 /// validate that a given client token exists
-pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> HandlerResult<(u64, Option<u64>)> {
+pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> HandlerResult<(u64, Option<f64>)> {
     let decode =
         hex::decode(token).map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 

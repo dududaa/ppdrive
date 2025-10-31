@@ -20,7 +20,7 @@ pub struct Users {
     password: Option<String>,
 
     /// maximum accumulated size of buckets user can create
-    max_bucket: Option<u64>,
+    max_bucket: Option<f64>,
     created_at: DateTime,
 }
 
@@ -47,7 +47,7 @@ impl Users {
     pub async fn create_by_client(
         db: &RBatis,
         client_id: u64,
-        bucket_size: Option<u64>,
+        bucket_size: Option<f64>,
     ) -> DBResult<String> {
         let role: u8 = UserRole::General.into();
         let pid = Uuid::new_v4().to_string();
@@ -125,7 +125,7 @@ impl Users {
         &self.password
     }
 
-    pub fn max_bucket_size(&self) -> &Option<u64> {
+    pub fn max_bucket_size(&self) -> &Option<f64> {
         &self.max_bucket
     }
 }
@@ -136,7 +136,7 @@ pub struct UserSerializer {
     email: Option<String>,
     role: UserRole,
     created_at: String,
-    max_bucket: Option<u64>,
+    max_bucket: Option<f64>,
 }
 
 impl IntoSerializer for Users {

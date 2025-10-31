@@ -46,8 +46,8 @@ impl TestApp {
         let mut config = ServiceConfig::default();
         config.base.db_url = db_url;
 
-        let (client_rtr, client_router) = Self::unwrap_router(client_router(10));
-        let (direct_rtr, direct_router) = Self::unwrap_router(direct_router(10));
+        let (client_rtr, client_router) = Self::unwrap_router(client_router(Arc::into_raw(config.clone().into())));
+        let (direct_rtr, direct_router) = Self::unwrap_router(direct_router(Arc::into_raw(config.clone().into())));
 
         let state = HandlerState::new(&config, db)
             .await

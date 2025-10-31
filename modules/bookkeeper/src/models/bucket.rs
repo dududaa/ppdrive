@@ -24,10 +24,11 @@ pub struct Buckets {
 
     #[modeller(length = 256)]
     label: String,
+    
     partition: Option<String>,
 
     /// can be set if there's partition
-    partition_size: Option<u64>,
+    partition_size: Option<f64>,
 
     #[modeller(default = "*")]
     accepts: String,
@@ -91,20 +92,20 @@ impl Buckets {
         Ok(buckets)
     }
 
-    pub async fn user_total_bucket_size(db: &RBatis, user_id: &u64) -> DBResult<u64> {
+    pub async fn user_total_bucket_size(db: &RBatis, user_id: &u64) -> DBResult<f64> {
         let buckets = Buckets::user_buckets(db, user_id).await?;
         let size = buckets
             .iter()
-            .fold(0, |acc, b| acc + b.partition_size.unwrap_or_default());
+            .fold(0f64, |acc, b| acc + b.partition_size.unwrap_or_default());
 
         Ok(size)
     }
 
-    pub async fn client_total_bucket_size(db: &RBatis, client_id: &u64) -> DBResult<u64> {
+    pub async fn client_total_bucket_size(db: &RBatis, client_id: &u64) -> DBResult<f64> {
         let buckets = Buckets::client_buckets(db, client_id).await?;
         let size = buckets
             .iter()
-            .fold(0, |acc, b| acc + b.partition_size.unwrap_or_default());
+            .fold(0f64, |acc, b| acc + b.partition_size.unwrap_or_default());
 
         Ok(size)
     }
@@ -241,7 +242,7 @@ impl Buckets {
         } = opts;
 
         if let Some(size) = partition_size
-            && size < 1
+            && size < 0.0
         {
             return Err(AppError::PermissionError(
                 "partition_size must be minimum of 1".to_string(),
@@ -249,6 +250,12 @@ impl Buckets {
         }
 
         if let Some(folder) = &partition {
+            if folder.len() < 6 {
+                return Err(AppError::PermissionError(
+                    "\"partitition\" must be more than 6 characters.".to_string(),
+                ));
+            }
+
             let b = Buckets::get_by_key(db, "root_folder", folder).await?;
             if b.is_some() {
                 return Err(AppError::PermissionError(format!(
@@ -311,7 +318,7 @@ impl Buckets {
         &self.partition
     }
 
-    pub fn partition_size(&self) -> &Option<u64> {
+    pub fn partition_size(&self) -> &Option<f64> {
         &self.partition_size
     }
 }

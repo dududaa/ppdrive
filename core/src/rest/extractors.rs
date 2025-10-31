@@ -16,7 +16,7 @@ use ppd_shared::opts::ServiceConfig;
 /// A middleware that accepts client token, validates it and return the client's id
 pub struct ClientExtractor {
     id: u64,
-    max_bucket_size: Option<u64>
+    max_bucket_size: Option<f64>
 }
 
 impl BucketSizeValidator for ClientExtractor {
@@ -24,11 +24,11 @@ impl BucketSizeValidator for ClientExtractor {
         &self.id
     }
     
-    fn max_bucket_size(&self) -> &Option<u64> {
+    fn max_bucket_size(&self) -> &Option<f64> {
         &self.max_bucket_size
     }
 
-    async fn current_size(&self, db: &RBatis) -> HandlerResult<u64> {
+    async fn current_size(&self, db: &RBatis) -> HandlerResult<f64> {
         let size = Buckets::client_total_bucket_size(db, self.id()).await?;
         Ok(size)
     }
@@ -67,14 +67,11 @@ where
 }
 
 /// This middleware checks if a given user is created by the client and returns the user id.
-/// WARNING: This may not be as performant as [UserExtractor] because it uses database for
-/// validation on every request.
+/// WARNING: This may not be as performant as [UserExtractor] because it queries database for
+/// validation on every single request.
 pub struct ClientUserExtractor {
     id: u64,
-    max_bucket_size: Option<u64>,
-}
-
-impl ClientUserExtractor {
+    max_bucket_size: Option<f64>,
 }
 
 impl BucketSizeValidator for ClientUserExtractor {
@@ -82,11 +79,11 @@ impl BucketSizeValidator for ClientUserExtractor {
         &self.id
     }
     
-    fn max_bucket_size(&self) -> &Option<u64> {
+    fn max_bucket_size(&self) -> &Option<f64> {
         &self.max_bucket_size
     }
 
-    async fn current_size(&self, db: &RBatis) -> HandlerResult<u64> {
+    async fn current_size(&self, db: &RBatis) -> HandlerResult<f64> {
         let size = Buckets::user_total_bucket_size(db, self.id()).await?;
         Ok(size)
     }
@@ -188,13 +185,13 @@ async fn get_local_user(
 
 pub trait BucketSizeValidator {
     fn id(&self) -> &u64;
-    fn max_bucket_size(&self) -> &Option<u64>;
+    fn max_bucket_size(&self) -> &Option<f64>;
 
     #[allow(async_fn_in_trait)]
-    async fn current_size(&self, db: &RBatis) -> HandlerResult<u64>;
+    async fn current_size(&self, db: &RBatis) -> HandlerResult<f64>;
 
     #[allow(async_fn_in_trait)]
-    async fn validate_bucket_size(&self, db: &RBatis, bucket_size: &Option<u64>) -> HandlerResult<()> {
+    async fn validate_bucket_size(&self, db: &RBatis, bucket_size: &Option<f64>) -> HandlerResult<()> {
         if let Some(max_size) = self.max_bucket_size() {
             let size = bucket_size.ok_or(HandlerError::PermissionDenied(
                 "you must provide \"partition_size\" option for this bucket".to_string(),

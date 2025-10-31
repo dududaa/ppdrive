@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
 pub struct CreateClientUser {
-    /// Total size of buckets the user can create. This is the total accumulated size, which means
+    /// Total size of buckets the user can create (MB). This is the total accumulated size, which means
     /// the user can create as many buckets as possible as long as the total size of all the buckets
     /// combined doesn't exceed this size. 
     /// 
     /// When the option is not specified, user can create unlimited number of buckets.
-    pub max_bucket: Option<u64>,
+    pub max_bucket: Option<f64>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -34,7 +34,7 @@ pub struct CreateBucketOptions {
     pub partition: Option<String>,
 
     /// can be set if there's partition
-    pub partition_size: Option<u64>,
+    pub partition_size: Option<f64>,
 
     /// The mime type acceptable by a bucket.
     /// - "*" is the default and means all mime types are accepted.

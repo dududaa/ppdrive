@@ -24,9 +24,7 @@ pub struct RouterLoader {
 
 #[derive(Default)]
 pub struct Routers {
-    svc_type: ServiceType,
-    svc_max_upload: usize,
-    auth_modes: Vec<ServiceAuthMode>,
+    config: Arc<ServiceConfig>,
     client: RouterLoader,
     admin: RouterLoader,
     direct: RouterLoader,
@@ -43,13 +41,17 @@ impl Routers {
     }
 
     pub fn load(mut self) -> HandlerResult<Self> {
-        for mode in &self.auth_modes {
-            let rtr = ServiceRouter {
-                svc_type: self.svc_type,
+        let config = self.config.clone();
+        let modes = &config.auth.modes;
+        let svc_type = config.ty;
+
+        for mode in modes {
+            let router = ServiceRouter {
+                svc_type: svc_type.clone(),
                 auth_mode: *mode,
             };
 
-            let ptr = rtr.get(self.svc_max_upload)?;
+            let ptr = router.get(self.config.clone())?;
             match mode {
                 ServiceAuthMode::Client => self.client = ptr,
                 ServiceAuthMode::Direct => self.client = ptr,
@@ -82,9 +84,7 @@ impl Routers {
 impl From<Arc<ServiceConfig>> for Routers {
     fn from(value: Arc<ServiceConfig>) -> Self {
         let mut rts = Routers::default();
-        rts.svc_type = value.ty;
-        rts.svc_max_upload = value.base.max_upload_size;
-        rts.auth_modes = value.auth.modes.clone();
+        rts.config = value;
 
         rts
     }
@@ -106,13 +106,13 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get(&self, max_upload_size: usize) -> HandlerResult<RouterLoader> {
+    pub fn get(&self, config: Arc<ServiceConfig>) -> HandlerResult<RouterLoader> {
         let filename = self.output_name()?;
         let lib = self.load(filename)?;
 
         let ptr = unsafe {
-            let load_router: Symbol<fn(usize) -> RawRouterType> = lib.get(b"load_router")?;
-            load_router(max_upload_size)
+            let load_router: Symbol<fn(*const ServiceConfig) -> RawRouterType> = lib.get(b"load_router")?;
+            load_router(Arc::into_raw(config))
         };
 
         Ok(RouterLoader { ptr, lib: Some(lib) })

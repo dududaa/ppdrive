@@ -701,7 +701,7 @@ dependencies = [
 [[package]]
 name = "definitions"
 version = "0.1.0"
-source = "git+http://www.github.com/prodbyola/modeller#024bbf65c692a2a7df4444a2922cdcb7e214292a"
+source = "git+http://www.github.com/prodbyola/modeller#c79f64deaa403fe1bbaad4de3ae798786faaa12b"
 dependencies = [
  "bincode",
  "darling",
@@ -1678,7 +1678,7 @@ dependencies = [
 [[package]]
 name = "modeller"
 version = "0.1.0"
-source = "git+http://www.github.com/prodbyola/modeller#024bbf65c692a2a7df4444a2922cdcb7e214292a"
+source = "git+http://www.github.com/prodbyola/modeller#c79f64deaa403fe1bbaad4de3ae798786faaa12b"
 dependencies = [
  "chrono",
  "definitions",
@@ -1694,7 +1694,7 @@ dependencies = [
 [[package]]
 name = "modeller_parser"
 version = "0.1.0"
-source = "git+http://www.github.com/prodbyola/modeller#024bbf65c692a2a7df4444a2922cdcb7e214292a"
+source = "git+http://www.github.com/prodbyola/modeller#c79f64deaa403fe1bbaad4de3ae798786faaa12b"
 dependencies = [
  "darling",
  "definitions",

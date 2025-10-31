@@ -23,7 +23,7 @@ pub struct Clients {
     #[modeller(length = 120)]
     name: String,
 
-    max_bucket_size: Option<u64>,
+    max_bucket_size: Option<f64>,
 
     created_at: DateTime,
 }
@@ -47,7 +47,7 @@ impl Clients {
         rb: &RBatis,
         key: String,
         name: String,
-        max_bucket_size: Option<u64>,
+        max_bucket_size: Option<f64>,
     ) -> DBResult<String> {
         let pid = Uuid::new_v4().to_string();
         let value = Clients {
@@ -86,7 +86,7 @@ impl Clients {
         &self.pid
     }
 
-    pub fn max_bucket_size(&self) -> &Option<u64> {
+    pub fn max_bucket_size(&self) -> &Option<f64> {
         &self.max_bucket_size
     }
 }

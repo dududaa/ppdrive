@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use auth::*;
 use axum::{
     Json, Router,
@@ -10,6 +12,7 @@ use crate::errors::ServerError;
 
 use ppd_shared::{
     api::{CreateBucketOptions, CreateClientUser, LoginTokens, LoginUserClient},
+    opts::ServiceConfig,
     tools::{SECRETS_FILENAME, mb_to_bytes},
 };
 use ppdrive::{
@@ -120,8 +123,8 @@ async fn create_bucket(
 }
 
 /// Routes for external clients.
-fn routes(max_upload_size: usize) -> Router<HandlerState> {
-    let limit = mb_to_bytes(max_upload_size);
+fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
+    let limit = mb_to_bytes(config.base.max_upload_size);
 
     Router::new()
         // Routes used by client for administrative tasks. Requests to these routes
@@ -140,7 +143,8 @@ fn routes(max_upload_size: usize) -> Router<HandlerState> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn load_router(max_upload_size: usize) -> *mut Router<HandlerState> {
-    let bx = Box::new(routes(max_upload_size));
+pub extern "C" fn load_router(config: *const ServiceConfig) -> *mut Router<HandlerState> {
+    let config = unsafe { Arc::from_raw(config) };
+    let bx = Box::new(routes(config));
     Box::into_raw(bx)
 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tokio::{fs::File, io::AsyncWriteExt};
 
 use axum::{
@@ -12,8 +14,7 @@ use uuid::Uuid;
 use crate::errors::ServerError;
 
 use ppd_shared::{
-    api::{CreateBucketOptions, LoginTokens, UserCredentials},
-    tools::{SECRETS_FILENAME, mb_to_bytes},
+    api::{CreateBucketOptions, LoginTokens, UserCredentials}, opts::ServiceConfig, tools::{SECRETS_FILENAME, mb_to_bytes}
 };
 use ppdrive::{
     jwt::LoginOpts,
@@ -170,8 +171,8 @@ pub async fn delete_asset(
 }
 
 /// Routes for external clients.
-fn routes(max_upload_size: usize) -> Router<HandlerState> {
-    let limit = mb_to_bytes(max_upload_size);
+fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
+    let limit = mb_to_bytes(config.base.max_upload_size);
 
     Router::new()
         .route("/user", get(get_user))
@@ -184,7 +185,8 @@ fn routes(max_upload_size: usize) -> Router<HandlerState> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn load_router(max_upload_size: usize) -> *mut Router<HandlerState> {
-    let bx = Box::new(routes(max_upload_size));
+pub extern "C" fn load_router(config: *const ServiceConfig) -> *mut Router<HandlerState> {
+    let config = unsafe { Arc::from_raw(config) };
+    let bx = Box::new(routes(config));
     Box::into_raw(bx)
 }

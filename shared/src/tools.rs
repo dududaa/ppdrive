@@ -1,10 +1,9 @@
 use std::path::{Path, PathBuf};
 
-
 use crate::{AppResult, errors::Error};
-use std::{io::SeekFrom};
+use std::io::SeekFrom;
 
-use chacha20poly1305::{aead::OsRng, AeadCore, KeyInit, XChaCha20Poly1305};
+use chacha20poly1305::{AeadCore, KeyInit, XChaCha20Poly1305, aead::OsRng};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 pub const SECRETS_FILENAME: &str = ".ppdrive_secret";
@@ -21,16 +20,16 @@ impl AppSecrets {
     pub async fn read() -> AppResult<Self> {
         let secret_file = secret_filename()?;
         let mut secrets = tokio::fs::File::open(&secret_file).await?;
-        
+
         let mut secret_key = [0; 32];
         let mut nonce = [0; 24];
         let mut jwt_secret = [0; 32];
-        
+
         secrets.read_exact(&mut secret_key).await?;
-        
+
         secrets.seek(SeekFrom::Start(32)).await?;
         secrets.read_exact(&mut nonce).await?;
-        
+
         secrets.seek(SeekFrom::Start(32 + 24)).await?;
         secrets.read_exact(&mut jwt_secret).await?;
 
@@ -82,7 +81,9 @@ pub async fn generate_secret_file() -> AppResult<()> {
 pub fn root_dir() -> AppResult<PathBuf> {
     let path = if cfg!(debug_assertions) {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let path = path.parent().ok_or(Error::ServerError("unable to get root dir".to_string()))?;
+        let path = path
+            .parent()
+            .ok_or(Error::ServerError("unable to get root dir".to_string()))?;
 
         path.to_path_buf()
     } else {
@@ -123,8 +124,11 @@ pub async fn get_folder_size(folder_path: &str, size: &mut u64) -> Result<(), Er
     Ok(())
 }
 
-pub fn mb_to_bytes(value: usize) -> usize {
-    value * 1024 * 1000
+pub fn mb_to_bytes(value: f64) -> usize {
+    let bytes = (value * 1024.0 * 1000.0).round();
+    let bytes = bytes.to_le_bytes();
+
+    usize::from_le_bytes(bytes)
 }
 
 /// If app secret file does not exist, generate it. Mostly useful
@@ -132,7 +136,9 @@ pub fn mb_to_bytes(value: usize) -> usize {
 pub async fn init_secrets() -> Result<(), Error> {
     let path = secret_filename()?;
     if !path.is_file() {
-        generate_secret_file().await.map_err(|err| Error::ServerError(err.to_string()))?;
+        generate_secret_file()
+            .await
+            .map_err(|err| Error::ServerError(err.to_string()))?;
     }
 
     Ok(())

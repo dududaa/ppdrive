@@ -65,7 +65,7 @@ pub struct ServiceBaseConfig {
 
     /// maximum request content size for this service (MB).
     #[arg(long("max-upload"), default_value_t = DEFAULT_MAX_UPLOAD)]
-    pub max_upload_size: usize,
+    pub max_upload_size: f64,
 
     /// urls allowed by CORS policy for this service. if this is not set, we allow all url (*).
     #[arg(long("allowed-origins"))]
@@ -166,7 +166,7 @@ pub struct ClientInfo {
     pub id: String,
     pub name: String,
     pub created_at: String,
-    pub max_bucket_size: Option<u64>
+    pub max_bucket_size: Option<f64>
 }
 
 impl ClientDetails {
@@ -249,7 +249,7 @@ enum ResponseType {
 mod constants {
     pub const DEFAULT_DB_URL: &str = "sqlite://db.sqlite";
     pub const DEFAULT_SERVICE_PORT: u16 = 5000;
-    pub const DEFAULT_MAX_UPLOAD: usize = 10;
+    pub const DEFAULT_MAX_UPLOAD: f64 = 10f64;
     pub const DEFAULT_ACCESS_TOKEN_EXP: i64 = 900;
     pub const DEFAULT_REFRESH_TOKEN_EXP: i64 = 86400;
     pub const DEFAULT_JWT_BEARER: &str = "Bearer";
