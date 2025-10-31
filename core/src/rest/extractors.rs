@@ -201,6 +201,7 @@ pub trait BucketSizeValidator {
     async fn current_size(&self, db: &RBatis) -> HandlerResult<f64>;
 
     #[allow(async_fn_in_trait)]
+    /// validate that input `bucket_size` does not exceed the bucket size assigned to the object.
     async fn validate_bucket_size(&self, db: &RBatis, bucket_size: &Option<f64>) -> HandlerResult<()> {
         if let Some(max_size) = self.max_bucket_size() {
             let size = bucket_size.ok_or(HandlerError::PermissionError(

@@ -118,7 +118,3 @@ async fn get_folder_size(folder_path: &str, size: &mut u64) -> FsResult<()> {
 
     Ok(())
 }
-
-pub fn mb_to_bytes(value: usize) -> usize {
-    value * 1024 * 1000
-}

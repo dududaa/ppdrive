@@ -4,9 +4,10 @@ use ppd_bk::RBatis;
 use ppd_bk::models::asset::{AssetType, Assets, NewAsset, UpdateAssetValues};
 use ppd_bk::models::bucket::Buckets;
 use ppd_bk::validators::{ValidatePathDetails, validate_asset_paths};
+use ppd_shared::tools::mb_to_bytes;
 
 use crate::errors::Error;
-use crate::utils::{create_asset_parents, get_bucket_size, mb_to_bytes};
+use crate::utils::{create_asset_parents, get_bucket_size};
 use crate::{FsResult, opts::CreateAssetOptions};
 
 /// create or update an asset
@@ -50,7 +51,7 @@ pub async fn create_or_update_asset(
         if let (Some(filesize), Some(max_size)) = (filesize, bucket.partition_size()) {
             let cfz = get_bucket_size(&bucket).await?;
             let total_size = cfz + filesize;
-            if total_size > mb_to_bytes(*max_size as usize) as u64 {
+            if total_size > mb_to_bytes(*max_size) as u64 {
                 tokio::fs::remove_file(tmp_file).await?;
 
                 return Err(Error::ServerError("bucket size exceeded.".to_string()));

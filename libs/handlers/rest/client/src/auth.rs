@@ -93,6 +93,7 @@ pub async fn create_asset(
 
     let db = state.db();
     create_or_update_asset(db, user.id(), &opts, &tmp_file, &filesize).await?;
+    
     Ok("operation successful!".to_string())
 }
 
