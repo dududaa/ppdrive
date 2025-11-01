@@ -28,18 +28,19 @@ v0.1.0-rc.1
 - ~~fix: fix service startup failure.~~
 - ~~Add auth modes to service info list~~
 - ~~Test Direct router~~
-- ~~cli: List tokens~~
-- ~~cli: Refresh token~~
+- ~~cli: List auth tokens~~
+- ~~cli: Refresh auth token~~
 - ~~fs: max-bucket-size validation~~
 - ~~chore: prevent non-zero max bucket size.~~
 - ~~chore(api): validate rest API inputs~~
 - ~~chore: accept Mb values as f64 from API inputs~~
 - ~~cli: validate manager launch~~
 - ~~chore(client): use random numbers to create client key instead of uuid~~
-- chore(config): specify root dir for a service.
-- auth: implement multiple authentication methods.
 
 v0.1.0-rc.2
+- chore(config): specify root dir for a service.
+- chore(config): add --auto-activate-user flag.
+- auth: implement multiple authentication methods.
 - config: Allow users to load config from filename.
 - config: Allow users to save config in filename.
 - cli: create admin

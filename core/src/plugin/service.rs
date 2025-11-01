@@ -36,7 +36,7 @@ impl<'a> Service<'a> {
         unsafe {
             match lib.get::<ServiceFn>(&self.symbol_name()) {
                 Ok(start_service) => start_service(config, db, token),
-                Err(err) => tracing::error!("unable to load start_server Symbol: {err}")
+                Err(err) => tracing::error!("unable to load library: {err}")
             }
         };
 

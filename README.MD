@@ -14,27 +14,27 @@ We notice that many startups, organizations, and developers prefer not to rely o
 ---
 
 ## Why PPDRIVE?
+- **Language/Framework Agnostic**: PPDRIVE works with any programming language or framework that allows you to send http requests. Whether it's Javascript or Golang; React, Vue, Angular, Flutter...you name it. You can even help us write an SDK or client library for your favorite language.
 - **Privacy and Data Control**: All your user, application and business data stay on your server. PPDRIVE does not send, spy or use your data in any way.
-- **No vendor lock-in. No hidden charges**: Unlike AWS, GCP and other commercial alternatives, you don't need to pay for anything.
+- **No vendor lock-in. No hidden charges**: You don't need to pay for anything. It's completely free.
 - **Complete Ownership**: We don't collect any "insight" or gain access to any of your data.
-- **Ease of Use**: Flexible service management tools for installing plugins, viewing or cancelling running services.
+- **Ease of Use**: If you're already familiar with sending HTTP requests, using PPDRIVE feels natural. We also provide a flexible service management tool for starting multiple services, viewing or cancelling running services.
 - **Security**: Secure by default.
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
 - **Speed**: Very fast operation handlers.
-- **Lightweight**: We aim to make PPDRIVE as lightweight as possible. The starting point is to make sure you can install only what you need.
+- **Lightweight**: We aim to make PPDRIVE as lightweight as possible. The starting point is to make sure you can install only what you need and extend it whenever you need more.
 
 ---
 
 ## 🚀 Features
 
-- ⚙️ **REST API Interface**: Interact with the file system programmatically from any external application.
+- ⚙️ **REST API Interface**: Interact with the file system programmatically from any external application using RESTful APIs (and others coming soon).
 - 🔐 **Flexible Authentication**: PPDRIVE is secure by default, providing JWT authentication to protect private resources according to your applications. If you prefer to use PPDRIVE as a free tool and don't need protected access, you can opt-in for "No Auth" feature.
 - 🪣 **Buckets**: Create isolated and configurable file buckets for better file system organization.
 - 🧩 **Pluggable Integration**: Easily integrate into existing backends or operate as a standalone executable.
 - 📦 **Prebuilt Executables**: Install and run with no setup required.
 - 🧾 **File & Directory Operations**: Upload, download, rename, delete, and move files or folders.
-- 🔒 **Secure by Default**: Runs with secure configurations and minimal surface area.
-- 🛢 **Cross Database Support**: Support for Postgres, MySQL and SQLite (default) database backends.
+- 🛢 **Cross Database Engine Support**: Support for Postgres, MySQL and SQLite (default) database backends.
 
 #### Roadmap Features (Let's Build Together)
 - Admin UI: Administrative client for managing your drive visually.
@@ -44,8 +44,6 @@ We notice that many startups, organizations, and developers prefer not to rely o
 - Async Upload: Upload large files in the background.
 - File Streaming: Enable file streaming (for video/audio streaming platforms and other use cases)
 - Live Streaming: End-to-end live streaming server.
-- ~~Buckets: Buckets implementation for clients.~~
-- ~~Mime Limits: Limit uploads to specified mime types.~~
 
 ---
 

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::app::serve_app;
 use errors::ServerError;
 use ppd_bk::RBatis;
-use ppdrive::prelude::state::HandlerState;
 use ppd_shared::{opts::ServiceConfig, start_logger, tools::init_secrets};
+use ppdrive::prelude::state::HandlerState;
 use tokio::runtime::Runtime;
 use tokio_util::sync::CancellationToken;
 
@@ -18,7 +18,7 @@ pub fn ppd_rest(config: Arc<ServiceConfig>, db: Arc<RBatis>, token: Cancellation
         rt.block_on(async {
             let _guard =
                 start_logger("ppd_rest=debug,tower_http=debug").expect("unable to start logger");
-            
+
             if let Err(err) = init_secrets().await {
                 tracing::error!("unable to initialize secrets: {err}");
             }

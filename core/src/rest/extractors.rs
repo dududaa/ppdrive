@@ -51,7 +51,7 @@ where
                     "missing 'ppd-client-token' in headers".to_string(),
                 ))?;
 
-        let token = client_key
+                let token = client_key
             .to_str()
             .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 

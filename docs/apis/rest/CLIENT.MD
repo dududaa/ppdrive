@@ -1,5 +1,5 @@
 # Client Mode APIs
-#### Setting Up for Client Requests
+## Setting Up for Client Requests
 This section shows how to connect to PPDRIVE in client mode. Before you start, please make sure a PPDRIVE service is running in [Client Mode](../../GETTING-STARTED.MD#21-client-mode) and you have the `ID` of the service. You can check running services with `ppdrive list` command and see `Auth-modes` column:
 
 ![PPDrive Client List](../../assets/ppdrive_svc_list.png)
@@ -30,23 +30,51 @@ PPD_TOKEN=74352d4a4df...
 3. Add the token to `ppd-client-token` header and send requests to [available endpoints](#api-endpoints).
 ```js
 const ppdToken = process.env.PPD_TOKEN;
+const baseUrl = "0.0.0.0:5000" // or whatever location PPDRIVE is running from.
 
-fetch({
-    url: `${PPDRIVE_URL}/client/user`,
+const resp = await fetch(`${baseUrl}/client/user`, {
     headers: {
-        "ppd-client-token": ppdToken
+        'Content-Type': 'application/json',
+        'ppd-client-token': ppdToken
     }
 })
 ```
 
-#### API Endpoints
-This are the endpoints **currently available** on PPDRIVE client mode:
+## API Endpoints
+These are the endpoints **currently available** on PPDRIVE client mode:
 
-###### Create/Register User
+###### User Registration
+**Endpoint:** /client/user/register
+
 **Description**: Registers a new user for this client.
-**Url:** {base_url}/client/user/register
+
 **Method:** POST
+
 **Headers:**
-  ppd-client-token (_string_): The client's token
+  - `ppd-client-token` (_string_): The client's token
+
 **Body:**
+  - `max_bucket`:
+    - required: `false`
+    - type: `float64`
+    - description: Total size of buckets the user can create in megabytes (MB). This is the total accumulated size, which means the user can create as many buckets as possible as long as the total size of all the buckets combined doesn't exceed this size. To put simply, this is **total filesize** this user can upload.
+    
+      When the option is not specified, user can create unlimited number of buckets and in turn, unlimited files.
+
+**Response:**
+  - type: `string`
+  - description: Public ID (UUID) of the user created.
   
+**Example:**
+```js
+const resp = await fetch(`${baseUrl}/client/user/register`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'ppd-client-token': ppdToken
+    },
+    body: JSON.stringify({
+      max_bucket: 10.0 // 10MB space assigned to the user
+    })
+})
+```
