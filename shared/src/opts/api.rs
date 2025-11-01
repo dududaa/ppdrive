@@ -11,7 +11,6 @@ pub struct CreateClientUser {
     /// combined doesn't exceed this size.
     ///
     /// When the option is not specified, user can create unlimited number of buckets.
-    #[validate(range(min = 0.5))]
     pub max_bucket: Option<f64>,
 }
 
@@ -52,12 +51,15 @@ pub struct UserCredentials {
 
 #[derive(Deserialize, Serialize, Default, Validate)]
 pub struct CreateBucketOptions {
-    #[validate(length(min=2))]
-    pub partition: Option<String>,
+    #[validate(length(min=8))]
+    pub label: String,
 
-    /// can be set if there's partition
-    #[validate(range(min = 0.5))]
-    pub partition_size: Option<f64>,
+    #[validate(length(min=2))]
+    pub root_path: Option<String>,
+
+    /// can be set if there's `partition_path`
+    #[validate(range(min = 0.1))]
+    pub size: Option<f64>,
 
     /// The mime type acceptable by a bucket.
     /// - "*" is the default and means all mime types are accepted.
@@ -67,8 +69,6 @@ pub struct CreateBucketOptions {
     #[validate(length(min=1))]
     pub accepts: Option<String>,
 
-    #[validate(length(min=8))]
-    pub label: String,
     pub public: Option<bool>,
 }
 
