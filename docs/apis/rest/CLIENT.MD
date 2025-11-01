@@ -199,30 +199,21 @@ console.log(resp.data) // operation successful!
     - description: This will be the default vibility set for any asset uploaded to this bucket if no visibility is set for the asset.
 
 **Response:**
-  - type: `object`
-    - `access`:
-      - type: [`string`, `unsigned64`]
-      - description: A 2-length-array where `first` element is access token and `second` element is access token expiration in seconds.
-    - `refresh`:
-      - type: [`string`, `unsigned64`]
-      - description: A 2-length-array where `first` element is refresh token and `second` element is refresh token expiration in seconds.
+  - type: `string`
+  - description: ID of the bucket that was created.
   
 **Example:**
 ```js
-const resp = await fetch(`${baseUrl}/client/user/login`, {
+const resp = await fetch(`${baseUrl}/client/bucket`, {
     method: 'POST',
     headers: {
         'Content-Type': 'application/json',
         'ppd-client-token': ppdToken
     },
     body: JSON.stringify({
-      id: '5c4699dc-476a-4133-af65-b799c09abb67'
+      label: 'My Test Bucket'
     })
 })
 
-console.log(resp.data) 
-// {
-// "access":["eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...",900],
-// "refresh":["eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...",86400]
-// }
+console.log(resp.data) // c7040c69-878c-4ea5-9e44-bd56bce8fd0f
 ```
