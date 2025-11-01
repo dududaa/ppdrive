@@ -10,7 +10,7 @@ use crate::{db::migration::run_migrations, errors::Error, models::mime::Mimes, D
 
 pub mod migration;
 
-pub async fn init_db(url: &str) -> DBResult<RBatis> {
+pub async fn init_db(url: &str, load_mimes: bool) -> DBResult<RBatis> {
     use DatabaseType::*;
 
     let db_type = url.parse()?;
@@ -25,11 +25,9 @@ pub async fn init_db(url: &str) -> DBResult<RBatis> {
 
     // load mimes in the background
     let db_clone = rb.clone();
-    tokio::spawn(async move {
-        if let Err(err) = Mimes::load_from_file(&db_clone).await {
-            tracing::warn!("{err}")
-        }
-    });
+    if load_mimes  && let Err(err) = Mimes::load_from_file(&db_clone).await {
+        tracing::warn!("{err}")
+    }
     
     run_migrations(url).await?;
     Ok(rb)

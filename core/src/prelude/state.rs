@@ -16,7 +16,7 @@ impl HandlerState {
         let secrets = Arc::new(secrets);
         let config = Arc::new(config.clone());
 
-        let db = init_db(&config.base.db_url).await?;
+        let db = init_db(&config.base.db_url, true).await?;
 
         let s = Self {
             db: Arc::new(db),

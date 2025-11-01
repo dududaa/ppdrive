@@ -27,7 +27,7 @@ pub async fn start_service(
 ) -> AppResult<u8> {
     // initialize db connection so subsequent operations can reuse it.
     let db_url = &config.base.db_url;
-    let db = init_db(db_url).await.map_err(|err| anyhow!(err))?;
+    let db = init_db(db_url, false).await.map_err(|err| anyhow!(err))?;
 
     let token = CancellationToken::new();
     let db = Arc::new(db);
