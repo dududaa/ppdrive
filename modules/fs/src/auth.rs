@@ -4,7 +4,7 @@ use ppd_bk::RBatis;
 use ppd_bk::models::asset::{AssetType, Assets, NewAsset, UpdateAssetValues};
 use ppd_bk::models::bucket::Buckets;
 use ppd_bk::validators::{ValidatePathDetails, validate_asset_paths};
-use ppd_shared::tools::mb_to_bytes;
+use ppd_shared::tools::{SECRETS_FILENAME, mb_to_bytes};
 
 use crate::errors::Error;
 use crate::utils::{create_asset_parents, get_bucket_size};
@@ -29,6 +29,18 @@ pub async fn create_or_update_asset(
         bucket,
     } = opts;
 
+    if opts.asset_path.is_empty() {
+        return Err(Error::ServerError(
+            "asset_path field is required".to_string(),
+        ));
+    }
+
+    if opts.asset_path == SECRETS_FILENAME {
+        return Err(Error::ServerError(
+            "asset_path '{SECRET_FILE}' is reserved. please choose another path.".to_string(),
+        ));
+    }
+
     // retrieve bucket and validate bucket ownership
     let bucket = Buckets::get_by_pid(db, bucket).await?;
     if !bucket.validate_write(user_id) {
@@ -37,6 +49,7 @@ pub async fn create_or_update_asset(
         ));
     }
 
+    let public = public.unwrap_or(bucket.public());
     // extract destination path
     let partition = bucket.partition().as_deref();
     let dest = partition.map_or(asset_path.to_string(), |rf| format!("{rf}/{asset_path}"));
@@ -91,8 +104,6 @@ pub async fn create_or_update_asset(
 
     // if path already exists, update it. Else, create.
     let path = custom_path.clone().unwrap_or(asset_path.to_string());
-    let public = public.unwrap_or_default();
-
     let asset: Result<Assets, Error> = match Assets::get_by_path(db, &path, asset_type).await {
         Ok(mut exists) => {
             if exists.user_id() != user_id {

@@ -16,10 +16,9 @@ We notice that many startups, organizations, and developers prefer not to rely o
 ## Why PPDRIVE?
 - **Language/Framework Agnostic**: PPDRIVE works with any programming language or framework that allows you to send http requests. Whether it's Javascript or Golang; React, Vue, Angular, Flutter...you name it. You can even help us write an SDK or client library for your favorite language.
 - **Privacy and Data Control**: All your user, application and business data stay on your server. PPDRIVE does not send, spy or use your data in any way.
-- **No vendor lock-in. No hidden charges**: You don't need to pay for anything. It's completely free.
-- **Complete Ownership**: We don't collect any "insight" or gain access to any of your data.
+- **No vendor lock-in. No hidden charges**: You don't need to pay for anything. PPDRIVE is totally free.
+- **User-level Authorization**: PPDRIVE automatically provides fine-grained resource ownership so that only authorized users can access to assets. This way, you can focus on building other aspects of your application as we help you protect your filesystem.
 - **Ease of Use**: If you're already familiar with sending HTTP requests, using PPDRIVE feels natural. We also provide a flexible service management tool for starting multiple services, viewing or cancelling running services.
-- **Security**: Secure by default.
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
 - **Speed**: Very fast operation handlers.
 - **Lightweight**: We aim to make PPDRIVE as lightweight as possible. The starting point is to make sure you can install only what you need and extend it whenever you need more.

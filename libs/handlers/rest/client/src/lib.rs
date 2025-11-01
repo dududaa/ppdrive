@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ptr, sync::Arc};
 
 use auth::*;
 use axum::{
@@ -7,6 +7,7 @@ use axum::{
     routing::{delete, get, post},
 };
 use axum_macros::debug_handler;
+use tokio::runtime::Runtime;
 
 use crate::errors::ServerError;
 
@@ -109,8 +110,8 @@ async fn create_bucket(
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
     let db = state.db();
-
     client.validate_bucket_size(db, &data.size).await?;
+
     if let Some(partition) = &data.root_path
         && partition == SECRETS_FILENAME
     {
@@ -146,6 +147,25 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rest_client(config: *const ServiceConfig) -> *mut Router<HandlerState> {
     let config = unsafe { Arc::from_raw(config) };
+    let mut ptr = ptr::null_mut();
+    
+    if let Ok(rt) = Runtime::new() {
+        let router = rt.block_on(async move {
+            Box::new(routes(config))
+        });
+
+        ptr = Box::into_raw(router);
+    }
+
+    ptr
+}
+
+#[cfg(feature = "test")]
+/// test routers are designed to be loaded directly without tokio runtime. They're to be used 
+/// in test cases in order to prevent tokio runtime being initalized multiple times.
+pub extern "C" fn test_router(config: *const ServiceConfig) -> *mut Router<HandlerState> {
+    let config = unsafe { Arc::from_raw(config) };
+    
     let bx = Box::new(routes(config));
     Box::into_raw(bx)
 }

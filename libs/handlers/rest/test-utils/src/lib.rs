@@ -12,8 +12,8 @@ use ppd_shared::{
 use ppdrive::prelude::state::HandlerState;
 use ppdrive::tools::create_client;
 
-use rest_client::rest_client as client_router;
-use rest_direct::rest_direct as direct_router;
+use rest_client::test_router as client_router;
+use rest_direct::test_router as direct_router;
 
 use crate::direct::login_user_request;
 
@@ -42,8 +42,8 @@ impl TestApp {
         let mut config = ServiceConfig::default();
         config.base.db_url = db_url;
 
-        let client_router = unsafe { client_router(Arc::into_raw(config.clone().into())) };
-        let direct_router = unsafe { direct_router(Arc::into_raw(config.clone().into())) };
+        let client_router = client_router(Arc::into_raw(config.clone().into()));
+        let direct_router = direct_router(Arc::into_raw(config.clone().into()));
 
         let (client_rtr, client_router) = Self::unwrap_router(client_router);
         let (direct_rtr, direct_router) = Self::unwrap_router(direct_router);

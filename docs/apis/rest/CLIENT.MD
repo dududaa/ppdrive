@@ -185,10 +185,18 @@ console.log(resp.data) // operation successful!
     - required: `false`
     - type: `float64`
     - description: If specified, eqauls total size of [Assets](../../TERMINOLOGIES.MD#asset) that can be upload to the bucket. Think of this as an upload limit. It requires the `root_path` option to be set.
-  - `refresh_exp`:
+  - `accepts`:
     - required: `false`
-    - type: `unsigned64`
-    - description: How long it should take for returned `refresh` token to expire (in seconds).
+    - type: `string`
+    - description: The file mime type(s) that can be uploaded to the bucket. There different formats for specifying acceptable mime types:
+      - `*` is the default and means all mime types are accepted.
+      - `custom` means a selection of mimetypes manually specified by a user. Acceptable format should start with "custom" keyword followed by a colon ":" and comma seprated mimetypes. Example, `custom:application/zip,audio/3gpp`
+      - You can specify a group of mimes using the `filetype` they belong to (e.g, "audio", "video", "application"...etc).
+      - You can also specify a *list* of comma seprated groups e.g, "audio,video,application".
+  `public`:
+    - required: `false`
+    - type: `boolean`
+    - description: This will be the default vibility set for any asset uploaded to this bucket if no visibility is set for the asset.
 
 **Response:**
   - type: `object`

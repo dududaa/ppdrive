@@ -4,6 +4,15 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
+use crate::{AppResult, errors::Error};
+
+pub trait OptionValidator: Validate {
+    fn validate_data(&self) -> AppResult<()> {
+        self.validate().map_err(|err| Error::ValidationError(err.to_string()))?;
+        Ok(())
+    }
+}
+
 #[derive(Deserialize, Serialize, Validate)]
 pub struct CreateClientUser {
     /// Total size of buckets the user can create (MB). This is the total accumulated size, which means

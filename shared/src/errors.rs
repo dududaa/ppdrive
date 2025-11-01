@@ -7,6 +7,7 @@ pub enum Error {
     IOError(io::Error),
     LibLoadError(LibLoadError),
     ServerError(String),
+    ValidationError(String)
 }
 
 impl Display for Error {
@@ -16,7 +17,8 @@ impl Display for Error {
         match self {
             IOError(err) => write!(f, "{err}"),
             LibLoadError(err) => write!(f, "{err}"),
-            ServerError(msg) => write!(f, "{msg}")
+            ServerError(msg) => write!(f, "{msg}"),
+            ValidationError(msg) => write!(f, "{msg}"),
         }
     }
 }

@@ -24,7 +24,7 @@ pub struct Buckets {
 
     #[modeller(length = 256)]
     label: String,
-    
+
     partition: Option<String>,
 
     /// can be set if there's partition
@@ -142,7 +142,9 @@ impl Buckets {
     }
 
     /// save bucket's acceptable mimetypes based on `accepts` parameter.
-    pub async fn save_mimes(&self, db: &RBatis, accepts: &str) -> DBResult<()> {
+    pub async fn save_mimes(&self, db: &RBatis) -> DBResult<()> {
+        let accepts = &self.accepts;
+
         if accepts == "*" {
             return Ok(());
         }
@@ -281,16 +283,18 @@ impl Buckets {
             label,
             partition_size,
             partition,
-            accepts: accepts.clone(),
+            accepts,
             public: public.unwrap_or_default(),
         };
 
         Buckets::insert(db, &data).await?;
 
-        let bucket = Buckets::get_by_pid(db, &data.pid.clone()).await?;
+        let id = data.pid.clone();
         let db = db.clone();
         tokio::spawn(async move {
-            if let Err(err) = bucket.save_mimes(&db, &accepts).await {
+            if let Ok(bucket) = Buckets::get_by_pid(&db, &id).await
+                && let Err(err) = bucket.save_mimes(&db).await
+            {
                 tracing::error!("unable to save mimes: {err}");
             }
         });
@@ -320,6 +324,10 @@ impl Buckets {
 
     pub fn partition_size(&self) -> &Option<f64> {
         &self.partition_size
+    }
+
+    pub fn accepts(&self) -> &str {
+        &self.accepts
     }
 }
 

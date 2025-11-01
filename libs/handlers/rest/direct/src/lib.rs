@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tokio::{fs::File, io::AsyncWriteExt};
+use tokio::{fs::File, io::AsyncWriteExt, runtime::Runtime};
 
 use axum::{
     Json, Router,
@@ -18,7 +18,7 @@ use ppd_shared::{
         api::{CreateBucketOptions, LoginTokens, UserCredentials},
         internal::ServiceConfig,
     },
-    tools::{SECRETS_FILENAME, mb_to_bytes},
+    tools::mb_to_bytes,
 };
 use ppdrive::{
     jwt::LoginOpts,
@@ -140,19 +140,6 @@ pub async fn create_asset(
         }
     }
 
-    // options validations
-    if opts.asset_path.is_empty() {
-        return Err(ServerError::InternalError(
-            "asset_path field is required".to_string(),
-        ));
-    }
-
-    if opts.asset_path == SECRETS_FILENAME {
-        return Err(ServerError::AuthorizationError(
-            "asset_path '{SECRET_FILE}' is reserved. please choose another path.".to_string(),
-        ));
-    }
-
     let db = state.db();
     create_or_update_asset(db, user.id(), &opts, &tmp_file, &filesize).await?;
     Ok("operation successful!".to_string())
@@ -194,6 +181,25 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rest_direct(config: *const ServiceConfig) -> *mut Router<HandlerState> {
     let config = unsafe { Arc::from_raw(config) };
+    let mut ptr = std::ptr::null_mut();
+    
+    if let Ok(rt) = Runtime::new() {
+        let router = rt.block_on(async move {
+            Box::new(routes(config))
+        });
+
+        ptr = Box::into_raw(router);
+    }
+
+    ptr
+}
+
+#[cfg(feature = "test")]
+/// test routers are designed to be loaded directly without tokio runtime. They're to be used 
+/// in test cases in order to prevent tokio runtime being initalized multiple times.
+pub extern "C" fn test_router(config: *const ServiceConfig) -> *mut Router<HandlerState> {
+    let config = unsafe { Arc::from_raw(config) };
     let bx = Box::new(routes(config));
+
     Box::into_raw(bx)
 }

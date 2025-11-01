@@ -13,7 +13,7 @@ use ppd_bk::models::{
     bucket::Buckets,
     user::{UserSerializer, Users},
 };
-use ppd_shared::{opts::api::CreateBucketOptions, tools::SECRETS_FILENAME};
+use ppd_shared::opts::api::CreateBucketOptions;
 use ppdrive::{
     prelude::state::HandlerState,
     rest::extractors::{BucketSizeValidator, ClientUserExtractor},
@@ -76,19 +76,6 @@ pub async fn create_asset(
             filesize = Some(file.metadata().await?.len());
             tmp_file = Some(tmp_path);
         }
-    }
-
-    // options validations
-    if opts.asset_path.is_empty() {
-        return Err(ServerError::InternalError(
-            "asset_path field is required".to_string(),
-        ));
-    }
-
-    if opts.asset_path == SECRETS_FILENAME {
-        return Err(ServerError::AuthorizationError(
-            "asset_path '{SECRET_FILE}' is reserved. please choose another path.".to_string(),
-        ));
     }
 
     let db = state.db();

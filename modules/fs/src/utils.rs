@@ -16,7 +16,7 @@ pub async fn create_asset_parents(
     path: &Path,
     user_id: &u64,
     bucket_id: &u64,
-    is_public: &Option<bool>,
+    is_public: bool,
 ) -> FsResult<()> {
     let parent = path.parent();
 
@@ -61,7 +61,7 @@ pub async fn create_asset_parents(
                 asset_path: path.to_string(),
                 custom_path: None,
                 asset_type: folder_type,
-                public: is_public.unwrap_or(false),
+                public: is_public,
                 bucket_id: *bucket_id,
             };
 
