@@ -49,8 +49,8 @@ pub async fn create_or_update_asset(
         bucket.validate_mime(db, &mime).await?;
 
         if let (Some(filesize), Some(max_size)) = (filesize, bucket.partition_size()) {
-            let cfz = get_bucket_size(&bucket).await?;
-            let total_size = cfz + filesize;
+            let current_size = get_bucket_size(&bucket).await?;
+            let total_size = current_size + filesize;
             if total_size > mb_to_bytes(*max_size) as u64 {
                 tokio::fs::remove_file(tmp_file).await?;
 

@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use ppdrive::plugin::service::Service;
-use ppd_shared::opts::ServiceConfig;
+use ppd_shared::opts::internal::ServiceConfig;
 use serial_test::serial;
 
 #[tokio::test]

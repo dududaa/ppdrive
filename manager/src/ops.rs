@@ -3,7 +3,9 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use bincode::config;
 use ppd_shared::{
-    opts::{ClientDetails, ClientInfo, Response, ServiceConfig, ServiceInfo, ServiceRequest},
+    opts::internal::{
+        ClientDetails, ClientInfo, Response, ServiceConfig, ServiceInfo, ServiceRequest,
+    },
     tools::AppSecrets,
 };
 use ppdrive::{
@@ -172,8 +174,9 @@ pub async fn process_request(
 
         ServiceRequest::CreateClient(svc_id, client_name, bucket_size) => {
             let resp = match create_new_client(manager, svc_id, client_name, bucket_size).await {
-                Ok(client) => Response::success(Some(client))
-                    .message("client created successfully."),
+                Ok(client) => {
+                    Response::success(Some(client)).message("client created successfully.")
+                }
                 Err(err) => Response::error(None).message(err.to_string()),
             };
 
@@ -183,8 +186,9 @@ pub async fn process_request(
 
         ServiceRequest::RefreshClientToken(svc_id, client_id) => {
             let resp = match refresh_client_token(manager, svc_id, client_id).await {
-                Ok(token) => Response::success(Some(token))
-                    .message("client token regenerated successfully."),
+                Ok(token) => {
+                    Response::success(Some(token)).message("client token regenerated successfully.")
+                }
                 Err(err) => Response::error(None).message(err.to_string()),
             };
 

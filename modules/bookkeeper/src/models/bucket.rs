@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use modeller::prelude::*;
-use ppd_shared::api::CreateBucketOptions;
+use ppd_shared::opts::api::CreateBucketOptions;
 use rbatis::{RBatis, crud, impl_select};
 use rbs::value;
 use serde::{Deserialize, Serialize};
@@ -234,8 +234,8 @@ impl Buckets {
         let owner_type = u8::from(ty);
 
         let CreateBucketOptions {
-            partition_size,
-            partition,
+            size: partition_size,
+            root_path: partition,
             accepts,
             label,
             public,

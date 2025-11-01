@@ -2,7 +2,7 @@ use crate::{HandlerResult, errors::HandlerError};
 use chacha20poly1305::{Error as XError, KeyInit, XChaCha20Poly1305, XNonce, aead::Aead};
 use ppd_bk::{RBatis, models::client::Clients};
 use ppd_shared::{
-    opts::{ClientDetails, ClientInfo},
+    opts::internal::{ClientDetails, ClientInfo},
     tools::AppSecrets,
 };
 use sha3::{Digest, Sha3_256};
@@ -36,7 +36,11 @@ pub async fn create_client(
 }
 
 /// validate that a given client token exists
-pub async fn verify_client(rb: &RBatis, secrets: &AppSecrets, token: &str) -> HandlerResult<(u64, Option<f64>)> {
+pub async fn verify_client(
+    rb: &RBatis,
+    secrets: &AppSecrets,
+    token: &str,
+) -> HandlerResult<(u64, Option<f64>)> {
     let decode =
         hex::decode(token).map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 

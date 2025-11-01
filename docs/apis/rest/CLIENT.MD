@@ -46,7 +46,7 @@ These are the endpoints **currently available** on PPDRIVE client mode:
 ###### User Registration
 **Endpoint:** /client/user/register
 
-**Description**: Registers a new user for this client.
+**Description**: Registers a new user for a client.
 
 **Method:** POST
 
@@ -77,4 +77,144 @@ const resp = await fetch(`${baseUrl}/client/user/register`, {
       max_bucket: 10.0 // 10MB space assigned to the user
     })
 })
+
+console.log(resp.data) // 5c4699dc-476a-4133-af65-b799c09abb67
+```
+
+###### User Login
+**Endpoint:** /client/user/login
+
+**Description**: Autheticate a user with the given `id` and return authorization tokens. This endpoint is _mostly_ useful when your users to access PPDRIVE directly from the client side of your application. The returned auth token (JWT) can be added to `authorization` header in order to access "protected" routes directly. 
+
+**Method:** POST
+
+**Headers:**
+  - `ppd-client-token` (_string_): The client's token
+
+**Body:**
+  - `id`:
+    - required: `true`
+    - type: `string`
+    - description: ID of the user we wish to authenticate. The ID is returned when a [client registers new user](#user-registration).
+  - `access_exp`:
+    - required: `false`
+    - type: `unsigned64`
+    - description: How long it should take for returned `access` token to expire (in seconds).
+  - `refresh_exp`:
+    - required: `false`
+    - type: `unsigned64`
+    - description: How long it should take for returned `refresh` token to expire (in seconds).
+
+**Response:**
+  - type: `object`
+    - `access`:
+      - type: [`string`, `unsigned64`]
+      - description: A 2-length-array where `first` element is access token and `second` element is access token expiration in seconds.
+    - `refresh`:
+      - type: [`string`, `unsigned64`]
+      - description: A 2-length-array where `first` element is refresh token and `second` element is refresh token expiration in seconds.
+  
+**Example:**
+```js
+const resp = await fetch(`${baseUrl}/client/user/login`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'ppd-client-token': ppdToken
+    },
+    body: JSON.stringify({
+      id: '5c4699dc-476a-4133-af65-b799c09abb67'
+    })
+})
+
+console.log(resp.data) 
+// {
+// "access":["eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...",900],
+// "refresh":["eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...",86400]
+// }
+```
+
+###### Delete User
+**Endpoint:** /client/user/:id
+
+**Description**: Deletes user with the given id.
+
+**Method:** DELETE
+
+**Headers:**
+  - `ppd-client-token` (_string_): The client's token
+
+
+**Response:**
+  - type: `string`
+  - description: A string that indicates that operation is successful.
+  
+**Example:**
+```js
+const resp = await fetch(`${baseUrl}/client/user/5c4699dc-476a-4133-af65-b799c09abb67`, {
+    method: 'DELETE',
+    headers: {
+        'Content-Type': 'application/json',
+        'ppd-client-token': ppdToken
+    }
+})
+
+console.log(resp.data) // operation successful!
+```
+
+###### Create Client's Bucket
+**Endpoint:** /client/bucket
+
+**Description**: Create a [Bucket](../../TERMINOLOGIES.MD#bucket) for the client. 
+
+**Method:** POST
+
+**Headers:**
+  - `ppd-client-token` (_string_): The client's token
+
+**Body:**
+- `label`:
+    - required: `true`
+    - type: `string`
+    - description: A descriptive label for the bucket.
+  - `root_path`:
+    - required: `false`
+    - type: `string`
+    - description: If this option is specified, all [Assets](../../TERMINOLOGIES.MD#asset) uploaded to PPDRIVE will have paths relative to the specified path.
+  - `size`:
+    - required: `false`
+    - type: `float64`
+    - description: If specified, eqauls total size of [Assets](../../TERMINOLOGIES.MD#asset) that can be upload to the bucket. Think of this as an upload limit. It requires the `root_path` option to be set.
+  - `refresh_exp`:
+    - required: `false`
+    - type: `unsigned64`
+    - description: How long it should take for returned `refresh` token to expire (in seconds).
+
+**Response:**
+  - type: `object`
+    - `access`:
+      - type: [`string`, `unsigned64`]
+      - description: A 2-length-array where `first` element is access token and `second` element is access token expiration in seconds.
+    - `refresh`:
+      - type: [`string`, `unsigned64`]
+      - description: A 2-length-array where `first` element is refresh token and `second` element is refresh token expiration in seconds.
+  
+**Example:**
+```js
+const resp = await fetch(`${baseUrl}/client/user/login`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'ppd-client-token': ppdToken
+    },
+    body: JSON.stringify({
+      id: '5c4699dc-476a-4133-af65-b799c09abb67'
+    })
+})
+
+console.log(resp.data) 
+// {
+// "access":["eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...",900],
+// "refresh":["eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...",86400]
+// }
 ```

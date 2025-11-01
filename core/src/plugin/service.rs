@@ -3,7 +3,7 @@ use std::{net::TcpStream, sync::Arc};
 use super::router::ServiceRouter;
 use crate::HandlerResult;
 use ppd_shared::{
-    opts::{ServiceAuthMode, ServiceConfig, ServiceType},
+    opts::internal::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::{Module, Plugin},
 };
 use tokio_util::sync::CancellationToken;
@@ -34,7 +34,7 @@ impl<'a> Service<'a> {
         unsafe {
             match lib.get::<ServiceFn>(&self.symbol_name()) {
                 Ok(start_service) => start_service(config, token),
-                Err(err) => tracing::error!("unable to load library: {err}")
+                Err(err) => tracing::error!("unable to load library: {err}"),
             }
         };
 

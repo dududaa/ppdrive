@@ -11,8 +11,10 @@ use axum_macros::debug_handler;
 use crate::errors::ServerError;
 
 use ppd_shared::{
-    api::{CreateBucketOptions, CreateClientUser, LoginTokens, LoginUserClient},
-    opts::ServiceConfig,
+    opts::{
+        api::{CreateBucketOptions, CreateClientUser, LoginTokens, LoginUserClient},
+        internal::ServiceConfig,
+    },
     tools::{SECRETS_FILENAME, mb_to_bytes},
 };
 use ppdrive::{
@@ -64,7 +66,7 @@ async fn login_user(
         jwt_secret: secrets.jwt_secret(),
         access_exp,
         refresh_exp,
-        user_max_bucket: *user.max_bucket_size()
+        user_max_bucket: *user.max_bucket_size(),
     };
 
     let tokens = login.tokens()?;
@@ -108,10 +110,8 @@ async fn create_bucket(
 ) -> Result<String, ServerError> {
     let db = state.db();
 
-    client
-        .validate_bucket_size(db, &data.partition_size)
-        .await?;
-    if let Some(partition) = &data.partition
+    client.validate_bucket_size(db, &data.size).await?;
+    if let Some(partition) = &data.root_path
         && partition == SECRETS_FILENAME
     {
         return Err(ServerError::PermissionDenied(

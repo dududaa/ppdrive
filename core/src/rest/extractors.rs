@@ -11,19 +11,19 @@ use axum::{
 use ppd_bk::RBatis;
 use ppd_bk::models::bucket::Buckets;
 use ppd_bk::models::user::Users;
-use ppd_shared::opts::ServiceConfig;
+use ppd_shared::opts::internal::ServiceConfig;
 
 /// A middleware that accepts client token, validates it and return the client's id
 pub struct ClientExtractor {
     id: u64,
-    max_bucket_size: Option<f64>
+    max_bucket_size: Option<f64>,
 }
 
 impl BucketSizeValidator for ClientExtractor {
     fn id(&self) -> &u64 {
         &self.id
     }
-    
+
     fn max_bucket_size(&self) -> &Option<f64> {
         &self.max_bucket_size
     }
@@ -51,7 +51,7 @@ where
                     "missing 'ppd-client-token' in headers".to_string(),
                 ))?;
 
-                let token = client_key
+        let token = client_key
             .to_str()
             .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
@@ -62,7 +62,10 @@ where
             .await
             .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
-        Ok(ClientExtractor { id, max_bucket_size })
+        Ok(ClientExtractor {
+            id,
+            max_bucket_size,
+        })
     }
 }
 
@@ -78,7 +81,7 @@ impl BucketSizeValidator for ClientUserExtractor {
     fn id(&self) -> &u64 {
         &self.id
     }
-    
+
     fn max_bucket_size(&self) -> &Option<f64> {
         &self.max_bucket_size
     }
@@ -190,7 +193,10 @@ async fn get_local_user(
     let secrets = state.secrets();
     let claims = decode_jwt(header, secrets.jwt_secret(), config)?;
 
-    Ok(UserExtractor { id: *claims.sub(), max_bucket_size: *claims.user_bucket_size() })
+    Ok(UserExtractor {
+        id: *claims.sub(),
+        max_bucket_size: *claims.user_bucket_size(),
+    })
 }
 
 pub trait BucketSizeValidator {
@@ -202,7 +208,11 @@ pub trait BucketSizeValidator {
 
     #[allow(async_fn_in_trait)]
     /// validate that input `bucket_size` does not exceed the bucket size assigned to the object.
-    async fn validate_bucket_size(&self, db: &RBatis, bucket_size: &Option<f64>) -> HandlerResult<()> {
+    async fn validate_bucket_size(
+        &self,
+        db: &RBatis,
+        bucket_size: &Option<f64>,
+    ) -> HandlerResult<()> {
         if let Some(max_size) = self.max_bucket_size() {
             let size = bucket_size.ok_or(HandlerError::PermissionError(
                 "you must provide \"partition_size\" option for this bucket".to_string(),

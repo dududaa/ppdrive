@@ -3,7 +3,7 @@ use std::{path::Path, process::Command, thread::sleep, time::Duration};
 use crate::{errors::AppResult, imp::PPDrive};
 use clap::{Parser, Subcommand, ValueEnum};
 use ppd_shared::{
-    opts::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType},
+    opts::internal::{ServiceAuthConfig, ServiceBaseConfig, ServiceConfig, ServiceType},
     tools::root_dir,
 };
 

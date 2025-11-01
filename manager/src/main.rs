@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ppd_shared::{opts::ServiceConfig, start_logger};
+use ppd_shared::{opts::internal::ServiceConfig, start_logger};
 use rbatis::RBatis;
 use tokio::{net::TcpListener, sync::Mutex};
 use tokio_util::sync::CancellationToken;

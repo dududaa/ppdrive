@@ -13,7 +13,7 @@ use ppd_bk::models::{
     bucket::Buckets,
     user::{UserSerializer, Users},
 };
-use ppd_shared::{api::CreateBucketOptions, tools::SECRETS_FILENAME};
+use ppd_shared::{opts::api::CreateBucketOptions, tools::SECRETS_FILENAME};
 use ppdrive::{
     prelude::state::HandlerState,
     rest::extractors::{BucketSizeValidator, ClientUserExtractor},
@@ -41,7 +41,7 @@ pub async fn create_user_bucket(
 ) -> Result<String, ServerError> {
     let db = state.db();
 
-    user.validate_bucket_size(db, &data.partition_size).await?;
+    user.validate_bucket_size(db, &data.size).await?;
     let id = Buckets::create_by_user(db, data, *user.id()).await?;
 
     Ok(id)
@@ -93,7 +93,7 @@ pub async fn create_asset(
 
     let db = state.db();
     create_or_update_asset(db, user.id(), &opts, &tmp_file, &filesize).await?;
-    
+
     Ok("operation successful!".to_string())
 }
 

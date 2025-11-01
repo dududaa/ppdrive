@@ -1,7 +1,7 @@
 use std::{net::TcpStream, thread::sleep, time::Duration};
 
+use ppd_shared::{opts::internal::ServiceConfig, plugin::Plugin};
 use ppdrive::plugin::service::Service;
-use ppd_shared::{opts::ServiceConfig, plugin::Plugin};
 
 use crate::{command::start_manager, errors::AppResult, imp::PPDrive};
 
@@ -47,7 +47,7 @@ fn test_create_client() -> AppResult<()> {
 
 #[test]
 fn test_plugin_remote_install() -> AppResult<()> {
-    let config = ServiceConfig::default(); 
+    let config = ServiceConfig::default();
     let svc = Service::from(&config);
 
     let install = svc.install_remote();

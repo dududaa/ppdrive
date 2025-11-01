@@ -6,7 +6,7 @@ use std::{str, sync::Arc};
 use axum::Router;
 use libloading::{Library, Symbol};
 use ppd_shared::{
-    opts::{ServiceAuthMode, ServiceConfig, ServiceType},
+    opts::internal::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::Plugin,
 };
 

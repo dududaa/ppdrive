@@ -1,6 +1,6 @@
 use bincode::{Decode, Encode, config};
 
-use ppd_shared::opts::{
+use ppd_shared::opts::internal::{
     ClientDetails, ClientInfo, Response, ServiceConfig, ServiceInfo, ServiceRequest,
 };
 
@@ -122,7 +122,7 @@ impl PPDrive {
 
                 let max_size = match max_bucket_size {
                     Some(s) => format!("{s}MB"),
-                    None => "unlimited".to_string()
+                    None => "unlimited".to_string(),
                 };
 
                 println!(" {id}\t\t\t\t | {name}\t | {created_at}\t | {max_size}");

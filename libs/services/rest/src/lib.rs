@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::app::serve_app;
 use errors::ServerError;
-use ppd_shared::{opts::ServiceConfig, start_logger, tools::init_secrets};
+use ppd_shared::{opts::internal::ServiceConfig, start_logger, tools::init_secrets};
 use ppdrive::prelude::state::HandlerState;
 use tokio::runtime::Runtime;
 use tokio_util::sync::CancellationToken;

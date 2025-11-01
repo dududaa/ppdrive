@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use axum_test::{TestResponse, TestServer};
-use ppd_shared::api::{UserCredentials, CreateBucketOptions};
+use ppd_shared::opts::api::{UserCredentials, CreateBucketOptions};
 
 static USER_CREDENTIALS: LazyLock<UserCredentials> = LazyLock::new(|| UserCredentials {
     username: "ppdriveuser".to_string(),

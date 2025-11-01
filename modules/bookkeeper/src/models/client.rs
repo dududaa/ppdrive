@@ -1,6 +1,6 @@
 use modeller::prelude::*;
 use nanoid::nanoid;
-use ppd_shared::opts::ClientInfo;
+use ppd_shared::opts::internal::ClientInfo;
 use rbatis::{RBatis, crud, impl_select, rbdc::DateTime};
 use rbs::value;
 use serde::{Deserialize, Serialize};

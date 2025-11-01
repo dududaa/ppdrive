@@ -4,10 +4,9 @@ use axum::{Router, routing::IntoMakeService};
 use axum_test::TestServer;
 use ppd_bk::RBatis;
 use ppd_bk::db::migration::clean_db;
-use ppd_shared::opts::ServiceConfig;
 pub use ppd_shared::start_logger;
 use ppd_shared::{
-    api::LoginTokens,
+    opts::{api::LoginTokens, internal::ServiceConfig},
     tools::{AppSecrets, root_dir},
 };
 use ppdrive::prelude::state::HandlerState;

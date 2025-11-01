@@ -36,6 +36,7 @@ v0.1.0-rc.1
 - ~~chore: accept Mb values as f64 from API inputs~~
 - ~~cli: validate manager launch~~
 - ~~chore(client): use random numbers to create client key instead of uuid~~
+- chore(api): validate rest API optional inputs
 
 v0.1.0-rc.2
 - chore(config): specify root dir for a service.
