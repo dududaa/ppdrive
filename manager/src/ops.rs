@@ -23,6 +23,7 @@ pub async fn start_service(
     config: ServiceConfig,
     socket: &mut TcpStream,
 ) -> AppResult<u8> {
+    // initialize db connection so subsequent operations can reuse it.
     let db_url = &config.base.db_url;
     let db = init_db(db_url).await.map_err(|err| anyhow!(err))?;
 
@@ -47,7 +48,7 @@ pub async fn start_service(
     tokio::spawn(
         async move {
             let svc = Service::from(&config);
-            if let Err(err) = svc.start(config.clone(), db, token).await {
+            if let Err(err) = svc.start(config.clone(), token).await {
                 tracing::error!("service {id} failure: {err}")
             }
         }

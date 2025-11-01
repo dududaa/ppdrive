@@ -2,14 +2,13 @@ use std::{net::TcpStream, sync::Arc};
 
 use super::router::ServiceRouter;
 use crate::HandlerResult;
-use ppd_bk::RBatis;
 use ppd_shared::{
     opts::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::{Module, Plugin},
 };
 use tokio_util::sync::CancellationToken;
 
-pub type ServiceFn = fn(Arc<ServiceConfig>, Arc<RBatis>, CancellationToken);
+pub type ServiceFn = fn(Arc<ServiceConfig>, CancellationToken);
 
 #[derive(Debug)]
 pub struct Service<'a> {
@@ -25,7 +24,6 @@ impl<'a> Service<'a> {
     pub async fn start(
         &self,
         config: ServiceConfig,
-        db: Arc<RBatis>,
         token: CancellationToken,
     ) -> HandlerResult<()> {
         let filename = self.output_name()?;
@@ -35,7 +33,7 @@ impl<'a> Service<'a> {
 
         unsafe {
             match lib.get::<ServiceFn>(&self.symbol_name()) {
-                Ok(start_service) => start_service(config, db, token),
+                Ok(start_service) => start_service(config, token),
                 Err(err) => tracing::error!("unable to load library: {err}")
             }
         };

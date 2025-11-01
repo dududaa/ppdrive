@@ -27,7 +27,7 @@ pub async fn init_db(url: &str) -> DBResult<RBatis> {
     let db_clone = rb.clone();
     tokio::spawn(async move {
         if let Err(err) = Mimes::load_from_file(&db_clone).await {
-            println!("{err}")
+            tracing::warn!("{err}")
         }
     });
     

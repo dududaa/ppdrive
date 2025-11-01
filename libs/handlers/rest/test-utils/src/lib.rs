@@ -3,7 +3,6 @@ use std::sync::Arc;
 use axum::{Router, routing::IntoMakeService};
 use axum_test::TestServer;
 use ppd_bk::RBatis;
-use ppd_bk::db::init_db;
 use ppd_bk::db::migration::clean_db;
 use ppd_shared::opts::ServiceConfig;
 pub use ppd_shared::start_logger;
@@ -40,8 +39,6 @@ impl TestApp {
         if let Err(err) = clean_db().await {
             println!("{err}")
         }
-        let db = init_db(&db_url).await.expect("unable to init database");
-        let db = Arc::new(db);
 
         let mut config = ServiceConfig::default();
         config.base.db_url = db_url;
@@ -52,7 +49,7 @@ impl TestApp {
         let (client_rtr, client_router) = Self::unwrap_router(client_router);
         let (direct_rtr, direct_router) = Self::unwrap_router(direct_router);
 
-        let state = HandlerState::new(&config, db)
+        let state = HandlerState::new(&config)
             .await
             .expect("unable to create app state");
 

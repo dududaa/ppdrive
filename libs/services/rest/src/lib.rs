@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::app::serve_app;
 use errors::ServerError;
-use ppd_bk::RBatis;
 use ppd_shared::{opts::ServiceConfig, start_logger, tools::init_secrets};
 use ppdrive::prelude::state::HandlerState;
 use tokio::runtime::Runtime;
@@ -13,7 +12,7 @@ mod errors;
 pub type ServerResult<T> = Result<T, ServerError>;
 
 #[no_mangle]
-pub fn ppd_rest(config: Arc<ServiceConfig>, db: Arc<RBatis>, token: CancellationToken) {
+pub fn ppd_rest(config: Arc<ServiceConfig>, token: CancellationToken) {
     if let Ok(rt) = Runtime::new() {
         rt.block_on(async {
             let _guard =
@@ -23,7 +22,7 @@ pub fn ppd_rest(config: Arc<ServiceConfig>, db: Arc<RBatis>, token: Cancellation
                 tracing::error!("unable to initialize secrets: {err}");
             }
 
-            match HandlerState::new(&config, db).await {
+            match HandlerState::new(&config).await {
                 Ok(state) => {
                     if let Err(err) = serve_app(config, state, token).await {
                         tracing::error!("unable to serve app: {err}")
