@@ -1,6 +1,6 @@
 use std::{ptr, sync::Arc};
 
-use auth::*;
+use user::*;
 use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, Path, State},
@@ -29,7 +29,7 @@ use ppd_bk::models::{
     user::{UserRole, Users},
 };
 
-mod auth;
+mod user;
 mod errors;
 
 #[debug_handler]

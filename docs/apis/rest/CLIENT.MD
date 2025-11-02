@@ -41,8 +41,13 @@ const resp = await fetch(`${baseUrl}/client/user`, {
 ```
 
 ## API Endpoints
-These are the endpoints **currently available** on PPDRIVE client mode:
+This section documents **currently available** endpoints on PPDRIVE client mode. The endpoints can be categorized to two:
 
+1. [Client Handlers](#1-client-handlers): These are the enpoints used by the client to perform adminstrative tasks such as user authentication, user management, asset assignment...etc. When sending requests to these endpoints, ensure to provide the client's token via `ppd-client-token` request header.
+
+2. [Client User Handlers](#2-client-user-handlers): They're used by clients to operate on behalf of a specific user and simulate some kind of "passwordless" authorization. In order to access protected resources, you must provide a client token and user ID via `ppd-client-token` and `ppd-client-user` respectively.
+
+## 1. Client Handlers
 ###### User Registration
 **Endpoint:** /client/user/register
 
@@ -216,4 +221,36 @@ const resp = await fetch(`${baseUrl}/client/bucket`, {
 })
 
 console.log(resp.data) // c7040c69-878c-4ea5-9e44-bd56bce8fd0f
+```
+
+## 2. Client User Handlers
+###### Get User
+**Endpoint:** /client/user
+
+**Description**: Retrieve information about the user.
+
+**Method:** GET
+
+**Headers:**
+  - `ppd-client-token` (_string_): The client's token.
+  - `ppd-client-user` (_string_): The user's ID.
+
+**Response:**
+  - type: `string`
+  - description: Public ID (UUID) of the user created.
+  
+**Example:**
+```js
+const resp = await fetch(`${baseUrl}/client/user`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'ppd-client-token': ppdToken
+    },
+    body: JSON.stringify({
+      max_bucket: 10.0 // 10MB space assigned to the user
+    })
+})
+
+console.log(resp.data) // 5c4699dc-476a-4133-af65-b799c09abb67
 ```
