@@ -15,7 +15,7 @@
 !openapi.yml
 !install.sh
 !ppd_config.toml
-!migrate.sh
+!build.sh
 !sqlite.sh
 
 !cli/
