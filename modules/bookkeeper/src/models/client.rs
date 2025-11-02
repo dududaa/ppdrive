@@ -33,8 +33,8 @@ crud!(Clients {});
 impl_select!(Clients { get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE ${key} = #{value} LIMIT 1`" });
 
 impl Clients {
-    pub async fn get(rb: &RBatis, pid: &str) -> DBResult<Self> {
-        let client = Clients::get_by_key(rb, "pid", pid).await?;
+    pub async fn get(db: &RBatis, pid: &str) -> DBResult<Self> {
+        let client = Clients::get_by_key(db, "pid", pid).await?;
         check_model(client, "client not found")
     }
 
@@ -66,7 +66,7 @@ impl Clients {
 
     pub async fn update_key(&mut self, db: &RBatis) -> DBResult<()> {
         self.key = Self::new_key();
-        Clients::update_by_map(db, self, value! { "key": &self.key() }).await?;
+        Clients::update_by_map(db, self, value! { "key": &self.key }).await?;
 
         Ok(())
     }

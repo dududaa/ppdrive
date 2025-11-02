@@ -182,6 +182,10 @@ pub struct ClientInfo {
 }
 
 impl ClientDetails {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+    
     pub fn token(&self) -> &str {
         &self.token
     }

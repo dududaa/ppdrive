@@ -23,7 +23,7 @@ fn generate_token(secrets: &AppSecrets, client_key: &str) -> HandlerResult<Strin
 
 /// creates a new client and returns the client's key
 pub async fn create_client(
-    rb: &RBatis,
+    db: &RBatis,
     secrets: &AppSecrets,
     name: &str,
     max_bucket_size: Option<f64>,
@@ -31,13 +31,13 @@ pub async fn create_client(
     let client_key = Clients::new_key();
     let token = generate_token(secrets, &client_key)?;
 
-    let id = Clients::create(rb, client_key, name.to_string(), max_bucket_size).await?;
+    let id = Clients::create(db, client_key, name.to_string(), max_bucket_size).await?;
     Ok((id, token).into())
 }
 
-/// validate that a given client token exists
+/// decrypt and validate client token
 pub async fn verify_client(
-    rb: &RBatis,
+    db: &RBatis,
     secrets: &AppSecrets,
     token: &str,
 ) -> HandlerResult<(u64, Option<f64>)> {
@@ -55,7 +55,7 @@ pub async fn verify_client(
     let key = String::from_utf8(decrypt)
         .map_err(|err| HandlerError::AuthorizationError(err.to_string()))?;
 
-    let client = Clients::get_with_key(rb, &key).await?;
+    let client = Clients::get_with_key(db, &key).await?;
     Ok((client.id(), *client.max_bucket_size()))
 }
 
@@ -100,5 +100,32 @@ pub fn check_password(password: &str, hashed: &str) -> HandlerResult<String> {
 impl From<XError> for HandlerError {
     fn from(value: XError) -> Self {
         HandlerError::InternalError(value.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ppd_bk::{db::init_db, models::client::Clients};
+    use ppd_shared::{opts::internal::ServiceConfig, tools::AppSecrets};
+
+    use crate::{HandlerResult, tools::{create_client, generate_token, verify_client}};
+
+    #[tokio::test]
+    async fn test_token_validation() -> HandlerResult<()> {
+        let config = ServiceConfig::default();
+        let db = init_db(&config.base.db_url, false).await?;
+        let secrets = AppSecrets::read().await?;
+
+        let details = create_client(&db, &secrets, "Token Validation Test", None).await?;
+        let client = Clients::get(&db, details.id()).await?;
+
+        let verify = verify_client(&db, &secrets, details.token()).await?;
+        assert_eq!(client.id(), verify.0);
+
+        let token = generate_token(&secrets, client.key())?;
+        let verify = verify_client(&db, &secrets, &token).await?;
+        assert_eq!(client.id(), verify.0);
+        
+        Ok(())
     }
 }
