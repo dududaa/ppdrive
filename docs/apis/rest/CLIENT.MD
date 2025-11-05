@@ -67,7 +67,7 @@ This section documents **currently available** endpoints on PPDRIVE client mode.
       When the option is not specified, user can create unlimited number of buckets and in turn, unlimited files.
 
 **Response:**
-  - type: `string`
+  - type: `String`
   - description: Public ID (UUID) of the user created.
   
 **Example:**
@@ -99,7 +99,7 @@ console.log(resp.data) // 5c4699dc-476a-4133-af65-b799c09abb67
 **Body:**
   - `id`:
     - required: `true`
-    - type: `string`
+    - type: `String`
     - description: ID of the user we wish to authenticate. The ID is returned when a [client registers new user](#user-registration).
   - `access_exp`:
     - required: `false`
@@ -111,12 +111,12 @@ console.log(resp.data) // 5c4699dc-476a-4133-af65-b799c09abb67
     - description: How long it should take for returned `refresh` token to expire (in seconds).
 
 **Response:**
-  - type: `object`
+  - type: `Object`
     - `access`:
-      - type: [`string`, `unsigned64`]
+      - type: [`String`, `unsigned64`]
       - description: A 2-length-array where `first` element is access token and `second` element is access token expiration in seconds.
     - `refresh`:
-      - type: [`string`, `unsigned64`]
+      - type: [`String`, `unsigned64`]
       - description: A 2-length-array where `first` element is refresh token and `second` element is refresh token expiration in seconds.
   
 **Example:**
@@ -151,7 +151,7 @@ console.log(resp.data)
 
 
 **Response:**
-  - type: `string`
+  - type: `String`
   - description: A string that indicates that operation is successful.
   
 **Example:**
@@ -180,11 +180,11 @@ console.log(resp.data) // operation successful!
 **Body:**
 - `label`:
     - required: `true`
-    - type: `string`
+    - type: `String`
     - description: A descriptive label for the bucket.
   - `root_path`:
     - required: `false`
-    - type: `string`
+    - type: `String`
     - description: If this option is specified, all [Assets](../../TERMINOLOGIES.MD#asset) uploaded to PPDRIVE will have paths relative to the specified path.
   - `size`:
     - required: `false`
@@ -192,7 +192,7 @@ console.log(resp.data) // operation successful!
     - description: If specified, eqauls total size of [Assets](../../TERMINOLOGIES.MD#asset) that can be upload to the bucket. Think of this as an upload limit. It requires the `root_path` option to be set.
   - `accepts`:
     - required: `false`
-    - type: `string`
+    - type: `String`
     - description: The file mime type(s) that can be uploaded to the bucket. There different formats for specifying acceptable mime types:
       - `*` is the default and means all mime types are accepted.
       - `custom` means a selection of mimetypes manually specified by a user. Acceptable format should start with "custom" keyword followed by a colon ":" and comma seprated mimetypes. Example, `custom:application/zip,audio/3gpp`
@@ -200,11 +200,11 @@ console.log(resp.data) // operation successful!
       - You can also specify a *list* of comma seprated groups e.g, "audio,video,application".
   `public`:
     - required: `false`
-    - type: `boolean`
+    - type: `Bool`
     - description: This will be the default vibility set for any asset uploaded to this bucket if no visibility is set for the asset.
 
 **Response:**
-  - type: `string`
+  - type: `String`
   - description: ID of the bucket that was created.
   
 **Example:**
@@ -236,7 +236,7 @@ console.log(resp.data) // c7040c69-878c-4ea5-9e44-bd56bce8fd0f
   - `ppd-client-user` (_string_): The user's ID.
 
 **Response:**
-  - type: `string`
+  - type: `String`
   - description: Public ID (UUID) of the user created.
   
 **Example:**
@@ -253,4 +253,80 @@ const resp = await fetch(`${baseUrl}/client/user`, {
 })
 
 console.log(resp.data) // 5c4699dc-476a-4133-af65-b799c09abb67
+```
+
+###### Create Asset
+**Endpoint:** /client/user/asset
+
+**Description**: Create an [Asset](../../TERMINOLOGIES.MD#asset). Use this endpoint to upload a file or create a folder.
+
+**Method:** POST
+
+**Headers:**
+  - `ppd-client-token` (_string_): The client's token.
+  - `ppd-client-user` (_string_): The user's ID.
+
+**Body:**
+- `multipart`:
+    - `file`:
+      - required: `false`
+      - type: `File`
+      - decription: An optional field that holds the file object to be uploaded. This field is required only if `options.asset_type` (see below) is `File`. Without it, the request will fail.
+    - `options`:
+      - required: `true`
+      - type: `Object`
+      - description: Specify options for creating the asset.
+        `asset_path`:
+          - required: `true`
+          - type: `String`
+          - description: Destination path where asset should be created or uploaded.
+        `asset_type`:
+          - required: `true`
+          - type: `Enum` (acceptable values: `File` | `Folder`)
+          - description: The type of asset - whether it's a file or folder.
+        `bucket`:
+          - required: `true`
+          - type: `String`
+          - description: The public ID of the bucket in which to save the asset.
+        `public`:
+          - required: `false`
+          - type: `Bool`
+          - description: Asset's visibility. If true, asset can be read/accessed by everyone. Else, asset can be viewed ONLY by permission.
+        `slug`:
+          - required: `false`
+          - type: `String`
+          - description: Set a custom URL slug for your asset instead of the one auto-generated from `asset_path`. This is useful if you'd like to conceal your original asset path and make it less predicatable. Custom slug must be unique in that no other asset in entire PPDRIVE instance is already using it.
+          
+          Your original asset slug makes url look like this `https://mydrive.com/images/somewhere/my-image.png/`. Using custom slug, you can conceal the original path: `https://mydrive.com/some/hidden-path`.
+        `create_parents`:
+          - required: `false`
+          - type: `Bool`,
+          description: /// Create asset's parent folders if they don't already exist. The endpoint will return an error if `create_parents` is `false` and folder parents don't exist.
+        `sharing`:
+          - required: `false`
+          - type: `Array`,
+          description: Determine whether to share asset with other users. This is mostly useful for private assets. More docs on this later.
+        `overwrite`:
+          - required: `false`
+          - type: `Bool`,
+          description: overwrite existing asset.
+
+**Response:**
+  - type: `String`
+  - description: URL path of the asset created.
+  
+**Example:**
+```js
+const resp = await fetch(`${baseUrl}/client/bucket`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'ppd-client-token': ppdToken
+    },
+    body: JSON.stringify({
+      label: 'My Test Bucket'
+    })
+})
+
+console.log(resp.data) // c7040c69-878c-4ea5-9e44-bd56bce8fd0f
 ```

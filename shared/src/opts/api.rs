@@ -4,14 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-use crate::{AppResult, errors::Error};
-
-pub trait OptionValidator: Validate {
-    fn validate_data(&self) -> AppResult<()> {
-        self.validate().map_err(|err| Error::ValidationError(err.to_string()))?;
-        Ok(())
-    }
-}
+use crate::{impl_validator, opts::OptionValidator};
 
 #[derive(Deserialize, Serialize, Validate)]
 pub struct CreateClientUser {
@@ -94,3 +87,5 @@ fn validate_password_complexity(password: &str) -> Result<(), ValidationError> {
     }
     Ok(())
 }
+
+impl_validator!(LoginUserClient);

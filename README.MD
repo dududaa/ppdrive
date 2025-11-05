@@ -27,7 +27,7 @@ We notice that many startups, organizations, and developers prefer not to rely o
 
 ## 🚀 Features
 
-- ⚙️ **REST API Interface**: Interact with the file system programmatically from any external application using RESTful APIs (and others coming soon).
+- ⚙️ **REST API Interface**: PPDRIVE allows external applications to interact with your file system programmatically RESTful APIs. However, it is designed to be extended to support other networking protocols.
 - 🔐 **Flexible Authentication**: PPDRIVE is secure by default, providing JWT authentication to protect private resources according to your applications. If you prefer to use PPDRIVE as a free tool and don't need protected access, you can opt-in for "No Auth" feature.
 - 🪣 **Buckets**: Create isolated and configurable file buckets for better file system organization.
 - 🧩 **Pluggable Integration**: Easily integrate into existing backends or operate as a standalone executable.

@@ -17,17 +17,25 @@ pub async fn create_or_update_asset(
     opts: &CreateAssetOptions,
     tmp: &Option<PathBuf>,
     filesize: &Option<u64>,
-) -> FsResult<()> {
+) -> FsResult<String> {
     let CreateAssetOptions {
         asset_path,
         asset_type,
         public,
-        custom_path,
+        slug: custom_path,
         create_parents,
         sharing,
-        update_asset_path,
         bucket,
+        overwrite: replace,
     } = opts;
+
+    if tmp.is_none()
+        && let AssetType::File = asset_type
+    {
+        return Err(Error::ServerError(
+            "file object must be included in the request".to_string(),
+        ));
+    }
 
     if opts.asset_path.is_empty() {
         return Err(Error::ServerError(
@@ -49,12 +57,6 @@ pub async fn create_or_update_asset(
         ));
     }
 
-    let public = public.unwrap_or(bucket.public());
-    // extract destination path
-    let partition = bucket.partition().as_deref();
-    let dest = partition.map_or(asset_path.to_string(), |rf| format!("{rf}/{asset_path}"));
-    let dest = Path::new(&dest);
-
     // validate file mimetype and check bucket size limit
     if let Some(tmp_file) = tmp {
         let mime_type = mime_guess::from_path(tmp_file).first_or_octet_stream();
@@ -72,38 +74,23 @@ pub async fn create_or_update_asset(
         }
     }
 
+    // extract destination path
+    let partition = bucket.partition().as_deref();
+    let dest = partition.map_or(asset_path.to_string(), |rf| format!("{rf}/{asset_path}"));
+
     // validate paths
     let vd = ValidatePathDetails {
-        path: asset_path,
+        path: &dest,
         ty: asset_type,
         custom_path,
     };
 
     validate_asset_paths(db, vd).await?;
 
-    // create parents if required
-    if create_parents.unwrap_or(true) {
-        create_asset_parents(db, dest, user_id, &bucket.id(), public).await?;
-    }
-
-    match asset_type {
-        AssetType::File => {
-            if let Some(tmp) = tmp {
-                #[cfg(target_os = "linux")]
-                {
-                    tokio::fs::copy(tmp, &dest).await?;
-                    tokio::fs::remove_file(tmp).await?;
-                }
-
-                #[cfg(not(target_os = "linux"))]
-                tokio::fs::rename(tmp, &dest).await?;
-            }
-        }
-        AssetType::Folder => tokio::fs::create_dir(&dest).await?,
-    }
+    let public = public.unwrap_or(bucket.public());
+    let path = custom_path.clone().unwrap_or(asset_path.to_string());
 
     // if path already exists, update it. Else, create.
-    let path = custom_path.clone().unwrap_or(asset_path.to_string());
     let asset: Result<Assets, Error> = match Assets::get_by_path(db, &path, asset_type).await {
         Ok(mut exists) => {
             if exists.user_id() != user_id {
@@ -112,9 +99,12 @@ pub async fn create_or_update_asset(
                 ));
             }
 
-            let asset_path = update_asset_path.clone().unwrap_or(asset_path.to_string());
+            if !replace.unwrap_or_default() {
+                return Err(Error::PermissionError("asset already exists. if you intend to overwrite exisiting asset, set the `overwrite` option to `true`.".to_string()));
+            }
+
             let values = UpdateAssetValues {
-                asset_path,
+                asset_path: dest,
                 custom_path: custom_path.clone(),
                 public,
             };
@@ -126,7 +116,7 @@ pub async fn create_or_update_asset(
             let value = NewAsset {
                 user_id: *user_id,
                 public,
-                asset_path: asset_path.to_string(),
+                asset_path: dest,
                 custom_path: custom_path.clone(),
                 asset_type: u8::from(asset_type),
                 bucket_id: bucket.id(),
@@ -148,7 +138,31 @@ pub async fn create_or_update_asset(
         asset.share(db, sharing).await?;
     }
 
-    Ok(())
+    // create parents if required
+    if create_parents.unwrap_or(true) {
+        let path = Path::new(asset.path());
+        create_asset_parents(db, path, user_id, &bucket.id(), public).await?;
+    }
+
+    // save asset record
+    let dest = asset.path();
+    match asset_type {
+        AssetType::File => {
+            if let Some(tmp) = tmp {
+                #[cfg(target_os = "linux")]
+                {
+                    tokio::fs::copy(tmp, dest).await?;
+                    tokio::fs::remove_file(tmp).await?;
+                }
+
+                #[cfg(not(target_os = "linux"))]
+                tokio::fs::rename(tmp, dest).await?;
+            }
+        }
+        AssetType::Folder => tokio::fs::create_dir(dest).await?,
+    }
+
+    Ok(asset.path().to_string())
 }
 
 /// removes an asset and associated records. if asset is a folder, this will remove all its content as well

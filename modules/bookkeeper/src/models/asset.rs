@@ -68,7 +68,7 @@ pub struct Assets {
     asset_path: String,
 
     #[modeller(length = 3000)]
-    custom_path: Option<String>,
+    slug: Option<String>,
 
     #[modeller(foreign_key(rf = "users(id)", on_delete = "cascade"))]
     user_id: u64,
@@ -113,7 +113,7 @@ impl Assets {
         } = values;
 
         self.public = public;
-        self.custom_path = custom_path;
+        self.slug = custom_path;
         self.asset_path = asset_path;
 
         Assets::update_by_map(db, self, value! { "id": &self.id() }).await?;
@@ -198,7 +198,7 @@ impl Assets {
     }
 
     pub fn custom_path(&self) -> &Option<String> {
-        &self.custom_path
+        &self.slug
     }
 
     pub fn user_id(&self) -> &u64 {
@@ -210,7 +210,7 @@ impl Assets {
         let asset_type = AssetType::try_from(*t).ok().unwrap_or_default();
 
         let default_path = format!("{}/{}", asset_type, self.asset_path);
-        let up = self.custom_path.as_ref().unwrap_or(&default_path);
+        let up = self.slug.as_ref().unwrap_or(&default_path);
         up.to_string()
     }
 }
@@ -238,7 +238,7 @@ impl From<NewAsset> for Assets {
         Assets {
             id: None,
             asset_path,
-            custom_path,
+            slug: custom_path,
             user_id,
             bucket_id,
             public,

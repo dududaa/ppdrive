@@ -79,9 +79,9 @@ pub async fn create_asset(
     }
 
     let db = state.db();
-    create_or_update_asset(db, user.id(), &opts, &tmp_file, &filesize).await?;
+    let path = create_or_update_asset(db, user.id(), &opts, &tmp_file, &filesize).await?;
 
-    Ok("operation successful!".to_string())
+    Ok(path)
 }
 
 #[debug_handler]
