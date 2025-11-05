@@ -7,27 +7,21 @@ use axum::{
 use axum_macros::debug_handler;
 use ppd_bk::models::asset::AssetType;
 use ppd_fs::{AssetBody, read_asset};
-use ppd_shared::tools::SECRETS_FILENAME;
 
-use crate::{errors::HandlerError, prelude::state::HandlerState, rest::extractors::{BucketSizeValidator, UserExtractor}};
+use crate::{
+    errors::HandlerError,
+    prelude::state::HandlerState,
+    rest::extractors::{BucketSizeValidator, UserExtractor},
+};
 
 pub mod extractors;
 
 #[debug_handler]
 pub async fn get_asset(
-    Path((asset_type, mut asset_path)): Path<(AssetType, String)>,
+    Path((asset_type, asset_path)): Path<(AssetType, String)>,
     State(state): State<HandlerState>,
     user: Option<UserExtractor>,
 ) -> Result<Response<Body>, HandlerError> {
-    
-    if asset_path.ends_with("/") {
-        asset_path = asset_path.trim_end_matches("/").to_string();
-    }
-
-    if asset_path == SECRETS_FILENAME {
-        return Err(HandlerError::PermissionError("access denied".to_string()));
-    }
-
     let db = state.db();
     let user_id = user.map(|u| *u.id());
     let body = read_asset(db, &asset_path, &asset_type, &user_id).await?;
