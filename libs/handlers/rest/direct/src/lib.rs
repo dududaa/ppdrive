@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tokio::{fs::File, io::AsyncWriteExt, runtime::Runtime};
+use tokio::runtime::Runtime;
 
 use axum::{
     Json, Router,
@@ -8,8 +8,6 @@ use axum::{
     routing::{delete, get, post},
 };
 use axum_macros::debug_handler;
-use ppd_fs::{auth::create_or_update_asset, opts::CreateAssetOptions};
-use uuid::Uuid;
 
 use crate::errors::ServerError;
 
@@ -23,13 +21,16 @@ use ppd_shared::{
 use ppdrive::{
     jwt::LoginOpts,
     prelude::state::HandlerState,
-    rest::extractors::{BucketSizeValidator, UserExtractor},
+    rest::{
+        create_asset_user, delete_asset_user,
+        extractors::{BucketSizeValidator, UserExtractor},
+    },
     tools::{check_password, make_password},
 };
 
 use ppd_bk::models::{
     IntoSerializer,
-    asset::{AssetType, Assets},
+    asset::AssetType,
     bucket::Buckets,
     user::{UserSerializer, Users},
 };
@@ -113,36 +114,10 @@ pub async fn create_user_bucket(
 pub async fn create_asset(
     State(state): State<HandlerState>,
     user: UserExtractor,
-    mut multipart: Multipart,
+    multipart: Multipart,
 ) -> Result<String, ServerError> {
-    let mut opts = CreateAssetOptions::default();
-    let mut tmp_file = None;
-    let mut filesize = None;
-
-    while let Some(field) = multipart.next_field().await? {
-        let name = field.name().unwrap_or("").to_string();
-
-        if name == "options" {
-            let data = field.text().await?;
-            opts = serde_json::from_str(&data)?;
-        } else if name == "file" {
-            let tmp_name = Uuid::new_v4().to_string();
-            let mut tmp_path = std::env::temp_dir();
-            tmp_path.push(tmp_name);
-
-            let mut file = File::create(&tmp_path).await?;
-
-            let data = field.bytes().await?;
-            file.write_all(&data).await?;
-
-            filesize = Some(file.metadata().await?.len());
-            tmp_file = Some(tmp_path);
-        }
-    }
-
-    let db = state.db();
-    create_or_update_asset(db, user.id(), &opts, &tmp_file, &filesize).await?;
-    Ok("operation successful!".to_string())
+    let path = create_asset_user(user.id(), multipart, state).await?;
+    Ok(path)
 }
 
 #[debug_handler]
@@ -151,17 +126,8 @@ pub async fn delete_asset(
     State(state): State<HandlerState>,
     user: UserExtractor,
 ) -> Result<String, ServerError> {
-    let db = state.db();
-    let asset = Assets::get_by_slug(db, &asset_path, &asset_type).await?;
-
-    if asset.user_id() == user.id() {
-        asset.delete(db).await?;
-        Ok("operation successful".to_string())
-    } else {
-        Err(ServerError::AuthorizationError(
-            "permission denied".to_string(),
-        ))
-    }
+    delete_asset_user(user.id(), &asset_path, &asset_type, state).await?;
+    Ok("operation successful".to_string())
 }
 
 /// Routes for external clients.
@@ -182,11 +148,9 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
 pub unsafe extern "C" fn rest_direct(config: *const ServiceConfig) -> *mut Router<HandlerState> {
     let config = unsafe { Arc::from_raw(config) };
     let mut ptr = std::ptr::null_mut();
-    
+
     if let Ok(rt) = Runtime::new() {
-        let router = rt.block_on(async move {
-            Box::new(routes(config))
-        });
+        let router = rt.block_on(async move { Box::new(routes(config)) });
 
         ptr = Box::into_raw(router);
     }
@@ -195,7 +159,7 @@ pub unsafe extern "C" fn rest_direct(config: *const ServiceConfig) -> *mut Route
 }
 
 #[cfg(feature = "test")]
-/// test routers are designed to be loaded directly without tokio runtime. They're to be used 
+/// test routers are designed to be loaded directly without tokio runtime. They're to be used
 /// in test cases in order to prevent tokio runtime being initalized multiple times.
 pub extern "C" fn test_router(config: *const ServiceConfig) -> *mut Router<HandlerState> {
     let config = unsafe { Arc::from_raw(config) };

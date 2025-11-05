@@ -167,12 +167,23 @@ pub async fn create_or_update_asset(
 }
 
 /// removes an asset and associated records. if asset is a folder, this will remove all its content as well
-pub async fn delete_asset(db: &RBatis, path: &str, asset_type: &AssetType) -> FsResult<()> {
-    // delete asset records
-    let asset = Assets::get_by_slug(db, path, asset_type).await?;
-    asset.delete(db).await?;
+pub async fn delete_asset(
+    db: &RBatis,
+    user_id: &u64,
+    path: &str,
+    asset_type: &AssetType,
+) -> FsResult<()> {
+    let slug = urlencoding::decode(&path).map_err(|err| Error::ServerError(err.to_string()))?;
+    let asset = Assets::get_by_slug(db, &slug, asset_type).await?;
 
+    if asset.user_id() != user_id {
+        return Err(Error::PermissionError(
+            "you have no permission to delete this asset".to_string(),
+        ));
+    }
+    
     // delete asset's children records
+    asset.delete(db).await?;
     if let AssetType::Folder = asset_type {
         let mut entries = tokio::fs::read_dir(asset.path()).await?;
         while let Ok(Some(entry)) = entries.next_entry().await {

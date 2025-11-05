@@ -10,18 +10,17 @@ crate-type = ["cdylib", "lib"]
 test = []
 
 [dependencies]
-serde_json.workspace = true
 axum = { workspace = true, features = ["multipart"] }
 tokio ={ workspace = true, features = ["fs", "rt-multi-thread"] }
-uuid = { workspace = true, features = ["v4"] }
 axum-macros.workspace = true
 ppdrive = { workspace = true, features = ["rest"] }
 ppd_shared = { workspace = true, features = ["api"] }
 ppd_bk.workspace = true
-ppd_fs.workspace = true
 
 [dev-dependencies]
 rest-test-utils.workspace = true
+ppd_fs.workspace = true
+serde_json.workspace = true
 axum-test = "16"
 futures = "0.3.31"
 serial_test = "3.2.0"

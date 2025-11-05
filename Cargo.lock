@@ -2143,10 +2143,12 @@ dependencies = [
  "ppd_fs",
  "ppd_shared",
  "serde",
+ "serde_json",
  "sha3",
  "tokio",
  "tokio-util",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -2678,7 +2680,6 @@ dependencies = [
  "serde_json",
  "serial_test",
  "tokio",
- "uuid",
 ]
 
 [[package]]
@@ -2697,7 +2698,6 @@ dependencies = [
  "serde_json",
  "serial_test",
  "tokio",
- "uuid",
 ]
 
 [[package]]

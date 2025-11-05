@@ -1,7 +1,6 @@
 use std::{env::VarError, fmt::Display, string::FromUtf8Error};
 
 use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoResponse};
-use ppd_fs::errors::Error as FsError;
 use ppd_shared::errors::Error as SharedError;
 use ppd_bk::Error as DBError;
 use ppdrive::errors::HandlerError;
@@ -10,12 +9,11 @@ use ppdrive::errors::HandlerError;
 pub enum ServerError {
     InitError(String),
     InternalError(String),
-    FsError(FsError),
     CommonError(SharedError),
     DBError(DBError),
     AuthorizationError(String),
     IOError(String),
-    PermissionDenied(String),
+    PermissionError(String),
 }
 
 impl Display for ServerError {
@@ -23,24 +21,17 @@ impl Display for ServerError {
         match self {
             ServerError::InitError(msg) => write!(f, "{msg}"),
             ServerError::InternalError(msg) => write!(f, "{msg}"),
-            ServerError::FsError(err) => write!(f, "{err}"),
             ServerError::CommonError(err) => write!(f, "{err}"),
             ServerError::DBError(err) => write!(f, "{err}"),
             ServerError::AuthorizationError(msg) => write!(f, "{msg}"),
             ServerError::IOError(msg) => write!(f, "{msg}"),
-            ServerError::PermissionDenied(msg) => write!(f, "{msg}"),
+            ServerError::PermissionError(msg) => write!(f, "{msg}"),
         }
     }
 }
 
 impl From<VarError> for ServerError {
     fn from(value: VarError) -> Self {
-        ServerError::InternalError(value.to_string())
-    }
-}
-
-impl From<serde_json::Error> for ServerError {
-    fn from(value: serde_json::Error) -> Self {
         ServerError::InternalError(value.to_string())
     }
 }
@@ -54,12 +45,6 @@ impl From<std::io::Error> for ServerError {
 impl From<MultipartError> for ServerError {
     fn from(value: MultipartError) -> Self {
         ServerError::InternalError(value.to_string())
-    }
-}
-
-impl From<FsError> for ServerError {
-    fn from(value: FsError) -> Self {
-        ServerError::FsError(value)
     }
 }
 
@@ -85,7 +70,7 @@ impl IntoResponse for ServerError {
     fn into_response(self) -> axum::response::Response {
         let resp = match self {
             ServerError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
-            ServerError::PermissionDenied(msg) => (StatusCode::FORBIDDEN, msg),
+            ServerError::PermissionError(msg) => (StatusCode::FORBIDDEN, msg),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
 

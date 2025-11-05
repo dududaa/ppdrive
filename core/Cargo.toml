@@ -8,13 +8,15 @@ default = ["prelude"]
 prelude = []
 plugin = ["dep:libloading", "dep:tokio"]
 tools = ["dep:chacha20poly1305", "dep:hex", "dep:sha3"]
-rest = ["prelude", "tools", "jwt"]
+rest = ["prelude", "tools", "jwt", "dep:axum", "dep:axum-macros", "dep:serde_json", "dep:uuid"]
 jwt = ["dep:jsonwebtoken"]
 db = []
 
 [dependencies]
-axum.workspace = true
-axum-macros.workspace = true
+axum  = { workspace = true, features = ["multipart"], optional = true }
+serde_json = { workspace = true, optional = true }
+uuid = { workspace = true, features = ["v4"], optional = true }
+axum-macros = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["sync"] }
 tokio-util.workspace = true
 ppd_shared = { workspace = true, features = ["api"] }
