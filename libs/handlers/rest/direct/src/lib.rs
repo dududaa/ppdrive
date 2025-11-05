@@ -152,7 +152,7 @@ pub async fn delete_asset(
     user: UserExtractor,
 ) -> Result<String, ServerError> {
     let db = state.db();
-    let asset = Assets::get_by_path(db, &asset_path, &asset_type).await?;
+    let asset = Assets::get_by_slug(db, &asset_path, &asset_type).await?;
 
     if asset.user_id() == user.id() {
         asset.delete(db).await?;

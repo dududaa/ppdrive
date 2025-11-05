@@ -31,16 +31,9 @@ pub async fn read_asset(
     asset_type: &AssetType,
     user_id: &Option<u64>,
 ) -> FsResult<AssetBody> {
-    let asset = Assets::get_by_path(db, asset_path, asset_type).await?;
-
-    // if asset has custom path and custom path is not provided in url,
-    // we return an error. The purpose of custom path is to conceal the
-    // original path
-    if let Some(custom_path) = asset.custom_path()
-        && custom_path != asset_path
-    {
-        return Err(Error::NotFound("asset not found".to_string()));
-    }
+    let slug =
+        urlencoding::decode(asset_path).map_err(|err| Error::ServerError(err.to_string()))?;
+    let asset = Assets::get_by_slug(db, &slug, asset_type).await?;
 
     // check if current user has read permission
     if !asset.public() {
@@ -77,8 +70,7 @@ pub async fn read_asset(
                 let mut contents = tokio::fs::read_dir(path).await?;
                 let mut filenames = Vec::new();
 
-                // let's attempt to read folder contents, checking for
-                // asset ownership all along
+                // let's attempt to read folder contents, checking for asset ownership all along.
                 while let Ok(Some(entry)) = contents.next_entry().await {
                     let path = entry.path();
                     let filename = entry.file_name();
@@ -90,10 +82,10 @@ pub async fn read_asset(
                             AssetType::Folder
                         };
 
-                        let asset = Assets::get_by_path(db, path_str, &asset_type).await;
+                        let asset = Assets::get_by_slug(db, path_str, &asset_type).await;
                         if let Ok(asset) = asset {
                             let html =
-                                format!("<li><a href='/{}'>{filename}</a></li>", asset.url_path());
+                                format!("<li><a href='/{}'>{filename}</a></li>", asset.slug());
 
                             if *asset.public() {
                                 filenames.push(html);

@@ -10,6 +10,7 @@ tokio = { version = "1.47.1", features = ["fs"] }
 mime_guess = "2.0.5"
 ppd_bk = { workspace = true, features = ["prelude"], optional = true }
 ppd_shared.workspace = true
+urlencoding.workspace = true
 
 [features]
 default = ["auth"]

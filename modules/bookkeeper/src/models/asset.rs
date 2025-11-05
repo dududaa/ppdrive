@@ -67,8 +67,8 @@ pub struct Assets {
     #[modeller(unique, length = 3000)]
     asset_path: String,
 
-    #[modeller(length = 3000)]
-    slug: Option<String>,
+    #[modeller(unique, length = 3000)]
+    slug: String,
 
     #[modeller(foreign_key(rf = "users(id)", on_delete = "cascade"))]
     user_id: u64,
@@ -83,13 +83,13 @@ pub struct Assets {
 
 crud!(Assets {});
 
-impl_select!(Assets{ select_by_path(path: &str, asset_type: u8) -> Option => "`WHERE (asset_path = #{path} OR custom_path = #{path}) AND asset_type = #{asset_type} LIMIT 1`" });
+impl_select!(Assets{ select_by_path(path: &str, asset_type: u8) -> Option => "`WHERE slug = #{path} AND asset_type = #{asset_type} LIMIT 1`" });
 impl_select_page!(Assets { select_by_user(user_id: &u64) => "`WHERE user_id = #{user_id}`" });
 
 impl Assets {
-    pub async fn get_by_path(db: &RBatis, path: &str, asset_type: &AssetType) -> DBResult<Self> {
+    pub async fn get_by_slug(db: &RBatis, slug: &str, asset_type: &AssetType) -> DBResult<Self> {
         let asset_type: u8 = asset_type.into();
-        let asset = Assets::select_by_path(db, path, asset_type).await?;
+        let asset = Assets::select_by_path(db, slug, asset_type).await?;
 
         check_model(asset, "asset not found")
     }
@@ -108,7 +108,7 @@ impl Assets {
     pub async fn update(&mut self, db: &RBatis, values: UpdateAssetValues) -> DBResult<()> {
         let UpdateAssetValues {
             public,
-            custom_path,
+            slug: custom_path,
             asset_path,
         } = values;
 
@@ -197,27 +197,18 @@ impl Assets {
         &self.asset_path
     }
 
-    pub fn custom_path(&self) -> &Option<String> {
+    pub fn slug(&self) -> &str {
         &self.slug
     }
 
     pub fn user_id(&self) -> &u64 {
         &self.user_id
     }
-
-    pub fn url_path(&self) -> String {
-        let t = &self.asset_type;
-        let asset_type = AssetType::try_from(*t).ok().unwrap_or_default();
-
-        let default_path = format!("{}/{}", asset_type, self.asset_path);
-        let up = self.slug.as_ref().unwrap_or(&default_path);
-        up.to_string()
-    }
 }
 
 pub struct NewAsset {
     pub asset_path: String,
-    pub custom_path: Option<String>,
+    pub slug: String,
     pub user_id: u64,
     pub bucket_id: u64,
     pub public: bool,
@@ -228,7 +219,7 @@ impl From<NewAsset> for Assets {
     fn from(value: NewAsset) -> Self {
         let NewAsset {
             asset_path,
-            custom_path,
+            slug: custom_path,
             user_id,
             bucket_id,
             public,
@@ -249,7 +240,7 @@ impl From<NewAsset> for Assets {
 
 pub struct UpdateAssetValues {
     pub public: bool,
-    pub custom_path: Option<String>,
+    pub slug: String,
     pub asset_path: String,
 }
 

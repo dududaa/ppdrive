@@ -317,16 +317,24 @@ console.log(resp.data) // 5c4699dc-476a-4133-af65-b799c09abb67
   
 **Example:**
 ```js
+const file = new File() // retrieve file object
+const formData = new FormData();
+formData.append("file", file)
+formData.append("options", JSON.stringify({
+  "asset_path": "/user/images/profile-picture.jpg",
+  "asset_type": "File",
+  "bucket": "c7040c69-878c-4ea5-9e44-bd56bce8fd0f",
+  ...
+}))
+
 const resp = await fetch(`${baseUrl}/client/bucket`, {
     method: 'POST',
     headers: {
         'Content-Type': 'application/json',
         'ppd-client-token': ppdToken
     },
-    body: JSON.stringify({
-      label: 'My Test Bucket'
-    })
+    body: formData
 })
 
-console.log(resp.data) // c7040c69-878c-4ea5-9e44-bd56bce8fd0f
+console.log(resp.data) // /user/images/profile-picture.jpg
 ```

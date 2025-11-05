@@ -88,10 +88,11 @@ pub async fn create_or_update_asset(
     validate_asset_paths(db, vd).await?;
 
     let public = public.unwrap_or(bucket.public());
-    let path = custom_path.clone().unwrap_or(asset_path.to_string());
+    let path = custom_path.clone().unwrap_or(dest.clone());
+    let slug = urlencoding::encode(&path).to_string();
 
     // if path already exists, update it. Else, create.
-    let asset: Result<Assets, Error> = match Assets::get_by_path(db, &path, asset_type).await {
+    let asset: Result<Assets, Error> = match Assets::get_by_slug(db, &slug, asset_type).await {
         Ok(mut exists) => {
             if exists.user_id() != user_id {
                 return Err(Error::PermissionError(
@@ -105,7 +106,7 @@ pub async fn create_or_update_asset(
 
             let values = UpdateAssetValues {
                 asset_path: dest,
-                custom_path: custom_path.clone(),
+                slug,
                 public,
             };
 
@@ -117,13 +118,13 @@ pub async fn create_or_update_asset(
                 user_id: *user_id,
                 public,
                 asset_path: dest,
-                custom_path: custom_path.clone(),
+                slug,
                 asset_type: u8::from(asset_type),
                 bucket_id: bucket.id(),
             };
 
             Assets::create(db, value).await?;
-            let asset = Assets::get_by_path(db, asset_path, asset_type).await?;
+            let asset = Assets::get_by_slug(db, asset_path, asset_type).await?;
 
             Ok(asset)
         }
@@ -168,7 +169,7 @@ pub async fn create_or_update_asset(
 /// removes an asset and associated records. if asset is a folder, this will remove all its content as well
 pub async fn delete_asset(db: &RBatis, path: &str, asset_type: &AssetType) -> FsResult<()> {
     // delete asset records
-    let asset = Assets::get_by_path(db, path, asset_type).await?;
+    let asset = Assets::get_by_slug(db, path, asset_type).await?;
     asset.delete(db).await?;
 
     // delete asset's children records
@@ -183,7 +184,7 @@ pub async fn delete_asset(db: &RBatis, path: &str, asset_type: &AssetType) -> Fs
             };
 
             if let Some(path) = path.to_str()
-                && let Ok(child) = Assets::get_by_path(db, path, &child_type).await
+                && let Ok(child) = Assets::get_by_slug(db, path, &child_type).await
             {
                 child.delete(db).await?;
             }

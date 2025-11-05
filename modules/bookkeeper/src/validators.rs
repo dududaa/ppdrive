@@ -20,7 +20,7 @@ pub async fn validate_asset_paths(db: &RBatis, asset: ValidatePathDetails<'_>) -
     } = asset;
 
     let path = custom_path.clone().unwrap_or(path.to_string());
-    let asset = Assets::get_by_path(db, &path, ty).await.ok();
+    let asset = Assets::get_by_slug(db, &path, ty).await.ok();
 
     if asset.is_some() {
         let field = if custom_path.is_some() {
