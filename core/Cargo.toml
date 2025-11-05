@@ -6,9 +6,9 @@ edition.workspace = true
 [features]
 default = ["prelude"]
 prelude = []
-plugin = ["dep:libloading", "dep:tokio"]
+plugin = ["dep:libloading", "dep:tokio", "dep:axum"]
 tools = ["dep:chacha20poly1305", "dep:hex", "dep:sha3"]
-rest = ["prelude", "tools", "jwt", "dep:axum", "dep:axum-macros", "dep:serde_json", "dep:uuid"]
+rest = ["prelude", "tools", "jwt", "dep:axum", "dep:axum-macros", "dep:serde_json", "dep:uuid", "dep:tokio"]
 jwt = ["dep:jsonwebtoken"]
 db = []
 

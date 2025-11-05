@@ -1,9 +1,10 @@
 use axum::{
     body::Body,
     extract::{Multipart, Path, State, multipart::MultipartError},
-    http::header::CONTENT_TYPE,
-    response::Response,
+    http::{StatusCode, header::CONTENT_TYPE},
+    response::{IntoResponse, Response},
 };
+
 use axum_macros::debug_handler;
 use ppd_bk::models::asset::AssetType;
 use ppd_fs::{
@@ -105,5 +106,18 @@ pub async fn delete_asset_user(
 impl From<MultipartError> for HandlerError {
     fn from(value: MultipartError) -> Self {
         HandlerError::InternalError(value.to_string())
+    }
+}
+
+impl IntoResponse for HandlerError {
+    fn into_response(self) -> axum::response::Response {
+        let resp = match self {
+            HandlerError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
+            HandlerError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            HandlerError::PermissionError(msg) => (StatusCode::FORBIDDEN, msg),
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+        };
+
+        resp.into_response()
     }
 }

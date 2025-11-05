@@ -1,6 +1,5 @@
 use std::{env::VarError, fmt::Display, string::FromUtf8Error};
 
-use axum::{http::StatusCode, response::IntoResponse};
 use ppd_fs::errors::Error as FsError;
 use ppd_shared::errors::Error as SharedError;
 use ppd_bk::Error as DBError;
@@ -64,19 +63,6 @@ impl From<SharedError> for HandlerError {
 impl From<DBError> for HandlerError {
     fn from(value: DBError) -> Self {
         HandlerError::DBError(value)
-    }
-}
-
-impl IntoResponse for HandlerError {
-    fn into_response(self) -> axum::response::Response {
-        let resp = match self {
-            HandlerError::AuthorizationError(msg) => (StatusCode::UNAUTHORIZED, msg),
-            HandlerError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            HandlerError::PermissionError(msg) => (StatusCode::FORBIDDEN, msg),
-            _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
-        };
-
-        resp.into_response()
     }
 }
 
