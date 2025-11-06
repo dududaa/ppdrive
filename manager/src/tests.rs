@@ -3,8 +3,14 @@ use crate::{
     ops::{list_services, start_service, stop_service},
 };
 use anyhow::anyhow;
-use ppdrive::plugin::service::Service;
-use ppd_shared::opts::internal::ServiceConfig;
+use ppd_bk::models::user::Users;
+use ppd_shared::{opts::internal::ServiceConfig, tools::AppSecrets};
+use ppdrive::{
+    db::init_db,
+    plugin::service::Service,
+    tools::{create_client, verify_client},
+};
+use reqwest::Response;
 use serial_test::serial;
 
 #[tokio::test]
@@ -44,8 +50,16 @@ async fn test_start_service() -> AppResult<()> {
     let handle = manager.start_background().await;
     let mut socket = manager.connect().await?;
 
+    // let svc_url = svc.addr();
+    // let db_url = config.base.db_url.clone();
     let start = start_service(shared, config, &mut socket).await;
     assert!(start.is_ok());
+
+    // send test requets
+    // let resp = send_test_request(&svc_url, &db_url).await?;
+    // let body = resp.text().await.map_err(|err| anyhow!(err))?;
+    // println!("{body}");
+
     manager.close().await;
 
     let res = handle.await?;
@@ -79,4 +93,30 @@ async fn test_stop_service() -> AppResult<()> {
     let _ = handle.await?;
 
     Ok(())
+}
+
+async fn send_test_request(req_url: &str, db_url: &str) -> AppResult<Response> {
+    let secrets = AppSecrets::read().await.map_err(|err| anyhow!(err))?;
+    let db = init_db(db_url, false).await.map_err(|err| anyhow!(err))?;
+
+    let client = create_client(&db, &secrets, "Test Start Service", Some(10.0))
+        .await
+        .map_err(|err| anyhow!(err))?;
+    let verify = verify_client(&db, &secrets, client.token())
+        .await
+        .map_err(|err| anyhow!(err))?;
+    let user = Users::create_by_client(&db, verify.0, Some(10.0))
+        .await
+        .map_err(|err| anyhow!(err))?;
+
+    let req = reqwest::Client::new()
+        .post(req_url)
+        .header("Content-Type", "application/json")
+        .header("ppd-client-token", client.token())
+        .header("ppd-client-user", user)
+        .send()
+        .await
+        .map_err(|err| anyhow!(err))?;
+
+    Ok(req)
 }

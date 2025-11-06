@@ -1,13 +1,12 @@
-use std::{ptr, sync::Arc};
+use std::sync::Arc;
 
-use user::*;
 use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, Path, State},
     routing::{delete, get, post},
 };
 use axum_macros::debug_handler;
-use tokio::runtime::Runtime;
+use user::*;
 
 use crate::errors::ServerError;
 
@@ -19,9 +18,11 @@ use ppd_shared::{
     tools::{SECRETS_FILENAME, mb_to_bytes},
 };
 use ppdrive::{
+    RouterFFI,
     jwt::LoginOpts,
     prelude::state::HandlerState,
     rest::extractors::{BucketSizeValidator, ClientExtractor},
+    router_symbol_builder,
 };
 
 use ppd_bk::models::{
@@ -29,8 +30,8 @@ use ppd_bk::models::{
     user::{UserRole, Users},
 };
 
-mod user;
 mod errors;
+mod user;
 
 #[debug_handler]
 async fn create_user(
@@ -145,27 +146,16 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rest_client(config: *const ServiceConfig) -> *mut Router<HandlerState> {
-    let config = unsafe { Arc::from_raw(config) };
-    let mut ptr = ptr::null_mut();
-    
-    if let Ok(rt) = Runtime::new() {
-        let router = rt.block_on(async move {
-            Box::new(routes(config))
-        });
-
-        ptr = Box::into_raw(router);
-    }
-
-    ptr
+pub fn rest_client(config: Arc<ServiceConfig>) -> RouterFFI<Router<HandlerState>> {
+    router_symbol_builder(routes(config))
 }
 
 #[cfg(feature = "test")]
-/// test routers are designed to be loaded directly without tokio runtime. They're to be used 
+/// test routers are designed to be loaded directly without tokio runtime. They're to be used
 /// in test cases in order to prevent tokio runtime being initalized multiple times.
 pub extern "C" fn test_router(config: *const ServiceConfig) -> *mut Router<HandlerState> {
     let config = unsafe { Arc::from_raw(config) };
-    
+
     let bx = Box::new(routes(config));
     Box::into_raw(bx)
 }

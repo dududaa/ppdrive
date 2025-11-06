@@ -2,13 +2,14 @@ use std::{net::TcpStream, sync::Arc};
 
 use super::router::ServiceRouter;
 use crate::HandlerResult;
+use async_ffi::FfiFuture;
 use ppd_shared::{
     opts::internal::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::{Module, Plugin},
 };
 use tokio_util::sync::CancellationToken;
 
-pub type ServiceFn = fn(Arc<ServiceConfig>, CancellationToken);
+pub type ServiceFn = fn(Arc<ServiceConfig>, CancellationToken) -> FfiFuture<()>;
 
 #[derive(Debug)]
 pub struct Service<'a> {
@@ -33,7 +34,7 @@ impl<'a> Service<'a> {
 
         unsafe {
             match lib.get::<ServiceFn>(&self.symbol_name()) {
-                Ok(start_service) => start_service(config, token),
+                Ok(start_service) => start_service(config, token).await,
                 Err(err) => tracing::error!("unable to load library: {err}"),
             }
         };
@@ -77,7 +78,7 @@ impl<'a> Service<'a> {
         *self.reload_deps
     }
 
-    fn addr(&self) -> String {
+    pub fn addr(&self) -> String {
         format!("0.0.0.0:{}", self.port())
     }
 }

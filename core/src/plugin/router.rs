@@ -3,40 +3,36 @@
 
 use std::{str, sync::Arc};
 
-use axum::Router;
 use libloading::{Library, Symbol};
 use ppd_shared::{
     opts::internal::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::Plugin,
 };
 
-use crate::{HandlerResult, prelude::state::HandlerState};
-
-type RouterType = Router<HandlerState>;
-type RawRouterType = *mut RouterType;
+use crate::{HandlerResult, RouterFFI};
 
 #[allow(dead_code)]
 #[derive(Default)]
-pub struct RouterLoader {
-    ptr: RawRouterType,
+pub struct RouterLoader<T: Default + Clone> {
+    ptr: RouterFFI<T>,
     lib: Option<Library>,
 }
 
 #[derive(Default)]
-pub struct Routers {
+pub struct Routers<T: Default + Clone> {
     config: Arc<ServiceConfig>,
-    client: RouterLoader,
-    admin: RouterLoader,
-    direct: RouterLoader,
-    zero: RouterLoader,
+    client: RouterLoader<T>,
+    direct: RouterLoader<T>,
+    // admin: RouterLoader<T>,
+    // zero: RouterLoader<T>,
 }
 
-impl Routers {
-    pub fn client(&self) -> RouterType {
+impl<T: Default + Clone> Routers<T> {
+    pub fn client(&self) -> T {
         Self::get_router(&self.client)
     }
 
-    pub fn direct(&self) -> RouterType {
+    pub fn direct(&self) -> T {
         Self::get_router(&self.direct)
     }
 
@@ -54,7 +50,7 @@ impl Routers {
             let ptr = router.get(self.config.clone())?;
             match mode {
                 ServiceAuthMode::Client => self.client = ptr,
-                ServiceAuthMode::Direct => self.client = ptr,
+                ServiceAuthMode::Direct => self.direct = ptr,
                 _ => unimplemented!(),
             }
         }
@@ -62,40 +58,18 @@ impl Routers {
         Ok(self)
     }
 
-    fn get_router(ld: &RouterLoader) -> RouterType {
-        let ptr = ld.ptr;
-
-        if ptr.is_null() {
-            Router::new()
-        } else {
-            (unsafe { &*ptr }).clone()
-        }
-    }
-
-    fn drop_router(ld: &RouterLoader) {
-        let ptr = ld.ptr;
-
-        if !ptr.is_null() {
-            let _ = unsafe { Box::from_raw(ptr) };
-        }
+    fn get_router(ld: &RouterLoader<T>) -> T {
+        let ptr = ld.ptr.clone();
+        (&*ptr).clone()
     }
 }
 
-impl From<Arc<ServiceConfig>> for Routers {
+impl<T: Default + Clone> From<Arc<ServiceConfig>> for Routers<T> {
     fn from(value: Arc<ServiceConfig>) -> Self {
         let mut rts = Routers::default();
         rts.config = value;
 
         rts
-    }
-}
-
-impl Drop for Routers {
-    fn drop(&mut self) {
-        Self::drop_router(&self.admin);
-        Self::drop_router(&self.client);
-        Self::drop_router(&self.zero);
-        Self::drop_router(&self.direct);
     }
 }
 
@@ -106,14 +80,17 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get(&self, config: Arc<ServiceConfig>) -> HandlerResult<RouterLoader> {
+    pub fn get<T: Default + Clone>(
+        &self,
+        config: Arc<ServiceConfig>,
+    ) -> HandlerResult<RouterLoader<T>> {
         let filename = self.output_name()?;
         let lib = self.load(filename)?;
 
         let ptr = unsafe {
-            let load_router: Symbol<fn(*const ServiceConfig) -> RawRouterType> =
+            let load_router: Symbol<fn(Arc<ServiceConfig>) -> RouterFFI<T>> =
                 lib.get(&self.symbol_name())?;
-            load_router(Arc::into_raw(config))
+            load_router(config)
         };
 
         Ok(RouterLoader {

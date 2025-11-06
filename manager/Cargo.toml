@@ -18,3 +18,5 @@ rbatis.workspace = true
 tokio = { workspace = true, features = ["time"] }
 futures = "0.3.31"
 serial_test = "3.2.0"
+reqwest.workspace = true
+ppd_bk.workspace = true

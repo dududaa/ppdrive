@@ -7,7 +7,8 @@ use ppd_shared::{
     tools::root_dir,
 };
 
-/// PPDRIVE is a free, open-source cloud storage service built with Rust for speed, security, and reliability.
+/// PPDRIVE is a free, open-source cloud storage service built with Rust for speed, security, 
+/// and reliability.
 #[derive(Parser, Debug)]
 #[command(version, about)]
 pub struct Cli {
@@ -31,12 +32,7 @@ impl Cli {
                 tracing::info!("checking ppdrive status...");
                 sleep(Duration::from_secs(2));
 
-                match PPDrive::check_status(port) {
-                    Ok(_) => tracing::info!("ppdrive started successfully."),
-                    Err(err) => tracing::info!(
-                        "fail to connect to ppdrive manager {err}.\nPlease check logs for more info."
-                    ),
-                }
+                PPDrive::check_status(port)?;
             }
 
             CliCommand::Status => {

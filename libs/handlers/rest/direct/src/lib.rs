@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use tokio::runtime::Runtime;
-
 use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, Multipart, Path, State},
@@ -19,12 +17,14 @@ use ppd_shared::{
     tools::mb_to_bytes,
 };
 use ppdrive::{
+    RouterFFI,
     jwt::LoginOpts,
     prelude::state::HandlerState,
     rest::{
         create_asset_user, delete_asset_user,
         extractors::{BucketSizeValidator, UserExtractor},
     },
+    router_symbol_builder,
     tools::{check_password, make_password},
 };
 
@@ -145,17 +145,8 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rest_direct(config: *const ServiceConfig) -> *mut Router<HandlerState> {
-    let config = unsafe { Arc::from_raw(config) };
-    let mut ptr = std::ptr::null_mut();
-
-    if let Ok(rt) = Runtime::new() {
-        let router = rt.block_on(async move { Box::new(routes(config)) });
-
-        ptr = Box::into_raw(router);
-    }
-
-    ptr
+pub fn rest_direct(config: Arc<ServiceConfig>) -> RouterFFI<Router<HandlerState>> {
+    router_symbol_builder(routes(config))
 }
 
 #[cfg(feature = "test")]

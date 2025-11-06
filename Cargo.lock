@@ -141,6 +141,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-ffi"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4de21c0feef7e5a556e51af767c953f0501f7f300ba785cc99c47bdc8081a50"
+
+[[package]]
 name = "async-trait"
 version = "0.1.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1598,10 +1604,12 @@ dependencies = [
  "anyhow",
  "bincode",
  "futures",
+ "ppd_bk",
  "ppd_shared",
  "ppdrive",
  "rand 0.9.2",
  "rbatis",
+ "reqwest",
  "serial_test",
  "tokio",
  "tokio-util",
@@ -2063,6 +2071,7 @@ checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 name = "ppd-rest"
 version = "0.1.0"
 dependencies = [
+ "async-ffi",
  "axum",
  "bincode",
  "ppd_bk",
@@ -2131,6 +2140,7 @@ dependencies = [
 name = "ppdrive"
 version = "0.1.0-beta.3"
 dependencies = [
+ "async-ffi",
  "axum",
  "axum-macros",
  "chacha20poly1305",
