@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::{AppResult, ServiceManager, ServiceTask, SharedManager};
 use anyhow::anyhow;
 use bincode::config;
 use ppd_shared::{
@@ -15,9 +16,6 @@ use ppdrive::{
 };
 use tokio::{io::AsyncReadExt, net::TcpStream};
 use tokio_util::sync::CancellationToken;
-use tracing::Instrument;
-
-use crate::{AppResult, ServiceManager, ServiceTask, SharedManager};
 
 /// adds a new service to the task pool
 pub async fn start_service(
@@ -47,15 +45,12 @@ pub async fn start_service(
         .await
         .map_err(|err| anyhow!(err.to_string()))?;
 
-    tokio::spawn(
-        async move {
-            let svc = Service::from(&config);
-            if let Err(err) = svc.start(config.clone(), token).await {
-                tracing::error!("service {id} failure: {err}")
-            }
+    tokio::spawn(async move {
+        let svc = Service::from(&config);
+        if let Err(err) = svc.start(config.clone(), token).await {
+            tracing::error!("unable to start service: {err}");
         }
-        .instrument(tracing::info_span!("ppd_start_service")),
-    );
+    });
 
     Ok(id)
 }

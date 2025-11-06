@@ -1,15 +1,17 @@
 use std::{net::TcpStream, sync::Arc};
 
 use super::router::ServiceRouter;
-use crate::HandlerResult;
+use crate::{HandlerResult, errors::HandlerError};
 use async_ffi::FfiFuture;
+use libloading::Symbol;
 use ppd_shared::{
     opts::internal::{ServiceAuthMode, ServiceConfig, ServiceType},
     plugin::{Module, Plugin},
 };
 use tokio_util::sync::CancellationToken;
 
-pub type ServiceFn = fn(Arc<ServiceConfig>, CancellationToken) -> FfiFuture<()>;
+pub type ServiceFn = fn(Arc<ServiceConfig>, CancellationToken) -> ServiceReturnType;
+pub type ServiceReturnType = FfiFuture<HandlerResult<()>>;
 
 #[derive(Debug)]
 pub struct Service<'a> {
@@ -27,18 +29,17 @@ impl<'a> Service<'a> {
         config: ServiceConfig,
         token: CancellationToken,
     ) -> HandlerResult<()> {
-        let filename = self.output_name()?;
         let config = Arc::new(config);
-
+        
+        let filename = self.output_name()?;
         let lib = self.load(filename)?;
 
-        unsafe {
-            match lib.get::<ServiceFn>(&self.symbol_name()) {
-                Ok(start_service) => start_service(config, token).await,
-                Err(err) => tracing::error!("unable to load library: {err}"),
-            }
+        let start_service: Symbol<ServiceFn> = unsafe {
+            lib.get::<ServiceFn>(&self.symbol_name())
+            .map_err(|err| HandlerError::InternalError(format!("unable to load library: {err}")))?
         };
 
+        start_service(config, token).await?;
         Ok(())
     }
 
