@@ -14,7 +14,7 @@ use crate::{HandlerResult, RouterFFI};
 #[allow(dead_code)]
 #[derive(Default)]
 pub struct RouterLoader<T: Default + Clone> {
-    ptr: RouterFFI<T>,
+    ptr: Arc<T>,
     lib: Option<Library>,
 }
 
@@ -36,7 +36,7 @@ impl<T: Default + Clone> Routers<T> {
         Self::get_router(&self.direct)
     }
 
-    pub fn load(mut self) -> HandlerResult<Self> {
+    pub async fn load(mut self) -> HandlerResult<Self> {
         let config = self.config.clone();
         let modes = &config.auth.modes;
         let svc_type = config.ty;
@@ -47,7 +47,7 @@ impl<T: Default + Clone> Routers<T> {
                 auth_mode: *mode,
             };
 
-            let ptr = router.get(self.config.clone())?;
+            let ptr = router.get(self.config.clone()).await?;
             match mode {
                 ServiceAuthMode::Client => self.client = ptr,
                 ServiceAuthMode::Direct => self.direct = ptr,
@@ -80,7 +80,7 @@ pub struct ServiceRouter {
 }
 
 impl ServiceRouter {
-    pub fn get<T: Default + Clone>(
+    pub async fn get<T: Default + Clone>(
         &self,
         config: Arc<ServiceConfig>,
     ) -> HandlerResult<RouterLoader<T>> {
@@ -90,7 +90,8 @@ impl ServiceRouter {
         let ptr = unsafe {
             let load_router: Symbol<fn(Arc<ServiceConfig>) -> RouterFFI<T>> =
                 lib.get(&self.symbol_name())?;
-            load_router(config)
+            
+            load_router(config).await
         };
 
         Ok(RouterLoader {

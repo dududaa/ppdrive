@@ -58,7 +58,7 @@ pub async fn serve_app(
         .allow_methods(Any);
 
     set_var(BEARER_KEY, BEARER_VALUE);
-    let routers = Routers::from(config.clone()).load()?;
+    let routers = Routers::from(config.clone()).load().await?;
 
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))

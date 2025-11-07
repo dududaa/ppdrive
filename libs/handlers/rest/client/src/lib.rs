@@ -126,7 +126,7 @@ async fn create_bucket(
 }
 
 /// Routes for external clients.
-fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
+async fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
     let limit = mb_to_bytes(config.base.max_upload_size);
 
     Router::new()
@@ -147,15 +147,5 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
 
 #[unsafe(no_mangle)]
 pub fn rest_client(config: Arc<ServiceConfig>) -> RouterFFI<Router<HandlerState>> {
-    router_symbol_builder(routes(config))
-}
-
-#[cfg(feature = "test")]
-/// test routers are designed to be loaded directly without tokio runtime. They're to be used
-/// in test cases in order to prevent tokio runtime being initalized multiple times.
-pub extern "C" fn test_router(config: *const ServiceConfig) -> *mut Router<HandlerState> {
-    let config = unsafe { Arc::from_raw(config) };
-
-    let bx = Box::new(routes(config));
-    Box::into_raw(bx)
+    router_symbol_builder(config, routes)
 }
