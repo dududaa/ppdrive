@@ -139,7 +139,7 @@ pub struct ServiceInfo {
 /// service management request type
 pub enum ServiceRequest {
     /// add a new service with the provided config
-    Add(ServiceConfig),
+    Launch(ServiceConfig),
 
     /// cancel and remove a service with the given id
     Cancel(u8),

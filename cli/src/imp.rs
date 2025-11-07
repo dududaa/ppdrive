@@ -21,7 +21,7 @@ impl PPDrive {
         let svc = Service::from(&config);
         svc.init()?;
 
-        let resp = Self::send_request::<u8>(ServiceRequest::Add(config.clone()), port)?;
+        let resp = Self::send_request::<u8>(ServiceRequest::Launch(config.clone()), port)?;
         resp.log();
 
         tracing::info!("waiting to validate service startup...");

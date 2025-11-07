@@ -151,7 +151,7 @@ pub async fn process_request(
 
     let (req, _) = bincode::decode_from_slice::<ServiceRequest, _>(&buf, config::standard())?;
     match req {
-        ServiceRequest::Add(config) => {
+        ServiceRequest::Launch(config) => {
             start_service(manager, config, socket).await?;
             Ok(())
         }
