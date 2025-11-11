@@ -2115,6 +2115,7 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
+ "validator",
 ]
 
 [[package]]

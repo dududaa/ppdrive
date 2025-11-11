@@ -1,17 +1,21 @@
 use ppd_bk::models::asset::{AssetSharing, AssetType};
 use serde::{Deserialize, Serialize};
+use validator::Validate;
+use ppd_shared::{impl_validator, opts::{DEFAULT_MAX_FIELD_LENGTH, OptionValidator}};
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize, Validate)]
 pub struct CreateAssetOptions {
-    /// Destination path where asset should be created
+    /// Destination path where asset should be created.
+    #[validate(length(min = 2, max = "DEFAULT_MAX_FIELD_LENGTH"))]
     pub asset_path: String,
 
     /// The type of asset - whether it's a file or folder.
     pub asset_type: AssetType,
-
+    
     /// The public ID of the bucket in which to save the asset.
+    #[validate(length(min = 10, max = 60))]
     pub bucket: String,
-
+    
     /// Asset's visibility. If true, asset can be read/accessed by everyone. Else, asset can be
     /// viewed ONLY by permission.
     pub public: Option<bool>,
@@ -22,6 +26,7 @@ pub struct CreateAssetOptions {
     ///
     /// Your original asset slug makes url look like this `https://mydrive.com/images/somewhere/my-image.png/`.
     /// Using custom slug, you can conceal the original path: `https://mydrive.com/some/hidden-path`.
+    #[validate(length(min = 10, max = "DEFAULT_MAX_FIELD_LENGTH"))]
     pub slug: Option<String>,
 
     /// Create asset's parent folders if they don't already exist. The endpoint will return an 
@@ -34,3 +39,5 @@ pub struct CreateAssetOptions {
     /// overwrite existing asset.
     pub overwrite: Option<bool>
 }
+
+impl_validator!{CreateAssetOptions}

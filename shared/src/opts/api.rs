@@ -4,7 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-use crate::{impl_validator, opts::OptionValidator};
+use crate::{impl_validator, opts::{OptionValidator, DEFAULT_MAX_FIELD_LENGTH}};
 
 #[derive(Deserialize, Serialize, Validate)]
 pub struct CreateClientUser {
@@ -20,7 +20,7 @@ pub struct CreateClientUser {
 pub struct LoginUserClient {
     #[validate(length(
         min = 8,
-        max = 120,
+        max = 60,
         message = "'id' length must be between 8 to 12 characters."
     ))]
     pub id: String,
@@ -42,7 +42,7 @@ pub struct LoginTokens {
 pub struct UserCredentials {
     #[validate(length(
         min = 8,
-        max = 120,
+        max = 60,
         message = "'username' length must be between 8 to 12 characters."
     ))]
     pub username: String,
@@ -53,10 +53,10 @@ pub struct UserCredentials {
 
 #[derive(Deserialize, Serialize, Default, Validate)]
 pub struct CreateBucketOptions {
-    #[validate(length(min=8))]
+    #[validate(length(min=8, max = "DEFAULT_MAX_FIELD_LENGTH"))]
     pub label: String,
 
-    #[validate(length(min=2))]
+    #[validate(length(min=2, max = "DEFAULT_MAX_FIELD_LENGTH"))]
     pub root_path: Option<String>,
 
     /// can be set if there's `partition_path`
@@ -68,7 +68,7 @@ pub struct CreateBucketOptions {
     /// - "custom" means a selection of mimetypes manually specified by a user. Acceptable format should start with "custom" keyword followed by a colon ":" and comma seprated mimetypes. Example, "custom:application/zip,audio/3gpp"
     /// - You can specify a group of mimes using the `filetype` they belong to (e.g, "audio", "video", "application"...etc).
     /// - You can also specify a *list* of comma seprated groups e.g, "audio,video,application".
-    #[validate(length(min=1))]
+    #[validate(length(min=1, max = "DEFAULT_MAX_FIELD_LENGTH"))]
     pub accepts: Option<String>,
 
     pub public: Option<bool>,
@@ -88,4 +88,4 @@ fn validate_password_complexity(password: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
-impl_validator!(LoginUserClient);
+impl_validator!(CreateBucketOptions, LoginUserClient, UserCredentials, CreateClientUser);

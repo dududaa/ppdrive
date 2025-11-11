@@ -12,8 +12,7 @@ use crate::errors::ServerError;
 
 use ppd_shared::{
     opts::{
-        api::{CreateBucketOptions, CreateClientUser, LoginTokens, LoginUserClient},
-        internal::ServiceConfig,
+        OptionValidator, api::{CreateBucketOptions, CreateClientUser, LoginTokens, LoginUserClient}, internal::ServiceConfig
     },
     tools::{SECRETS_FILENAME, mb_to_bytes},
 };
@@ -39,9 +38,10 @@ async fn create_user(
     client: ClientExtractor,
     Json(data): Json<CreateClientUser>,
 ) -> Result<String, ServerError> {
+    data.validate_data()?;
     let db = state.db();
+    
     let user_id = Users::create_by_client(db, *client.id(), data.max_bucket).await?;
-
     Ok(user_id)
 }
 
@@ -51,6 +51,7 @@ async fn login_user(
     _: ClientExtractor,
     Json(data): Json<LoginUserClient>,
 ) -> Result<Json<LoginTokens>, ServerError> {
+    data.validate_data()?;
     let LoginUserClient {
         id,
         access_exp,
@@ -85,7 +86,6 @@ async fn delete_user(
     let user = Users::get_by_pid(db, &id).await?;
 
     if let Some(client_id) = user.client_id() {
-        println!("client {}, user-client {}", client.id(), client_id);
         if client_id != client.id() {
             return Err(ServerError::PermissionDenied(
                 "client cannot delete this user".to_string(),
@@ -110,9 +110,10 @@ async fn create_bucket(
     client: ClientExtractor,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
+    data.validate_data()?;
     let db = state.db();
-    client.validate_bucket_size(db, &data.size).await?;
 
+    client.validate_bucket_size(db, &data.size).await?;
     if let Some(partition) = &data.root_path
         && partition == SECRETS_FILENAME
     {

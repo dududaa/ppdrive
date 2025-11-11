@@ -7,6 +7,8 @@ pub mod api;
 
 pub mod internal;
 
+pub const DEFAULT_MAX_FIELD_LENGTH: u64 = 1024;
+
 
 pub trait OptionValidator: Validate {
     fn validate_data(&self) -> AppResult<()> {

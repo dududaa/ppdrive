@@ -15,6 +15,7 @@ use ppd_fs::{
 };
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
+use ppd_shared::opts::OptionValidator;
 
 use crate::{
     HandlerResult,
@@ -85,6 +86,7 @@ pub async fn create_asset_user(
         }
     }
 
+    opts.validate_data()?;
     let db = state.db();
     let path = create_or_update_asset(db, user_id, &opts, &tmp_file, &filesize).await?;
 

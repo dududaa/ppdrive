@@ -11,8 +11,7 @@ use crate::errors::ServerError;
 
 use ppd_shared::{
     opts::{
-        api::{CreateBucketOptions, LoginTokens, UserCredentials},
-        internal::ServiceConfig,
+        OptionValidator, api::{CreateBucketOptions, LoginTokens, UserCredentials}, internal::ServiceConfig
     },
     tools::mb_to_bytes,
 };
@@ -42,9 +41,10 @@ async fn register_user(
     State(state): State<HandlerState>,
     Json(data): Json<UserCredentials>,
 ) -> Result<String, ServerError> {
+    data.validate_data()?;
     let db = state.db();
-    let UserCredentials { username, password } = data;
 
+    let UserCredentials { username, password } = data;
     let password = make_password(&password);
     let user_id = Users::create_direct(db, username, password).await?;
 
@@ -56,7 +56,9 @@ async fn login_user(
     State(state): State<HandlerState>,
     Json(data): Json<UserCredentials>,
 ) -> Result<Json<LoginTokens>, ServerError> {
+    data.validate_data()?;
     let db = state.db();
+
     let config = state.config();
     let secrets = state.secrets();
 
@@ -102,6 +104,7 @@ pub async fn create_user_bucket(
     user: UserExtractor,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
+    data.validate_data()?;
     let db = state.db();
 
     user.validate_bucket_size(db, &data.size).await?;

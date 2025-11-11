@@ -10,7 +10,7 @@ use ppd_bk::models::{
     bucket::Buckets,
     user::{UserSerializer, Users},
 };
-use ppd_shared::opts::api::CreateBucketOptions;
+use ppd_shared::opts::{OptionValidator, api::CreateBucketOptions};
 use ppdrive::{
     prelude::state::HandlerState,
     rest::{create_asset_user, delete_asset_user, extractors::{BucketSizeValidator, ClientUserExtractor}},
@@ -21,6 +21,7 @@ pub async fn get_user(
     State(state): State<HandlerState>,
     user: ClientUserExtractor,
 ) -> Result<Json<UserSerializer>, ServerError> {
+
     let db = state.db();
     let user_model = Users::get(db, user.id()).await?;
     let data = user_model.into_serializer(db).await?;
@@ -34,6 +35,7 @@ pub async fn create_user_bucket(
     user: ClientUserExtractor,
     Json(data): Json<CreateBucketOptions>,
 ) -> Result<String, ServerError> {
+    data.validate_data()?;
     let db = state.db();
 
     user.validate_bucket_size(db, &data.size).await?;

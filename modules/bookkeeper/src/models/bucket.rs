@@ -289,15 +289,11 @@ impl Buckets {
 
         Buckets::insert(db, &data).await?;
 
-        let id = data.pid.clone();
-        let db = db.clone();
-        tokio::spawn(async move {
-            if let Ok(bucket) = Buckets::get_by_pid(&db, &id).await
-                && let Err(err) = bucket.save_mimes(&db).await
-            {
-                tracing::error!("unable to save mimes: {err}");
-            }
-        });
+        if let Ok(bucket) = Buckets::get_by_pid(db, &data.pid).await
+            && let Err(err) = bucket.save_mimes(&db).await
+        {
+            tracing::error!("unable to save mimes: {err}");
+        }
 
         Ok(data.pid)
     }
