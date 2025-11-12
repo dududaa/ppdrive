@@ -13,12 +13,12 @@ use crate::{FsResult, errors::Error};
 /// create asset's parents (including their records) if they don't exist.
 pub async fn create_asset_parents(
     db: &RBatis,
-    path: &Path,
+    asset_path: &Path,
     user_id: &u64,
     bucket_id: &u64,
     is_public: bool,
 ) -> FsResult<()> {
-    let parent = path.parent();
+    let parent = asset_path.parent();
 
     if let Some(parent) = parent {
         let parents: Vec<&str> = parent.ancestors().filter_map(|p| p.to_str()).collect();

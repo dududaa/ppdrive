@@ -37,6 +37,7 @@ pub async fn create_or_update_asset(
         ));
     }
 
+    let asset_path = asset_path.trim_start_matches("/");
     if opts.asset_path.is_empty() {
         return Err(Error::ServerError(
             "asset_path field is required".to_string(),
@@ -45,7 +46,7 @@ pub async fn create_or_update_asset(
 
     if opts.asset_path == SECRETS_FILENAME {
         return Err(Error::ServerError(
-            "asset_path '{SECRET_FILE}' is reserved. please choose another path.".to_string(),
+            "asset_path '{SECRET_FILE}' is reserved. Please choose another path.".to_string(),
         ));
     }
 
@@ -88,10 +89,20 @@ pub async fn create_or_update_asset(
     validate_asset_paths(db, vd).await?;
 
     let public = public.unwrap_or(bucket.public());
-    let path = custom_path.clone().unwrap_or(dest.clone());
-    let slug = urlencoding::encode(&path).to_string();
+    let path = custom_path
+        .clone()
+        .map(|p| p.trim_start_matches("/").to_string())
+        .unwrap_or(dest.clone());
 
+    // create parents if required
+    if create_parents.unwrap_or(true) {
+        let path = Path::new(&dest);
+        create_asset_parents(db, path, user_id, &bucket.id(), public).await?;
+    }
+    
+    
     // if path already exists, update it. Else, create.
+    let slug = urlencoding::encode(&path).to_string();
     let asset: Result<Assets, Error> = match Assets::get_by_slug(db, &slug, asset_type).await {
         Ok(mut exists) => {
             if exists.user_id() != user_id {
@@ -118,13 +129,13 @@ pub async fn create_or_update_asset(
                 user_id: *user_id,
                 public,
                 asset_path: dest,
-                slug,
+                slug: slug.clone(),
                 asset_type: u8::from(asset_type),
                 bucket_id: bucket.id(),
             };
 
             Assets::create(db, value).await?;
-            let asset = Assets::get_by_slug(db, asset_path, asset_type).await?;
+            let asset = Assets::get_by_slug(db, &slug, asset_type).await?;
 
             Ok(asset)
         }
@@ -137,12 +148,6 @@ pub async fn create_or_update_asset(
         && !sharing.is_empty()
     {
         asset.share(db, sharing).await?;
-    }
-
-    // create parents if required
-    if create_parents.unwrap_or(true) {
-        let path = Path::new(asset.path());
-        create_asset_parents(db, path, user_id, &bucket.id(), public).await?;
     }
 
     // save asset record
@@ -181,7 +186,7 @@ pub async fn delete_asset(
             "you have no permission to delete this asset".to_string(),
         ));
     }
-    
+
     // delete asset's children records
     asset.delete(db).await?;
     if let AssetType::Folder = asset_type {
