@@ -101,7 +101,7 @@ pub async fn create_or_update_asset(
     }
 
     // if path already exists, update it. Else, create.
-    let slug = urlencoding::encode(&path).to_string();
+    let slug = urlencoding::encode_exclude(&path, &['/']).to_string();
     let asset: Result<Assets, Error> = match Assets::get_by_slug(db, &slug).await {
         Ok(mut exists) => {
             if exists.user_id() != user_id {
@@ -167,7 +167,7 @@ pub async fn create_or_update_asset(
         AssetType::Folder => tokio::fs::create_dir(dest).await?,
     }
 
-    Ok(asset.path().to_string())
+    Ok(asset.slug().to_string())
 }
 
 /// removes an asset and associated records. if asset is a folder, this will remove all its content as well

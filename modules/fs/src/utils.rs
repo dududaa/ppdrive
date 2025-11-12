@@ -59,7 +59,7 @@ pub async fn create_asset_parents(
             }
 
             // build query values
-            let slug = urlencoding::encode(&path).to_string();
+            let slug = urlencoding::encode_exclude(&path, &['/']).to_string();
             let asset = NewAsset {
                 user_id: *user_id,
                 asset_path: path.to_string(),
