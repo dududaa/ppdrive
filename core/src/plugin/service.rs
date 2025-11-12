@@ -43,7 +43,7 @@ impl<'a> Service<'a> {
         Ok(())
     }
 
-    /// preload service and its dependencies
+    /// preload service and its dependencies.
     pub fn init(&self) -> HandlerResult<()> {
         let auto_install = self.auto_install();
         let reload = self.reload_deps();

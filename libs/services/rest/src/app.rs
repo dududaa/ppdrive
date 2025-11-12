@@ -3,8 +3,8 @@ use axum::http::header::{
 };
 use axum::http::{HeaderName, HeaderValue};
 use axum::{extract::MatchedPath, http::Request, routing::get, Router};
-use ppdrive::plugin::router::Routers;
 use ppd_shared::opts::internal::ServiceConfig;
+use ppdrive::plugin::router::Routers;
 use std::env::set_var;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -58,7 +58,7 @@ pub async fn serve_app(
         .allow_methods(Any);
 
     set_var(BEARER_KEY, BEARER_VALUE);
-    let routers = Routers::from(config.clone()).load().await?;
+    let routers = Routers::from(config.clone()).load()?;
 
     let svc = Router::new()
         .route("/:asset_type/*asset_path", get(get_asset))

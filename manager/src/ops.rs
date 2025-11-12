@@ -161,7 +161,7 @@ pub async fn process_request(
 
         ServiceRequest::Stop => {
             manager.close().await;
-            let resp = Response::success(()).message("manager has been closed successully");
+            let resp = Response::success(()).message("manager successully closed.");
             resp.write(socket).await.expect("unable to write response");
 
             Ok(())

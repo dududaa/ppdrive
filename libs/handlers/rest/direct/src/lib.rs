@@ -11,20 +11,17 @@ use crate::errors::ServerError;
 
 use ppd_shared::{
     opts::{
-        OptionValidator, api::{CreateBucketOptions, LoginTokens, UserCredentials}, internal::ServiceConfig
+        OptionValidator,
+        api::{CreateBucketOptions, LoginTokens, UserCredentials},
+        internal::ServiceConfig,
     },
     tools::mb_to_bytes,
 };
 use ppdrive::{
-    RouterFFI,
-    jwt::LoginOpts,
-    prelude::state::HandlerState,
-    rest::{
+    RouterFFI, jwt::LoginOpts, prelude::state::HandlerState, rest::{
         create_asset_user, delete_asset_user,
         extractors::{BucketSizeValidator, UserExtractor},
-    },
-    router_symbol_builder,
-    tools::{check_password, make_password},
+    }, router_symbol_builder, tools::{check_password, make_password}
 };
 
 use ppd_bk::models::{
@@ -134,7 +131,7 @@ pub async fn delete_asset(
 }
 
 /// Routes for external clients.
-async fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
+fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
     let limit = mb_to_bytes(config.base.max_upload_size);
 
     Router::new()

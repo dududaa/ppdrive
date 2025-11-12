@@ -12,7 +12,9 @@ use crate::errors::ServerError;
 
 use ppd_shared::{
     opts::{
-        OptionValidator, api::{CreateBucketOptions, CreateClientUser, LoginTokens, LoginUserClient}, internal::ServiceConfig
+        OptionValidator,
+        api::{CreateBucketOptions, CreateClientUser, LoginTokens, LoginUserClient},
+        internal::ServiceConfig,
     },
     tools::{SECRETS_FILENAME, mb_to_bytes},
 };
@@ -20,8 +22,7 @@ use ppdrive::{
     RouterFFI,
     jwt::LoginOpts,
     prelude::state::HandlerState,
-    rest::extractors::{BucketSizeValidator, ClientExtractor},
-    router_symbol_builder,
+    rest::extractors::{BucketSizeValidator, ClientExtractor}, router_symbol_builder,
 };
 
 use ppd_bk::models::{
@@ -40,7 +41,7 @@ async fn create_user(
 ) -> Result<String, ServerError> {
     data.validate_data()?;
     let db = state.db();
-    
+
     let user_id = Users::create_by_client(db, *client.id(), data.max_bucket).await?;
     Ok(user_id)
 }
@@ -127,7 +128,7 @@ async fn create_bucket(
 }
 
 /// Routes for external clients.
-async fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
+fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
     let limit = mb_to_bytes(config.base.max_upload_size);
 
     Router::new()

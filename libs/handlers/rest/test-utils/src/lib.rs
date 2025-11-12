@@ -38,8 +38,8 @@ impl TestApp {
         let mut config = ServiceConfig::default();
         config.base.db_url = db_url;
 
-        let client_router = client_router(config.clone().into()).await;
-        let direct_router = direct_router(config.clone().into()).await;
+        let client_router = client_router(config.clone().into());
+        let direct_router = direct_router(config.clone().into());
         
         let state = HandlerState::new(&config)
             .await
