@@ -13,15 +13,16 @@ use ppd_fs::{
     opts::CreateAssetOptions,
     read_asset,
 };
+use ppd_shared::opts::OptionValidator;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
-use ppd_shared::opts::OptionValidator;
 
 use crate::{
     HandlerResult,
     errors::HandlerError,
     prelude::state::HandlerState,
     rest::extractors::{BucketSizeValidator, UserExtractor},
+    runtime_wrapper,
 };
 
 pub mod extractors;
@@ -54,43 +55,45 @@ pub async fn create_asset_user(
     mut multipart: Multipart,
     state: HandlerState,
 ) -> HandlerResult<String> {
-    let mut opts = CreateAssetOptions::default();
-    let mut tmp_file = None;
-    let mut filesize = None;
+    runtime_wrapper(async move {
+        let mut opts = CreateAssetOptions::default();
+        let mut tmp_file = None;
+        let mut filesize = None;
 
-    while let Some(field) = multipart.next_field().await? {
-        let name = field
-            .name()
-            .ok_or(HandlerError::PermissionError(
-                "empty fields are not allowed".to_string(),
-            ))?
-            .to_string();
+        while let Some(field) = multipart.next_field().await? {
+            let name = field
+                .name()
+                .ok_or(HandlerError::PermissionError(
+                    "empty fields are not allowed".to_string(),
+                ))?
+                .to_string();
 
-        if name == "options" {
-            let data = field.text().await?;
+            if name == "options" {
+                let data = field.text().await?;
 
-            opts = serde_json::from_str(&data)
-                .map_err(|err| HandlerError::InternalError(err.to_string()))?;
-        } else if name == "file" {
-            let tmp_name = Uuid::new_v4().to_string();
-            let mut tmp_path = std::env::temp_dir();
-            tmp_path.push(tmp_name);
+                opts = serde_json::from_str(&data)
+                    .map_err(|err| HandlerError::InternalError(err.to_string()))?;
+            } else if name == "file" {
+                let tmp_name = Uuid::new_v4().to_string();
+                let mut tmp_path = std::env::temp_dir();
+                tmp_path.push(tmp_name);
 
-            let mut file = tokio::fs::File::create(&tmp_path).await?;
+                let mut file = tokio::fs::File::create(&tmp_path).await?;
 
-            let data = field.bytes().await?;
-            file.write_all(&data).await?;
+                let data = field.bytes().await?;
+                file.write_all(&data).await?;
 
-            filesize = Some(file.metadata().await?.len());
-            tmp_file = Some(tmp_path);
+                filesize = Some(file.metadata().await?.len());
+                tmp_file = Some(tmp_path);
+            }
         }
-    }
 
-    opts.validate_data()?;
-    let db = state.db();
-    let path = create_or_update_asset(db, user_id, &opts, &tmp_file, &filesize).await?;
+        opts.validate_data()?;
+        let db = state.db();
+        let path = create_or_update_asset(db, user_id, &opts, &tmp_file, &filesize).await?;
 
-    Ok(path)
+        Ok(path)
+    })
 }
 
 pub async fn delete_asset_user(

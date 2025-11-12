@@ -1,6 +1,7 @@
 //! function used for creating services and service handlers (routers)
 
 use std::sync::Arc;
+use tokio::runtime::Runtime;
 
 use crate::errors::HandlerError;
 
@@ -37,4 +38,10 @@ where
 {
     let router = callback(config);
     Box::new(router)
+}
+
+/// Create a new tokio [Runtime] and run the provided `future` in [Runtime::block_on].
+pub fn runtime_wrapper<F: Future>(future: F) -> F::Output {
+    let rt = Runtime::new().expect("unable to start runtime");
+    rt.block_on(future)
 }

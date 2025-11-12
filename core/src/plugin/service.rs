@@ -11,7 +11,7 @@ use ppd_shared::{
 use tokio_util::sync::CancellationToken;
 
 pub type ServiceFn = fn(Arc<ServiceConfig>, CancellationToken) -> ServiceReturnType;
-pub type ServiceReturnType = FfiFuture<HandlerResult<()>>;
+pub type ServiceReturnType = FfiFuture<()>;
 
 #[derive(Debug)]
 pub struct Service<'a> {
@@ -39,7 +39,7 @@ impl<'a> Service<'a> {
             .map_err(|err| HandlerError::InternalError(format!("unable to load library: {err}")))?
         };
 
-        start_service(config, token).await?;
+        start_service(config, token).await;
         Ok(())
     }
 

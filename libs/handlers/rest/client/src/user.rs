@@ -1,9 +1,9 @@
+use crate::errors::ServerError;
 use axum::{
     Json,
     extract::{Multipart, Path, State},
 };
 use axum_macros::debug_handler;
-use crate::errors::ServerError;
 use ppd_bk::models::{
     IntoSerializer,
     asset::AssetType,
@@ -13,7 +13,10 @@ use ppd_bk::models::{
 use ppd_shared::opts::{OptionValidator, api::CreateBucketOptions};
 use ppdrive::{
     prelude::state::HandlerState,
-    rest::{create_asset_user, delete_asset_user, extractors::{BucketSizeValidator, ClientUserExtractor}},
+    rest::{
+        create_asset_user, delete_asset_user,
+        extractors::{BucketSizeValidator, ClientUserExtractor},
+    },
 };
 
 #[debug_handler]
@@ -21,7 +24,6 @@ pub async fn get_user(
     State(state): State<HandlerState>,
     user: ClientUserExtractor,
 ) -> Result<Json<UserSerializer>, ServerError> {
-
     let db = state.db();
     let user_model = Users::get(db, user.id()).await?;
     let data = user_model.into_serializer(db).await?;
