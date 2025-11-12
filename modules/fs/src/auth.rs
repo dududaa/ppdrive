@@ -99,11 +99,10 @@ pub async fn create_or_update_asset(
         let path = Path::new(&dest);
         create_asset_parents(db, path, user_id, &bucket.id(), public).await?;
     }
-    
-    
+
     // if path already exists, update it. Else, create.
     let slug = urlencoding::encode(&path).to_string();
-    let asset: Result<Assets, Error> = match Assets::get_by_slug(db, &slug, asset_type).await {
+    let asset: Result<Assets, Error> = match Assets::get_by_slug(db, &slug).await {
         Ok(mut exists) => {
             if exists.user_id() != user_id {
                 return Err(Error::PermissionError(
@@ -135,7 +134,7 @@ pub async fn create_or_update_asset(
             };
 
             Assets::create(db, value).await?;
-            let asset = Assets::get_by_slug(db, &slug, asset_type).await?;
+            let asset = Assets::get_by_slug(db, &slug).await?;
 
             Ok(asset)
         }
@@ -172,14 +171,9 @@ pub async fn create_or_update_asset(
 }
 
 /// removes an asset and associated records. if asset is a folder, this will remove all its content as well
-pub async fn delete_asset(
-    db: &RBatis,
-    user_id: &u64,
-    path: &str,
-    asset_type: &AssetType,
-) -> FsResult<()> {
-    let slug = urlencoding::decode(&path).map_err(|err| Error::ServerError(err.to_string()))?;
-    let asset = Assets::get_by_slug(db, &slug, asset_type).await?;
+pub async fn delete_asset(db: &RBatis, user_id: &u64, slug: &str) -> FsResult<()> {
+    let slug = urlencoding::decode(slug).map_err(|err| Error::ServerError(err.to_string()))?;
+    let asset = Assets::get_by_slug(db, &slug).await?;
 
     if asset.user_id() != user_id {
         return Err(Error::PermissionError(
@@ -189,6 +183,7 @@ pub async fn delete_asset(
 
     // delete asset's children records
     asset.delete(db).await?;
+    let asset_type = asset.asset_type();
     if let AssetType::Folder = asset_type {
         let mut entries = tokio::fs::read_dir(asset.path()).await?;
         while let Ok(Some(entry)) = entries.next_entry().await {
@@ -200,7 +195,9 @@ pub async fn delete_asset(
             };
 
             if let Some(path) = path.to_str()
-                && let Ok(child) = Assets::get_by_slug(db, path, &child_type).await
+                && let Some(child) = Assets::select_by_path(db, path, (&child_type).into())
+                    .await
+                    .map_err(|err| Error::ServerError(err.to_string()))?
             {
                 child.delete(db).await?;
             }
@@ -208,6 +205,7 @@ pub async fn delete_asset(
     }
 
     // delete asset
+    let path = asset.path();
     match asset_type {
         AssetType::File => tokio::fs::remove_file(path).await?,
         AssetType::Folder => tokio::fs::remove_dir_all(path).await?,

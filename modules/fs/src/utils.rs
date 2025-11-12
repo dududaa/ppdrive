@@ -42,7 +42,10 @@ pub async fn create_asset_parents(
 
         for path in &paths {
             // check if parent folders
-            if let Ok(exist) = Assets::get_by_slug(db, path, &AssetType::Folder).await {
+            if let Some(exist) = Assets::select_by_path(db, path, folder_type)
+                .await
+                .map_err(|err| Error::ServerError(err.to_string()))?
+            {
                 if exist.user_id() != user_id {
                     let msg = format!(
                         "you're attempting to create a folder at \"{path}\" which already belongs to someone else."

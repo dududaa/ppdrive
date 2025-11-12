@@ -10,7 +10,7 @@ pub struct ValidatePathDetails<'a> {
     pub ty: &'a AssetType,
 }
 
-/// Validate whether `asset_path` or `custom_path` is already used by another asset
+/// Validate whether `slug` is already used by another asset
 pub async fn validate_asset_paths(db: &RBatis, asset: ValidatePathDetails<'_>) -> DBResult<()> {
     let ValidatePathDetails {
         path,
@@ -19,8 +19,10 @@ pub async fn validate_asset_paths(db: &RBatis, asset: ValidatePathDetails<'_>) -
         ..
     } = asset;
 
-    let path = custom_path.clone().unwrap_or(path.to_string());
-    let asset = Assets::get_by_slug(db, &path, ty).await.ok();
+    let asset = match custom_path {
+        Some(slug) => Assets::get_by_slug(db, slug).await.ok(),
+        None => Assets::select_by_path(db, path, ty.into()).await?
+    };
 
     if asset.is_some() {
         let field = if custom_path.is_some() {

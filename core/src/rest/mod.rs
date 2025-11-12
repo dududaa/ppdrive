@@ -6,7 +6,6 @@ use axum::{
 };
 
 use axum_macros::debug_handler;
-use ppd_bk::models::asset::AssetType;
 use ppd_fs::{
     AssetBody,
     auth::{create_or_update_asset, delete_asset},
@@ -29,13 +28,13 @@ pub mod extractors;
 
 #[debug_handler]
 pub async fn get_asset(
-    Path((asset_type, asset_path)): Path<(AssetType, String)>,
+    Path(slug): Path<String>,
     State(state): State<HandlerState>,
     user: Option<UserExtractor>,
 ) -> Result<Response<Body>, HandlerError> {
     let db = state.db();
     let user_id = user.map(|u| *u.id());
-    let body = read_asset(db, &asset_path, &asset_type, &user_id).await?;
+    let body = read_asset(db, &slug, &user_id).await?;
 
     let body = match body {
         AssetBody::File(mime, content) => Response::builder()
@@ -98,12 +97,11 @@ pub async fn create_asset_user(
 
 pub async fn delete_asset_user(
     user_id: &u64,
-    path: &str,
-    asset_type: &AssetType,
+    slug: &str,
     state: HandlerState,
 ) -> HandlerResult<()> {
     let db = state.db();
-    delete_asset(db, user_id, path, asset_type).await?;
+    delete_asset(db, user_id, slug).await?;
 
     Ok(())
 }

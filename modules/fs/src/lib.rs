@@ -28,12 +28,13 @@ pub enum AssetBody {
 pub async fn read_asset(
     db: &RBatis,
     asset_path: &str,
-    asset_type: &AssetType,
     user_id: &Option<u64>,
 ) -> FsResult<AssetBody> {
     let slug =
         urlencoding::decode(asset_path).map_err(|err| Error::ServerError(err.to_string()))?;
-    let asset = Assets::get_by_slug(db, &slug, asset_type).await?;
+    
+    let asset = Assets::get_by_slug(db, &slug).await?;
+    let asset_type = asset.asset_type();
 
     // check if current user has read permission
     if !asset.public() {
@@ -82,8 +83,10 @@ pub async fn read_asset(
                             AssetType::Folder
                         };
 
-                        let asset = Assets::get_by_slug(db, path_str, &asset_type).await;
-                        if let Ok(asset) = asset {
+                        let asset = Assets::select_by_path(db, path_str, (&asset_type).into())
+                            .await
+                            .map_err(|err| Error::ServerError(err.to_string()))?;
+                        if let Some(asset) = asset {
                             let html =
                                 format!("<li><a href='/{}'>{filename}</a></li>", asset.slug());
 

@@ -61,7 +61,7 @@ pub async fn serve_app(
     let routers = Routers::from(config.clone()).load()?;
 
     let svc = Router::new()
-        .route("/:asset_type/*asset_path", get(get_asset))
+        .route("/*slug", get(get_asset))
         .nest("/client", routers.client())
         .nest("/direct", routers.direct())
         .layer(

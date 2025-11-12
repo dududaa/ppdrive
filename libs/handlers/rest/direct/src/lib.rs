@@ -18,15 +18,19 @@ use ppd_shared::{
     tools::mb_to_bytes,
 };
 use ppdrive::{
-    RouterFFI, jwt::LoginOpts, prelude::state::HandlerState, rest::{
+    RouterFFI,
+    jwt::LoginOpts,
+    prelude::state::HandlerState,
+    rest::{
         create_asset_user, delete_asset_user,
         extractors::{BucketSizeValidator, UserExtractor},
-    }, router_symbol_builder, tools::{check_password, make_password}
+    },
+    router_symbol_builder,
+    tools::{check_password, make_password},
 };
 
 use ppd_bk::models::{
     IntoSerializer,
-    asset::AssetType,
     bucket::Buckets,
     user::{UserSerializer, Users},
 };
@@ -122,11 +126,11 @@ pub async fn create_asset(
 
 #[debug_handler]
 pub async fn delete_asset(
-    Path((asset_type, asset_path)): Path<(AssetType, String)>,
+    Path(slug): Path<String>,
     State(state): State<HandlerState>,
     user: UserExtractor,
 ) -> Result<String, ServerError> {
-    delete_asset_user(user.id(), &asset_path, &asset_type, state).await?;
+    delete_asset_user(user.id(), &slug, state).await?;
     Ok("operation successful".to_string())
 }
 
@@ -140,7 +144,7 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
         .route("/user/login", post(login_user))
         .route("/user/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))
-        .route("/user/asset/:asset_type/*asset_path", delete(delete_asset))
+        .route("/user/asset/*slug", delete(delete_asset))
         .route("/user/bucket", post(create_user_bucket))
 }
 

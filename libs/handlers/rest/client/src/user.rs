@@ -6,7 +6,6 @@ use axum::{
 use axum_macros::debug_handler;
 use ppd_bk::models::{
     IntoSerializer,
-    asset::AssetType,
     bucket::Buckets,
     user::{UserSerializer, Users},
 };
@@ -58,10 +57,10 @@ pub async fn create_asset(
 
 #[debug_handler]
 pub async fn delete_asset(
-    Path((asset_type, asset_path)): Path<(AssetType, String)>,
+    Path(slug): Path<String>,
     State(state): State<HandlerState>,
     user: ClientUserExtractor,
 ) -> Result<String, ServerError> {
-    delete_asset_user(user.id(), &asset_path, &asset_type, state).await?;
+    delete_asset_user(user.id(), &slug, state).await?;
     Ok("operation successful".to_string())
 }

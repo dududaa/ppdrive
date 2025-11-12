@@ -83,14 +83,13 @@ pub struct Assets {
 
 crud!(Assets {});
 
+impl_select!(Assets{ get_by_key<V: Serialize>(key: &str, value: V) -> Option => "`WHERE ${key} = #{value} LIMIT 1`" });
 impl_select!(Assets{ select_by_path(path: &str, asset_type: u8) -> Option => "`WHERE slug = #{path} AND asset_type = #{asset_type} LIMIT 1`" });
 impl_select_page!(Assets { select_by_user(user_id: &u64) => "`WHERE user_id = #{user_id}`" });
 
 impl Assets {
-    pub async fn get_by_slug(db: &RBatis, slug: &str, asset_type: &AssetType) -> DBResult<Self> {
-        let asset_type: u8 = asset_type.into();
-        let asset = Assets::select_by_path(db, slug, asset_type).await?;
-
+    pub async fn get_by_slug(db: &RBatis, slug: &str) -> DBResult<Self> {
+        let asset = Assets::get_by_key(db, "slug", slug).await?;
         check_model(asset, "asset not found")
     }
 
@@ -203,6 +202,10 @@ impl Assets {
 
     pub fn user_id(&self) -> &u64 {
         &self.user_id
+    }
+
+    pub fn asset_type(&self) -> AssetType {
+        self.asset_type.try_into().unwrap_or_default()
     }
 }
 
