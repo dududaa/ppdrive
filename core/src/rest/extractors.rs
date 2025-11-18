@@ -3,8 +3,8 @@ use std::ops::Deref;
 use crate::tools::verify_client;
 use crate::{HandlerResult, errors::HandlerError};
 use crate::{jwt::decode_jwt, prelude::state::HandlerState};
+use axum::extract::OptionalFromRequestParts;
 use axum::{
-    async_trait,
     extract::{FromRef, FromRequestParts},
     http::{HeaderValue, header::AUTHORIZATION, request::Parts},
 };
@@ -34,7 +34,6 @@ impl BucketSizeValidator for ClientExtractor {
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for ClientExtractor
 where
     HandlerState: FromRef<S>,
@@ -92,7 +91,6 @@ impl BucketSizeValidator for ClientUserExtractor {
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for ClientUserExtractor
 where
     HandlerState: FromRef<S>,
@@ -154,7 +152,6 @@ impl BucketSizeValidator for UserExtractor {
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for UserExtractor
 where
     HandlerState: FromRef<S>,
@@ -163,25 +160,48 @@ where
     type Rejection = HandlerError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        match parts.headers.get(AUTHORIZATION) {
-            Some(auth) => {
-                let state = HandlerState::from_ref(state);
-                let config = state.config();
+        extract_user(parts, state).await
+    }
+}
 
-                match &config.auth.url {
-                    Some(_url) => {
-                        unimplemented!("external url feature not implemented.")
-                    }
-                    None => {
-                        let user = get_local_user(&state, auth, &config).await?;
-                        Ok(user)
-                    }
+impl<S> OptionalFromRequestParts<S> for UserExtractor
+where
+    HandlerState: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = HandlerError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &S,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        let opt = extract_user(parts, state).await.ok();
+        Ok(opt)
+    }
+}
+
+async fn extract_user<S>(parts: &mut Parts, state: &S) -> HandlerResult<UserExtractor>
+where
+    HandlerState: FromRef<S>,
+{
+    match parts.headers.get(AUTHORIZATION) {
+        Some(auth) => {
+            let state = HandlerState::from_ref(state);
+            let config = state.config();
+
+            match &config.auth.url {
+                Some(_url) => {
+                    unimplemented!("external url feature not implemented.")
+                }
+                None => {
+                    let user = get_local_user(&state, auth, &config).await?;
+                    Ok(user)
                 }
             }
-            None => Err(HandlerError::AuthorizationError(
-                "authorization header required".to_string(),
-            )),
         }
+        None => Err(HandlerError::AuthorizationError(
+            "authorization header required".to_string(),
+        )),
     }
 }
 

@@ -15,4 +15,4 @@ ppd_bk.workspace = true
 ppd_fs.workspace = true
 rest-client = { path = "../client", features = ["test"] }
 rest-direct = { path = "../direct", features = ["test"] }
-axum-test = "16"
+axum-test.workspace = true

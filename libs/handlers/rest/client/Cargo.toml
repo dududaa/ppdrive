@@ -21,6 +21,6 @@ ppd_bk.workspace = true
 rest-test-utils.workspace = true
 ppd_fs.workspace = true
 serde_json.workspace = true
-axum-test = "16"
+axum-test.workspace = true
 futures = "0.3.31"
 serial_test = "3.2.0"
