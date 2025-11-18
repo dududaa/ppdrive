@@ -144,7 +144,7 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
         .route("/user/login", post(login_user))
         .route("/user/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))
-        .route("/user/asset/*slug", delete(delete_asset))
+        .route("/user/asset/{*slug}", delete(delete_asset))
         .route("/user/bucket", post(create_user_bucket))
 }
 

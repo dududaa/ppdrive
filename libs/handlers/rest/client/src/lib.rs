@@ -136,14 +136,14 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
         // require ppd-client-token header.
         .route("/user/login", post(login_user))
         .route("/user/register", post(create_user))
-        .route("/user/:id", delete(delete_user))
+        .route("/user/{id}", delete(delete_user))
         .route("/bucket", post(create_bucket))
         // Routes used by client to operate on behalf of a user. Access to these routes requires
         // both  `ppd-client-token` and `ppd-client-user` headers
         .route("/user", get(get_user))
         .route("/user/asset", post(create_asset))
         .layer(DefaultBodyLimit::max(limit))
-        .route("/user/asset/*slug", delete(delete_asset))
+        .route("/user/asset/{*slug}", delete(delete_asset))
         .route("/user/bucket", post(create_user_bucket))
 }
 
