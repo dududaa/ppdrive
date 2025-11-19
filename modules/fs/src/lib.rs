@@ -27,13 +27,11 @@ pub enum AssetBody {
 
 pub async fn read_asset(
     db: &RBatis,
-    asset_path: &str,
+    slug: &str,
     user_id: &Option<u64>,
 ) -> FsResult<AssetBody> {
-    let slug =
-        urlencoding::decode(asset_path).map_err(|err| Error::ServerError(err.to_string()))?;
     
-    let asset = Assets::get_by_slug(db, &slug).await?;
+    let asset = Assets::get_by_slug(db, slug).await?;
     let asset_type = asset.asset_type();
 
     // check if current user has read permission
@@ -62,7 +60,7 @@ pub async fn read_asset(
                 Ok(resp)
             } else {
                 Err(Error::NotFound(format!(
-                    "asset record found but path '{asset_path}' does not exist if filesystem for '{asset_type}'."
+                    "asset record found but path '{slug}' does not exist if filesystem for '{asset_type}'."
                 )))
             }
         }
@@ -121,7 +119,7 @@ pub async fn read_asset(
                 Ok(resp)
             } else {
                 Err(Error::NotFound(format!(
-                    "asset record found but path '{asset_path}' does not exist for '{asset_type}'."
+                    "asset record found but path '{slug}' does not exist for '{asset_type}'."
                 )))
             }
         }
