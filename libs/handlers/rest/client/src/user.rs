@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use crate::errors::ServerError;
 use axum::{
     Json,
-    extract::{Multipart, Path, State},
+    extract::{Multipart, Query, State},
 };
 use axum_macros::debug_handler;
 use ppd_bk::models::{
@@ -57,10 +59,10 @@ pub async fn create_asset(
 
 #[debug_handler]
 pub async fn delete_asset(
-    Path(slug): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
     State(state): State<HandlerState>,
     user: ClientUserExtractor,
 ) -> Result<String, ServerError> {
-    delete_asset_user(user.id(), &slug, state).await?;
+    delete_asset_user(user.id(), query, state).await?;
     Ok("operation successful".to_string())
 }

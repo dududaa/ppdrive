@@ -22,7 +22,8 @@ use ppdrive::{
     RouterFFI,
     jwt::LoginOpts,
     prelude::state::HandlerState,
-    rest::extractors::{BucketSizeValidator, ClientExtractor}, router_symbol_builder,
+    rest::extractors::{BucketSizeValidator, ClientExtractor},
+    router_symbol_builder,
 };
 
 use ppd_bk::models::{
@@ -141,9 +142,8 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
         // Routes used by client to operate on behalf of a user. Access to these routes requires
         // both  `ppd-client-token` and `ppd-client-user` headers
         .route("/user", get(get_user))
-        .route("/user/asset", post(create_asset))
+        .route("/user/asset", post(create_asset).delete(delete_asset))
         .layer(DefaultBodyLimit::max(limit))
-        .route("/user/asset/{*slug}", delete(delete_asset))
         .route("/user/bucket", post(create_user_bucket))
 }
 

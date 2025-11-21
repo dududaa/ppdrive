@@ -1,9 +1,9 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, Multipart, Path, State},
-    routing::{delete, get, post},
+    extract::{DefaultBodyLimit, Multipart, Query, State},
+    routing::{get, post},
 };
 use axum_macros::debug_handler;
 
@@ -126,11 +126,11 @@ pub async fn create_asset(
 
 #[debug_handler]
 pub async fn delete_asset(
-    Path(slug): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
     State(state): State<HandlerState>,
     user: UserExtractor,
 ) -> Result<String, ServerError> {
-    delete_asset_user(user.id(), &slug, state).await?;
+    delete_asset_user(user.id(), query, state).await?;
     Ok("operation successful".to_string())
 }
 
@@ -142,9 +142,8 @@ fn routes(config: Arc<ServiceConfig>) -> Router<HandlerState> {
         .route("/user", get(get_user))
         .route("/user/register", post(register_user))
         .route("/user/login", post(login_user))
-        .route("/user/asset", post(create_asset))
+        .route("/user/asset", post(create_asset).delete(delete_asset))
         .layer(DefaultBodyLimit::max(limit))
-        .route("/user/asset/{*slug}", delete(delete_asset))
         .route("/user/bucket", post(create_user_bucket))
 }
 

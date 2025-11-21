@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use axum::{
     body::Body,
     extract::{Multipart, Path, State, multipart::MultipartError},
@@ -97,9 +99,13 @@ pub async fn create_asset_user(
 
 pub async fn delete_asset_user(
     user_id: &u64,
-    slug: &str,
+    query: HashMap<String, String>,
     state: HandlerState,
 ) -> HandlerResult<()> {
+    let slug = query.get("slug").ok_or(HandlerError::InternalError(
+        "asset slug must be provided via url query.".to_string(),
+    ))?;
+
     let db = state.db();
     delete_asset(db, user_id, slug).await?;
 
