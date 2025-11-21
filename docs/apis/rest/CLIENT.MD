@@ -319,10 +319,9 @@ console.log(resp.data) // /user/images/profile-picture.jpg
 ```
 
 ###### Delete Asset
-**Endpoint:** /client/user/asset/:asset_type/*slug
+**Endpoint:** /client/user/asset?slug={slug}
 
 **Description**: Delete an asset. 
-- `asset_type` is the type of asset you wish to delete. Acceptable values are `File` and `Folder`.
 - `slug` is the URL path you use for getting the file. 
 
 **Method:** DELETE
@@ -337,7 +336,7 @@ console.log(resp.data) // /user/images/profile-picture.jpg
   
 **Example:**
 ```js
-const resp = await fetch(`${baseUrl}/client/user/5c4699dc-476a-4133-af65-b799c09abb67`, {
+const resp = await fetch(`${baseUrl}/client/user?slug=user/images/profile-picture.jpg`, {
     method: 'DELETE',
     headers: {
         'Content-Type': 'application/json',
@@ -357,7 +356,7 @@ console.log(resp.data) // operation successful!
 **Method:** POST
 
 **Headers:**
-  - `ppd-client-token` (_string_): The client's token
+  - `ppd-client-token` (_string_): The client's token.
   - `ppd-client-user` (_string_): The user's ID.
 
 **Body:**
