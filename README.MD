@@ -66,6 +66,11 @@ homebrew:
 brew tap dududaa/ppdrive && brew install ppdrive
 ```
 
+###### Windows
+powershell:
+```shell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/dududaa/ppdrive/main/install.ps1 | iex"
+```
 #### 2. Start
 ```sh
 ppdrive start
