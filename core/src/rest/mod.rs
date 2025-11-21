@@ -102,14 +102,16 @@ pub async fn delete_asset_user(
     query: HashMap<String, String>,
     state: HandlerState,
 ) -> HandlerResult<()> {
-    let slug = query.get("slug").ok_or(HandlerError::InternalError(
-        "asset slug must be provided via url query.".to_string(),
-    ))?;
+    runtime_wrapper(async move {
+        let slug = query.get("slug").ok_or(HandlerError::InternalError(
+            "asset slug must be provided via url query.".to_string(),
+        ))?;
 
-    let db = state.db();
-    delete_asset(db, user_id, slug).await?;
+        let db = state.db();
+        delete_asset(db, user_id, slug).await?;
 
-    Ok(())
+        Ok(())
+    })
 }
 
 impl From<MultipartError> for HandlerError {
