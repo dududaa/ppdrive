@@ -36,7 +36,9 @@ pub async fn get_asset(
 ) -> Result<Response<Body>, HandlerError> {
     let db = state.db();
     let user_id = user.map(|u| *u.id());
-    let body = read_asset(db, &slug, &user_id).await?;
+
+    let slug = slug.trim_matches('/');
+    let body = read_asset(db, slug, &user_id).await?;
 
     let body = match body {
         AssetBody::File(mime, content) => Response::builder()
