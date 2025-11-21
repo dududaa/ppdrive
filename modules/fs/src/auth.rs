@@ -124,6 +124,14 @@ pub async fn create_or_update_asset(
             Ok(exists)
         }
         Err(_) => {
+            // if the asset object already exists, overwriting it is illegal
+            let path = Path::new(&dest);
+            if path.exists() {
+                return Err(Error::PermissionError(
+                    "You're not allowed to overwrite an existing asset object".to_string(),
+                ));
+            }
+
             let value = NewAsset {
                 user_id: *user_id,
                 public,
