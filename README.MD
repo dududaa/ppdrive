@@ -1,10 +1,10 @@
-# PPDRIVE (IN DEVELOPMENT)
+# PPDRIVE (WORK IN PROGRESS)
 
-**PPDRIVE** is a free, open-source cloud storage service built with Rust for speed, security, and reliability. While you can use it as a standalone service, think of PPDRIVE as a framework but for filesystem management that your applications can use to manage remote and local files using secure and lightening-fast operations.
+**PPDRIVE** is a free File Management API Provider built for speed, security, and reliability. While you can use PPDRIVE as a standalone service, you can also think of it as a backend framework for filesystem management. We also provide [optional features](#roadmap-features-lets-build-together) for free but they're all file-related.
 
-Whether you're building your own version of Google Drive, OneDrive, or Dropbox, PPDRIVE gives you robust, secure, and extensible APIs that allow users to interact seamlessly with your server’s file system at the application level.
+As a standalone program, you can use PPDRIVE to build your own version of Google Drive, OneDrive, or Dropbox. PPDRIVE provides robust, secure, and extensible APIs that allow users to interact seamlessly with your server’s file system at the application level.
 
-Need a self-hosted alternative to AWS S3? PPDRIVE integrates effortlessly into your existing applications. From self-hosted media streaming platforms to enterprise-grade storage solutions, PPDRIVE helps you build faster, stay in control, and pay nothing.
+If you also need an owned cloud storage service (as alternative to AWS S3, GCP...etc), PPDRIVE integrates effortlessly into your existing applications. From self-hosted media streaming platforms to enterprise-grade storage solutions, PPDRIVE helps you build faster. Stay in control, while you pay nothing.
 
 ---
 
@@ -21,6 +21,7 @@ We notice that many startups, organizations, and developers prefer not to rely o
 - **Ease of Use**: If you're already familiar with sending HTTP requests, using PPDRIVE feels natural. We also provide a flexible service management tool for starting multiple services, viewing or cancelling running services.
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
 - **Speed**: Very fast operation handlers.
+- **Cross Platform**: PPDRIVE can run on Linux, MacOS and Windows.
 - **Lightweight**: We aim to make PPDRIVE as lightweight as possible. The starting point is to make sure you can install only what you need and extend it whenever you need more.
 
 ---
@@ -47,50 +48,55 @@ We notice that many startups, organizations, and developers prefer not to rely o
 ---
 
 ## Getting Started
-#### 1. Install
-Run the following commands to install PPDRIVE.
-###### Linux
-curl:
+Setting up PPDRIVE takes lesser than 2 minutes. Just follow these steps:
+
+1. Install
+Depending on your platform, run the following commands to install PPDRIVE.
+
+**Linux**
+using curl:
 ```sh
 curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
 ```
 
-wget:
+using wget:
 ```sh
 wget -qO- https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
 ```
 
-###### MacOS
-homebrew:
+**MacOS**
+using homebrew:
 ```sh
 brew tap dududaa/ppdrive && brew install ppdrive
 ```
 
-###### Windows
-powershell:
+**Windows**
+using powershell:
 ```shell
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/dududaa/ppdrive/main/install.ps1 | iex"
 ```
-#### 2. Start
+2. Start
+Start PPDRIVE service manager.
 ```sh
 ppdrive start
 ```
 
-#### 3. Launch
+3. Launch
+Launch a PPDRIVE REST Service.
 ```sh
 ppdrive launch rest
 ```
 
-Please see [Getting Started](/docs/GETTING-STARTED.MD) for complete starter guide.
+This will start PPDRIVE [REST Service](/docs/GETTING-STARTED.MD#1-service-and-service-type) in [Client Mode](/docs/GETTING-STARTED.MD#21-client-mode).
+
+Now that your PPDRIVE instance is running, you can:
+1. Check out the [api endpoints](/docs/apis/rest/CLIENT.MD) to start connecting.
+2. Read the full [Starter Guide](/docs/GETTING-STARTED.MD) to have a better understanding of how it all fits together.
 
 ---
 
-## Support
-If you would love to support by journey, please consider donating via any of these channels:
-
-- **Bitcoin BNB Smart Chain (BEP20):** 0x912f022d95c31b983e5efe21bf22094ba6fafe55
-- **Bitget BEP20 (Binance Smart Chain):** 0xd7a3da9faa4bd5c7ab0066391761a089e64a25d6
-
+## Sponsorship
+If you would love to be a part of this journey, please consider [sponsoring us](#)
 ---
 
 ## Contributing
