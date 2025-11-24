@@ -1,3 +1,5 @@
+[![Actions Status](https://github.com/dududaa/ppdrive/workflows/Release%20PPDRIVE/badge.svg)](https://github.com/dududaa/ppdrive/actions) [![Actions Status](https://github.com/dududaa/ppdrive/workflows/Release%20Dynamic%20Libraries/badge.svg)](https://github.com/dududaa/ppdrive/actions)
+
 # PPDRIVE (WORK IN PROGRESS)
 
 **PPDRIVE** is a free File Management API Provider built for speed, security, and reliability. While you can use PPDRIVE as a standalone service, you can also think of it as a backend framework for filesystem management. We also provide [optional features](#roadmap-features-lets-build-together) for free but they're all file-related.
