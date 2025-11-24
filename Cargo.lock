@@ -1580,7 +1580,7 @@ dependencies = [
 
 [[package]]
 name = "manager"
-version = "0.1.0-beta.3"
+version = "0.1.0-rc.1"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2117,7 +2117,7 @@ dependencies = [
 
 [[package]]
 name = "ppd_shared"
-version = "0.1.0-beta.3"
+version = "0.1.0-rc.1"
 dependencies = [
  "bincode",
  "chacha20poly1305",
@@ -2136,7 +2136,7 @@ dependencies = [
 
 [[package]]
 name = "ppdrive"
-version = "0.1.0-beta.3"
+version = "0.1.0-rc.1"
 dependencies = [
  "async-ffi",
  "axum",
@@ -2161,7 +2161,7 @@ dependencies = [
 
 [[package]]
 name = "ppdrive-cli"
-version = "0.1.0-beta.3"
+version = "0.1.0-rc.1"
 dependencies = [
  "bincode",
  "clap",
