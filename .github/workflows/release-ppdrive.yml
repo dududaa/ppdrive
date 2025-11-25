@@ -3,7 +3,7 @@ name: Release PPDRIVE
 on:
   push:
     tags:
-      - "v*" # Trigger only on version tags like v1.0.0
+      - "v*"
 
 permissions:
   contents: write
@@ -84,12 +84,16 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref, '-') }}
+          files: |
+            dist/**/*.tar.gz
+            dist/**/*.zip
+
           body: |
             # 🚀 PPDRIVE Pre-Release Notes
             **Version:** ${GITHUB_REF_NAME}
             **Date:** November 2025
 
-            ## 🚀 What’s New
+            ## What’s New
             - added: `runtime_wrapper` to support tokio runtime in dynamic routers.
             - fix: validate service start status when a new service is run.
             - fix: log service start failure.
@@ -111,10 +115,6 @@ jobs:
             
             This is a **prerelease build**, intended for early adopters and internal testing.
             Feedback and bug reports are highly appreciated as we prepare for the first stable release.
-
-          files: |
-            dist/**/*.tar.gz
-            dist/**/*.zip
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

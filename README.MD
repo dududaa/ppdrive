@@ -2,7 +2,7 @@
 
 # PPDRIVE (WORK IN PROGRESS)
 
-**PPDRIVE** is a free File Management API Provider built for speed, security, and reliability. While you can use PPDRIVE as a standalone service, you can also think of it as a backend framework for filesystem management. We also provide [optional features](#roadmap-features-lets-build-together) for free but they're all file-related.
+**PPDRIVE** is a free File Management API Provider built for speed, security, and reliability. While you can run PPDRIVE as a standalone service, you can also think of it as a backend framework for filesystem management. We also provide [optional features](#roadmap-features-lets-build-together) for free but they're all file-related.
 
 As a standalone program, you can use PPDRIVE to build your own version of Google Drive, OneDrive, or Dropbox. PPDRIVE provides robust, secure, and extensible APIs that allow users to interact seamlessly with your server’s file system at the application level.
 
