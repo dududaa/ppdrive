@@ -78,48 +78,40 @@ jobs:
         with:
           path: dist
 
-      - name: Set release body
-        id: set_body
-        run: |
-          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
-            {
-              echo 'body<<EOF'
-              echo '# 🚀 PPDRIVE Pre-Release Notes'
-              echo '**Version:** ${GITHUB_REF_NAME}'
-              echo '**Date:** October 2025'
-              echo
-              echo 'We’re excited to announce **PPDRIVE’s first official prerelease**!'
-              echo 'This marks a major milestone in the development of the PPDRIVE platform — bringing together our core components for task and service management.'
-              echo
-              echo '---'
-              echo
-              echo '## Included Updates'
-              echo
-              echo '- fix: Logger file location changed to root directory in production.'
-              echo '- update: Full compact logging.'
-              echo '- update: Release notes to be generated from github actions.'
-              echo '- fix: Manager response logger working.'
-              echo '- and other minor fixes.'
-              echo
-              echo '---'
-              echo
-              echo '## ⚠️ Notes'
-              echo
-              echo 'This is a **prerelease build**, intended for early adopters and internal testing.'
-              echo 'Feedback and bug reports are highly appreciated as we prepare for the first stable release.'
-              echo 'EOF'
-            } >> "$GITHUB_OUTPUT"
-          else
-            echo "body=🎉 Stable release of ${LIB_NAME}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref, '-') }}
-          body: ${{ steps.set_body.outputs.body }}
+          body: |
+            # 🚀 PPDRIVE Pre-Release Notes
+            **Version:** ${GITHUB_REF_NAME}
+            **Date:** November 2025
+
+            ## 🚀 What’s New
+            - added: `runtime_wrapper` to support tokio runtime in dynamic routers.
+            - fix: validate service start status when a new service is run.
+            - fix: log service start failure.
+            - fix: fix service startup failure.
+            - added: auth modes to service info list.
+            - test: Direct router.
+            - cli: List auth tokens.
+            - cli: Refresh auth token.
+            - fs: max-bucket-size validation.
+            - chore: prevent non-zero max bucket size.
+            - chore(api): validate rest API inputs.
+            - chore: accept Mb values as `f64` from API inputs.
+            - cli: validate manager launch.
+            - chore(client): use random numbers to create client key instead of uuid.
+            - chore(api): validate rest API optional inputs
+            - Updated API Docs
+
+            ## ⚠️ Notes
+            
+            This is a **prerelease build**, intended for early adopters and internal testing.
+            Feedback and bug reports are highly appreciated as we prepare for the first stable release.
+
           files: |
             dist/**/*.tar.gz
             dist/**/*.zip
