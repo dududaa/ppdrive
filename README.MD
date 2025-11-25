@@ -52,7 +52,7 @@ We notice that many startups, organizations, and developers prefer not to rely o
 ## Getting Started
 Setting up PPDRIVE takes lesser than 2 minutes. Just follow these steps:
 
-1. Install
+###### Install PPDRIVE
 Depending on your platform, run the following commands to install PPDRIVE.
 
 **Linux**
@@ -77,13 +77,14 @@ using powershell:
 ```shell
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/dududaa/ppdrive/main/install.ps1 | iex"
 ```
-2. Start
+
+###### Start Manager
 Start PPDRIVE service manager.
 ```sh
 ppdrive start
 ```
 
-3. Launch
+###### Launch Service
 Launch a PPDRIVE REST Service.
 ```sh
 ppdrive launch rest
