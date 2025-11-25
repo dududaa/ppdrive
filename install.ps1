@@ -19,7 +19,7 @@ if (-not (Test-Path $InstallDir)) {
 $ZipPath = Join-Path $env:TEMP "ppdrive-windows.zip"
 
 # Download ZIP from GitHub releases
-$DownloadUrl = "https://github.com/dududaa/ppdrive/releases/latest/download/ppdrive-windows.zip"
+$DownloadUrl = "https://github.com/dududaa/ppdrive/releases/download/v0.1.0-rc.1/ppdrive-windows.zip"
 
 Write-Host "Downloading ppdrive package from:"
 Write-Host "  $DownloadUrl"
@@ -46,7 +46,7 @@ $CurrentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 if ($CurrentPath -notlike "*$InstallDir*") {
     Write-Host "Adding $InstallDir to PATH..."
     $NewPath = $CurrentPath + ";" + $InstallDir
-    [Environment]::SetEnvironmentVariable("PATH", $NewPath, "User")
+    [Environment]::SetEnvironmentVariable("PATH", $Nehttps://github.com/dududaa/ppdrive/releases/download/v0.1.0-rc.1/ppdrive-windows.zipwPath, "User")
     Write-Host "PATH updated. Restart your terminal to apply changes."
 } else {
     Write-Host "PATH already contains $InstallDir"
