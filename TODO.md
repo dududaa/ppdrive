@@ -43,7 +43,7 @@ v0.1.0-rc.2
 - chore(config): add --auto-activate-user flag.
 - auth: implement multiple authentication methods.
 - config: Allow users to load config from filename.
-- config: Allow users to save config in filename.
+- config: Allow users to save config to filename.
 - cli: create admin
 - Allow users to configure ppd_secret filename, ppd_log filename, client route base and admin route base.
 - Reserve ppd_log, ppd_secret, client_route...etc and prevent assets from using the reserved names.
