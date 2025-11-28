@@ -42,6 +42,7 @@ v0.1.0-rc.2
 - chore(config): specify root dir for a service.
 - chore(config): add --auto-activate-user flag.
 - auth: implement multiple authentication methods.
+- auth: revokable JWT
 - config: Allow users to load config from filename.
 - config: Allow users to save config to filename.
 - cli: create admin
