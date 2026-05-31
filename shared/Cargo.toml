@@ -1,25 +1,10 @@
 [package]
-name = "ppd_shared"
-version.workspace = true
+name = "shared"
 edition.workspace = true
-
-[features]
-logger = ["dep:tracing-appender", "dep:tracing-subscriber"]
-api = ["dep:regex"]
+version.workspace = true
 
 [dependencies]
-tracing.workspace = true
-bincode.workspace = true
-libloading.workspace = true
-tracing-appender = { workspace = true, optional = true }
-tracing-subscriber = { workspace = true, features = [
-    "env-filter",
-], optional = true }
-clap = { workspace = true, features = ["derive"] }
-serde = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["fs", "io-util"] }
-toml = "0.9.5"
-chacha20poly1305 = "0.10.1"
-reqwest = { workspace = true, features = ["blocking"] }
-validator = { workspace = true, features = ["derive"] }
-regex = { version = "1.12.2", optional = true }
+sqlx_qb.workspace = true
+chrono.workspace = true
+serde.workspace = true
+uuid = { workspace = true, features = ["serde"] }

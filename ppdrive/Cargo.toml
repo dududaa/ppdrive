@@ -1,0 +1,6 @@
+[package]
+name = "ppdrive"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]

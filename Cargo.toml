@@ -1,24 +1,6 @@
 [workspace]
 resolver = "3"
-members = [
-    # binaries
-    "cli",
-    "manager",
-
-    # core crates
-    "core",
-    "shared",
-
-    # modules
-    "modules/fs",
-    "modules/bookkeeper",
-
-    # libraries
-    "libs/services/rest",
-    "libs/handlers/rest/client",
-    "libs/handlers/rest/direct", 
-    "libs/handlers/rest/test-utils",
-]
+members = ["ppdrive", "shared"]
 
 [workspace.package]
 edition = "2024"
@@ -27,29 +9,19 @@ version = "0.1.0-rc.1"
 [workspace.dependencies]
 serde = "1.0.219"
 serde_json = "1.0.140"
-bincode = "2.0.1"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 tracing-appender = "0.2"
-axum = "0.8.7"
-axum-macros = "0.4.2"
-tokio = "1.47.1"
+axum = "0.8.9"
+axum-macros = "0.5.1"
+tokio = "1.52.3"
 tokio-util = "0.7.16"
 uuid = "1.16.0"
 clap = "4.5.45"
 urlencoding.git = "https://github.com/prodbyola/rust_urlencoding"
-reqwest = "0.12.24"
-libloading = "0.8.8"
-rbs = "4.5.51" 
-rbatis = "4.5.51" 
 validator = "0.20.0"
-ppd_shared = { path = "shared" }
-ppd_bk = { path = "modules/bookkeeper", default-features = false }
-ppd_fs = { path = "modules/fs" }
-ppdrive = { path = "core", default-features = false }
-rest-test-utils.path = "libs/handlers/rest/test-utils"
-async-ffi = "0.5.0"
-axum-test = "18.2.1"
+sqlx_qb = { git = "https://github.com/dududaa/sqlx-qb" }
+chrono = "0.4.44"
 
 [profile.release]
 opt-level = "z"
