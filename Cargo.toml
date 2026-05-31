@@ -17,11 +17,13 @@ axum-macros = "0.5.1"
 tokio = "1.52.3"
 tokio-util = "0.7.16"
 uuid = "1.16.0"
-clap = "4.5.45"
+clap = "4.6.1"
 urlencoding.git = "https://github.com/prodbyola/rust_urlencoding"
 validator = "0.20.0"
+sqlx = "0.9.0"
 sqlx_qb = { git = "https://github.com/dududaa/sqlx-qb" }
 chrono = "0.4.44"
+anyhow = "1.0.102"
 
 [profile.release]
 opt-level = "z"

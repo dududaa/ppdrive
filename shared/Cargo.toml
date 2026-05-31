@@ -4,7 +4,7 @@ edition.workspace = true
 version.workspace = true
 
 [dependencies]
-sqlx_qb.workspace = true
+sqlx_qb = { workspace = true, features = ["uuid", "any", "chrono"] }
 chrono.workspace = true
-serde.workspace = true
-uuid = { workspace = true, features = ["serde"] }
+sqlx = { features = ["runtime-tokio", "tls-native-tls", "any", "postgres", "sqlite", "mysql"], workspace = true }
+anyhow.workspace = true
