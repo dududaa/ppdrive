@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
 use chacha20poly1305::aead::common::Generate;
-use chacha20poly1305::{AeadCore, Key, KeyInit, Nonce};
+use chacha20poly1305::{Key, Nonce};
 use std::io::SeekFrom;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
