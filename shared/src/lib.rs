@@ -6,9 +6,9 @@ mod tools;
 
 pub use tools::*;
 
-type PP = SqlitePool;
+type DbPool = SqlitePool;
 
-pub async fn create_pool(url: &str) -> anyhow::Result<PP> {
+pub async fn create_pool(url: &str) -> anyhow::Result<DbPool> {
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect(url)

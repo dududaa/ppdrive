@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
 use chacha20poly1305::aead::common::Generate;
-use chacha20poly1305::{Key, Nonce};
+use chacha20poly1305::{Key, XNonce};
 use std::io::SeekFrom;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
@@ -19,6 +19,7 @@ pub struct AppSecrets {
 impl AppSecrets {
     /// Read app secrets from secret file
     pub async fn read() -> anyhow::Result<Self> {
+        init_secrets().await?;
         let secret_file = secret_filename()?;
         let mut secrets = tokio::fs::File::open(&secret_file).await?;
 
@@ -61,20 +62,20 @@ pub fn secret_filename() -> anyhow::Result<PathBuf> {
 
 pub async fn generate_secret_file() -> anyhow::Result<()> {
     let secret_key = Key::generate();
-    let nonce = Nonce::generate();
+    let nonce = XNonce::generate();
     let jwt_secret = Key::generate();
 
     let secret_file = secret_filename()?;
-    let mut secrets = tokio::fs::OpenOptions::new()
+    let mut secret_file = tokio::fs::OpenOptions::new()
         .create(true)
         .truncate(true)
         .write(true)
         .open(&secret_file)
         .await?;
 
-    secrets.write_all(secret_key.as_slice()).await?;
-    secrets.write_all(nonce.as_slice()).await?;
-    secrets.write_all(jwt_secret.as_slice()).await?;
+    secret_file.write_all(secret_key.as_slice()).await?;
+    secret_file.write_all(nonce.as_slice()).await?;
+    secret_file.write_all(jwt_secret.as_slice()).await?;
 
     Ok(())
 }

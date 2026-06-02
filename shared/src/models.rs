@@ -1,4 +1,4 @@
-use crate::PP;
+use crate::DbPool;
 use chrono::{DateTime, Utc};
 use nanoid::nanoid;
 use serde::Serialize;
@@ -18,16 +18,17 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn create(db: &PP, args: ClientInsertArgs<'_>) -> anyhow::Result<String> {
+    pub async fn create(db: &DbPool, args: ClientInsertArgs<'_>) -> anyhow::Result<String> {
         let mut qb = QB::new(db);
-        let id = qb.insert_returns::<Client, _>(&args, "id").await?;
+        let id = qb.insert_returns::<Client, _>(&args, "pid").await?;
         Ok(id)
     }
 
-    pub async fn get_info(db: &PP, key: &str) -> anyhow::Result<ClientInfo> {
+    pub async fn get(db: &DbPool, pid: &str) -> anyhow::Result<ClientInfo> {
         let modifiers = QueryModifiers::new()
-            .with_filter(("key", key))
+            .with_filter(("pid", pid))
             .with_limit(1);
+
         let mut qb = QB::new(db);
         qb.set_modifiers(&modifiers);
 
@@ -44,7 +45,7 @@ impl Client {
         Ok(data)
     }
 
-    pub async fn all(db: &PP) -> anyhow::Result<Vec<ClientInfo>> {
+    pub async fn all(db: &DbPool) -> anyhow::Result<Vec<ClientInfo>> {
         let mut qb = QB::new(db);
         let data = qb
             .select_fields_all::<Client, _>([
@@ -59,19 +60,31 @@ impl Client {
         Ok(data)
     }
 
-    pub async fn update_key(db: &PP, id: &str) -> anyhow::Result<String> {
+    pub async fn id_by_key(db: &DbPool, key: &str) -> anyhow::Result<String> {
+        let modifiers = QueryModifiers::new()
+            .with_filter(("key", key))
+            .with_limit(1);
+
+        let mut qb = QB::new(db);
+        qb.set_modifiers(&modifiers);
+
+        let id = qb.select_scalar::<Client, String>("pid").await?;
+        Ok(id)
+    }
+
+    pub async fn update_key(db: &DbPool, id: &str) -> anyhow::Result<String> {
         let modifiers = QueryModifiers::new().with_filter(("pid", id)).with_limit(1);
         let mut qb = QB::new(db);
         qb.set_modifiers(&modifiers);
 
-        let key = Self::generate_key();
+        let key = Self::generate_nano();
         let map = query_map! { "key": &key };
         qb.update::<Client, _>(&map).await?;
 
         Ok(key)
     }
 
-    pub fn generate_key() -> String {
+    pub fn generate_nano() -> String {
         nanoid!(10, &nanoid::alphabet::SAFE)
     }
 }
@@ -97,6 +110,7 @@ impl ClientInfo {
 
 #[derive(Serialize)]
 pub struct ClientInsertArgs<'a> {
+    pub pid: &'a str,
     pub name: &'a str,
     pub key: &'a str,
     pub max_bucket_size: Option<f64>,
