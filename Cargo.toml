@@ -25,6 +25,7 @@ sqlx_qb = { git = "https://github.com/dududaa/sqlx-qb" }
 chrono = "0.4.44"
 anyhow = "1.0.102"
 dotenvy = "0.15.7"
+shared = { path = "./shared" }
 
 [profile.release]
 opt-level = "z"

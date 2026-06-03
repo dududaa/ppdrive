@@ -1164,7 +1164,10 @@ dependencies = [
 name = "ppdrive"
 version = "0.1.0-rc.1"
 dependencies = [
+ "anyhow",
  "clap",
+ "shared",
+ "tokio",
 ]
 
 [[package]]

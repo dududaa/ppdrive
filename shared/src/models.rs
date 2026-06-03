@@ -9,9 +9,7 @@ use sqlx_qb::prelude::*;
 #[model(table_name = "clients")]
 #[model(insert_returns = "String")]
 pub struct Client {
-    id: i32,
     pid: String,
-    key: String,
     name: String,
     max_bucket_size: Option<f64>,
     created_at: DateTime<Utc>,
@@ -73,7 +71,7 @@ impl Client {
     }
 
     pub async fn update_key(db: &DbPool, id: &str) -> anyhow::Result<String> {
-        let modifiers = QueryModifiers::new().with_filter(("pid", id)).with_limit(1);
+        let modifiers = QueryModifiers::new().with_filter(("pid", id));
         let mut qb = QB::new(db);
         qb.set_modifiers(&modifiers);
 

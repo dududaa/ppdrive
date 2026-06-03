@@ -5,3 +5,6 @@ version.workspace = true
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["rt"] }
+shared.workspace = true
+anyhow.workspace = true
