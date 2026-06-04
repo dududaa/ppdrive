@@ -1,7 +1,7 @@
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 use chacha20poly1305::aead::Aead;
 use crate::{AppSecrets, DbPool};
-use crate::models::{Client, ClientInfo, ClientInsertArgs};
+use crate::models::{Client, ClientInsertArgs};
 
 /// generate a cipher token for client's id.
 fn client_token(secrets: &AppSecrets, client_key: &str) -> anyhow::Result<String> {
@@ -29,9 +29,9 @@ pub async fn create_client(
     let pid = Client::generate_nano();
 
     let args = ClientInsertArgs {
-        name,
-        pid: &pid,
-        key: &client_key,
+        name: name.to_string(),
+        pid,
+        key: client_key.clone(),
         max_bucket_size,
     };
 
@@ -69,7 +69,7 @@ pub async fn regenerate_token(
     Ok(token)
 }
 
-pub async fn get_clients(db: &DbPool) -> anyhow::Result<Vec<ClientInfo>> {
+pub async fn get_clients(db: &DbPool) -> anyhow::Result<Vec<Client>> {
     Client::all(db).await
 }
 

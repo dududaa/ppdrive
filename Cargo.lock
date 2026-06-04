@@ -1201,7 +1201,7 @@ dependencies = [
 [[package]]
 name = "qb_macro"
 version = "0.1.0"
-source = "git+https://github.com/dududaa/sqlx-qb#59cfad73598edca60a2a7df127a1a5fc4147cd77"
+source = "git+https://github.com/dududaa/sqlx-qb#885b994bd16f557caf74e88d6eb1fce568c3f573"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1520,6 +1520,7 @@ dependencies = [
  "base64",
  "bytes",
  "cfg-if",
+ "chrono",
  "crc",
  "crossbeam-queue",
  "either",
@@ -1594,6 +1595,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "bytes",
+ "chrono",
  "crc",
  "digest 0.11.3",
  "dotenvy",
@@ -1621,6 +1623,7 @@ dependencies = [
  "base64",
  "bitflags",
  "byteorder",
+ "chrono",
  "crc",
  "dotenvy",
  "etcetera",
@@ -1653,6 +1656,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488e99c397a62007e4229aec669a179816339afc6d2620ca6fa420dbee2e982c"
 dependencies = [
  "atoi",
+ "chrono",
  "flume",
  "form_urlencoded",
  "futures-channel",
@@ -1673,7 +1677,7 @@ dependencies = [
 [[package]]
 name = "sqlx_qb"
 version = "0.1.0"
-source = "git+https://github.com/dududaa/sqlx-qb#59cfad73598edca60a2a7df127a1a5fc4147cd77"
+source = "git+https://github.com/dududaa/sqlx-qb#885b994bd16f557caf74e88d6eb1fce568c3f573"
 dependencies = [
  "qb_macro",
  "serde",
@@ -1734,7 +1738,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix",
  "windows-sys",
