@@ -76,25 +76,6 @@ impl Client {
     }
 }
 
-#[derive(FromRow)]
-pub struct ClientInfo {
-    pub id: String,
-    pub name: String,
-    key: String,
-    pub created_at: String,
-    pub max_bucket_size: Option<f64>,
-}
-
-impl ClientInfo {
-    pub fn id(&self) -> &str {
-        &self.id
-    }
-
-    pub fn key(&self) -> &str {
-        &self.key
-    }
-}
-
 #[derive(Serialize, ModelInsert)]
 #[model(insert_returns = "String")]
 pub struct ClientInsertArgs {

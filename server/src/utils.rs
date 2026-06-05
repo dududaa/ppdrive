@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
-use shared::AppSecrets;
+use shared::secrets::AppSecrets;
 use crate::payloads::UploadUrlConfig;
 
 pub fn create_jwt(secrets: &AppSecrets, claims: &Claims) -> anyhow::Result<String> {

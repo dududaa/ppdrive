@@ -1,7 +1,8 @@
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 use chacha20poly1305::aead::Aead;
-use crate::{AppSecrets, DbPool};
+use crate::DbPool;
 use crate::models::{Client, ClientInsertArgs};
+use crate::tools::secrets::AppSecrets;
 
 /// generate a cipher token for client's id.
 fn client_token(secrets: &AppSecrets, client_key: &str) -> anyhow::Result<String> {
@@ -97,7 +98,7 @@ impl From<(String, String)> for ClientDetails {
 #[cfg(test)]
 mod tests {
     use crate::create_pool;
-    use crate::tools::AppSecrets;
+    use crate::tools::secrets::AppSecrets;
     use std::env;
     use sqlx_qb::prelude::*;
     use crate::client::{create_client, verify_client};

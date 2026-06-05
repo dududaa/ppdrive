@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use shared::client::{create_client, regenerate_token};
-use shared::{AppSecrets, create_pool};
+use shared::create_pool;
+use shared::secrets::AppSecrets;
 
 /// PPDRIVE is a free, open-source object storage service built with Rust for speed, security,
 /// and reliability.

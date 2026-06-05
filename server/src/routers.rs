@@ -32,3 +32,32 @@ async fn create_signed_url(
 pub fn upload_routes() -> Router<AppState> {
     Router::new().route("/signed", post(create_signed_url))
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::app::create_app;
+    use crate::payloads::{AssetType, UploadUrlConfig, UploadUrlMethod};
+    use axum_test::TestServer;
+
+    #[tokio::test]
+    async fn test_create_signed_url() -> anyhow::Result<()> {
+        let (app, _) = create_app().await?;
+        let server = TestServer::new(app);
+        let config = UploadUrlConfig {
+            method: UploadUrlMethod::Post,
+            asset_type: AssetType::File,
+            expires: 30,
+            create_parents: None,
+            overwrite: None,
+        };
+
+        let resp = server
+            .post("/upload/signed")
+            .json(&config)
+            .content_type("application/json").await;
+
+        resp.assert_status_ok();
+
+        Ok(())
+    }
+}

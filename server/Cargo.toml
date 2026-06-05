@@ -15,9 +15,12 @@ validator = { version = "0.20.0", features = ["derive"] }
 jsonwebtoken = "10.4.0"
 shared.workspace = true
 tracing = "0.1.44"
-tower-http = { version = "0.5.1", features = [
+tower-http = { version = "0.6.11", features = [
     "cors",
     "trace",
     "tracing",
     "fs",
 ] }
+
+[dev-dependencies]
+axum-test = "20.1.0"

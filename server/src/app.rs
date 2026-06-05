@@ -6,6 +6,7 @@ use axum::http::header::{
     ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
 };
 use axum::http::{HeaderName, HeaderValue, Request};
+use axum::routing::IntoMakeService;
 use std::str::FromStr;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -32,7 +33,7 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
-pub async fn serve() -> anyhow::Result<()> {
+pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
     let state = AppState::new().await?;
     let origins = state.config().allowed_origins.clone();
 
@@ -72,6 +73,11 @@ pub async fn serve() -> anyhow::Result<()> {
         .with_state(state)
         .into_make_service();
 
+    Ok((app, port))
+}
+
+pub async fn serve() -> anyhow::Result<()> {
+    let (app, port) = create_app().await?;
     match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", &port)).await {
         Ok(listener) => {
             if let Ok(addr) = listener.local_addr() {
