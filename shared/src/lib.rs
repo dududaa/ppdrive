@@ -1,4 +1,5 @@
-use sqlx::sqlite::SqlitePoolOptions;
+use std::str::FromStr;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{migrate, SqlitePool};
 
 pub mod client;
@@ -10,12 +11,18 @@ pub use tools::*;
 pub type DbPool = SqlitePool;
 
 pub async fn create_pool(url: &str) -> anyhow::Result<DbPool> {
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await?;
-
+    let pool = sqlite_pool(url).await?;
     migrate!("../migrations").run(&pool).await?;
     Ok(pool)
 }
 
+pub async fn sqlite_pool(url: &str) -> anyhow::Result<DbPool> {
+    let connection_options = SqliteConnectOptions::from_str(url)?
+        .create_if_missing(true);
+
+    let pool = SqlitePoolOptions::new()
+        .connect_with(connection_options)
+        .await?;
+
+    Ok(pool)
+}

@@ -38,10 +38,18 @@ mod tests {
     use crate::app::create_app;
     use crate::payloads::{AssetType, UploadUrlConfig, UploadUrlMethod};
     use axum_test::TestServer;
+    use shared::client::create_client;
+    use shared::config::AppConfig;
+    use crate::state::AppState;
 
     #[tokio::test]
     async fn test_create_signed_url() -> anyhow::Result<()> {
         let (app, _) = create_app().await?;
+        let state = AppState::new().await?;
+        
+        let client_header_key = state.config().client_header_key.clone();
+        let client = create_client(state.pool(), state.secrets(), "Test Client", None).await?;
+        
         let server = TestServer::new(app);
         let config = UploadUrlConfig {
             method: UploadUrlMethod::Post,
@@ -54,6 +62,7 @@ mod tests {
         let resp = server
             .post("/upload/signed")
             .json(&config)
+            .add_header(client_header_key, client.token())
             .content_type("application/json").await;
 
         resp.assert_status_ok();

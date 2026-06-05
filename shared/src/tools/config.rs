@@ -18,9 +18,8 @@ impl AppConfig {
         let content = tokio::fs::read_to_string(filename)
             .await
             .map_err(|err| anyhow!("unable to get app config: {}", err))?;
-        
-        let config = toml::from_str(&content)?;
 
+        let config = toml::from_str(&content)?;
         Ok(config)
     }
 }

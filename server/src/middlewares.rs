@@ -27,7 +27,7 @@ where
         let header = parts
             .headers
             .get(&header_key)
-            .ok_or(api_error("missing client header"))?;
+            .ok_or(api_error("missing client header key"))?;
 
         let client_token = header
             .to_str()
