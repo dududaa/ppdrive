@@ -2,3 +2,4 @@ target/
 .env
 data.db*
 .ppdrive_secret
+ppd_config.toml

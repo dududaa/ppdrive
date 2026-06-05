@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["ppdrive", "shared"]
+members = ["ppdrive", "server", "shared"]
 
 [workspace.package]
 edition = "2024"

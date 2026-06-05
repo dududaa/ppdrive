@@ -47,7 +47,7 @@ impl Client {
         Ok(data)
     }
 
-    pub async fn id_by_key(db: &DbPool, key: &str) -> anyhow::Result<String> {
+    pub async fn id_by_key(db: &DbPool, key: &str) -> anyhow::Result<i32> {
         let modifiers = Modifiers::new()
             .with_filter(("key", key))
             .with_limit(1);
@@ -55,7 +55,7 @@ impl Client {
         let mut qb = QB::new(db).with_table_name(TABLE_NAME);
         qb.set_modifiers(&modifiers);
 
-        let id = qb.select_scalar("pid").await?;
+        let id = qb.select_scalar("id").await?;
         Ok(id)
     }
 

@@ -1,0 +1,23 @@
+[package]
+name = "server"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "fs"] }
+axum = { workspace = true, features = ["macros"] }
+axum-macros.workspace = true
+serde.workspace = true
+sqlx = "0.9.0"
+chrono = { workspace = true, features = ["serde"] }
+anyhow.workspace = true
+validator = { version = "0.20.0", features = ["derive"] }
+jsonwebtoken = "10.4.0"
+shared.workspace = true
+tracing = "0.1.44"
+tower-http = { version = "0.5.1", features = [
+    "cors",
+    "trace",
+    "tracing",
+    "fs",
+] }

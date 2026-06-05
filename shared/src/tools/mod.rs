@@ -10,6 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 pub const SECRETS_FILENAME: &str = ".ppdrive_secret";
 
+#[derive(Clone)]
 pub struct AppSecrets {
     secret_key: Vec<u8>,
     secret_nonce: Vec<u8>,

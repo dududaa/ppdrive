@@ -41,7 +41,7 @@ pub async fn create_client(
 }
 
 /// decrypt client's cipher token, validate client token and return client id
-pub async fn verify_client(db: &DbPool, secrets: &AppSecrets, token: &str) -> anyhow::Result<String> {
+pub async fn verify_client(db: &DbPool, secrets: &AppSecrets, token: &str) -> anyhow::Result<i32> {
     let decode = hex::decode(token)?;
 
     let key = secrets.secret_key();
@@ -99,6 +99,7 @@ mod tests {
     use crate::create_pool;
     use crate::tools::AppSecrets;
     use std::env;
+    use sqlx_qb::prelude::*;
     use crate::client::{create_client, verify_client};
 
     #[tokio::test]
@@ -110,8 +111,14 @@ mod tests {
         let secrets = AppSecrets::read().await?;
         let details = create_client(&db, &secrets, "Token Validation Test", None).await?;
 
+        let modifiers = Modifiers::new().with_filter(("pid", details.id)).with_limit(1);
+        let mut qb = QB::new(&db)
+            .with_table_name("clients")
+            .with_modifiers(&modifiers);
+
+        let id: i32 = qb.select_scalar("id").await?;
         let verify = verify_client(&db, &secrets, &details.token).await?;
-        assert_eq!(details.id, verify);
+        assert_eq!(id, verify);
 
         Ok(())
     }
