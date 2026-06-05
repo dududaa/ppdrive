@@ -1,8 +1,8 @@
 use crate::middlewares::ClientMiddleware;
 use crate::payloads::UploadUrlConfig;
-use crate::resp::{ApiResponse, api_error, api_response};
+use crate::resp::{api_error, api_response, ApiResponse};
 use crate::state::AppState;
-use crate::utils::{Claims, create_jwt};
+use crate::utils::{create_jwt, Claims};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::post;
@@ -24,8 +24,8 @@ async fn create_signed_url(
         exp: data.expires,
         data,
     };
+    
     let token = create_jwt(state.secrets(), &claims)?;
-
     api_response(token)
 }
 
@@ -37,10 +37,9 @@ pub fn upload_routes() -> Router<AppState> {
 mod tests {
     use crate::app::create_app;
     use crate::payloads::{AssetType, UploadUrlConfig, UploadUrlMethod};
+    use crate::state::AppState;
     use axum_test::TestServer;
     use shared::client::create_client;
-    use shared::config::AppConfig;
-    use crate::state::AppState;
 
     #[tokio::test]
     async fn test_create_signed_url() -> anyhow::Result<()> {
@@ -59,12 +58,17 @@ mod tests {
             overwrite: None,
         };
 
-        let resp = server
+        let base_request = || server
             .post("/upload/signed")
             .json(&config)
-            .add_header(client_header_key, client.token())
-            .content_type("application/json").await;
+            .content_type("application/json");
+        
+        
+        
+        let mut resp = base_request().await;
+        resp.assert_status_unauthorized();
 
+        resp = base_request().add_header(client_header_key, client.token()).await;
         resp.assert_status_ok();
 
         Ok(())

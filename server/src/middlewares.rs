@@ -1,6 +1,7 @@
-use crate::resp::{api_error, ResponseError};
+use crate::resp::{ResponseError, api_error};
 use crate::state::AppState;
 use axum::extract::{FromRef, FromRequestParts};
+use axum::http::StatusCode;
 use shared::client::verify_client;
 
 pub struct ClientMiddleware(i32);
@@ -24,10 +25,9 @@ where
         let state = AppState::from_ref(state);
 
         let header_key = state.config().client_header_key.clone();
-        let header = parts
-            .headers
-            .get(&header_key)
-            .ok_or(api_error("missing client header key"))?;
+        let header = parts.headers.get(&header_key).ok_or(
+            api_error("missing client header key").with_status_code(StatusCode::UNAUTHORIZED),
+        )?;
 
         let client_token = header
             .to_str()
