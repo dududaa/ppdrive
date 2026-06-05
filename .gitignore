@@ -3,3 +3,4 @@ target/
 data.db*
 .ppdrive_secret
 ppd_config.toml
+test-assets

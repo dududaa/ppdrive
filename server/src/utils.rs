@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use shared::secrets::AppSecrets;
-use crate::payloads::UploadUrlConfig;
+use crate::routers::payloads::UploadUrlConfig;
 
 pub fn create_jwt(secrets: &AppSecrets, claims: &Claims) -> anyhow::Result<String> {
     let header = Header::new(Algorithm::HS512);

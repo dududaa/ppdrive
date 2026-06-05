@@ -1,20 +1,19 @@
-use crate::middlewares::{ClaimsExtractor, ClientExtractor};
-use crate::payloads::{AssetType, UploadUrlConfig};
-use crate::resp::{ApiResponse, api_error, api_response};
-use crate::state::AppState;
-use crate::utils::{Claims, ClaimsData, create_jwt};
-use axum::extract::{Multipart, State};
-use axum::http::StatusCode;
-use axum::routing::post;
-use axum::{Json, Router};
 use axum_macros::debug_handler;
-use shared::generate_nano_id;
+use axum::extract::{Multipart, State};
 use tokio::fs::OpenOptions;
-use tokio::io::AsyncWriteExt;
+use axum::Json;
+use axum::http::StatusCode;
+use shared::generate_nano_id;
 use validator::Validate;
+use tokio::io::AsyncWriteExt;
+use crate::routers::middlewares::{ClaimsExtractor, ClientExtractor};
+use crate::routers::payloads::{AssetType, UploadUrlConfig};
+use crate::routers::resp::{api_error, api_response, ApiResponse};
+use crate::state::AppState;
+use crate::utils::{create_jwt, Claims, ClaimsData};
 
 #[debug_handler]
-async fn create_signed_url(
+pub(super) async fn create_session(
     State(state): State<AppState>,
     client: ClientExtractor,
     Json(config): Json<UploadUrlConfig>,
@@ -40,7 +39,7 @@ async fn create_signed_url(
 }
 
 #[debug_handler]
-async fn upload_asset(
+pub(super) async fn play_session(
     State(state): State<AppState>,
     claims: ClaimsExtractor,
     mut multipart: Multipart,
@@ -125,16 +124,10 @@ async fn upload_asset(
     api_response(())
 }
 
-pub fn upload_routes() -> Router<AppState> {
-    Router::new()
-        .route("/session", post(create_signed_url))
-        .route("/session/play", post(upload_asset))
-}
-
 #[cfg(test)]
 mod tests {
     use crate::app::create_app;
-    use crate::payloads::{AssetType, UploadUrlConfig, UploadUrlMethod};
+    use crate::routers::payloads::{AssetType, UploadUrlConfig, UploadUrlMethod};
     use crate::state::AppState;
     use axum_test::TestServer;
     use shared::client::create_client;
