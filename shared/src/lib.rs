@@ -16,7 +16,7 @@ pub async fn create_pool(url: &str) -> anyhow::Result<DbPool> {
     Ok(pool)
 }
 
-pub async fn sqlite_pool(url: &str) -> anyhow::Result<DbPool> {
+async fn sqlite_pool(url: &str) -> anyhow::Result<DbPool> {
     let connection_options = SqliteConnectOptions::from_str(url)?
         .create_if_missing(true);
 

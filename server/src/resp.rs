@@ -1,8 +1,10 @@
 use std::fmt::Display;
+use std::io::Error;
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::Json;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
+use tokio::io;
 
 pub type ApiResponse<T> = Result<ResponsePayload<T>, ResponseError>;
 
@@ -63,6 +65,12 @@ impl IntoResponse for ResponseError {
 impl From<anyhow::Error> for ResponseError {
     fn from(err: anyhow::Error) -> Self {
         api_error(err)
+    }
+}
+
+impl From<io::Error> for ResponseError {
+    fn from(value: Error) -> Self {
+        api_error(value)
     }
 }
 

@@ -5,11 +5,10 @@ version.workspace = true
 
 [dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "fs"] }
-axum = { workspace = true, features = ["macros"] }
+axum = { workspace = true, features = ["macros", "multipart"] }
 axum-macros.workspace = true
 serde.workspace = true
 sqlx = "0.9.0"
-chrono = { workspace = true, features = ["serde"] }
 anyhow.workspace = true
 validator = { version = "0.20.0", features = ["derive"] }
 jsonwebtoken = { version = "10.4.0", features = ["aws_lc_rs"] }
@@ -21,6 +20,7 @@ tower-http = { version = "0.6.11", features = [
     "tracing",
     "fs",
 ] }
+futures-util = "0.3.32"
 
 [dev-dependencies]
 axum-test = "20.1.0"

@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use crate::root_dir;
 
 pub const CONFIG_FILENAME: &'static str = "ppd_config.toml";
 
@@ -10,6 +11,7 @@ pub struct AppConfig {
     pub client_header_key: String,
     pub allowed_origins: Option<Vec<String>>,
     pub port: Option<i16>,
+    pub root_dir: Option<String>
 }
 
 impl AppConfig {
@@ -21,6 +23,13 @@ impl AppConfig {
 
         let config = toml::from_str(&content)?;
         Ok(config)
+    }
+    
+    pub fn root_dir(&self) -> anyhow::Result<PathBuf> {
+        match &self.root_dir { 
+            Some(dir) => Ok(root_dir()?.join(dir)),
+            None => Ok(root_dir()?)
+        }
     }
 }
 

@@ -26,5 +26,13 @@ pub(crate) fn decode_jwt(secrets: &AppSecrets, token: &str) -> anyhow::Result<Cl
 pub struct Claims {
     pub sub: i32,
     pub exp: i32,
-    pub data: UploadUrlConfig
-} 
+    pub data: ClaimsData
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum ClaimsData {
+    Upload {
+        id: String,
+        config: UploadUrlConfig,
+    }
+}

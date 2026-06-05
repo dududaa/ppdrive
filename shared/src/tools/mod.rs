@@ -53,3 +53,11 @@ pub fn mb_to_bytes(value: f64) -> usize {
 
     usize::from_le_bytes(bytes)
 }
+
+pub fn generate_nano_id(size: usize) -> String {
+    let alphabet: [char; 16] = [
+        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f'
+    ];
+
+    nanoid::nanoid!(size, &alphabet)
+}
