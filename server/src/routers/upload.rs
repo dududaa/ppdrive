@@ -10,17 +10,15 @@ use axum::Json;
 use axum::body::Bytes;
 use axum::extract::{Multipart, State};
 use axum::http::StatusCode;
-use axum_macros::debug_handler;
 use shared::generate_nano_id;
-use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use validator::Validate;
 
-/// Creates an upload session. If [AppConfig::use_session] is enabled, it returns a session_id.
-/// Otherwise, it returns a JWT for use by session play.
-#[debug_handler]
+/// Creates an upload session and returns the session token. If [AppConfig::use_session] is enabled, 
+/// we create the session id.
+#[axum::debug_handler]
 pub(super) async fn create_session(
     State(state): State<AppState>,
     client: ClientExtractor,
@@ -33,7 +31,7 @@ pub(super) async fn create_session(
     let use_session = state.config().use_session;
     let mut session_id = None;
     if use_session {
-        let id = session::create_session_id(&state, &generate_nano_id(24)).await?;
+        let id = session::create_session_id(&state).await?;
         session_id = Some(id);
     }
 
@@ -49,7 +47,7 @@ pub(super) async fn create_session(
     api_response(token)
 }
 
-#[debug_handler]
+#[axum::debug_handler]
 pub(super) async fn play_session(
     State(state): State<AppState>,
     claims: ClaimsExtractor,
@@ -105,7 +103,7 @@ pub(super) async fn play_session(
 
                             if !completed && resumable {
                                 let next_token =
-                                    next_token(&state, claims.sub, claims.data.clone()).await?;
+                                    next_token(&state, claims.sub, claims.data.clone())?;
                                 return api_response(Some(next_token));
                             }
 
@@ -131,6 +129,7 @@ pub(super) async fn play_session(
                 let session_id = session_id.clone().ok_or(api_error("missing session id"))?;
                 session::revoke_token(&state, &session_id).await?;
             }
+
             api_response(None)
         }
     }

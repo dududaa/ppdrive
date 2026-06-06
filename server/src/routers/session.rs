@@ -1,20 +1,22 @@
 use crate::state::AppState;
 use crate::utils::{Claims, ClaimsData, create_jwt};
+use shared::generate_nano_id;
 use shared::sqlx_qb::prelude::*;
 
-const TABLE_NAME: &'static str = "sessions";
+const TABLE_NAME: &str = "sessions";
 
-pub(super) async fn create_session_id(state: &AppState, pid: &str) -> anyhow::Result<String> {
+pub(super) async fn create_session_id(state: &AppState) -> anyhow::Result<String> {
+    let pid = generate_nano_id(24);
     let map = query_map! {
-        "pid": &pid,
+        "pid": pid.clone(),
     };
-
-    let id = QB::new(state.pool())
+    
+    QB::new(state.pool())
         .with_table_name(TABLE_NAME)
-        .insert_returns(&map, "pid")
+        .insert(&map)
         .await?;
 
-    Ok(id)
+    Ok(pid)
 }
 
 pub(super) async fn check_session(state: &AppState, pid: &str) -> anyhow::Result<bool> {
@@ -28,7 +30,7 @@ pub(super) async fn check_session(state: &AppState, pid: &str) -> anyhow::Result
     Ok(used)
 }
 
-pub(super) async fn next_token(
+pub(super) fn next_token(
     state: &AppState,
     client_id: i32,
     data: ClaimsData,

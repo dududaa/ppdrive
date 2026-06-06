@@ -1,8 +1,8 @@
-use crate::routers::resp::{ResponseError, api_error};
+use crate::routers::resp::{api_error, ResponseError};
 use crate::state::AppState;
-use crate::utils::{Claims, ClaimsData, decode_jwt};
+use crate::utils::{decode_jwt, Claims};
 use axum::extract::{FromRef, FromRequestParts};
-use axum::http::{StatusCode, header};
+use axum::http::{header, StatusCode};
 use shared::client::verify_client;
 use std::ops::Deref;
 
@@ -15,7 +15,7 @@ impl ClientExtractor {
 
 impl<S> FromRequestParts<S> for ClientExtractor
 where
-    S: Send + Sync,
+    S: Send + Sync + Clone + 'static,
     AppState: FromRef<S>,
 {
     type Rejection = ResponseError;

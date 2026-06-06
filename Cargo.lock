@@ -1794,7 +1794,7 @@ dependencies = [
 [[package]]
 name = "qb_macro"
 version = "0.1.0"
-source = "git+https://github.com/dududaa/sqlx-qb#885b994bd16f557caf74e88d6eb1fce568c3f573"
+source = "git+https://github.com/dududaa/sqlx-qb#afadbc69eeaf1cc8739cd1fc701403269ba9aa20"
 dependencies = [
  "darling 0.23.0",
  "proc-macro2",
@@ -2090,7 +2090,6 @@ version = "0.1.0-rc.1"
 dependencies = [
  "anyhow",
  "axum",
- "axum-macros",
  "axum-test",
  "futures-util",
  "jsonwebtoken",
@@ -2411,7 +2410,7 @@ dependencies = [
 [[package]]
 name = "sqlx_qb"
 version = "0.1.0"
-source = "git+https://github.com/dududaa/sqlx-qb#885b994bd16f557caf74e88d6eb1fce568c3f573"
+source = "git+https://github.com/dududaa/sqlx-qb#afadbc69eeaf1cc8739cd1fc701403269ba9aa20"
 dependencies = [
  "qb_macro",
  "serde",

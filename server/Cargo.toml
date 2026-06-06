@@ -6,7 +6,6 @@ version.workspace = true
 [dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "fs"] }
 axum = { workspace = true, features = ["macros", "multipart"] }
-axum-macros.workspace = true
 serde.workspace = true
 sqlx = "0.9.0"
 anyhow.workspace = true

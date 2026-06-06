@@ -14,7 +14,7 @@ pub struct Client {
     created_at: DateTime<Utc>,
 }
 
-const TABLE_NAME: &'static str = <Client as Model<_, &DbPool>>::TABLE_NAME;
+const TABLE_NAME: &str = <Client as Model<_, &DbPool>>::TABLE_NAME;
 
 impl Client {
     pub async fn create(db: &DbPool, args: ClientInsertArgs) -> anyhow::Result<String> {

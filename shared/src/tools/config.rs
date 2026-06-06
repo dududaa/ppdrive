@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use crate::root_dir;
 
-pub const CONFIG_FILENAME: &'static str = "ppd_config.toml";
+pub const CONFIG_FILENAME: &str = "ppd_config.toml";
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct AppConfig {
