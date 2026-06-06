@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, Validate, Default)]
+#[derive(Serialize, Deserialize, Validate, Default, Clone)]
 pub struct UploadUrlConfig {
     pub method: UploadUrlMethod,
     pub asset_type: AssetType,
@@ -16,14 +16,14 @@ pub struct UploadUrlConfig {
     pub resumable: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub enum UploadUrlMethod {
     #[default]
     Post,
     Put,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub enum AssetType {
     #[default]
     File,

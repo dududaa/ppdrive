@@ -1,6 +1,7 @@
 CREATE TABLE sessions
 (
-    pid TEXT UNIQUE,
-    token TEXT NOT NULL,
+    id         INTEGER PRIMARY KEY,
+    pid        TEXT UNIQUE,
+    used       BOOLEAN  DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )

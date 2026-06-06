@@ -29,10 +29,10 @@ pub struct Claims {
     pub data: ClaimsData
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum ClaimsData {
     Upload {
-        id: String,
+        session_id: Option<String>,
         config: UploadUrlConfig,
     }
 }

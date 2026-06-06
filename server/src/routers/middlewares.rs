@@ -1,10 +1,10 @@
-use std::ops::Deref;
 use crate::routers::resp::{ResponseError, api_error};
 use crate::state::AppState;
-use crate::utils::{Claims, decode_jwt, ClaimsData};
+use crate::utils::{Claims, ClaimsData, decode_jwt};
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::{StatusCode, header};
 use shared::client::verify_client;
+use std::ops::Deref;
 
 pub struct ClientExtractor(i32);
 impl ClientExtractor {
@@ -69,12 +69,12 @@ where
             return Err(api_error("invalid authorization header"));
         }
 
-        let auth_split = bearer
-            .split_once(' ')
-            .ok_or(api_error("invalid authorization header"))?;
+        let token = auth_str
+            .strip_prefix(bearer)
+            .ok_or(api_error("invalid authorization header"))?
+            .trim();
 
-        let claims = decode_jwt(state.secrets(), auth_split.1.trim())?;
-
+        let claims = decode_jwt(state.secrets(), token)?;
         Ok(Self(claims))
     }
 }

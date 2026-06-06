@@ -2,6 +2,7 @@ mod upload;
 mod middlewares;
 pub mod payloads;
 mod resp;
+mod session;
 
 use crate::state::AppState;
 use axum::routing::post;

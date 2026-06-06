@@ -1,9 +1,9 @@
-use sqlx_qb::prelude::*;
-use sqlx::{FromRow, Sqlite, SqlitePool};
+use crate::DbPool;
 use chrono::{DateTime, Utc};
 use nanoid::nanoid;
 use serde::Serialize;
-use crate::DbPool;
+use sqlx::FromRow;
+use sqlx_qb::prelude::*;
 
 #[derive(Model, FromRow)]
 #[model(table_name = "clients")]
@@ -14,7 +14,7 @@ pub struct Client {
     created_at: DateTime<Utc>,
 }
 
-const TABLE_NAME: &'static str = <Client as Model<Sqlite, &SqlitePool>>::TABLE_NAME;
+const TABLE_NAME: &'static str = <Client as Model<_, &DbPool>>::TABLE_NAME;
 
 impl Client {
     pub async fn create(db: &DbPool, args: ClientInsertArgs) -> anyhow::Result<String> {
@@ -24,33 +24,25 @@ impl Client {
     }
 
     pub async fn get(db: &DbPool, pid: &str) -> anyhow::Result<Client> {
-        let modifiers = Modifiers::new()
-            .with_filter(("pid", pid))
-            .with_limit(1);
+        let modifiers = Modifiers::new().with_filter(("pid", pid)).with_limit(1);
 
         let mut qb = QB::new(db);
         qb.set_modifiers(&modifiers);
 
-        let data = qb
-            .select()
-            .await?;
+        let data = qb.select().await?;
 
         Ok(data)
     }
 
     pub async fn all(db: &DbPool) -> anyhow::Result<Vec<Client>> {
         let mut qb = QB::new(db);
-        let data = qb
-            .select_all()
-            .await?;
+        let data = qb.select_all().await?;
 
         Ok(data)
     }
 
     pub async fn id_by_key(db: &DbPool, key: &str) -> anyhow::Result<i32> {
-        let modifiers = Modifiers::new()
-            .with_filter(("key", key))
-            .with_limit(1);
+        let modifiers = Modifiers::new().with_filter(("key", key)).with_limit(1);
 
         let mut qb = QB::new(db).with_table_name(TABLE_NAME);
         qb.set_modifiers(&modifiers);

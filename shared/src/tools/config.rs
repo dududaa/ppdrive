@@ -11,7 +11,8 @@ pub struct AppConfig {
     pub client_header_key: String,
     pub allowed_origins: Option<Vec<String>>,
     pub port: Option<i16>,
-    pub root_dir: Option<String>
+    pub root_dir: Option<String>,
+    pub use_session: bool
 }
 
 impl AppConfig {
