@@ -1,4 +1,4 @@
-mod non_revocable_upload;
+mod upload;
 mod middlewares;
 pub mod payloads;
 mod resp;
@@ -6,7 +6,7 @@ mod resp;
 use crate::state::AppState;
 use axum::routing::post;
 use axum::Router;
-use self::non_revocable_upload::*;
+use self::upload::*;
 
 pub fn upload_routes() -> Router<AppState> {
     Router::new()

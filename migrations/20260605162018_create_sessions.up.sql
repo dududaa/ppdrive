@@ -1,0 +1,6 @@
+CREATE TABLE sessions
+(
+    pid TEXT UNIQUE,
+    token TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)

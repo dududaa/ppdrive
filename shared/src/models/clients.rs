@@ -1,9 +1,9 @@
-use crate::DbPool;
+use sqlx_qb::prelude::*;
+use sqlx::{FromRow, Sqlite, SqlitePool};
 use chrono::{DateTime, Utc};
 use nanoid::nanoid;
 use serde::Serialize;
-use sqlx::{FromRow, Sqlite, SqlitePool};
-use sqlx_qb::prelude::*;
+use crate::DbPool;
 
 #[derive(Model, FromRow)]
 #[model(table_name = "clients")]

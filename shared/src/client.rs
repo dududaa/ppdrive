@@ -1,7 +1,7 @@
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 use chacha20poly1305::aead::Aead;
 use crate::DbPool;
-use crate::models::{Client, ClientInsertArgs};
+use crate::models::clients::{Client, ClientInsertArgs};
 use crate::tools::secrets::AppSecrets;
 
 /// generate a cipher token for client's id.
