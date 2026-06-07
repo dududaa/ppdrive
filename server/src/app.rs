@@ -38,7 +38,7 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
     let origins = state.config().allowed_origins.clone();
 
     let client_header_key = state.config().client_header_key.clone();
-    let port = state.config().port.clone().unwrap_or(8000);
+    let port = state.config().port.unwrap_or(8000);
 
     let cors = CorsLayer::new()
         .allow_origin(whitelist_to_origins(&origins))

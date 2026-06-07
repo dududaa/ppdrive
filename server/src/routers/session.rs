@@ -7,13 +7,9 @@ const TABLE_NAME: &str = "sessions";
 
 pub(super) async fn create_session_id(state: &AppState) -> anyhow::Result<String> {
     let pid = generate_nano_id(24);
-    let map = query_map! {
-        "pid": pid.clone(),
-    };
-    
-    QB::new(state.pool())
-        .with_table_name(TABLE_NAME)
-        .insert(&map)
+    sqlx::query("INSERT INTO sessions (pid) VALUES ($1)")
+        .bind(&pid)
+        .execute(state.pool())
         .await?;
 
     Ok(pid)

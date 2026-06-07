@@ -11,12 +11,12 @@ use axum::body::Bytes;
 use axum::extract::{Multipart, State};
 use axum::http::StatusCode;
 use shared::generate_nano_id;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use validator::Validate;
 
-/// Creates an upload session and returns the session token. If [AppConfig::use_session] is enabled, 
+/// Creates an upload session and returns the session token. If [AppConfig::use_session] is enabled,
 /// we create the session id.
 #[axum::debug_handler]
 pub(super) async fn create_session(
@@ -73,7 +73,7 @@ pub(super) async fn play_session(
                 return Err(api_error("Asset already exists"));
             }
 
-            if parent_dir != &root_dir
+            if parent_dir != root_dir
                 && !parent_dir.exists()
                 && !config.create_parents.unwrap_or_default()
             {
@@ -97,7 +97,11 @@ pub(super) async fn play_session(
                             .unwrap_or_default();
 
                         if name.as_str() == "file" {
-                            let data = field.bytes().await.map_err(|err| api_error(err))?;
+                            let data = field
+                                .bytes()
+                                .await
+                                .map_err(|err| anyhow!("unable to extract raw file {err}"))?;
+
                             let (tmp_path, completed) =
                                 upload_file(session_id.clone(), &tmp_dir, data, filesize).await?;
 
@@ -137,7 +141,7 @@ pub(super) async fn play_session(
 
 async fn upload_file(
     session_id: Option<String>,
-    tmp_dir: &PathBuf,
+    tmp_dir: &Path,
     data: Bytes,
     target_filesize: u64,
 ) -> anyhow::Result<(PathBuf, bool)> {
@@ -156,7 +160,7 @@ async fn upload_file(
         return Err(anyhow!("Upload already completed for the id: {id}"));
     }
 
-    tmp_file.write(&data).await?;
+    tmp_file.write_all(&data).await?;
     let tmp_size = tmp_file.metadata().await?.len();
     let completed = tmp_size >= target_filesize;
     Ok((tmp_path, completed))
