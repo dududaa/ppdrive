@@ -31,12 +31,7 @@ pub(super) fn next_session_token(
     client_id: i32,
     data: ClaimsData,
 ) -> anyhow::Result<String> {
-    let claims = Claims {
-        sub: client_id,
-        exp: 30,
-        data,
-    };
-
+    let claims = Claims::new(client_id, 30, data)?;
     create_jwt(state.secrets(), &claims)
 }
 

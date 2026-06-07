@@ -11,6 +11,9 @@ use std::str::FromStr;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info_span;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{EnvFilter, fmt};
 
 /// Convert whitelisted url to axum AllowOrigin. When no url is provided, all origins will be allowed.
 fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
@@ -34,6 +37,7 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
 }
 
 pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
+    start_logger()?;
     let state = AppState::new().await?;
     let origins = state.config().allowed_origins.clone();
 
@@ -74,4 +78,13 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
         .into_make_service();
 
     Ok((app, port))
+}
+
+fn start_logger() -> anyhow::Result<()> {
+    tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace")))
+        .with(fmt::layer())
+        .try_init()?;
+
+    Ok(())
 }

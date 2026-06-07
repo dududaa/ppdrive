@@ -1,3 +1,4 @@
+use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::anyhow;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
@@ -24,9 +25,30 @@ pub(crate) fn decode_jwt(secrets: &AppSecrets, token: &str) -> anyhow::Result<Cl
 
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: i32,
-    pub exp: i32,
-    pub data: ClaimsData
+    sub: i32,
+    exp: i64,
+    data: ClaimsData
+}
+
+impl Claims {
+    pub fn new(sub: i32, exp: i64, data: ClaimsData) -> anyhow::Result<Self> {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
+        let exp = now + exp;
+        
+        Ok(Self { sub, exp, data })
+    }
+    
+    pub fn sub(&self) -> &i32 {
+        &self.sub
+    }
+    
+    pub fn exp(&self) -> &i64 {
+        &self.exp
+    }
+    
+    pub fn data(&self) -> &ClaimsData {
+        &self.data
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]

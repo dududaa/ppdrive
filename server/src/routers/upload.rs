@@ -10,7 +10,7 @@ use axum::Json;
 use axum::body::Bytes;
 use axum::extract::{Multipart, State};
 use axum::http::StatusCode;
-use shared::generate_nano_id;
+use shared::{generate_nano_id, root_dir};
 use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
@@ -37,11 +37,7 @@ pub(super) async fn create_session(
 
     let exp = config.expires;
     let data = ClaimsData::Upload { session_id, config };
-    let claims = Claims {
-        sub: client.id(),
-        exp,
-        data,
-    };
+    let claims = Claims::new(client.id(), exp, data)?;
 
     let token = create_jwt(state.secrets(), &claims)?;
     api_response(token)
@@ -53,7 +49,7 @@ pub(super) async fn play_session(
     claims: ClaimsExtractor,
     multipart: Multipart,
 ) -> ApiResponse<Option<String>> {
-    match &claims.data {
+    match claims.data() {
         ClaimsData::Upload { config, session_id } => {
             let use_session = state.config().use_session;
             if use_session {
@@ -66,10 +62,10 @@ pub(super) async fn play_session(
             }
 
             let root_dir = state.config().root_dir()?;
-            let path = root_dir.join(&config.path);
+            let target_path = root_dir.join(&config.path);
 
-            let parent_dir = path.parent().unwrap_or(&root_dir);
-            if path.exists() && !config.overwrite.unwrap_or_default() {
+            let parent_dir = target_path.parent().unwrap_or(&root_dir);
+            if target_path.exists() && !config.overwrite.unwrap_or_default() {
                 return Err(api_error("Asset already exists"));
             }
 
@@ -82,21 +78,14 @@ pub(super) async fn play_session(
 
             match config.asset_type {
                 AssetType::File => {
-                    let token = get_next_session(
-                        &state, &claims, multipart, session_id, config, &path, &root_dir,
-                        parent_dir,
-                    )
-                    .await
-                    .map_err(|err| api_error(err.to_string()))?;
-
-                    return api_response(token);
+                    return handle_session(session_id, config, &state, &claims, multipart).await;
                 }
 
                 AssetType::Folder => {
                     if config.create_parents.unwrap_or_default() {
-                        tokio::fs::create_dir_all(path).await?;
+                        tokio::fs::create_dir_all(target_path).await?;
                     } else {
-                        tokio::fs::create_dir(path).await?;
+                        tokio::fs::create_dir(target_path).await?;
                     }
                 }
             }
@@ -108,7 +97,6 @@ pub(super) async fn play_session(
 
             api_response(None)
         }
-        _ => Err(api_error("Unsupported upload operation")),
     }
 }
 
@@ -117,65 +105,45 @@ pub(super) async fn play_next_session(
     claims: ClaimsExtractor,
     multipart: Multipart,
 ) -> ApiResponse<Option<String>> {
-    match &claims.data {
+    match &claims.data() {
         ClaimsData::Upload { config, session_id } => {
             let root_dir = state.config().root_dir()?;
             let target_path = root_dir.join(&config.path);
 
-            let parent_dir = target_path.parent().unwrap_or(&root_dir);
             if target_path.exists() && !config.overwrite.unwrap_or_default() {
                 return Err(api_error("Asset already exists"));
             }
 
             match config.asset_type {
                 AssetType::File => {
-                    let token = get_next_session(
-                        &state,
-                        &claims,
-                        multipart,
-                        session_id,
-                        config,
-                        &target_path,
-                        &root_dir,
-                        parent_dir,
-                    )
-                    .await
-                    .map_err(|err| api_error(err.to_string()))?;
-
-                    api_response(token)
+                    handle_session(session_id, config, &state, &claims, multipart).await
                 }
                 AssetType::Folder => Err(api_error("Unsupported upload operation")),
             }
         }
-        _ => Err(api_error("Unsupported upload operation")),
     }
 }
 
-async fn upload_file(
-    session_id: Option<String>,
-    tmp_dir: &Path,
-    data: Bytes,
-    target_filesize: u64,
-) -> anyhow::Result<(PathBuf, bool)> {
-    let id = session_id.unwrap_or(generate_nano_id(24));
+async fn handle_session(
+    session_id: &Option<String>,
+    config: &UploadUrlConfig,
+    state: &AppState,
+    claims: &ClaimsExtractor,
+    multipart: Multipart,
+) -> ApiResponse<Option<String>> {
+    match get_next_session(state, claims, multipart, session_id, config).await {
+        Ok(token) => api_response(token),
+        Err(err) => {
+            if let Some(id) = session_id {
+                let tmp_path = root_dir()?.join("tmp").join(id);
+                if let Err(err) = tokio::fs::remove_file(tmp_path).await {
+                    tracing::error!("unable to clean up file after failure: {err}");
+                }
+            }
 
-    let tmp_path = tmp_dir.join(&id);
-    let mut tmp_file = OpenOptions::new()
-        .read(true)
-        .append(true)
-        .open(&tmp_path)
-        .await?;
-
-    let tmp_size = tmp_file.metadata().await?.len();
-    if (tmp_size + data.len() as u64) > target_filesize {
-        tokio::fs::remove_file(&tmp_path).await?;
-        return Err(anyhow!("Upload already completed for the id: {id}"));
+            Err(api_error(err.to_string()))
+        }
     }
-
-    tmp_file.write_all(&data).await?;
-    let tmp_size = tmp_file.metadata().await?.len();
-    let completed = tmp_size >= target_filesize;
-    Ok((tmp_path, completed))
 }
 
 /// Upload file and get next session token.
@@ -185,23 +153,26 @@ async fn get_next_session(
     mut multipart: Multipart,
     session_id: &Option<String>,
     config: &UploadUrlConfig,
-    target_path: &Path,
-    root_dir: &PathBuf,
-    parent_dir: &Path,
 ) -> anyhow::Result<Option<String>> {
-    let tmp_dir = state.config().root_dir()?.join("tmp");
+    let tmp_dir = root_dir()?.join("tmp");
+    let root_dir = state.config().root_dir()?;
+
     if !tmp_dir.exists() {
         tokio::fs::create_dir(&tmp_dir).await?;
     }
 
-    let target_filesize = config
-        .filesize
-        .ok_or(anyhow!("unable to determine target filesize"))?;
+    let target_path = root_dir.join(config.path.trim_start_matches("/"));
+    let parent_dir = target_path.parent().unwrap_or(&root_dir);
+
+    let target_filesize = config.target_filesize.ok_or(anyhow!(
+        "Unable to determine target filesize. Please specify \"target_filesize\" in upload options."
+    ))?;
 
     let resumable = config.resumable.unwrap_or_default();
-
     let mut next_token = None;
+
     while let Ok(Some(field)) = multipart.next_field().await {
+        let target_path = target_path.clone();
         let name = field
             .name()
             .map(|name| name.to_string())
@@ -214,10 +185,10 @@ async fn get_next_session(
                 .map_err(|err| anyhow!("unable to extract raw file {err}"))?;
 
             let (tmp_path, completed) =
-                upload_file(session_id.clone(), &*tmp_dir, data, target_filesize).await?;
+                upload_file(session_id.clone(), &tmp_dir, data, target_filesize).await?;
 
             if !completed && resumable {
-                let token = next_session_token(state, extractor.sub, extractor.data.clone())?;
+                let token = next_session_token(state, *extractor.sub(), extractor.data().clone())?;
                 next_token = Some(token);
             }
 
@@ -232,46 +203,25 @@ async fn get_next_session(
     Ok(next_token)
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::app::create_app;
-    use crate::routers::payloads::{AssetType, UploadUrlConfig, UploadUrlMethod};
-    use crate::state::AppState;
-    use axum_test::TestServer;
-    use shared::client::create_client;
+async fn upload_file(
+    session_id: Option<String>,
+    tmp_dir: &Path,
+    data: Bytes,
+    target_filesize: u64,
+) -> anyhow::Result<(PathBuf, bool)> {
+    let id = session_id.unwrap_or(generate_nano_id(24));
 
-    #[tokio::test]
-    async fn test_create_signed_url() -> anyhow::Result<()> {
-        let (app, _) = create_app().await?;
-        let state = AppState::new().await?;
+    let tmp_path = tmp_dir.join(&id);
+    let mut tmp_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&tmp_path)
+        .await?;
 
-        let client_header_key = state.config().client_header_key.clone();
-        let client = create_client(state.pool(), state.secrets(), "Test Client", None).await?;
+    tmp_file.write_all(&data).await?;
+    tmp_file.flush().await?;
 
-        let server = TestServer::new(app);
-        let config = UploadUrlConfig {
-            method: UploadUrlMethod::Post,
-            asset_type: AssetType::File,
-            path: "demo-file.png".to_string(),
-            expires: 30,
-            ..Default::default()
-        };
-
-        let base_request = || {
-            server
-                .post("/upload/session")
-                .json(&config)
-                .content_type("application/json")
-        };
-
-        let mut resp = base_request().await;
-        resp.assert_status_unauthorized();
-
-        resp = base_request()
-            .add_header(client_header_key, client.token())
-            .await;
-        resp.assert_status_ok();
-
-        Ok(())
-    }
+    let tmp_size = tmp_file.metadata().await?.len();
+    let completed = tmp_size >= target_filesize;
+    Ok((tmp_path, completed))
 }

@@ -6,9 +6,9 @@ pub struct UploadUrlConfig {
     pub method: UploadUrlMethod,
     pub asset_type: AssetType,
     #[validate(range(min = 30))]
-    pub expires: i32,
+    pub expires: i64,
     pub path: String,
-    pub filesize: Option<u64>,
+    pub target_filesize: Option<u64>,
     /// Create asset parent folders if they don't exist, else error will be returned.
     pub create_parents: Option<bool>,
     /// overwrite asset if it already exists.
