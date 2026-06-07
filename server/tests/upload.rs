@@ -14,13 +14,14 @@ async fn test_create_upload_session() -> anyhow::Result<()> {
     let client_header_key = state.config().client_header_key.clone();
     let client = create_client(state.pool(), state.secrets(), "Test Client", None).await?;
 
+    let url = "/upload/session";
     let server = TestServerWrapper::new().await?;
-    let request = server.post("/upload/session", &upload_config());
+    let request = server.post(url, &upload_config());
 
     let mut resp = request.await;
     resp.assert_status_unauthorized();
 
-    let request = server.post("/upload/session", &upload_config());
+    let request = server.post(url, &upload_config());
     resp = request.add_header(client_header_key, client.token()).await;
     resp.assert_status_ok();
 
@@ -45,20 +46,72 @@ async fn test_play_upload_session() -> anyhow::Result<()> {
 
     let mut upload_config = upload_config();
     upload_config.create_parents = Some(true);
-    upload_config.target_filesize = Some(data.len() as u64);
+    upload_config.overwrite = Some(true);
 
-    let base_request = server.post("/upload/session", &upload_config);
-    let token: String = base_request
-        .add_header(client_header_key, client.token())
+    let token_url = "/upload/session";
+    let upload_url = "/upload/session/play";
+
+    // Unauthorized
+    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
+    let request = server.multipart(upload_url, form);
+
+    let resp = request.await;
+    resp.assert_status_unauthorized();
+
+    // Target size not provided
+    let token_request = server.post(token_url, &upload_config);
+    let token: String = token_request
+        .add_header(&client_header_key, client.token())
         .await
         .json();
 
-    let form = MultipartForm::new().add_part("file", Part::bytes(data));
-    let request = server
-        .multipart("/upload/session/play", form)
-        .authorization_bearer(token);
+    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
+    let request = server.multipart(upload_url, form).authorization_bearer(token);
+
+    let resp = request.await;
+    resp.assert_status_internal_server_error();
+
+    // Success
+    upload_config.target_filesize = Some(data.len() as u64);
+    let token_request = server.post(token_url, &upload_config);
+    let token: String = token_request
+        .add_header(&client_header_key, client.token())
+        .await
+        .json();
+
+    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
+    let request = server.multipart(upload_url, form).authorization_bearer(&token);
 
     let resp = request.await;
     resp.assert_status_ok();
+
+    // Overwrite fails
+    upload_config.overwrite = Some(false);
+    let token_request = server.post(token_url, &upload_config);
+    let token: String = token_request
+        .add_header(&client_header_key, client.token())
+        .await
+        .json();
+
+    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
+    let request = server.multipart(upload_url, form).authorization_bearer(&token);
+
+    let resp = request.await;
+    resp.assert_status_internal_server_error();
+
+    // Overwrite succeed
+    upload_config.overwrite = Some(true);
+    let token_request = server.post(token_url, &upload_config);
+    let token: String = token_request
+        .add_header(&client_header_key, client.token())
+        .await
+        .json();
+
+    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
+    let request = server.multipart(upload_url, form).authorization_bearer(&token);
+
+    let resp = request.await;
+    resp.assert_status_ok();
+
     Ok(())
 }
