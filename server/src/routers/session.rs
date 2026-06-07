@@ -26,7 +26,7 @@ pub(super) async fn check_session(state: &AppState, pid: &str) -> anyhow::Result
     Ok(used)
 }
 
-pub(super) fn next_token(
+pub(super) fn next_session_token(
     state: &AppState,
     client_id: i32,
     data: ClaimsData,

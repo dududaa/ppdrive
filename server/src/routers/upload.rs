@@ -2,7 +2,7 @@ use crate::routers::middlewares::{ClaimsExtractor, ClientExtractor};
 use crate::routers::payloads::{AssetType, UploadUrlConfig};
 use crate::routers::resp::{ApiResponse, api_error, api_response};
 use crate::routers::session;
-use crate::routers::session::{check_session, next_token};
+use crate::routers::session::{check_session, next_session_token};
 use crate::state::AppState;
 use crate::utils::{Claims, ClaimsData, create_jwt};
 use anyhow::anyhow;
@@ -51,7 +51,7 @@ pub(super) async fn create_session(
 pub(super) async fn play_session(
     State(state): State<AppState>,
     claims: ClaimsExtractor,
-    mut multipart: Multipart,
+    multipart: Multipart,
 ) -> ApiResponse<Option<String>> {
     match &claims.data {
         ClaimsData::Upload { config, session_id } => {
@@ -82,42 +82,14 @@ pub(super) async fn play_session(
 
             match config.asset_type {
                 AssetType::File => {
-                    let resumable = config.resumable.unwrap_or_default();
-                    let filesize = config
-                        .filesize
-                        .ok_or(api_error("unable to determine target filesize"))?;
+                    let token = get_next_session(
+                        &state, &claims, multipart, session_id, config, &path, &root_dir,
+                        parent_dir,
+                    )
+                    .await
+                    .map_err(|err| api_error(err.to_string()))?;
 
-                    let tmp_dir = state.config().root_dir()?.join("tmp");
-                    tokio::fs::create_dir(&tmp_dir).await?;
-
-                    while let Ok(Some(field)) = multipart.next_field().await {
-                        let name = field
-                            .name()
-                            .map(|name| name.to_string())
-                            .unwrap_or_default();
-
-                        if name.as_str() == "file" {
-                            let data = field
-                                .bytes()
-                                .await
-                                .map_err(|err| anyhow!("unable to extract raw file {err}"))?;
-
-                            let (tmp_path, completed) =
-                                upload_file(session_id.clone(), &tmp_dir, data, filesize).await?;
-
-                            if !completed && resumable {
-                                let next_token =
-                                    next_token(&state, claims.sub, claims.data.clone())?;
-                                return api_response(Some(next_token));
-                            }
-
-                            if parent_dir != root_dir && !parent_dir.exists() {
-                                tokio::fs::create_dir_all(&parent_dir).await?;
-                            }
-
-                            tokio::fs::rename(tmp_path, &path).await?;
-                        }
-                    }
+                    return api_response(token);
                 }
 
                 AssetType::Folder => {
@@ -136,6 +108,46 @@ pub(super) async fn play_session(
 
             api_response(None)
         }
+        _ => Err(api_error("Unsupported upload operation")),
+    }
+}
+
+pub(super) async fn play_next_session(
+    State(state): State<AppState>,
+    claims: ClaimsExtractor,
+    multipart: Multipart,
+) -> ApiResponse<Option<String>> {
+    match &claims.data {
+        ClaimsData::Upload { config, session_id } => {
+            let root_dir = state.config().root_dir()?;
+            let target_path = root_dir.join(&config.path);
+
+            let parent_dir = target_path.parent().unwrap_or(&root_dir);
+            if target_path.exists() && !config.overwrite.unwrap_or_default() {
+                return Err(api_error("Asset already exists"));
+            }
+
+            match config.asset_type {
+                AssetType::File => {
+                    let token = get_next_session(
+                        &state,
+                        &claims,
+                        multipart,
+                        session_id,
+                        config,
+                        &target_path,
+                        &root_dir,
+                        parent_dir,
+                    )
+                    .await
+                    .map_err(|err| api_error(err.to_string()))?;
+
+                    api_response(token)
+                }
+                AssetType::Folder => Err(api_error("Unsupported upload operation")),
+            }
+        }
+        _ => Err(api_error("Unsupported upload operation")),
     }
 }
 
@@ -166,6 +178,60 @@ async fn upload_file(
     Ok((tmp_path, completed))
 }
 
+/// Upload file and get next session token.
+async fn get_next_session(
+    state: &AppState,
+    extractor: &ClaimsExtractor,
+    mut multipart: Multipart,
+    session_id: &Option<String>,
+    config: &UploadUrlConfig,
+    target_path: &Path,
+    root_dir: &PathBuf,
+    parent_dir: &Path,
+) -> anyhow::Result<Option<String>> {
+    let tmp_dir = state.config().root_dir()?.join("tmp");
+    if !tmp_dir.exists() {
+        tokio::fs::create_dir(&tmp_dir).await?;
+    }
+
+    let target_filesize = config
+        .filesize
+        .ok_or(anyhow!("unable to determine target filesize"))?;
+
+    let resumable = config.resumable.unwrap_or_default();
+
+    let mut next_token = None;
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let name = field
+            .name()
+            .map(|name| name.to_string())
+            .unwrap_or_default();
+
+        if name.as_str() == "file" {
+            let data = field
+                .bytes()
+                .await
+                .map_err(|err| anyhow!("unable to extract raw file {err}"))?;
+
+            let (tmp_path, completed) =
+                upload_file(session_id.clone(), &*tmp_dir, data, target_filesize).await?;
+
+            if !completed && resumable {
+                let token = next_session_token(state, extractor.sub, extractor.data.clone())?;
+                next_token = Some(token);
+            }
+
+            if parent_dir != root_dir && !parent_dir.exists() {
+                tokio::fs::create_dir_all(&parent_dir).await?;
+            }
+
+            tokio::fs::rename(tmp_path, target_path).await?;
+        }
+    }
+
+    Ok(next_token)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::app::create_app;
@@ -193,7 +259,7 @@ mod tests {
 
         let base_request = || {
             server
-                .post("/upload/signed")
+                .post("/upload/session")
                 .json(&config)
                 .content_type("application/json")
         };

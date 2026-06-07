@@ -3,6 +3,9 @@ name = "server"
 edition.workspace = true
 version.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "fs"] }
 axum = { workspace = true, features = ["macros", "multipart"] }
