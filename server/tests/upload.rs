@@ -1,12 +1,14 @@
+use axum::body::Bytes;
+use futures_util::StreamExt;
 mod common;
 
 use crate::common::{TestServerWrapper, upload_config};
-use axum_test::multipart::{MultipartForm, Part};
 use server::state::AppState;
 use shared::client::create_client;
 use shared::root_dir;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncReadExt;
+use tokio_util::io::ReaderStream;
 
 #[tokio::test]
 async fn test_create_upload_session() -> anyhow::Result<()> {
@@ -52,9 +54,7 @@ async fn test_play_upload_session() -> anyhow::Result<()> {
     let upload_url = "/upload/session/play";
 
     // Unauthorized
-    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
-    let request = server.multipart(upload_url, form);
-
+    let request = server.post_bytes(upload_url, Bytes::copy_from_slice(&data));
     let resp = request.await;
     resp.assert_status_unauthorized();
 
@@ -65,8 +65,9 @@ async fn test_play_upload_session() -> anyhow::Result<()> {
         .await
         .json();
 
-    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
-    let request = server.multipart(upload_url, form).authorization_bearer(token);
+    let request = server
+        .post_bytes(upload_url, Bytes::copy_from_slice(&data))
+        .authorization_bearer(token);
 
     let resp = request.await;
     resp.assert_status_internal_server_error();
@@ -79,8 +80,9 @@ async fn test_play_upload_session() -> anyhow::Result<()> {
         .await
         .json();
 
-    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
-    let request = server.multipart(upload_url, form).authorization_bearer(&token);
+    let request = server
+        .post_bytes(upload_url, Bytes::copy_from_slice(&data))
+        .authorization_bearer(&token);
 
     let resp = request.await;
     resp.assert_status_ok();
@@ -93,8 +95,9 @@ async fn test_play_upload_session() -> anyhow::Result<()> {
         .await
         .json();
 
-    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
-    let request = server.multipart(upload_url, form).authorization_bearer(&token);
+    let request = server
+        .post_bytes(upload_url, Bytes::copy_from_slice(&data))
+        .authorization_bearer(&token);
 
     let resp = request.await;
     resp.assert_status_internal_server_error();
@@ -107,11 +110,83 @@ async fn test_play_upload_session() -> anyhow::Result<()> {
         .await
         .json();
 
-    let form = MultipartForm::new().add_part("file", Part::bytes(data.clone()));
-    let request = server.multipart(upload_url, form).authorization_bearer(&token);
+    let request = server
+        .post_bytes(upload_url, Bytes::copy_from_slice(&data))
+        .authorization_bearer(&token);
 
     let resp = request.await;
     resp.assert_status_ok();
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_play_upload_resumable_session() -> anyhow::Result<()> {
+    let state = AppState::new().await?;
+    let client_header_key = state.config().client_header_key.clone();
+    let client = create_client(state.pool(), state.secrets(), "Test Client", None).await?;
+
+    let server = TestServerWrapper::new().await?;
+    let mut upload_config = upload_config();
+
+    let token_url = "/upload/session";
+    let upload_url = "/upload/session/play";
+    let play_next_url = "/upload/session/next";
+
+    // Payload too large. You must set resumable
+    let demo_filepath = root_dir()?.join("test-assets/resumable.png");
+    let file = tokio::fs::File::open(demo_filepath).await?;
+    let filesize = file.metadata().await?.len();
+
+    upload_config.target_filesize = Some(filesize);
+    let token_request = server.post(token_url, &upload_config);
+    let resp = token_request
+        .add_header(&client_header_key, client.token())
+        .await;
+
+    resp.assert_status_payload_too_large();
+
+    // Successful token
+    upload_config.create_parents = Some(true);
+    upload_config.overwrite = Some(true);
+    upload_config.resumable = Some(true);
+    upload_config.path = "test-assets/uploads/resumable_output.png".to_string();
+
+    let token_request = server.post(token_url, &upload_config);
+    let resp = token_request
+        .add_header(&client_header_key, client.token())
+        .await;
+
+    resp.assert_status_ok();
+    let chunk_size = 2 * 1024 * 1024;
+    let mut stream = ReaderStream::with_capacity(file, chunk_size);
+    let mut next_token: Option<String> = None;
+
+    if let Some(Ok(first_chunk)) = stream.next().await {
+        let token: String = resp.json();
+        let request = server
+            .post_bytes(upload_url, first_chunk)
+            .authorization_bearer(token);
+
+        let resp = request.await;
+        resp.assert_status_ok();
+
+        next_token = resp.json();
+        assert!(next_token.is_some());
+    }
+
+    while let Some(Ok(next_chunk)) = stream.next().await
+        && let Some(token) = &next_token
+    {
+        let request = server
+            .patch_bytes(play_next_url, next_chunk)
+            .authorization_bearer(token);
+
+        let resp = request.await;
+        resp.assert_status_ok();
+
+        next_token = resp.json();
+    }
 
     Ok(())
 }

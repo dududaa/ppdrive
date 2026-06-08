@@ -1,5 +1,5 @@
-use axum_test::multipart::MultipartForm;
-use axum_test::{TestRequest, TestServer};
+use axum::body::Bytes;
+use axum_test::{TestRequest, TestServer, TestServerConfig, Transport};
 use serde::Serialize;
 use server::app::create_app;
 use server::routers::payloads::{AssetType, UploadUrlConfig, UploadUrlMethod};
@@ -11,7 +11,12 @@ pub struct TestServerWrapper {
 impl TestServerWrapper {
     pub async fn new() -> anyhow::Result<TestServerWrapper> {
         let (app, _) = create_app().await?;
-        let server = TestServer::new(app);
+        let config = TestServerConfig {
+            transport: Some(Transport::HttpRandomPort), // Enforces real networking
+            ..Default::default()
+        };
+
+        let server = TestServer::new_with_config(app, config);
 
         let s = Self { server };
         Ok(s)
@@ -24,10 +29,12 @@ impl TestServerWrapper {
             .content_type("application/json")
     }
 
-    pub fn multipart(&self, url: &str, form: MultipartForm) -> TestRequest {
-        self.server
-            .post(url)
-            .multipart(form)
+    pub fn post_bytes(&self, url: &str, body: Bytes) -> TestRequest {
+        self.server.post(url).bytes(body)
+    }
+
+    pub fn patch_bytes(&self, url: &str, body: Bytes) -> TestRequest {
+        self.server.patch(url).bytes(body)
     }
 }
 

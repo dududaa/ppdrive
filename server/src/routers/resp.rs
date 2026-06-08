@@ -20,6 +20,10 @@ impl<T: Serialize> ResponsePayload<T> {
             status_code: StatusCode::OK,
         }
     }
+
+    pub fn data(&self) -> &T {
+        &self.data
+    }
 }
 
 impl<T: Serialize> IntoResponse for ResponsePayload<T> {

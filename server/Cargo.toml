@@ -26,3 +26,5 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 
 [dev-dependencies]
 axum-test = "20.1.0"
+tokio-util = "0.7.18"
+futures-util = "0.3.32"

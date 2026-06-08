@@ -5,7 +5,7 @@ use shared::sqlx_qb::prelude::*;
 
 const TABLE_NAME: &str = "sessions";
 
-pub(super) async fn create_session_id(state: &AppState) -> anyhow::Result<String> {
+pub(super) async fn create_session(state: &AppState) -> anyhow::Result<String> {
     let pid = generate_nano_id(24);
     sqlx::query("INSERT INTO sessions (pid) VALUES ($1)")
         .bind(&pid)
@@ -31,7 +31,8 @@ pub(super) fn next_session_token(
     client_id: i32,
     data: ClaimsData,
 ) -> anyhow::Result<String> {
-    let claims = Claims::new(client_id, 30, data)?;
+    // TODO: Make resumable expiration configurable.
+    let claims = Claims::new(client_id, 30, data)?.with_session_resume(true);
     create_jwt(state.secrets(), &claims)
 }
 
