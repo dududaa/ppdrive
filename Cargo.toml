@@ -4,7 +4,7 @@ members = ["ppdrive", "server", "shared"]
 
 [workspace.package]
 edition = "2024"
-version = "0.1.0-alpha"
+version = "0.1.0-alpha01"
 
 [workspace.dependencies]
 serde = "1.0.219"
