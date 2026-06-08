@@ -5,7 +5,7 @@ set -e
 REPO="dududaa/ppdrive"
 INSTALL_DIR="$HOME/.local/share/ppdrive"
 BIN_DIR="$HOME/.local/bin"
-ASSET_PATTERN="ppdrive-linux.tar.gz"
+ASSET_PATTERN="release-linux-x86-64.tar.gz"
 
 # === FUNCTIONS ===
 
