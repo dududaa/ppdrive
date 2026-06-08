@@ -67,40 +67,40 @@ jobs:
             tar -czvf dist/${{ matrix.artifact_name }} -C package .
           fi
 
-    release:
-      name: Create GitHub Release
-      needs: build
-      runs-on: ubuntu-latest
-      steps:
-        - name: Download Artifacts
-          uses: actions/download-artifact@v4
-          with:
-            path: dist
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
 
-        - name: Create GitHub Release
-          uses: softprops/action-gh-release@v2
-          with:
-            tag_name: ${{ github.ref_name }}
-            name: Release ${{ github.ref_name }}
-            files: |
-              dist/**/*.tar.gz
-              dist/**/*.zip
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: |
+            dist/**/*.tar.gz
+            dist/**/*.zip
 
-            body: |
-              # 🚀 PPDRIVE Pre-Release Notes
-              **Version:** ${GITHUB_REF_NAME}
-              **Date:** June 2026
-              
-              ## What’s New
-              - Cli Tool
-              - Resumable uploads
-              - Serving static folders
-              - And several others
-              
-              ## ⚠️ Notes
-              
-              This is a **prerelease build**, intended for early adopters and internal testing.
-              Feedback and bug reports are highly appreciated as we prepare for the first stable release.
+          body: |
+            # 🚀 PPDRIVE Pre-Release Notes
+            **Version:** ${GITHUB_REF_NAME}
+            **Date:** June 2026
+            
+            ## What’s New
+            - Cli Tool
+            - Resumable uploads
+            - Serving static folders
+            - And several others
+            
+            ## ⚠️ Notes
+            
+            This is a **prerelease build**, intended for early adopters and internal testing.
+            Feedback and bug reports are highly appreciated as we prepare for the first stable release.
 
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
