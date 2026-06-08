@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 use shared::client::{create_client, regenerate_token};
+use shared::config::AppConfig;
 use shared::create_pool;
 use shared::secrets::AppSecrets;
+use std::process::Command;
 
 /// PPDRIVE is a free, open-source object storage service built with Rust for speed, security,
 /// and reliability.
@@ -10,14 +12,12 @@ use shared::secrets::AppSecrets;
 pub struct Cli {
     #[command(subcommand)]
     command: CliCommand,
-
-    #[clap(short, long)]
-    database_url: String,
 }
 
 impl Cli {
     pub async fn execute(&self) -> Result<(), anyhow::Error> {
-        let pool = create_pool(&self.database_url).await?;
+        let config = AppConfig::read().await?;
+        let pool = create_pool(&config.database_url).await?;
         let secret = AppSecrets::read().await?;
 
         match &self.command {
@@ -39,7 +39,23 @@ impl Cli {
                     println!("token: {}", token);
                 }
                 _ => {}
-            },
+            }
+
+            CliCommand::Serve => {
+                if cfg!(debug_assertions) {
+                    Command::new("cargo")
+                        .args(["run", "-p", "server"])
+                        .status()?;
+                } else {
+                    Command::new("./server").status()?;
+                }
+            }
+
+            CliCommand::Configure => {
+                Command::new("nano")
+                    .arg("ppd_config.toml")
+                    .status()?;
+            }
         }
 
         Ok(())
@@ -48,6 +64,8 @@ impl Cli {
 
 #[derive(Subcommand, Debug)]
 enum CliCommand {
+    Serve,
+    Configure,
     /// create a new client for the specified service
     Client {
         #[command(subcommand)]
