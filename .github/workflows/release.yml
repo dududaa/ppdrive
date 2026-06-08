@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  build-release:
+  build:
     name: Build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     strategy:
