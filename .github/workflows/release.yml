@@ -57,7 +57,7 @@ jobs:
           mkdir -p package
 
           cp target/${{ matrix.target }}/release/ppdrive${{ matrix.bin_ext }} package/
-          cp target/${{ matrix.target }}/release/server{{ matrix.bin_ext }} package/
+          cp target/${{ matrix.target }}/release/server${{ matrix.bin_ext }} package/
 
           mkdir -p dist
 
