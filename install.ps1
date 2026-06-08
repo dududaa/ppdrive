@@ -1,56 +1,47 @@
-# ppdrive Windows Installer
-# Downloads ppdrive-windows.zip and extracts it to:
-#   %LOCALAPPDATA%\Programs\ppdrive
+# 1. Configuration (Requires Administrator privileges to write to Program Files)
+$Repo = "dududaa/ppdrive"
+$Tag = "v1.0.0-alpha"
 
-$ErrorActionPreference = "Stop"
+# 2. Target Resolution
+$Artifact = "windows-x86_64"
+$FileName = "release-${Artifact}.zip"
+$Url = "https://github.com{Repo}/releases/download/${Tag}/${FileName}"
 
-Write-Host "🔧 Installing ppdrive for Windows..." -ForegroundColor Cyan
-
-# Define install directory
-$InstallDir = Join-Path $env:LOCALAPPDATA "Programs\ppdrive"
-
-# Create directory if needed
+# 3. Establish System Install Path
+$InstallDir = "C:\Program Files\ppdrive"
 if (-not (Test-Path $InstallDir)) {
-    Write-Host "Creating $InstallDir ..."
-    New-Item -ItemType Directory -Path $InstallDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 }
+Write-Host "Installing to $InstallDir..."
 
-# Temporary ZIP file path
-$ZipPath = Join-Path $env:TEMP "ppdrive-windows.zip"
+# 4. Download and Extract
+$TempZip = Join-Path $env:TEMP $FileName
+$TempExtracted = Join-Path $env:TEMP "ppdrive_extracted"
 
-# Download ZIP from GitHub releases
-$DownloadUrl = "https://github.com/dududaa/ppdrive/releases/download/v0.1.0-rc.1/ppdrive-windows.zip"
+if (Test-Path $TempExtracted) { Remove-Item -Recurse -Force $TempExtracted }
 
-Write-Host "Downloading ppdrive package from:"
-Write-Host "  $DownloadUrl"
-Invoke-WebRequest -Uri $DownloadUrl -OutFile $ZipPath -UseBasicParsing
+Write-Host "Downloading $Url..."
+Invoke-WebRequest -Uri $Url -OutFile $TempZip -UseBasicParsing
 
-Write-Host "Extracting package..."
+Write-Host "Extracting artifacts..."
+Expand-Archive -Path $TempZip -DestinationPath $TempExtracted -Force
 
-# Clear any old installation first
-if (Test-Path $InstallDir) {
-    Get-ChildItem -Path $InstallDir -Recurse | Remove-Item -Recurse -Force
-}
+# Move files cleanly out of nested folder
+Copy-Item -Path "$TempExtracted\release-${Artifact}\*" -Destination $InstallDir -Recurse -Force
 
-# Extract ZIP into install directory
-Expand-Archive -Path $ZipPath -DestinationPath $InstallDir -Force
-
-# Remove temporary ZIP
-Remove-Item $ZipPath -Force
-
-Write-Host "ppdrive installed to: $InstallDir" -ForegroundColor Green
-
-# Ensure install directory is in PATH
-$CurrentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+# 5. Add to Windows Permanent Environment Variables
+Write-Host "Updating system Environment PATH variable..."
+$CurrentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
 
 if ($CurrentPath -notlike "*$InstallDir*") {
-    Write-Host "Adding $InstallDir to PATH..."
-    $NewPath = $CurrentPath + ";" + $InstallDir
-    [Environment]::SetEnvironmentVariable("PATH", $Nehttps://github.com/dududaa/ppdrive/releases/download/v0.1.0-rc.1/ppdrive-windows.zipwPath, "User")
-    Write-Host "PATH updated. Restart your terminal to apply changes."
+    $NewPath = "$CurrentPath;$InstallDir"
+    [Environment]::SetEnvironmentVariable("Path", $NewPath, "Machine")
+    Write-Host "PATH updated successfully."
 } else {
-    Write-Host "PATH already contains $InstallDir"
+    Write-Host "PATH already contains the installation directory."
 }
 
-Write-Host "`n🎉 ppdrive installation complete!"
-Write-Host "Try running: ppdrive --help" -ForegroundColor Yellow
+# Clean up
+Remove-Item -Force $TempZip
+Remove-Item -Recurse -Force $TempExtracted
+Write-Host "Success! Restart your terminal or applications to apply changes."
