@@ -62,10 +62,15 @@ jobs:
           mkdir -p dist
 
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            powershell -Command "Compress-Archive -Path package\\* -DestinationPath dist\\${{ matrix.artifact_name }}"
+            powershell -Command "Compress-Archive -Path package\* -DestinationPath dist\${{ matrix.artifact_name }}.zip"
           else
-            tar -czvf dist/${{ matrix.artifact_name }} -C package .
+            tar -czvf dist/${{ matrix.artifact_name }}.tar.gz -C package .
           fi
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/*
 
   release:
     name: Create GitHub Release
