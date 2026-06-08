@@ -5,17 +5,37 @@ set -e
 REPO="dududaa/ppdrive"
 INSTALL_DIR="/usr/local/bin/ppdrive"
 
-# 2. Fetch Latest Version from GitHub API
+# 2. Fetch Latest Version from GitHub API (Including Alphas/Pre-releases)
 echo "Checking GitHub for the latest release..."
-LATEST_TAG=$(curl -s "https://github.com{REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+
+AUTH_HEADER=""
+if [ -n "$GITHUB_TOKEN" ]; then
+    AUTH_HEADER="Authorization: Bearer $GITHUB_TOKEN"
+fi
+
+# Query the full releases endpoint instead of /releases/latest
+API_RESPONSE=$(curl -sS -H "User-Agent: ppdrive-installer" -H "$AUTH_HEADER" "https://github.com{REPO}/releases" || true)
+
+# Extract the very first "tag_name" listed in the JSON array (the newest release)
+LATEST_TAG=$(echo "$API_RESPONSE" | grep '"tag_name":' | head -n 1 | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 
 if [ -z "$LATEST_TAG" ]; then
-    echo "Error: Could not retrieve the latest release tag from GitHub."
+    echo "❌ Error: Could not retrieve the latest release tag from GitHub."
+    echo "--------------------------------------------------------"
+    echo "Diagnostic Data from GitHub API response:"
+    if echo "$API_RESPONSE" | grep -q "rate limit"; then
+        echo "Reason: Your IP address has reached GitHub's unauthenticated API rate limit."
+        echo "Fix: Pass a token to bypass this constraint: export GITHUB_TOKEN=your_pat_token"
+    else
+        echo "$API_RESPONSE" | head -n 15
+    fi
+    echo "--------------------------------------------------------"
     exit 1
 fi
-echo "Latest remote version is: $LATEST_TAG"
 
-# Normalize tag string (remove 'v' prefix if present for uniform matching)
+echo "Latest remote version found (including alpha/beta): $LATEST_TAG"
+
+# Normalize tag string for local system matching (e.g., "1.0.0-alpha")
 LATEST_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
 
 # 3. Check Local Installation Version
