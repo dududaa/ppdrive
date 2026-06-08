@@ -9,6 +9,7 @@ use axum::http::{HeaderName, HeaderValue, Request};
 use axum::routing::IntoMakeService;
 use std::str::FromStr;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
@@ -56,26 +57,28 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
         ])
         .allow_methods(Any);
 
-    let app = Router::new()
-        .nest("/upload", upload_routes())
-        .layer(
-            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
-                let matched_path = request
-                    .extensions()
-                    .get::<MatchedPath>()
-                    .map(MatchedPath::as_str);
+    let mut app = Router::new().nest("/upload", upload_routes()).layer(
+        TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
+            let matched_path = request
+                .extensions()
+                .get::<MatchedPath>()
+                .map(MatchedPath::as_str);
 
-                info_span!(
-                    "http_request",
-                    method = ?request.method(),
-                    matched_path,
-                    some_other_field = tracing::field::Empty,
-                )
-            }),
-        )
-        .layer(cors)
-        .with_state(state)
-        .into_make_service();
+            info_span!(
+                "http_request",
+                method = ?request.method(),
+                matched_path,
+                some_other_field = tracing::field::Empty,
+            )
+        }),
+    );
+
+    for folder in state.config().static_folders.clone() {
+        let path = folder.path.unwrap_or(format!("/{}", folder.name));
+        app = app.nest_service(&path, ServeDir::new(folder.name));
+    }
+
+    let app = app.layer(cors).with_state(state).into_make_service();
 
     Ok((app, port))
 }

@@ -158,6 +158,8 @@ async fn test_play_upload_resumable_session() -> anyhow::Result<()> {
         .await;
 
     resp.assert_status_ok();
+
+    // Upload the first chunk
     let chunk_size = 2 * 1024 * 1024;
     let mut stream = ReaderStream::with_capacity(file, chunk_size);
     let mut next_token: Option<String> = None;
@@ -175,6 +177,7 @@ async fn test_play_upload_resumable_session() -> anyhow::Result<()> {
         assert!(next_token.is_some());
     }
 
+    // Upload the remaining chunks chunk
     while let Some(Ok(next_chunk)) = stream.next().await
         && let Some(token) = &next_token
     {

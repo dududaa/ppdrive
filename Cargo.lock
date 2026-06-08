@@ -2192,6 +2192,7 @@ dependencies = [
  "hex",
  "nanoid",
  "serde",
+ "serde_json",
  "sha3",
  "sqlx",
  "sqlx_qb",
