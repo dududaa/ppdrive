@@ -13,8 +13,8 @@ if [ -n "$GITHUB_TOKEN" ]; then
     AUTH_HEADER="Authorization: Bearer $GITHUB_TOKEN"
 fi
 
-# Query the full releases endpoint instead of /releases/latest
-API_RESPONSE=$(curl -sS -H "User-Agent: ppdrive-installer" -H "$AUTH_HEADER" "https://github.com{REPO}/releases" || true)
+# Verify that the URL matches this path exactly:
+API_RESPONSE=$(curl -sS -H "User-Agent: ppdrive-installer" -H "$AUTH_HEADER" "https://://github.com${REPO}/releases" || true)
 
 # Extract the very first "tag_name" listed in the JSON array (the newest release)
 LATEST_TAG=$(echo "$API_RESPONSE" | grep '"tag_name":' | head -n 1 | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
