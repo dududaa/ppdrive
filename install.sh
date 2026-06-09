@@ -36,7 +36,7 @@ extract_and_install() {
   echo "🔗 Linking to $BIN_DIR..."
   mkdir -p "$BIN_DIR"
   ln -sf "$INSTALL_DIR/ppdrive" "$BIN_DIR/ppdrive"
-  ln -sf "$INSTALL_DIR/manager" "$BIN_DIR/manager"
+  ln -sf "$INSTALL_DIR/manager" "$BIN_DIR/server"
 }
 
 ensure_bin_in_path() {
