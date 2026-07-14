@@ -79,7 +79,17 @@ ppdrive client create --name myapp --max-bucket-size 100
 # Output:
 # Client created successfully!
 # Client ID: gctR57Tekg
-# Client Secret: 3add30b582768e...
+# Client Token: 3add30b582768e...
+```
+
+To regenerate token for an existing client (in case of compromise):
+```shell
+# Create a new client with name "myapp"
+ppdrive client refresh --id gctR57Tekg
+
+# Output:
+# Client token refreshed successfully!
+# Client Token: 4adb30b582768e...
 ```
 
 #### Roadmap Features (Let's Build Together)

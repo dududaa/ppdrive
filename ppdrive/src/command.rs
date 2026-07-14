@@ -29,14 +29,14 @@ impl Cli {
                     let client =
                         create_client(&pool, &secret, client_name, *max_bucket_size).await?;
 
-                    println!("client created successfully!");
-                    println!("client_id: {}", client.id());
-                    println!("token: {}", client.token());
+                    println!("Client created successfully!");
+                    println!("Client ID: {}", client.id());
+                    println!("Client Token: {}", client.token());
                 }
                 ClientCommand::Refresh { client_id } => {
                     let token = regenerate_token(&pool, &secret, client_id).await?;
-                    println!("client token refreshed successfully!");
-                    println!("token: {}", token);
+                    println!("Client token refreshed successfully!");
+                    println!("Client Token: {}", token);
                 }
                 _ => {}
             }
