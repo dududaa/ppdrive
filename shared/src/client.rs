@@ -100,7 +100,6 @@ mod tests {
     use crate::create_pool;
     use crate::tools::secrets::AppSecrets;
     use std::env;
-    use sqlx_qb::prelude::*;
     use crate::client::{create_client, verify_client};
 
     #[tokio::test]
@@ -112,12 +111,7 @@ mod tests {
         let secrets = AppSecrets::read().await?;
         let details = create_client(&db, &secrets, "Token Validation Test", None).await?;
 
-        let modifiers = Modifiers::new().with_filter(("pid", details.id)).with_limit(1);
-        let mut qb = QB::new(&db)
-            .with_table_name("clients")
-            .with_modifiers(&modifiers);
-
-        let id: i32 = qb.select_scalar("id").await?;
+        let id: i32 = sqlx::query_scalar("SELECT id FROM clients WHERE pid = $1 LIMIT 1").bind(details.id).fetch_one(&db).await?;
         let verify = verify_client(&db, &secrets, &details.token).await?;
         assert_eq!(id, verify);
 

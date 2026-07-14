@@ -1,7 +1,6 @@
 use std::str::FromStr;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{migrate, SqlitePool};
-pub use sqlx_qb;
 
 pub mod client;
 mod models;

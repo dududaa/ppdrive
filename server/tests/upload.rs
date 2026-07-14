@@ -16,14 +16,21 @@ async fn test_create_upload_session() -> anyhow::Result<()> {
     let client_header_key = state.config().client_header_key.clone();
     let client = create_client(state.pool(), state.secrets(), "Test Client", None).await?;
 
+    let filepath = root_dir()?.join("test-assets/demo.jpg");
+    let filemeta = tokio::fs::metadata(&filepath).await?;
+
+    let mut upload_config = (&upload_config()).clone();
+    upload_config.target_filesize = Some(filemeta.len() as u64);
+
     let url = "/upload/session";
     let server = TestServerWrapper::new().await?;
-    let request = server.post(url, &upload_config());
+    let request = server.post(url, &upload_config);
 
     let mut resp = request.await;
     resp.assert_status_unauthorized();
 
-    let request = server.post(url, &upload_config());
+
+    let request = server.post(url, &upload_config);
     resp = request.add_header(client_header_key, client.token()).await;
     resp.assert_status_ok();
 
@@ -58,16 +65,10 @@ async fn test_play_upload_session() -> anyhow::Result<()> {
     let resp = request.await;
     resp.assert_status_unauthorized();
 
-    // Target size not provided
+    // Requesting token for a file upload without providing target_filesize resolves to 500
     let token_request = server.post(token_url, &upload_config);
-    let token: String = token_request
-        .add_header(&client_header_key, client.token())
-        .await
-        .json();
-
-    let request = server
-        .post_bytes(upload_url, Bytes::copy_from_slice(&data))
-        .authorization_bearer(token);
+    let request = token_request
+        .add_header(&client_header_key, client.token());
 
     let resp = request.await;
     resp.assert_status_internal_server_error();

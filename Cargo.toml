@@ -21,7 +21,6 @@ clap = "4.6.1"
 urlencoding.git = "https://github.com/prodbyola/rust_urlencoding"
 validator = "0.20.0"
 sqlx = "0.9.0"
-sqlx_qb = { git = "https://github.com/dududaa/sqlx-qb" }
 chrono = "0.4.44"
 anyhow = "1.0.102"
 dotenvy = "0.15.7"

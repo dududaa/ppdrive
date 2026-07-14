@@ -3,10 +3,8 @@ use chrono::{DateTime, Utc};
 use nanoid::nanoid;
 use serde::Serialize;
 use sqlx::FromRow;
-use sqlx_qb::prelude::*;
 
-#[derive(Model, FromRow)]
-#[model(table_name = "clients")]
+#[derive(FromRow)]
 pub struct Client {
     pid: String,
     name: String,
@@ -14,51 +12,57 @@ pub struct Client {
     created_at: DateTime<Utc>,
 }
 
-const TABLE_NAME: &str = <Client as Model<_, &DbPool>>::TABLE_NAME;
 
 impl Client {
     pub async fn create(db: &DbPool, args: ClientInsertArgs) -> anyhow::Result<String> {
-        let mut qb = QB::new(db).with_table_name(TABLE_NAME);
-        let id = qb.insert_returns(&args, "pid").await?;
-        Ok(id)
+        let ClientInsertArgs {
+            pid,
+            name,
+            key,
+            max_bucket_size,
+        } = args;
+
+        sqlx::query("INSERT INTO clients(pid, key, name, max_bucket_size) VALUES ($1, $2, $3, $4)")
+            .bind(&pid)
+            .bind(key)
+            .bind(name)
+            .bind(max_bucket_size)
+            .execute(db)
+            .await?;
+
+        Ok(pid)
     }
 
     pub async fn get(db: &DbPool, pid: &str) -> anyhow::Result<Client> {
-        let modifiers = Modifiers::new().with_filter(("pid", pid)).with_limit(1);
-
-        let mut qb = QB::new(db);
-        qb.set_modifiers(&modifiers);
-
-        let data = qb.select().await?;
-
+        let data = sqlx::query_as("SELECT * FROM clients WHERE pid = $1 LIMIT 1")
+            .bind(pid)
+            .fetch_one(db)
+            .await?;
         Ok(data)
     }
 
     pub async fn all(db: &DbPool) -> anyhow::Result<Vec<Client>> {
-        let mut qb = QB::new(db);
-        let data = qb.select_all().await?;
-
+        let data = sqlx::query_as("SELECT * FROM clients")
+            .fetch_all(db)
+            .await?;
         Ok(data)
     }
 
     pub async fn id_by_key(db: &DbPool, key: &str) -> anyhow::Result<i32> {
-        let modifiers = Modifiers::new().with_filter(("key", key)).with_limit(1);
-
-        let mut qb = QB::new(db).with_table_name(TABLE_NAME);
-        qb.set_modifiers(&modifiers);
-
-        let id = qb.select_scalar("id").await?;
+        let id = sqlx::query_scalar("SELECT id FROM clients WHERE key = $1 LIMIT 1")
+            .bind(key)
+            .fetch_one(db)
+            .await?;
         Ok(id)
     }
 
     pub async fn update_key(db: &DbPool, id: &str) -> anyhow::Result<String> {
-        let modifiers = Modifiers::new().with_filter(("pid", id));
-        let mut qb = QB::new(db).with_table_name(TABLE_NAME);
-        qb.set_modifiers(&modifiers);
-
         let key = Self::generate_nano();
-        let map = query_map! { "key": &key };
-        qb.update(&map).await?;
+        sqlx::query("UPDATE clients SET key = $1 WHERE pid = $2")
+            .bind(&key)
+            .bind(id)
+            .execute(db)
+            .await?;
 
         Ok(key)
     }
@@ -68,8 +72,7 @@ impl Client {
     }
 }
 
-#[derive(Serialize, ModelInsert)]
-#[model(insert_returns = "String")]
+#[derive(Serialize)]
 pub struct ClientInsertArgs {
     pub pid: String,
     pub name: String,

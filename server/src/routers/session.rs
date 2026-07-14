@@ -1,9 +1,6 @@
 use crate::state::AppState;
 use crate::utils::{Claims, ClaimsData, create_jwt};
 use shared::generate_nano_id;
-use shared::sqlx_qb::prelude::*;
-
-const TABLE_NAME: &str = "sessions";
 
 pub(super) async fn create_session(state: &AppState) -> anyhow::Result<String> {
     let pid = generate_nano_id(24);
@@ -16,11 +13,9 @@ pub(super) async fn create_session(state: &AppState) -> anyhow::Result<String> {
 }
 
 pub(super) async fn check_session(state: &AppState, pid: &str) -> anyhow::Result<bool> {
-    let modifiers = Modifiers::new().with_filter(("pid", pid)).with_limit(1);
-    let used = QB::new(state.pool())
-        .with_table_name(TABLE_NAME)
-        .with_modifiers(&modifiers)
-        .select_scalar("used")
+    let used = sqlx::query_scalar("SELECT used FROM sessions WHERE pid = $1 LIMIT 1")
+        .bind(pid)
+        .fetch_one(state.pool())
         .await?;
 
     Ok(used)
@@ -37,14 +32,6 @@ pub(super) fn next_session_token(
 }
 
 pub(crate) async fn revoke_token(state: &AppState, pid: &str) -> anyhow::Result<()> {
-    let modifiers = Modifiers::new().with_filter(("pid", pid));
-    let map = query_map! { "used": true };
-
-    QB::new(state.pool())
-        .with_table_name(TABLE_NAME)
-        .with_modifiers(&modifiers)
-        .update(&map)
-        .await?;
-
+    sqlx::query("UPDATE sessions SET used = $1 WHERE pid = $2").bind(true).bind(pid).execute(state.pool()).await?;
     Ok(())
 }
