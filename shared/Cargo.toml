@@ -4,8 +4,7 @@ edition.workspace = true
 version.workspace = true
 
 [dependencies]
-chrono.workspace = true
-sqlx = { features = ["runtime-tokio", "tls-native-tls", "any", "postgres", "sqlite", "mysql", "migrate", "chrono"], workspace = true }
+sqlx = { features = ["runtime-tokio", "tls-native-tls", "any", "postgres", "sqlite", "mysql", "migrate", "time"], workspace = true }
 anyhow.workspace = true
 chacha20poly1305 = "0.11.0-rc.3"
 sha3 = "0.12.0"
@@ -14,6 +13,7 @@ serde = { workspace = true, features = ["derive"] }
 toml = "1.1.2"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 nanoid.workspace = true
+time.workspace = true
 
 [dev-dependencies]
 dotenvy.workspace = true

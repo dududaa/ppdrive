@@ -1,8 +1,8 @@
-use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
-use chacha20poly1305::aead::Aead;
-use crate::DbPool;
+use crate::db::DbPool;
 use crate::models::clients::{Client, ClientInsertArgs};
 use crate::tools::secrets::AppSecrets;
+use chacha20poly1305::aead::Aead;
+use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 
 /// generate a cipher token for client's id.
 fn client_token(secrets: &AppSecrets, client_key: &str) -> anyhow::Result<String> {
@@ -97,21 +97,25 @@ impl From<(String, String)> for ClientDetails {
 
 #[cfg(test)]
 mod tests {
-    use crate::create_pool;
+    use crate::client::{create_client, verify_client};
+    use crate::db::Database;
     use crate::tools::secrets::AppSecrets;
     use std::env;
-    use crate::client::{create_client, verify_client};
 
     #[tokio::test]
     async fn test_token_validation() -> anyhow::Result<()> {
         dotenvy::dotenv()?;
         let url = env::var("DATABASE_URL")?;
-        let db = create_pool(&url).await?;
+        let db = Database::new(&url).await?;
 
         let secrets = AppSecrets::read().await?;
         let details = create_client(&db, &secrets, "Token Validation Test", None).await?;
 
-        let id: i32 = sqlx::query_scalar("SELECT id FROM clients WHERE pid = $1 LIMIT 1").bind(details.id).fetch_one(&db).await?;
+        let id: i32 = sqlx::query_scalar("SELECT id FROM clients WHERE pid = $1 LIMIT 1")
+            .bind(details.id)
+            .fetch_one(&*db)
+            .await?;
+
         let verify = verify_client(&db, &secrets, &details.token).await?;
         assert_eq!(id, verify);
 

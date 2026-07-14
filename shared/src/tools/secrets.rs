@@ -15,7 +15,7 @@ pub struct AppSecrets {
 }
 
 impl AppSecrets {
-    /// Read app secrets from secret file
+    /// Read app secrets from secret file.
     pub async fn read() -> anyhow::Result<Self> {
         init_secrets().await?;
         let secret_file = secret_filename()?;

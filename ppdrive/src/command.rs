@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use shared::client::{create_client, regenerate_token};
 use shared::config::AppConfig;
-use shared::create_pool;
+use shared::db::Database;
 use shared::secrets::AppSecrets;
 use std::process::Command;
 
@@ -17,7 +17,7 @@ pub struct Cli {
 impl Cli {
     pub async fn execute(&self) -> Result<(), anyhow::Error> {
         let config = AppConfig::read().await?;
-        let pool = create_pool(&config.database_url).await?;
+        let pool = Database::new(&config.database_url).await?;
         let secret = AppSecrets::read().await?;
 
         match &self.command {
@@ -39,7 +39,7 @@ impl Cli {
                     println!("Client Token: {}", token);
                 }
                 _ => {}
-            }
+            },
 
             CliCommand::Serve => {
                 if cfg!(debug_assertions) {
@@ -52,9 +52,7 @@ impl Cli {
             }
 
             CliCommand::Configure => {
-                Command::new("nano")
-                    .arg("ppd_config.toml")
-                    .status()?;
+                Command::new("nano").arg("ppd_config.toml").status()?;
             }
         }
 

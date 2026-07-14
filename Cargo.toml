@@ -26,6 +26,7 @@ anyhow = "1.0.102"
 dotenvy = "0.15.7"
 nanoid = "0.5.0"
 shared = { path = "./shared" }
+time = "0.3.53"
 
 [profile.release]
 opt-level = "z"

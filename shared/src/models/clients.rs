@@ -1,15 +1,15 @@
-use crate::DbPool;
-use chrono::{DateTime, Utc};
+use crate::db::DbPool;
 use nanoid::nanoid;
 use serde::Serialize;
 use sqlx::FromRow;
+use time::OffsetDateTime;
 
 #[derive(FromRow)]
 pub struct Client {
     pid: String,
     name: String,
     max_bucket_size: Option<f64>,
-    created_at: DateTime<Utc>,
+    created_at: String,
 }
 
 
@@ -21,12 +21,14 @@ impl Client {
             key,
             max_bucket_size,
         } = args;
+        let now = OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339)?;
 
-        sqlx::query("INSERT INTO clients(pid, key, name, max_bucket_size) VALUES ($1, $2, $3, $4)")
+        sqlx::query("INSERT INTO clients(pid, key, name, max_bucket_size, created_at) VALUES ($1, $2, $3, $4, $5)")
             .bind(&pid)
             .bind(key)
             .bind(name)
             .bind(max_bucket_size)
+            .bind(now)
             .execute(db)
             .await?;
 

@@ -5,5 +5,5 @@ CREATE TABLE clients
     key TEXT UNIQUE,
     name TEXT NOT NULL,
     max_bucket_size REAL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT NOT NULL
 )

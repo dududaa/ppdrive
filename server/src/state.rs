@@ -1,19 +1,19 @@
-use shared::{create_pool, DbPool};
 use shared::config::AppConfig;
+use shared::db::{Database, DbPool};
 use shared::secrets::AppSecrets;
 
 #[derive(Clone)]
 pub struct AppState {
     secrets: AppSecrets,
     config: AppConfig,
-    pool: DbPool
+    pool: Database
 }
 
 impl AppState {
     pub async fn new() -> anyhow::Result<Self> {
         let config = AppConfig::read().await?;
         let secrets = AppSecrets::read().await?;
-        let pool = create_pool(&config.database_url).await?;
+        let pool = Database::new(&config.database_url).await?;
 
         Ok(Self { secrets, config, pool })
     }

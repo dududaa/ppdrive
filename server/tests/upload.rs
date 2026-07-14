@@ -20,7 +20,7 @@ async fn test_create_upload_session() -> anyhow::Result<()> {
     let filemeta = tokio::fs::metadata(&filepath).await?;
 
     let mut upload_config = (&upload_config()).clone();
-    upload_config.target_filesize = Some(filemeta.len() as u64);
+    upload_config.target_filesize = Some(filemeta.len());
 
     let url = "/upload/session";
     let server = TestServerWrapper::new().await?;

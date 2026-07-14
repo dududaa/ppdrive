@@ -1,11 +1,15 @@
+use sqlx::types::time::OffsetDateTime;
 use crate::state::AppState;
 use crate::utils::{Claims, ClaimsData, create_jwt};
 use shared::generate_nano_id;
 
 pub(super) async fn create_session(state: &AppState) -> anyhow::Result<String> {
     let pid = generate_nano_id(24);
-    sqlx::query("INSERT INTO sessions (pid) VALUES ($1)")
+    let now = OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339)?;
+
+    sqlx::query("INSERT INTO sessions (pid, created_at) VALUES ($1, $2)")
         .bind(&pid)
+        .bind(&now)
         .execute(state.pool())
         .await?;
 
