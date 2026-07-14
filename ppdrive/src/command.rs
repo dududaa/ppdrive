@@ -66,7 +66,7 @@ impl Cli {
 enum CliCommand {
     Serve,
     Configure,
-    /// create a new client for the specified service
+    /// create a new client
     Client {
         #[command(subcommand)]
         command: ClientCommand,
@@ -77,11 +77,12 @@ enum CliCommand {
 enum ClientCommand {
     /// create a new client and receive the client token.
     Create {
+        /// Arbitrary name to remember the client. Use a name that describes the client application(s), e.g MyGoodness App
         #[arg(long("name"))]
         client_name: String,
 
         #[arg(long)]
-        /// total maximum size of buckets that this client can create
+        /// Total maximum size of buckets that this client can create.
         max_bucket_size: Option<f64>,
     },
 

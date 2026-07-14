@@ -5,3 +5,4 @@ data.db*
 ppd_config.toml
 test-assets
 tmp/
+uploads/

@@ -14,15 +14,15 @@ pub struct AppConfig {
     pub use_session: bool,
     pub static_folders: Vec<StaticFolder>,
 }
+
 impl AppConfig {
     pub async fn read() -> anyhow::Result<Self> {
         let filename = config_filename()?;
-        let content = match tokio::fs::read_to_string(filename).await {
-            Ok(content) => content,
-            Err(_) => serde_json::to_string(&AppConfig::default())?,
+        let config = match tokio::fs::read_to_string(filename).await {
+            Ok(content) => toml::from_str(&content)?,
+            Err(_) => AppConfig::default(),
         };
 
-        let config = toml::from_str(&content)?;
         Ok(config)
     }
 
