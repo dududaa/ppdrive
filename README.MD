@@ -147,12 +147,12 @@ reader.onload = (event) => {
     },
     body: arrayBuffer // Send raw bytes
   })
-          .then(response => {
-            if (!response.ok) throw new Error('Upload failed');
-            return response.json();
-          })
-          .then(data => resolve(data))
-          .catch(error => reject(error));
+  .then(response => {
+    if (!response.ok) throw new Error('Upload failed');
+    return response.json();
+  })
+  .then(data => resolve(data))
+  .catch(error => reject(error));
 };
 
 reader.onerror = (error) => reject(error);

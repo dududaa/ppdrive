@@ -51,6 +51,7 @@ pub(super) async fn create_session(
         session_resume: false,
         config,
     };
+    
     let claims = Claims::new(client.id(), exp, data)?;
 
     let token = create_jwt(state.secrets(), &claims)?;
