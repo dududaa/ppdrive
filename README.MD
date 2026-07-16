@@ -105,6 +105,62 @@ The command above will attempt to start the server on port `8000`. You can speci
 ppdrive serve --port 3000
 ```
 
+###### Step 3: Upload File or Folder
+PLEASE NOTE: The following examples uses JavaScript but you can use any language that supports HTTP client requests.
+
+To upload files or folders, follow these steps:
+1. Create upload session from your app server. Create a signed token from your app server and use the token on your app client:
+```javascript
+// server code
+let token = fetch('https://localhost:8000/upload/session', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-ppdrive-client': 'YOUR-CLIENT-ID'
+  },
+  body: JSON.stringify({
+    method: 'POST',
+    asset_type: 'File',
+    expires: 300, // token expires in 5 mins,
+    path: 'uploads/my-image.png', // target filename
+    target_filesize: 1024 // 1MB. Derive from this from your file,
+    // ... Check docs for more options
+  })
+});
+
+// RETURN TOKEN TO CLIENT APP
+```
+
+2. Upload the file from your client side:
+```javascript
+// Just a file reader simulator. All you need to do is to send a chunk of bytes.
+const reader = new FileReader();
+
+// Read the file as an ArrayBuffer (raw bytes)
+reader.onload = (event) => {
+  const arrayBuffer = event.target.result;
+
+  fetch('https://localhost:8000/upload/session/play', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'TOKEN-CREATED-EARLIER',
+    },
+    body: arrayBuffer // Send raw bytes
+  })
+          .then(response => {
+            if (!response.ok) throw new Error('Upload failed');
+            return response.json();
+          })
+          .then(data => resolve(data))
+          .catch(error => reject(error));
+};
+
+reader.onerror = (error) => reject(error);
+reader.readAsArrayBuffer(file);
+```
+
+Your file will now be available on `https://localhost:8000/uploads/my-image.png`.
+
 #### Roadmap Features (Let's Build Together)
 
 - [ ] Private object access.
