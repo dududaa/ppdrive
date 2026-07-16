@@ -41,13 +41,14 @@ impl Cli {
                 _ => {}
             },
 
-            CliCommand::Serve => {
+            CliCommand::Serve { port } => {
                 if cfg!(debug_assertions) {
                     Command::new("cargo")
                         .args(["run", "-p", "server"])
+                        .arg(port.to_string())
                         .status()?;
                 } else {
-                    Command::new("./server").status()?;
+                    Command::new("./server").arg(port.to_string()).status()?;
                 }
             }
 
@@ -62,7 +63,10 @@ impl Cli {
 
 #[derive(Subcommand, Debug)]
 enum CliCommand {
-    Serve,
+    Serve {
+        #[arg(long = "port")]
+        port: u16
+    },
     Configure,
     /// create a new client
     Client {

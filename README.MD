@@ -92,6 +92,19 @@ ppdrive client refresh --id gctR57Tekg
 # Client Token: 4adb30b582768e...
 ```
 
+###### Step 2: Create Your First Client
+Now that your client token is ready, start the server:
+```shell
+# Start the API server
+ppdrive serve
+```
+
+The command above will attempt to start the server on port `8000`. You can specify service port:
+```shell
+# Start the API server
+ppdrive serve --port 3000
+```
+
 #### Roadmap Features (Let's Build Together)
 
 - [ ] Private object access.
