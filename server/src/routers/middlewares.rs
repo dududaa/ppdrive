@@ -35,7 +35,7 @@ where
             .to_str()
             .map_err(|_| api_error("invalid client token"))?;
 
-        let client_id = verify_client(state.pool(), state.secrets(), client_token)
+        let client_id = verify_client(state.db(), state.secrets(), client_token)
             .await
             .map_err(|e| api_error(format!("client verification failed: {e}")))?;
 

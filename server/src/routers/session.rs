@@ -1,13 +1,19 @@
-use sqlx::types::time::OffsetDateTime;
 use crate::state::AppState;
 use crate::utils::{Claims, ClaimsData, create_jwt};
 use shared::generate_nano_id;
+use sqlx::types::time::OffsetDateTime;
 
 pub(super) async fn create_session(state: &AppState) -> anyhow::Result<String> {
     let pid = generate_nano_id(24);
     let now = OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339)?;
 
-    sqlx::query("INSERT INTO sessions (pid, created_at) VALUES ($1, $2)")
+    let db = state.db();
+    let query = format!(
+        "INSERT INTO sessions (pid, created_at) VALUES ({}, {})",
+        db.placeholder(1),
+        db.placeholder(2)
+    );
+    sqlx::query(sqlx::AssertSqlSafe(query.as_str()))
         .bind(&pid)
         .bind(&now)
         .execute(state.pool())
@@ -17,7 +23,8 @@ pub(super) async fn create_session(state: &AppState) -> anyhow::Result<String> {
 }
 
 pub(super) async fn check_session(state: &AppState, pid: &str) -> anyhow::Result<bool> {
-    let used = sqlx::query_scalar("SELECT used FROM sessions WHERE pid = $1 LIMIT 1")
+    let query = format!("SELECT used FROM sessions WHERE pid = {} LIMIT 1", state.db().placeholder(1));
+    let used = sqlx::query_scalar(sqlx::AssertSqlSafe(query.as_str()))
         .bind(pid)
         .fetch_one(state.pool())
         .await?;
@@ -36,6 +43,10 @@ pub(super) fn next_session_token(
 }
 
 pub(crate) async fn revoke_token(state: &AppState, pid: &str) -> anyhow::Result<()> {
-    sqlx::query("UPDATE sessions SET used = $1 WHERE pid = $2").bind(true).bind(pid).execute(state.pool()).await?;
+    sqlx::query("UPDATE sessions SET used = $1 WHERE pid = $2")
+        .bind(true)
+        .bind(pid)
+        .execute(state.pool())
+        .await?;
     Ok(())
 }

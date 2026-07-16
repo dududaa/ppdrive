@@ -26,6 +26,10 @@ impl AppState {
         &self.config
     }
     
+    pub fn db(&self) -> &Database {
+        &self.pool
+    }
+    
     pub fn pool(&self) -> &DbPool {
         &self.pool
     }

@@ -1,4 +1,4 @@
-use crate::db::DbPool;
+use crate::db::Database;
 use crate::models::clients::{Client, ClientInsertArgs};
 use crate::tools::secrets::AppSecrets;
 use chacha20poly1305::aead::Aead;
@@ -21,7 +21,7 @@ fn client_token(secrets: &AppSecrets, client_key: &str) -> anyhow::Result<String
 
 /// creates a new client and return the details
 pub async fn create_client(
-    db: &DbPool,
+    db: &Database,
     secrets: &AppSecrets,
     name: &str,
     max_bucket_size: Option<f64>,
@@ -42,7 +42,11 @@ pub async fn create_client(
 }
 
 /// decrypt client's cipher token, validate client token and return client id
-pub async fn verify_client(db: &DbPool, secrets: &AppSecrets, token: &str) -> anyhow::Result<i32> {
+pub async fn verify_client(
+    db: &Database,
+    secrets: &AppSecrets,
+    token: &str,
+) -> anyhow::Result<i32> {
     let decode = hex::decode(token)?;
 
     let key = secrets.secret_key();
@@ -60,7 +64,7 @@ pub async fn verify_client(db: &DbPool, secrets: &AppSecrets, token: &str) -> an
 
 /// Regenerate token for a given client.
 pub async fn regenerate_token(
-    db: &DbPool,
+    db: &Database,
     secrets: &AppSecrets,
     client_id: &str,
 ) -> anyhow::Result<String> {
@@ -70,7 +74,7 @@ pub async fn regenerate_token(
     Ok(token)
 }
 
-pub async fn get_clients(db: &DbPool) -> anyhow::Result<Vec<Client>> {
+pub async fn get_clients(db: &Database) -> anyhow::Result<Vec<Client>> {
     Client::all(db).await
 }
 
