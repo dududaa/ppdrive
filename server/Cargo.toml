@@ -11,21 +11,22 @@ tokio = { workspace = true, features = ["rt-multi-thread", "fs"] }
 time.workspace = true
 axum = { workspace = true, features = ["macros", "multipart"] }
 serde.workspace = true
+serde_json.workspace = true
 sqlx = "0.9.0"
 anyhow.workspace = true
-validator = { version = "0.20.0", features = ["derive"] }
+validator = { workspace = true, features = ["derive"] }
 jsonwebtoken = { version = "10.4.0", features = ["aws_lc_rs"] }
-shared.workspace = true
 tracing = "0.1.44"
-tower-http = { version = "0.6.11", features = [
+tower-http = { version = "0.7.0", features = [
     "cors",
     "trace",
     "tracing",
     "fs",
 ] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+shared = {workspace = true, features = ["server"]}
 
 [dev-dependencies]
-axum-test = "20.1.0"
+axum-test = "21.0.0"
 tokio-util = "0.7.18"
 futures-util = "0.3.32"

@@ -1,10 +1,11 @@
-use crate::routers::resp::{api_error, ResponseError};
+use crate::routers::resp::{ResponseError, api_error};
 use crate::state::AppState;
-use crate::utils::{decode_jwt, Claims};
-use axum::extract::{FromRef, FromRequestParts};
-use axum::http::{header, StatusCode};
+use axum::extract::{FromRef, FromRequestParts, Path};
+use axum::http::StatusCode;
+use axum::http::request::Parts;
 use shared::client::verify_client;
-use std::ops::Deref;
+use shared::server::UploadInfo;
+use shared::server::errors::PayloadVerificationError;
 
 pub struct ClientExtractor(i32);
 impl ClientExtractor {
@@ -20,10 +21,7 @@ where
 {
     type Rejection = ResponseError;
 
-    async fn from_request_parts(
-        parts: &mut axum::http::request::Parts,
-        state: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let state = AppState::from_ref(state);
 
         let header_key = state.config().client_header_key.clone();
@@ -43,46 +41,37 @@ where
     }
 }
 
-pub struct ClaimsExtractor(Claims);
-impl<S> FromRequestParts<S> for ClaimsExtractor
+pub struct UploadMiddleware(UploadInfo);
+
+impl UploadMiddleware {
+    pub fn info(&self) -> &UploadInfo {
+        &self.0
+    }
+}
+
+impl<S> FromRequestParts<S> for UploadMiddleware
 where
     S: Send + Sync,
     AppState: FromRef<S>,
 {
     type Rejection = ResponseError;
 
-    async fn from_request_parts(
-        parts: &mut axum::http::request::Parts,
-        state: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let Path(payload) = Path::<String>::from_request_parts(parts, state)
+            .await
+            .map_err(|e| api_error(e))?;
+
         let state = AppState::from_ref(state);
-        let header = parts.headers.get(header::AUTHORIZATION).ok_or(
-            api_error("missing authorization header.").with_status_code(StatusCode::UNAUTHORIZED),
-        )?;
+        match UploadInfo::verify(&payload, state.db()).await {
+            Ok(info) => Ok(Self(info)),
+            Err(err) => {
+                let resp = match err {
+                    PayloadVerificationError::Error(err) => api_error(err),
+                    PayloadVerificationError::Expired => api_error("session expired"),
+                };
 
-        let auth_str = header
-            .to_str()
-            .map_err(|_| api_error("invalid authorization header"))?;
-
-        let bearer = "Bearer "; // TODO: Make this configurable.
-        if !auth_str.starts_with(bearer) {
-            return Err(api_error("invalid authorization header"));
+                Err(resp.with_status_code(StatusCode::UNAUTHORIZED))
+            }
         }
-
-        let token = auth_str
-            .strip_prefix(bearer)
-            .ok_or(api_error("invalid authorization header"))?
-            .trim();
-
-        let claims = decode_jwt(state.secrets(), token)?;
-        Ok(Self(claims))
-    }
-}
-
-impl Deref for ClaimsExtractor {
-    type Target = Claims;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }

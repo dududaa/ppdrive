@@ -1,7 +1,9 @@
 pub mod client;
-mod models;
 mod tools;
 pub mod db;
+
+#[cfg(feature = "server")]
+pub mod server;
 
 pub use tools::*;
 

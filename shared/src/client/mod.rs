@@ -1,8 +1,10 @@
 use crate::db::Database;
-use crate::models::clients::{Client, ClientInsertArgs};
 use crate::tools::secrets::AppSecrets;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
+use models::{Client, ClientInsertArgs};
+
+pub(crate) mod models;
 
 /// generate a cipher token for client's id.
 fn client_token(secrets: &AppSecrets, client_key: &str) -> anyhow::Result<String> {
@@ -76,6 +78,14 @@ pub async fn regenerate_token(
 
 pub async fn get_clients(db: &Database) -> anyhow::Result<Vec<Client>> {
     Client::all(db).await
+}
+
+pub async fn get_claims_data(db: &Database, id: &i32) -> anyhow::Result<(String, String)> {
+    Client::get_claims_data(db, id).await
+}
+
+pub async fn get_key(db: &Database, pid: &str) -> anyhow::Result<String> {
+    Client::get_key(db, pid).await
 }
 
 pub struct ClientDetails {

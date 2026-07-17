@@ -11,7 +11,7 @@ pub struct AppConfig {
     pub allowed_origins: Option<Vec<String>>,
     pub port: Option<i16>,
     pub root_dir: Option<String>,
-    pub use_session: bool,
+    pub message_broker: Option<String>,
     pub static_folders: Vec<StaticFolder>,
 }
 
@@ -42,7 +42,7 @@ impl Default for AppConfig {
             allowed_origins: None,
             port: Some(8000),
             root_dir: None,
-            use_session: false,
+            message_broker: None,
             static_folders: vec![],
         }
     }

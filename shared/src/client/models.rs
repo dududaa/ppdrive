@@ -45,13 +45,29 @@ impl Client {
         Ok(pid)
     }
 
+    pub async fn get_claims_data(db: &Database, id: &i32) -> anyhow::Result<(String, String)> {
+        let query = format!(
+            "SELECT pid, key FROM clients WHERE id = {} LIMIT 1",
+            db.placeholder(1)
+        );
+        let data = sqlx::query_as(sqlx::AssertSqlSafe(query.as_str()))
+            .bind(id)
+            .fetch_one(&**db)
+            .await?;
+
+        Ok(data)
+    }
+
     pub async fn get(db: &Database, pid: &str) -> anyhow::Result<Client> {
-        let query = format!("SELECT * FROM clients WHERE pid = {} LIMIT 1", db.placeholder(1));
-        let data = sqlx::query_as(sqlx::AssertSqlSafe(query.as_str()))   
+        let query = format!(
+            "SELECT * FROM clients WHERE pid = {} LIMIT 1",
+            db.placeholder(1)
+        );
+        let data = sqlx::query_as(sqlx::AssertSqlSafe(query.as_str()))
             .bind(pid)
             .fetch_one(&**db)
             .await?;
-        
+
         Ok(data)
     }
 
@@ -59,23 +75,44 @@ impl Client {
         let data = sqlx::query_as("SELECT * FROM clients")
             .fetch_all(&**db)
             .await?;
-        
+
         Ok(data)
     }
 
+    pub async fn get_key(db: &Database, pid: &str) -> anyhow::Result<String> {
+        let query = format!(
+            "SELECT key FROM clients WHERE pid = {} LIMIT 1",
+            db.placeholder(1)
+        );
+        let key = sqlx::query_scalar(sqlx::AssertSqlSafe(query.as_str()))
+            .bind(pid)
+            .fetch_one(&**db)
+            .await?;
+
+        Ok(key)
+    }
+
     pub async fn id_by_key(db: &Database, key: &str) -> anyhow::Result<i32> {
-        let query = format!("SELECT id FROM clients WHERE key = {} LIMIT 1", db.placeholder(1));
+        let query = format!(
+            "SELECT id FROM clients WHERE key = {} LIMIT 1",
+            db.placeholder(1)
+        );
         let id = sqlx::query_scalar(sqlx::AssertSqlSafe(query.as_str()))
             .bind(key)
             .fetch_one(&**db)
             .await?;
+
         Ok(id)
     }
 
     pub async fn update_key(db: &Database, id: &str) -> anyhow::Result<String> {
         let key = Self::generate_nano();
-        let query = format!("UPDATE clients SET key = {} WHERE pid = {}", db.placeholder(1), db.placeholder(2));
-        
+        let query = format!(
+            "UPDATE clients SET key = {} WHERE pid = {}",
+            db.placeholder(1),
+            db.placeholder(2)
+        );
+
         sqlx::query(sqlx::AssertSqlSafe(query.as_str()))
             .bind(&key)
             .bind(id)

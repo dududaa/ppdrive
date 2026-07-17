@@ -1,8 +1,8 @@
 use crate::state::AppState;
-use crate::utils::{Claims, ClaimsData, create_jwt};
 use shared::generate_nano_id;
 use sqlx::types::time::OffsetDateTime;
 
+/// Ideally, session should use Redis as broker. Without Redis, we'll use database.
 pub(super) async fn create_session(state: &AppState) -> anyhow::Result<String> {
     let pid = generate_nano_id(24);
     let now = OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339)?;
@@ -30,16 +30,6 @@ pub(super) async fn check_session(state: &AppState, pid: &str) -> anyhow::Result
         .await?;
 
     Ok(used)
-}
-
-pub(super) fn next_session_token(
-    state: &AppState,
-    client_id: i32,
-    data: ClaimsData,
-) -> anyhow::Result<String> {
-    // TODO: Make resumable expiration configurable.
-    let claims = Claims::new(client_id, 30, data)?.with_session_resume(true);
-    create_jwt(state.secrets(), &claims)
 }
 
 pub(crate) async fn revoke_token(state: &AppState, pid: &str) -> anyhow::Result<()> {

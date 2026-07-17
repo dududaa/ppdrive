@@ -1,10 +1,7 @@
-pub mod auth;
-pub mod secrets;
 pub mod config;
-
-use std::path::{Path, PathBuf};
+pub mod secrets;
 use anyhow::anyhow;
-
+use std::path::{Path, PathBuf};
 pub fn root_dir() -> anyhow::Result<PathBuf> {
     let path = if cfg!(debug_assertions) {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -56,8 +53,10 @@ pub fn mb_to_bytes(value: f64) -> usize {
 
 pub fn generate_nano_id(size: usize) -> String {
     let alphabet: [char; 16] = [
-        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f'
+        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f',
     ];
 
     nanoid::nanoid!(size, &alphabet)
 }
+
+

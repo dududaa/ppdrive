@@ -2,7 +2,7 @@ use axum::body::Bytes;
 use axum_test::{TestRequest, TestServer, TestServerConfig, Transport};
 use serde::Serialize;
 use server::app::create_app;
-use server::routers::payloads::{AssetType, UploadUrlConfig, UploadUrlMethod};
+use shared::server::{AssetType, UploadUrlConfig, UploadUrlMethod};
 
 pub struct TestServerWrapper {
     server: TestServer,

@@ -7,13 +7,21 @@ version.workspace = true
 sqlx = { features = ["runtime-tokio", "tls-native-tls", "any", "postgres", "sqlite", "mysql", "migrate", "time"], workspace = true }
 anyhow.workspace = true
 chacha20poly1305 = "0.11.0-rc.3"
-sha3 = "0.12.0"
+sha3 = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+hmac = { workspace = true, optional = true }
+base64.workspace = true
 hex = "0.4.3"
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 toml = "1.1.2"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 nanoid.workspace = true
+validator = { workspace = true, features = ["derive"], optional = true }
 time.workspace = true
 
 [dev-dependencies]
 dotenvy.workspace = true
+
+[features]
+server = ["dep:validator", "dep:hmac", "dep:sha2", "dep:sha3"]
