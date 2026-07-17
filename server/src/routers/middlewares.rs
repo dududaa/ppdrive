@@ -41,7 +41,7 @@ where
     }
 }
 
-pub struct UploadMiddleware(UploadInfo);
+pub struct UploadMiddleware(pub UploadInfo);
 
 impl UploadMiddleware {
     pub fn info(&self) -> &UploadInfo {

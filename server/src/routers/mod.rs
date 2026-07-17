@@ -1,5 +1,4 @@
 mod middlewares;
-pub mod payloads;
 mod resp;
 mod session;
 mod upload;

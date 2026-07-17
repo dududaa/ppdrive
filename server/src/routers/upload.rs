@@ -1,12 +1,12 @@
-use crate::routers::DEFAULT_BODY_LIMIT;
 use crate::routers::middlewares::{ClientExtractor, UploadMiddleware};
-use crate::routers::resp::{ApiResponse, api_error, api_response};
+use crate::routers::resp::{api_error, api_response, ApiResponse};
+use crate::routers::DEFAULT_BODY_LIMIT;
 use crate::state::AppState;
 use anyhow::anyhow;
-use axum::Json;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::StatusCode;
+use axum::Json;
 use shared::server::*;
 use shared::{client, generate_nano_id, root_dir};
 use std::path::{Path, PathBuf};
@@ -50,7 +50,7 @@ pub(super) async fn create_session(
     }
 
     let exp = seconds_from_now(config.expires)?;
-    let (key, pid) = shared::client::get_claims_data(state.db(), &client.id()).await?;
+    let (key, pid) = client::get_claims_data(state.db(), &client.id()).await?;
 
     let data = UploadInfo {
         client_id: pid,
@@ -68,14 +68,17 @@ pub(super) async fn create_session(
 #[axum::debug_handler]
 pub(super) async fn play_session(
     State(state): State<AppState>,
-    ext: UploadMiddleware,
+    UploadMiddleware(mut info): UploadMiddleware,
     body: Bytes,
 ) -> ApiResponse<Option<String>> {
-    let config = ext.info().config.clone();
-    if config.is_none() {
-        // TODO: Attempt to load config from broker using session_id
+    if info.config.is_none()
+        && let Some(session_id) = &info.session_id
+    {
+        let cache = state.broker()?.get_upload_info(session_id).await?;
+        info.config = cache.config;
     }
 
+    let config = info.config.clone();
     let config = config.ok_or(api_error("missing configuration"))?;
     let root_dir = state.config().root_dir()?;
     let target_path = root_dir.join(&config.path);
@@ -91,7 +94,7 @@ pub(super) async fn play_session(
     }
 
     match config.asset_type {
-        AssetType::File => handle_session(&state, ext, body).await,
+        AssetType::File => handle_session(&state, info, body).await,
 
         AssetType::Folder => {
             if config.create_parents.unwrap_or_default() {
@@ -107,11 +110,11 @@ pub(super) async fn play_session(
 
 async fn handle_session(
     state: &AppState,
-    ext: UploadMiddleware,
+    info: UploadInfo,
     body: Bytes,
 ) -> ApiResponse<Option<String>> {
-    let session_id = ext.info().session_id.clone();
-    match get_next_session(state, ext, body).await {
+    let session_id = info.session_id.clone();
+    match get_next_session(state, info, body).await {
         Ok(token) => api_response(token),
         Err(err) => {
             if let Some(id) = session_id {
@@ -129,7 +132,7 @@ async fn handle_session(
 /// Upload file and get next session token.
 async fn get_next_session(
     state: &AppState,
-    ext: UploadMiddleware,
+    info: UploadInfo,
     body: Bytes,
 ) -> anyhow::Result<Option<String>> {
     let tmp_dir = root_dir()?.join("tmp");
@@ -139,13 +142,12 @@ async fn get_next_session(
         tokio::fs::create_dir(&tmp_dir).await?;
     }
 
-    let config = ext
-        .info()
+    let config = info
         .config
         .clone()
         .ok_or(anyhow!("missing configuration"))?;
 
-    let session_id = ext.info().session_id.clone();
+    let session_id = info.session_id.clone();
     let target_path = root_dir.join(config.path.trim_start_matches("/"));
     let parent_dir = target_path.parent().unwrap_or(&root_dir);
 
@@ -160,11 +162,14 @@ async fn get_next_session(
         upload_file(session_id.clone(), &tmp_dir, &body, target_filesize).await?;
 
     if !completed && resumable {
-        let key = client::get_key(state.db(), &ext.info().client_id).await?;
-        let mut info = ext.info().clone();
+        let session_id = session_id.ok_or(anyhow!("session_id not found"))?;
+        let key = client::get_key(state.db(), &info.client_id).await?;
+        let mut info = info.clone();
+
+        let broker = state.broker()?;
+        broker.upsert_upload_info(&session_id, &info).await?;
 
         let token = info.resign(&key)?;
-        // TDDO: Save/Update info in broker
         next_token = Some(token);
     }
 
