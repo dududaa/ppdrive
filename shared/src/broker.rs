@@ -34,4 +34,9 @@ impl MessageBroker {
         
         Ok(())
     }
+    
+    pub async fn remove_upload_info(&self, session_id: &str) -> anyhow::Result<()> {
+        self.conn().del::<_, String>(session_id).await.map_err(|e| anyhow!("{e}"))?;
+        Ok(())
+    }
 }

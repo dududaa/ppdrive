@@ -13,19 +13,22 @@ use validator::Validate;
 
 type HmacSha256 = Hmac<Sha256>;
 
-pub fn hash_payload(key: &str, payload: &str) -> anyhow::Result<String> {
+pub fn hash_payload(key: &str, payload: &str) -> anyhow::Result<Vec<u8>> {
     let mut mac = HmacSha256::new_from_slice(key.as_bytes())?;
     mac.update(payload.as_bytes());
 
     let result = mac.finalize();
-    Ok(hex::encode(result.into_bytes()))
+    Ok(result.into_bytes().to_vec())
 }
 
 fn sign_payload(key: &str, payload: &str) -> anyhow::Result<String> {
-    let hash_payload = hash_payload(key, payload)?;
-    let data = format!("{payload}.{hash_payload}");
+    let mut data = payload.as_bytes().to_vec();
+    data.push(b'.');
 
-    let signed = URL_SAFE.encode(data.as_bytes());
+    let mut hash_payload = hash_payload(key, payload)?;
+    data.append(&mut hash_payload);
+
+    let signed = URL_SAFE.encode(data);
     Ok(signed)
 }
 
@@ -69,7 +72,7 @@ pub fn seconds_from_now(seconds: i64) -> anyhow::Result<i64> {
     Ok(res)
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct UploadInfo {
     pub client_id: String,
     pub session_id: Option<String>,
@@ -160,5 +163,43 @@ pub mod errors {
         fn from(value: T) -> Self {
             PayloadVerificationError::Error(value.to_string())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::client;
+    use crate::client::create_client;
+    use crate::config::AppConfig;
+    use crate::db::Database;
+    use crate::secrets::AppSecrets;
+    use crate::server::errors::PayloadVerificationError;
+    use crate::server::{UploadInfo, verify_payload};
+    use anyhow::anyhow;
+
+    #[tokio::test]
+    async fn test_upload_info_signing() -> anyhow::Result<()> {
+        let config = AppConfig::read().await?;
+        let secrets = AppSecrets::read().await?;
+        let db = Database::new(&config.database_url).await?;
+        let client_details = create_client(&db, &secrets, "Signed Client", None).await?;
+
+        let info = UploadInfo {
+            client_id: client_details.id().to_string(),
+            ..Default::default()
+        };
+
+        let key = client::get_key(&db, client_details.id()).await?;
+        let mut signed = info.sign(&key)?;
+
+        let mut verified = verify_payload(&signed, &db).await;
+        assert!(verified.is_ok());
+
+        // is tampered, this should fail
+        signed.push_str("mod");
+        verified = verify_payload(&signed, &db).await;
+        assert!(verified.is_err());
+
+        Ok(())
     }
 }

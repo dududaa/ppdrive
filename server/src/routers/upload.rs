@@ -1,12 +1,12 @@
-use crate::routers::middlewares::{ClientExtractor, UploadMiddleware};
-use crate::routers::resp::{api_error, api_response, ApiResponse};
 use crate::routers::DEFAULT_BODY_LIMIT;
+use crate::routers::middlewares::{ClientExtractor, UploadMiddleware};
+use crate::routers::resp::{ApiResponse, api_error, api_response};
 use crate::state::AppState;
 use anyhow::anyhow;
+use axum::Json;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::Json;
 use shared::server::*;
 use shared::{client, generate_nano_id, root_dir};
 use std::path::{Path, PathBuf};
@@ -26,7 +26,8 @@ pub(super) async fn create_session(
         .validate()
         .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
 
-    if config.resumable.unwrap_or_default() && state.config().message_broker.is_none() {
+    let resumable = config.resumable.unwrap_or_default();
+    if resumable && state.config().message_broker.is_none() {
         return Err(
             api_error("resumable upload is impossible without a message broker.")
                 .with_status_code(StatusCode::BAD_REQUEST),
@@ -46,7 +47,10 @@ pub(super) async fn create_session(
             .with_status_code(StatusCode::PAYLOAD_TOO_LARGE));
         }
 
-        session_id = Some(generate_nano_id(24));
+        // SessionID is tightly coupled with MessageBroker. No need for a session if broker is not provided.
+        if resumable && state.config().message_broker.is_some() {
+            session_id = Some(generate_nano_id(24));
+        }
     }
 
     let exp = seconds_from_now(config.expires)?;
@@ -162,7 +166,7 @@ async fn get_next_session(
         upload_file(session_id.clone(), &tmp_dir, &body, target_filesize).await?;
 
     if !completed && resumable {
-        let session_id = session_id.ok_or(anyhow!("session_id not found"))?;
+        let session_id = session_id.clone().ok_or(anyhow!("session_id not found"))?;
         let key = client::get_key(state.db(), &info.client_id).await?;
         let mut info = info.clone();
 
@@ -179,6 +183,10 @@ async fn get_next_session(
         }
 
         tokio::fs::rename(tmp_path, target_path).await?;
+        if let Some(id) = session_id {
+            let broker = state.broker()?;
+            broker.remove_upload_info(&id).await?;
+        }
     }
 
     Ok(next_token)
