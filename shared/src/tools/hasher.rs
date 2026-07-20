@@ -1,13 +1,13 @@
 use crate::db::Database;
-use crate::server::errors::PayloadVerificationError;
 use anyhow::anyhow;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
+use crate::hasher::errors::PayloadVerificationError;
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum Hasher {
     HMAC256,
     Blake3,
@@ -33,7 +33,7 @@ impl Hasher {
         Ok(signed)
     }
 
-    pub async fn verify<T: DeserializeOwned + Hashable>(
+    pub async fn verify<T: Serialize + DeserializeOwned + Hashable>(
         &self,
         signed: &str,
         db: &Database,
@@ -53,11 +53,14 @@ impl Hasher {
 
         let (payload, hash) = data.split_at(payload_len as usize);
         let result: T = serde_json::from_slice(&payload)?;
-
         let key = result.key(db).await?;
+
         match self {
             HMAC256 => hmac256::verify(&key, payload, hash)?,
-            Blake3 => blake3::verify(&key, payload, hash)?,
+            Blake3 => {
+                let payload = serde_json::to_string(&result)?;
+                blake3::verify(&key, &payload, hash)?
+            },
         }
 
         let now = SystemTime::now()
@@ -114,21 +117,36 @@ mod blake3 {
             key.as_bytes()
                 .try_into()
                 .map_err(|_| anyhow!("Key must be a 32-bit long string"))?,
+
             payload.as_bytes(),
         );
-        let res = hash.as_bytes().to_vec();
 
+        let res = hash.as_bytes().to_vec();
         Ok(res)
     }
 
-    pub fn verify(key: &str, payload: &[u8], hash_raw: &[u8]) -> anyhow::Result<()> {
-        let payload: String = serde_json::from_slice(payload)?;
-        let hash = hash(key, &payload)?;
-
+    pub fn verify(key: &str, payload: &str, hash_raw: &[u8]) -> anyhow::Result<()> {
+        let hash = hash(key, payload)?;
         if &hash != hash_raw {
             return Err(anyhow!("Blake3: verification failed."));
         }
 
         Ok(())
+    }
+}
+
+pub mod errors {
+    use std::fmt::Display;
+
+    #[derive(Debug)]
+    pub enum PayloadVerificationError {
+        Expired,
+        Error(String),
+    }
+
+    impl<T: Display> From<T> for PayloadVerificationError {
+        fn from(value: T) -> Self {
+            PayloadVerificationError::Error(value.to_string())
+        }
     }
 }

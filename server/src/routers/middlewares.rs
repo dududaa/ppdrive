@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use axum::http::request::Parts;
 use shared::client::verify_client;
 use shared::server::UploadInfo;
-use shared::server::errors::PayloadVerificationError;
+use shared::hasher::errors::PayloadVerificationError;
 
 pub struct ClientExtractor(i32);
 impl ClientExtractor {

@@ -3,6 +3,7 @@ use nanoid::nanoid;
 use serde::Serialize;
 use sqlx::FromRow;
 use time::OffsetDateTime;
+use crate::generate_nano_id;
 
 #[derive(FromRow)]
 pub struct Client {
@@ -123,7 +124,7 @@ impl Client {
     }
 
     pub fn generate_nano() -> String {
-        nanoid!(10, &nanoid::alphabet::SAFE)
+        generate_nano_id(32)
     }
 }
 

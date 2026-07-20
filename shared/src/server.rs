@@ -1,7 +1,6 @@
 use crate::client::models::Client;
 use crate::db::Database;
-use crate::hasher::{Hashable, Hasher};
-use crate::server::errors::PayloadVerificationError;
+use crate::hasher::{Hashable, Hasher, errors::PayloadVerificationError};
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
@@ -118,21 +117,6 @@ pub enum AssetType {
     Folder,
 }
 
-pub mod errors {
-    use std::fmt::Display;
-
-    pub enum PayloadVerificationError {
-        Expired,
-        Error(String),
-    }
-
-    impl<T: Display> From<T> for PayloadVerificationError {
-        fn from(value: T) -> Self {
-            PayloadVerificationError::Error(value.to_string())
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::client;
@@ -141,10 +125,23 @@ mod tests {
     use crate::db::Database;
     use crate::secrets::AppSecrets;
     use crate::server::{UploadInfo, UploadUrlConfig, seconds_from_now};
+    use std::sync::Arc;
+    use tokio::sync::{Mutex, OnceCell};
+    use crate::hasher::Hasher;
 
-    #[tokio::test]
-    async fn test_upload_info_signing() -> anyhow::Result<()> {
-        let config = AppConfig::read().await?;
+    type SharedConfig = Arc<Mutex<AppConfig>>;
+    static APP_CONFIG: OnceCell<SharedConfig> = OnceCell::const_new();
+
+    async fn get_config() -> &'static SharedConfig {
+        APP_CONFIG
+            .get_or_init(|| async {
+                let config = AppConfig::read().await.unwrap();
+                Arc::new(Mutex::new(config))
+            })
+            .await
+    }
+
+    async fn run_sign_info_test(config: AppConfig) -> anyhow::Result<()> {
         let secrets = AppSecrets::read().await?;
 
         let db = Database::new(&config.database_url).await?;
@@ -170,6 +167,23 @@ mod tests {
         verified = UploadInfo::verify(&signed, &db, &hasher).await;
         assert!(verified.is_err());
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_upload_info_hmac256_signing() -> anyhow::Result<()> {
+        let config = get_config().await.lock().await;
+        run_sign_info_test(config.clone()).await?;
+        
+        Ok(())
+    }
+    
+    #[tokio::test]
+    async fn test_upload_info_blake3_signing() -> anyhow::Result<()> {
+        let mut config = get_config().await.lock().await;
+        config.hasher = Hasher::Blake3;
+
+        run_sign_info_test(config.clone()).await?;
         Ok(())
     }
 }
