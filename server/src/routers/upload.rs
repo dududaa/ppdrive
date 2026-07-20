@@ -13,7 +13,6 @@ use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use validator::Validate;
-use shared::server::errors::PayloadVerificationError;
 
 /// Creates an upload session and returns the session token. If [AppConfig::use_session] is enabled,
 /// we create the session id.
@@ -66,7 +65,7 @@ pub(super) async fn create_session(
         exp,
     };
 
-    let token = data.sign(&key)?;
+    let token = data.sign(&key, state.hasher())?;
     api_response(token)
 }
 
@@ -174,7 +173,7 @@ async fn get_next_session(
         let broker = state.broker()?;
         broker.upsert_upload_info(&session_id, &info).await?;
 
-        let token = info.resign(&key)?;
+        let token = info.resign(&key, state.hasher())?;
         next_token = Some(token);
     }
 

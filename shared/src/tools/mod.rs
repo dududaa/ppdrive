@@ -1,5 +1,7 @@
 pub mod config;
 pub mod secrets;
+pub mod hasher;
+
 use anyhow::anyhow;
 use std::path::{Path, PathBuf};
 pub fn root_dir() -> anyhow::Result<PathBuf> {

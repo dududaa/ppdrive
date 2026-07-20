@@ -1,3 +1,4 @@
+use crate::hasher::Hasher;
 use crate::root_dir;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -13,6 +14,7 @@ pub struct AppConfig {
     pub root_dir: Option<String>,
     pub message_broker: Option<String>,
     pub static_folders: Vec<StaticFolder>,
+    pub hasher: Hasher,
 }
 
 impl AppConfig {
@@ -44,6 +46,7 @@ impl Default for AppConfig {
             root_dir: None,
             message_broker: None,
             static_folders: vec![],
+            hasher: Hasher::HMAC256,
         }
     }
 }

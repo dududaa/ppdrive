@@ -43,12 +43,6 @@ where
 
 pub struct UploadMiddleware(pub UploadInfo);
 
-impl UploadMiddleware {
-    pub fn info(&self) -> &UploadInfo {
-        &self.0
-    }
-}
-
 impl<S> FromRequestParts<S> for UploadMiddleware
 where
     S: Send + Sync,
@@ -62,9 +56,7 @@ where
             .map_err(|e| api_error(e))?;
 
         let state = AppState::from_ref(state);
-
-        println!("payload: {payload}");
-        match UploadInfo::verify(&payload, state.db()).await {
+        match UploadInfo::verify(&payload, state.db(), state.hasher()).await {
             Ok(info) => Ok(Self(info)),
             Err(err) => {
                 let resp = match err {

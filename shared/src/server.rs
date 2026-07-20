@@ -1,71 +1,12 @@
 use crate::client::models::Client;
 use crate::db::Database;
+use crate::hasher::{Hashable, Hasher};
 use crate::server::errors::PayloadVerificationError;
 use anyhow::anyhow;
-use base64::Engine;
-use base64::engine::general_purpose::URL_SAFE;
-use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use sha3::{Digest, Sha3_256};
 use std::time::{SystemTime, UNIX_EPOCH};
 use validator::Validate;
-
-type HmacSha256 = Hmac<Sha256>;
-
-pub fn hash_payload(key: &str, payload: &str) -> anyhow::Result<Vec<u8>> {
-    let mut mac = HmacSha256::new_from_slice(key.as_bytes())?;
-    mac.update(payload.as_bytes());
-
-    let result = mac.finalize();
-    Ok(result.into_bytes().to_vec())
-}
-
-fn sign_payload(key: &str, payload: &str) -> anyhow::Result<String> {
-    let mut hash = hash_payload(key, payload)?;
-    let payload = payload.as_bytes();
-
-    let mut data = (payload.len() as u32).to_be_bytes().to_vec();
-    data.extend_from_slice(payload);
-    data.append(&mut hash);
-
-    let signed = URL_SAFE.encode(data);
-    Ok(signed)
-}
-
-/// Parse and verify base64 encoded [UploadInfo] payload.
-async fn verify_payload(
-    signed: &str,
-    db: &Database,
-) -> Result<UploadInfo, PayloadVerificationError> {
-    let decode = URL_SAFE.decode(signed)?;
-    let (payload_len, data) = decode.split_at_checked(4).ok_or(anyhow!("unable to decode payload_len"))?;
-    let payload_len = u32::from_be_bytes(
-        payload_len
-            .try_into()
-            .map_err(|_| anyhow!("unable to decode payload length"))?,
-    );
-
-    let (payload, hash) = data.split_at(payload_len as usize);
-    let info: UploadInfo = serde_json::from_slice(&payload)?;
-
-    let key = Client::get_key(db, &info.client_id).await?;
-    let mut mac = HmacSha256::new_from_slice(key.as_bytes())?;
-
-    mac.update(payload);
-    mac.verify_slice(hash)?;
-
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|e| anyhow!("{e}"))?
-        .as_secs() as i64;
-
-    if now >= info.exp {
-        return Err(PayloadVerificationError::Expired);
-    }
-
-    Ok(info)
-}
 
 pub fn seconds_from_now(seconds: i64) -> anyhow::Result<i64> {
     let now = SystemTime::now()
@@ -90,26 +31,34 @@ pub struct UploadInfo {
 }
 
 impl UploadInfo {
-    pub fn sign(&self, key: &str) -> anyhow::Result<String> {
-        let payload = serde_json::to_string(self)?;
-        let token = sign_payload(key, &payload)?;
-
-        Ok(token)
+    pub fn sign(&self, key: &str, hasher: &Hasher) -> anyhow::Result<String> {
+        hasher.hash(key, self)
     }
 
-    pub fn resign(&mut self, key: &str) -> anyhow::Result<String> {
+    pub fn resign(&mut self, key: &str, hasher: &Hasher) -> anyhow::Result<String> {
         self.chunk_index += 1;
         self.config = None;
         self.exp = seconds_from_now(self.exp)?;
 
-        self.sign(key)
+        self.sign(key, hasher)
     }
 
     pub async fn verify(
         signed: &str,
         db: &Database,
+        hasher: &Hasher,
     ) -> Result<UploadInfo, PayloadVerificationError> {
-        verify_payload(signed, db).await
+        hasher.verify(signed, db).await
+    }
+}
+
+impl Hashable for UploadInfo {
+    fn key(&self, db: &Database) -> impl Future<Output = anyhow::Result<String>> {
+        async { Client::get_key(db, &self.client_id).await }
+    }
+
+    fn expires(&self) -> i64 {
+        self.exp
     }
 }
 
@@ -197,7 +146,9 @@ mod tests {
     async fn test_upload_info_signing() -> anyhow::Result<()> {
         let config = AppConfig::read().await?;
         let secrets = AppSecrets::read().await?;
+
         let db = Database::new(&config.database_url).await?;
+        let hasher = config.hasher.clone();
         let client_details = create_client(&db, &secrets, "Signed Client", None).await?;
 
         let config = UploadUrlConfig::test();
@@ -209,14 +160,14 @@ mod tests {
         };
 
         let key = client::get_key(&db, client_details.id()).await?;
-        let mut signed = info.sign(&key)?;
+        let mut signed = info.sign(&key, &hasher)?;
 
-        let mut verified = UploadInfo::verify(&signed, &db).await;
+        let mut verified = UploadInfo::verify(&signed, &db, &hasher).await;
         assert!(verified.is_ok());
 
         // is tampered, this should fail
         signed.push_str("mod");
-        verified = UploadInfo::verify(&signed, &db).await;
+        verified = UploadInfo::verify(&signed, &db, &hasher).await;
         assert!(verified.is_err());
 
         Ok(())
