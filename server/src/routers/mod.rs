@@ -1,6 +1,5 @@
 mod middlewares;
 mod resp;
-mod session;
 mod upload;
 
 use self::upload::*;
