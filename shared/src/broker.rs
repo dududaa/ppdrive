@@ -30,7 +30,7 @@ impl MessageBroker {
     
     pub async fn upsert_upload_info(&self, session_id: &str, info: &UploadInfo) -> anyhow::Result<()> {
         let data = serde_json::to_string(info)?;
-        self.conn().set_ex::<_, String, u64>(session_id, data, info.chunk_session_expiration as u64).await.map_err(|e| anyhow!("{e}"))?;
+        self.conn().set_ex::<_, String, u64>(session_id, data, info.exp as u64).await.map_err(|e| anyhow!("{e}"))?;
         
         Ok(())
     }

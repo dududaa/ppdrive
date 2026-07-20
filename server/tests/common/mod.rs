@@ -2,7 +2,7 @@ use axum::body::Bytes;
 use axum_test::{TestRequest, TestServer, TestServerConfig, Transport};
 use serde::Serialize;
 use server::app::create_app;
-use shared::server::{AssetType, UploadUrlConfig, UploadUrlMethod};
+use shared::server::UploadUrlConfig;
 
 pub struct TestServerWrapper {
     server: TestServer,
@@ -39,11 +39,5 @@ impl TestServerWrapper {
 }
 
 pub fn upload_config() -> UploadUrlConfig {
-    UploadUrlConfig {
-        method: UploadUrlMethod::Post,
-        asset_type: AssetType::File,
-        path: "test-assets/uploads/creator.jpg".to_string(),
-        expires: 120,
-        ..Default::default()
-    }
+    UploadUrlConfig::test()
 }

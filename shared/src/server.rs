@@ -22,11 +22,12 @@ pub fn hash_payload(key: &str, payload: &str) -> anyhow::Result<Vec<u8>> {
 }
 
 fn sign_payload(key: &str, payload: &str) -> anyhow::Result<String> {
-    let mut data = payload.as_bytes().to_vec();
-    data.push(b'.');
+    let mut hash = hash_payload(key, payload)?;
+    let payload = payload.as_bytes();
 
-    let mut hash_payload = hash_payload(key, payload)?;
-    data.append(&mut hash_payload);
+    let mut data = (payload.len() as u32).to_be_bytes().to_vec();
+    data.extend_from_slice(payload);
+    data.append(&mut hash);
 
     let signed = URL_SAFE.encode(data);
     Ok(signed)
@@ -38,14 +39,19 @@ async fn verify_payload(
     db: &Database,
 ) -> Result<UploadInfo, PayloadVerificationError> {
     let decode = URL_SAFE.decode(signed)?;
-    let split = decode.split(|c| b'.' == *c).collect::<Vec<&[u8]>>();
+    let (payload_len, data) = decode.split_at_checked(4).ok_or(anyhow!("unable to decode payload_len"))?;
+    let payload_len = u32::from_be_bytes(
+        payload_len
+            .try_into()
+            .map_err(|_| anyhow!("unable to decode payload length"))?,
+    );
 
-    let payload = split.first().ok_or("missing payload")?;
-    let hash = split.get(1).ok_or("missing hash")?;
-    let info: UploadInfo = serde_json::from_slice(payload)?;
+    let (payload, hash) = data.split_at(payload_len as usize);
+    let info: UploadInfo = serde_json::from_slice(&payload)?;
 
     let key = Client::get_key(db, &info.client_id).await?;
     let mut mac = HmacSha256::new_from_slice(key.as_bytes())?;
+
     mac.update(payload);
     mac.verify_slice(hash)?;
 
@@ -54,7 +60,7 @@ async fn verify_payload(
         .map_err(|e| anyhow!("{e}"))?
         .as_secs() as i64;
 
-    if info.exp >= now {
+    if now >= info.exp {
         return Err(PayloadVerificationError::Expired);
     }
 
@@ -68,7 +74,6 @@ pub fn seconds_from_now(seconds: i64) -> anyhow::Result<i64> {
         .as_secs() as i64;
 
     let res = now + seconds;
-
     Ok(res)
 }
 
@@ -78,7 +83,8 @@ pub struct UploadInfo {
     pub session_id: Option<String>,
     pub exp: i64,
     pub chunk_index: u16,
-    // Time each chunk token must expire
+    /// This can be derived from [UploadUrlConfig]'s `expires` property and later used by broker
+    /// to determine resumable chunk's url expiration.
     pub chunk_session_expiration: i64,
     pub config: Option<UploadUrlConfig>,
 }
@@ -137,6 +143,18 @@ pub struct UploadUrlConfig {
     pub resumable: Option<bool>,
 }
 
+impl UploadUrlConfig {
+    pub fn test() -> Self {
+        UploadUrlConfig {
+            method: UploadUrlMethod::Post,
+            asset_type: AssetType::File,
+            path: "test-assets/uploads/creator.jpg".to_string(),
+            expires: 120,
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub enum UploadUrlMethod {
     #[default]
@@ -173,9 +191,7 @@ mod tests {
     use crate::config::AppConfig;
     use crate::db::Database;
     use crate::secrets::AppSecrets;
-    use crate::server::errors::PayloadVerificationError;
-    use crate::server::{UploadInfo, verify_payload};
-    use anyhow::anyhow;
+    use crate::server::{UploadInfo, UploadUrlConfig, seconds_from_now};
 
     #[tokio::test]
     async fn test_upload_info_signing() -> anyhow::Result<()> {
@@ -184,20 +200,23 @@ mod tests {
         let db = Database::new(&config.database_url).await?;
         let client_details = create_client(&db, &secrets, "Signed Client", None).await?;
 
+        let config = UploadUrlConfig::test();
         let info = UploadInfo {
             client_id: client_details.id().to_string(),
+            exp: seconds_from_now(config.expires)?,
+            config: Some(config),
             ..Default::default()
         };
 
         let key = client::get_key(&db, client_details.id()).await?;
         let mut signed = info.sign(&key)?;
 
-        let mut verified = verify_payload(&signed, &db).await;
+        let mut verified = UploadInfo::verify(&signed, &db).await;
         assert!(verified.is_ok());
 
         // is tampered, this should fail
         signed.push_str("mod");
-        verified = verify_payload(&signed, &db).await;
+        verified = UploadInfo::verify(&signed, &db).await;
         assert!(verified.is_err());
 
         Ok(())

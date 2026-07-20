@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use validator::Validate;
+use shared::server::errors::PayloadVerificationError;
 
 /// Creates an upload session and returns the session token. If [AppConfig::use_session] is enabled,
 /// we create the session id.
@@ -49,12 +50,12 @@ pub(super) async fn create_session(
 
         // SessionID is tightly coupled with MessageBroker. No need for a session if broker is not provided.
         if resumable && state.config().message_broker.is_some() {
-            session_id = Some(generate_nano_id(24));
+            session_id = Some(generate_nano_id(32));
         }
     }
 
     let exp = seconds_from_now(config.expires)?;
-    let (key, pid) = client::get_claims_data(state.db(), &client.id()).await?;
+    let (pid, key) = client::get_claims_data(state.db(), &client.id()).await?;
 
     let data = UploadInfo {
         client_id: pid,
@@ -198,9 +199,9 @@ async fn upload_file(
     data: &Bytes,
     target_filesize: u64,
 ) -> anyhow::Result<(PathBuf, bool)> {
-    let id = session_id.ok_or(anyhow!("Unable to find session id"))?;
+    let tmp_name = session_id.unwrap_or(generate_nano_id(32));
+    let tmp_path = tmp_dir.join(&tmp_name);
 
-    let tmp_path = tmp_dir.join(&id);
     let mut tmp_file = OpenOptions::new()
         .create(true)
         .append(true)
