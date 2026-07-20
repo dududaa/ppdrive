@@ -75,6 +75,7 @@ pub(super) async fn play_session(
     UploadMiddleware(mut info): UploadMiddleware,
     body: Bytes,
 ) -> ApiResponse<Option<String>> {
+    println!("request received...");
     if info.config.is_none()
         && let Some(session_id) = &info.session_id
     {
@@ -82,6 +83,7 @@ pub(super) async fn play_session(
         info.config = cache.config;
     }
 
+    println!("config loaded...");
     let config = info.config.clone();
     let config = config.ok_or(api_error("missing configuration"))?;
     let root_dir = state.config().root_dir()?;
@@ -165,6 +167,7 @@ async fn get_next_session(
     let (tmp_path, completed) =
         upload_file(session_id.clone(), &tmp_dir, &body, target_filesize).await?;
 
+    println!("handling resumable state...");
     if !completed && resumable {
         let session_id = session_id.clone().ok_or(anyhow!("session_id not found"))?;
         let key = client::get_key(state.db(), &info.client_id).await?;
@@ -172,6 +175,7 @@ async fn get_next_session(
 
         let broker = state.broker()?;
         broker.upsert_upload_info(&session_id, &info).await?;
+        println!("inserting completed...");
 
         let token = info.resign(&key, state.hasher())?;
         next_token = Some(token);
