@@ -1,32 +1,29 @@
 CREATE TABLE asset_owner
 (
-    id   INTEGER PRIMARY KEY,
-    name SMALLINT
+    id       INTEGER PRIMARY KEY,
+    name     SMALLINT,
+    owner_id INTEGER NOT NULL
 );
+
+CREATE UNIQUE INDEX idx_asset_owner_name_id ON asset_owner (name, owner_id);
 
 CREATE TABLE clients
 (
     id              INTEGER PRIMARY KEY,
     pid             TEXT UNIQUE,
     key             TEXT UNIQUE,
-    name            TEXT    NOT NULL,
+    name            TEXT NOT NULL,
     max_bucket_size REAL,
-    owner_id        INTEGER NOT NULL,
-    created_at      TEXT    NOT NULL,
-    FOREIGN KEY (owner_id) REFERENCES asset_owner (id) ON DELETE CASCADE
+    created_at      TEXT NOT NULL
 );
-CREATE INDEX idx_clients_asset_owner ON clients (owner_id);
 
 CREATE TABLE users
 (
     id         INTEGER PRIMARY KEY,
-    email      TEXT    NOT NULL,
-    password   TEXT    NOT NULL,
-    owner_id   INTEGER NOT NULL,
-    created_at TEXT    NOT NULL,
-    FOREIGN KEY (owner_id) REFERENCES asset_owner (id) ON DELETE CASCADE
+    email      TEXT NOT NULL,
+    password   TEXT NOT NULL,
+    created_at TEXT NOT NULL
 );
-CREATE INDEX idx_users_asset_owner on users (owner_id);
 
 CREATE TABLE buckets
 (

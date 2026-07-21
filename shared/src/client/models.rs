@@ -1,9 +1,8 @@
 use crate::db::Database;
-use nanoid::nanoid;
+use crate::{AssetOwner, SqlSafe, generate_nano_id, sql_safe};
 use serde::Serialize;
 use sqlx::FromRow;
 use time::OffsetDateTime;
-use crate::generate_nano_id;
 
 #[derive(FromRow)]
 pub struct Client {
@@ -30,11 +29,11 @@ impl Client {
         }
 
         let placeholders = placeholders.join(",");
-        let query = format!(
+        let query = sql_safe!(
             "INSERT INTO clients(pid, key, name, max_bucket_size, created_at) VALUES ({placeholders})"
         );
 
-        sqlx::query(sqlx::AssertSqlSafe(query))
+        sqlx::query(query)
             .bind(&pid)
             .bind(key)
             .bind(name)
@@ -43,31 +42,43 @@ impl Client {
             .execute(&**db)
             .await?;
 
+        let query = sql_safe!("SELECT id FROM clients WHERE pid = {}", db.placeholder(1));
+        let owner_id: i32 = sqlx::query_scalar(query)
+            .bind(&pid)
+            .fetch_one(&**db)
+            .await?;
+
+        let query = sql_safe!(
+            "INSERT INTO asset_owner (name, owner_id) VALUES ({}, {})",
+            db.placeholder(1),
+            db.placeholder(2)
+        );
+
+        sqlx::query(query)
+            .bind(i16::from(AssetOwner::Client))
+            .bind(owner_id)
+            .execute(&**db)
+            .await?;
+
         Ok(pid)
     }
 
     pub async fn get_claims_data(db: &Database, id: &i32) -> anyhow::Result<(String, String)> {
-        let query = format!(
+        let query = sql_safe!(
             "SELECT pid, key FROM clients WHERE id = {} LIMIT 1",
             db.placeholder(1)
         );
-        let data = sqlx::query_as(sqlx::AssertSqlSafe(query.as_str()))
-            .bind(id)
-            .fetch_one(&**db)
-            .await?;
 
+        let data = sqlx::query_as(query).bind(id).fetch_one(&**db).await?;
         Ok(data)
     }
 
     pub async fn get(db: &Database, pid: &str) -> anyhow::Result<Client> {
-        let query = format!(
+        let query = sql_safe!(
             "SELECT * FROM clients WHERE pid = {} LIMIT 1",
             db.placeholder(1)
         );
-        let data = sqlx::query_as(sqlx::AssertSqlSafe(query.as_str()))
-            .bind(pid)
-            .fetch_one(&**db)
-            .await?;
+        let data = sqlx::query_as(query).bind(pid).fetch_one(&**db).await?;
 
         Ok(data)
     }
@@ -81,40 +92,34 @@ impl Client {
     }
 
     pub async fn get_key(db: &Database, pid: &str) -> anyhow::Result<String> {
-        let query = format!(
+        let query = sql_safe!(
             "SELECT key FROM clients WHERE pid = {} LIMIT 1",
             db.placeholder(1)
         );
-        let key = sqlx::query_scalar(sqlx::AssertSqlSafe(query.as_str()))
-            .bind(pid)
-            .fetch_one(&**db)
-            .await?;
+        let key = sqlx::query_scalar(query).bind(pid).fetch_one(&**db).await?;
 
         Ok(key)
     }
 
     pub async fn id_by_key(db: &Database, key: &str) -> anyhow::Result<i32> {
-        let query = format!(
+        let query = sql_safe!(
             "SELECT id FROM clients WHERE key = {} LIMIT 1",
             db.placeholder(1)
         );
-        let id = sqlx::query_scalar(sqlx::AssertSqlSafe(query.as_str()))
-            .bind(key)
-            .fetch_one(&**db)
-            .await?;
 
+        let id = sqlx::query_scalar(query).bind(key).fetch_one(&**db).await?;
         Ok(id)
     }
 
     pub async fn update_key(db: &Database, id: &str) -> anyhow::Result<String> {
         let key = Self::generate_nano();
-        let query = format!(
+        let query = sql_safe!(
             "UPDATE clients SET key = {} WHERE pid = {}",
             db.placeholder(1),
             db.placeholder(2)
         );
 
-        sqlx::query(sqlx::AssertSqlSafe(query.as_str()))
+        sqlx::query(query)
             .bind(&key)
             .bind(id)
             .execute(&**db)
