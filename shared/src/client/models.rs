@@ -18,25 +18,23 @@ impl Client {
             pid,
             name,
             key,
-            max_bucket_size,
         } = args;
 
         let now = instance_as_string()?;
-        let mut placeholders = Vec::with_capacity(5);
-        for idx in 1..6 {
+        let mut placeholders = Vec::with_capacity(4);
+        for idx in 1..5 {
             placeholders.push(db.placeholder(idx))
         }
 
         let placeholders = placeholders.join(",");
         let query = sql_safe!(
-            "INSERT INTO clients(pid, key, name, max_bucket_size, created_at) VALUES ({placeholders})"
+            "INSERT INTO clients(pid, key, name, created_at) VALUES ({placeholders})"
         );
 
         sqlx::query(query)
             .bind(&pid)
             .bind(key)
             .bind(name)
-            .bind(max_bucket_size)
             .bind(now)
             .execute(&**db)
             .await?;
@@ -137,5 +135,4 @@ pub struct ClientInsertArgs {
     pub pid: String,
     pub name: String,
     pub key: String,
-    pub max_bucket_size: Option<f64>,
 }

@@ -27,7 +27,6 @@ pub async fn create_client(
     db: &Database,
     secrets: &AppSecrets,
     name: &str,
-    max_bucket_size: Option<f64>,
 ) -> anyhow::Result<ClientDetails> {
     let client_key = Client::generate_nano();
     let pid = Client::generate_nano();
@@ -36,7 +35,6 @@ pub async fn create_client(
         name: name.to_string(),
         pid,
         key: client_key.clone(),
-        max_bucket_size,
     };
 
     let encode = client_token(secrets, &client_key)?;
@@ -131,7 +129,7 @@ mod tests {
         let db = Database::new(&url).await?;
 
         let secrets = AppSecrets::read().await?;
-        let details = create_client(&db, &secrets, "Token Validation Test", None).await?;
+        let details = create_client(&db, &secrets, "Token Validation Test").await?;
 
         let id: i32 = sqlx::query_scalar("SELECT id FROM clients WHERE pid = $1 LIMIT 1")
             .bind(details.id)

@@ -15,7 +15,7 @@ use tokio_util::io::ReaderStream;
 async fn test_create_upload_session() -> anyhow::Result<()> {
     let state = AppState::new().await?;
     let client_header_key = state.config().client_header_key.clone();
-    let client = create_client(state.db(), state.secrets(), "Test Client", None).await?;
+    let client = create_client(state.db(), state.secrets(), "Test Client").await?;
 
     let filepath = root_dir()?.join("test-assets/demo.jpg");
     let metadata = tokio::fs::metadata(&filepath).await?;
@@ -43,7 +43,7 @@ async fn test_create_upload_session() -> anyhow::Result<()> {
 async fn test_play_upload_session() -> anyhow::Result<()> {
     let state = AppState::new().await?;
     let client_header_key = state.config().client_header_key.clone();
-    let client = create_client(state.db(), state.secrets(), "Test Client", None).await?;
+    let client = create_client(state.db(), state.secrets(), "Test Client").await?;
 
     let server = TestServerWrapper::new().await?;
     let mut data = vec![];
@@ -116,7 +116,7 @@ async fn test_play_upload_session() -> anyhow::Result<()> {
 async fn test_play_upload_resumable_session() -> anyhow::Result<()> {
     let state = AppState::new().await?;
     let client_header_key = state.config().client_header_key.clone();
-    let client = create_client(state.db(), state.secrets(), "Test Client", None).await?;
+    let client = create_client(state.db(), state.secrets(), "Test Client").await?;
 
     let server = TestServerWrapper::new().await?;
     let mut upload_config = upload_config();

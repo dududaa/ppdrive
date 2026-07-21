@@ -10,10 +10,6 @@ pub enum ClientCommand {
         /// Arbitrary name to remember the client. Use a name that describes the client application(s), e.g MyGoodness App
         #[arg(long("name"))]
         client_name: String,
-
-        #[arg(long)]
-        /// Total maximum size of buckets that this client can create.
-        max_bucket_size: Option<f64>,
     },
 
     /// refresh token for a given client.

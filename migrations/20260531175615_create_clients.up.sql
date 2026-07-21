@@ -9,12 +9,11 @@ CREATE UNIQUE INDEX idx_asset_owner_name_id ON asset_owner (name, owner_id);
 
 CREATE TABLE clients
 (
-    id              INTEGER PRIMARY KEY,
-    pid             TEXT UNIQUE,
-    key             TEXT UNIQUE,
-    name            TEXT NOT NULL,
-    max_bucket_size REAL,
-    created_at      TEXT NOT NULL
+    id         INTEGER PRIMARY KEY,
+    pid        TEXT UNIQUE,
+    key        TEXT UNIQUE,
+    name       TEXT NOT NULL,
+    created_at TEXT NOT NULL
 );
 
 CREATE TABLE users

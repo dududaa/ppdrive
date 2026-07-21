@@ -1,10 +1,10 @@
+use crate::subs::{BucketCommand, ClientCommand};
 use clap::{Parser, Subcommand};
 use shared::client::{create_client, regenerate_token};
 use shared::config::AppConfig;
 use shared::db::Database;
 use shared::secrets::AppSecrets;
 use std::process::Command;
-use crate::subs::{BucketCommand, ClientCommand};
 
 /// PPDRIVE is a free, open-source object storage service built with Rust for speed, security,
 /// and reliability.
@@ -23,12 +23,8 @@ impl Cli {
 
         match &self.command {
             CliCommand::Client { command } => match command {
-                ClientCommand::Create {
-                    client_name,
-                    max_bucket_size,
-                } => {
-                    let client =
-                        create_client(&pool, &secret, client_name, *max_bucket_size).await?;
+                ClientCommand::Create { client_name } => {
+                    let client = create_client(&pool, &secret, client_name).await?;
 
                     println!("Client created successfully!");
                     println!("Client ID: {}", client.id());
@@ -40,16 +36,16 @@ impl Cli {
                     println!("Client Token: {}", token);
                 }
                 _ => {}
-            }
+            },
 
             CliCommand::Bucket { command } => match command {
                 BucketCommand::Create(data) => {
                     let id = data.clone().insert(&pool).await?;
-                    
+
                     println!("Bucket created successfully!");
                     println!("Bucket ID: {id}");
                 }
-            }
+            },
 
             CliCommand::Serve { port } => {
                 if cfg!(debug_assertions) {
@@ -75,7 +71,7 @@ impl Cli {
 enum CliCommand {
     Serve {
         #[arg(long = "port")]
-        port: u16
+        port: u16,
     },
     Configure,
     /// create a new client
@@ -85,7 +81,6 @@ enum CliCommand {
     },
     Bucket {
         #[command(subcommand)]
-        command: BucketCommand
-    }
+        command: BucketCommand,
+    },
 }
-

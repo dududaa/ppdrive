@@ -1,8 +1,8 @@
-use clap::ValueEnum;
-use time::OffsetDateTime;
 /// Utilities used by database queries
 // use crate::sql_safe;
 use crate::db::Database;
+use clap::ValueEnum;
+use time::OffsetDateTime;
 
 #[macro_export]
 macro_rules! sql_safe {
@@ -14,10 +14,23 @@ macro_rules! sql_safe {
     }};
 }
 
-pub async fn asset_owner_id(owner_name: AssetOwnerName, owner_id: i32, db: &Database) -> anyhow::Result<i32> {
-    let query = sql_safe!("SELECT id FROM asset_owners WHERE name = {} AND owner_id = {}", db.placeholder(1), db.placeholder(2));
-    let id = sqlx::query_scalar(query).bind(i16::from(owner_name)).bind(owner_id).fetch_one(&**db).await?;
+pub async fn asset_owner_id(
+    owner_name: AssetOwnerName,
+    owner_id: i32,
+    db: &Database,
+) -> anyhow::Result<i32> {
+    let query = sql_safe!(
+        "SELECT id FROM asset_owner WHERE name = {} AND owner_id = {}",
+        db.placeholder(1),
+        db.placeholder(2)
+    );
     
+    let id = sqlx::query_scalar(query)
+        .bind(i16::from(owner_name))
+        .bind(owner_id)
+        .fetch_one(&**db)
+        .await?;
+
     Ok(id)
 }
 
@@ -25,7 +38,7 @@ pub async fn asset_owner_id(owner_name: AssetOwnerName, owner_id: i32, db: &Data
 pub enum AssetOwnerName {
     User,
     #[default]
-    Client
+    Client,
 }
 
 impl From<i16> for AssetOwnerName {
@@ -35,7 +48,7 @@ impl From<i16> for AssetOwnerName {
         match value {
             0 => User,
             1 => Client,
-            _ => Default::default()
+            _ => Default::default(),
         }
     }
 }
@@ -52,12 +65,14 @@ impl From<AssetOwnerName> for i16 {
 }
 
 pub struct SqlSafe<T> {
-    inner: sqlx::AssertSqlSafe<T>
+    inner: sqlx::AssertSqlSafe<T>,
 }
 
 impl<T> SqlSafe<T> {
     pub fn new(value: T) -> Self {
-        Self{ inner: sqlx::AssertSqlSafe(value) }
+        Self {
+            inner: sqlx::AssertSqlSafe(value),
+        }
     }
 
     pub fn into_inner(self) -> sqlx::AssertSqlSafe<T> {
