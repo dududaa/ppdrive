@@ -20,16 +20,16 @@ CREATE TABLE clients
 CREATE TABLE users
 (
     id         INTEGER PRIMARY KEY,
-    email      TEXT NOT NULL,
-    password   TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    email      TEXT UNIQUE NOT NULL,
+    password   TEXT        NOT NULL,
+    created_at TEXT        NOT NULL
 );
 
 CREATE TABLE buckets
 (
     id         INTEGER PRIMARY KEY,
     pid        TEXT UNIQUE,
-    size       REAL,
+    size       BIGINT,
     accepts    TEXT,
     created_at TEXT    NOT NULL,
     owner_id   INTEGER NOT NULL,

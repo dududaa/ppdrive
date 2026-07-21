@@ -1,8 +1,8 @@
 use crate::db::Database;
-use crate::{AssetOwner, SqlSafe, generate_nano_id, sql_safe};
+use crate::utils::{AssetOwnerName, instance_as_string};
+use crate::{generate_nano_id, sql_safe};
 use serde::Serialize;
 use sqlx::FromRow;
-use time::OffsetDateTime;
 
 #[derive(FromRow)]
 pub struct Client {
@@ -20,9 +20,8 @@ impl Client {
             key,
             max_bucket_size,
         } = args;
-        let now =
-            OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339)?;
 
+        let now = instance_as_string()?;
         let mut placeholders = Vec::with_capacity(5);
         for idx in 1..6 {
             placeholders.push(db.placeholder(idx))
@@ -55,7 +54,7 @@ impl Client {
         );
 
         sqlx::query(query)
-            .bind(i16::from(AssetOwner::Client))
+            .bind(i16::from(AssetOwnerName::Client))
             .bind(owner_id)
             .execute(&**db)
             .await?;
