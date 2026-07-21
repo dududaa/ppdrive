@@ -253,7 +253,7 @@ async fn upload_file(
     let tmp_size = tmp_file.metadata().await?.len();
     if tmp_size > target_filesize {
         Err(anyhow!(
-            "Upload file too large. Expected {target_filesize} bytes. Found {tmp_size} bytes"
+            "Uploaded file too large. Expected {target_filesize} bytes. Found {tmp_size} bytes"
         ))
     } else {
         let completed = tmp_size >= target_filesize;

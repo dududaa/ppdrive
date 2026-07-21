@@ -57,21 +57,23 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
         ])
         .allow_methods(Any);
 
-    let mut app = Router::new().nest("/upload", upload_routes()).layer(
-        TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
-            let matched_path = request
-                .extensions()
-                .get::<MatchedPath>()
-                .map(MatchedPath::as_str);
+    let mut app = Router::new()
+        .nest("/upload", upload_routes())
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
+                let matched_path = request
+                    .extensions()
+                    .get::<MatchedPath>()
+                    .map(MatchedPath::as_str);
 
-            info_span!(
-                "http_request",
-                method = ?request.method(),
-                matched_path,
-                some_other_field = tracing::field::Empty,
-            )
-        }),
-    );
+                info_span!(
+                    "http_request",
+                    method = ?request.method(),
+                    matched_path,
+                    some_other_field = tracing::field::Empty,
+                )
+            }),
+        );
 
     for folder in state.config().static_folders.clone() {
         let path = folder.path.unwrap_or(format!("/{}", folder.name));

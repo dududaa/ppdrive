@@ -82,6 +82,7 @@ pub struct UploadUrlConfig {
     pub asset_type: AssetType,
     #[validate(range(min = 30))]
     pub expires: i64,
+    #[validate(length(min = 4))]
     pub path: String,
     pub target_filesize: Option<u64>,
     /// Create asset parent folders if they don't exist, else error will be returned.
