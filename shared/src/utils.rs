@@ -84,3 +84,10 @@ pub fn instance_as_string() -> anyhow::Result<String> {
     let now = OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339)?;
     Ok(now)
 }
+
+pub async fn check_ownership(owner_type: AssetOwnerName, owner_id: i32, db: &Database) -> anyhow::Result<bool> {
+    let query = sql_safe!("SELECT Count(*) FROM asset_owner WHERE name = {} AND owner_id = {} WHERE LIMIT 1", db.placeholder(1), db.placeholder(2));
+    let  count: i32 = sqlx::query_scalar(query).bind(i16::from(owner_type)).bind(owner_id).fetch_one(&**db).await?;
+    
+    Ok(count > 0)
+}

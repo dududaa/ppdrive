@@ -1,6 +1,7 @@
 use crate::db::Database;
 use crate::utils::{AssetOwnerName, asset_owner_id, instance_as_string};
 use crate::{generate_nano_id, sql_safe};
+use sqlx::{FromRow, Row};
 
 #[derive(Default, Debug)]
 pub struct CreateBucketData {
@@ -31,7 +32,7 @@ pub async fn create(data: &CreateBucketData, db: &Database) -> anyhow::Result<St
 
     let placeholder_len = 8;
     let mut placeholders = Vec::with_capacity(placeholder_len as usize);
-    for idx in 1..placeholder_len+1 {
+    for idx in 1..placeholder_len + 1 {
         placeholders.push(db.placeholder(idx))
     }
 
@@ -53,4 +54,44 @@ pub async fn create(data: &CreateBucketData, db: &Database) -> anyhow::Result<St
         .await?;
 
     Ok(pid)
+}
+
+pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
+    let query = sql_safe!(
+        "SELECT id FROM buckets WHERE pid = {} LIMIT 1",
+        db.placeholder(1)
+    );
+
+    let id = sqlx::query_scalar(query).bind(pid).fetch_one(&**db).await?;
+    Ok(id)
+}
+
+#[derive(FromRow)]
+pub struct Bucket {
+    pub name: String,
+    pub path: String,
+    pub public: bool,
+    pub size: Option<i64>,
+    pub accepts: Option<Vec<String>>,
+}
+
+pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
+    let query = sql_safe!(
+        "SELECT name, path, public, size, accepts FROM buckets WHERE pid = {} LIMIT 1",
+        db.placeholder(1)
+    );
+
+    let row = sqlx::query(query).bind(pid).fetch_one(&**db).await?;
+    let accepts: Option<String> = row.get("name");
+    let accepts = accepts.map(|s| s.split(",").map(|s| s.to_string()).collect());
+
+    let data = Bucket {
+        name: row.get("name"),
+        path: row.get("path"),
+        public: row.get("public"),
+        size: row.get("size"),
+        accepts,
+    };
+
+    Ok(data)
 }

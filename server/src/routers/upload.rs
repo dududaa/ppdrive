@@ -8,7 +8,7 @@ use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::StatusCode;
 use shared::server::*;
-use shared::{client, generate_nano_id, root_dir};
+use shared::{AssetOwnerName, buckets, client, generate_nano_id, root_dir};
 use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
@@ -26,10 +26,20 @@ pub(super) async fn create_session(
         .validate()
         .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
 
+    if let Some(bucket_id) = &config.bucket {
+        let id = buckets::get_id(bucket_id, state.db()).await?;
+        let is_owner = shared::check_ownership(AssetOwnerName::Client, id, state.db()).await?;
+
+        if !is_owner {
+            return Err(api_error("Write access denied for the specified bucket.")
+                .with_status_code(StatusCode::FORBIDDEN));
+        }
+    }
+
     let resumable = config.resumable.unwrap_or_default();
     if resumable && state.config().message_broker.is_none() {
         return Err(
-            api_error("resumable upload is impossible without a message broker.")
+            api_error("Resumable upload is impossible without a message broker.")
                 .with_status_code(StatusCode::BAD_REQUEST),
         );
     }
@@ -75,7 +85,6 @@ pub(super) async fn play_session(
     UploadMiddleware(mut info): UploadMiddleware,
     body: Bytes,
 ) -> ApiResponse<Option<String>> {
-    println!("request received...");
     if info.config.is_none()
         && let Some(session_id) = &info.session_id
     {
@@ -83,7 +92,6 @@ pub(super) async fn play_session(
         info.config = cache.config;
     }
 
-    println!("config loaded...");
     let config = info.config.clone();
     let config = config.ok_or(api_error("missing configuration"))?;
     let root_dir = state.config().root_dir()?;
@@ -154,8 +162,10 @@ async fn get_next_session(
         .ok_or(anyhow!("missing configuration"))?;
 
     let session_id = info.session_id.clone();
-    let target_path = root_dir.join(config.path.trim_start_matches("/"));
-    let parent_dir = target_path.parent().unwrap_or(&root_dir);
+    let mut target_path = root_dir.join(config.path.trim_start_matches("/"));
+
+    let tp_clone = target_path.clone();
+    let parent_dir = tp_clone.parent().unwrap_or(&root_dir);
 
     let target_filesize = config.target_filesize.ok_or(anyhow!(
         "Unable to determine target filesize. Please specify \"target_filesize\" in upload options."
@@ -167,7 +177,6 @@ async fn get_next_session(
     let (tmp_path, completed) =
         upload_file(session_id.clone(), &tmp_dir, &body, target_filesize).await?;
 
-    println!("handling resumable state...");
     if !completed && resumable {
         let session_id = session_id.clone().ok_or(anyhow!("session_id not found"))?;
         let key = client::get_key(state.db(), &info.client_id).await?;
@@ -175,15 +184,42 @@ async fn get_next_session(
 
         let broker = state.broker()?;
         broker.upsert_upload_info(&session_id, &info).await?;
-        println!("inserting completed...");
 
         let token = info.resign(&key, state.hasher())?;
         next_token = Some(token);
     }
 
     if completed {
-        if parent_dir != root_dir && !parent_dir.exists() {
-            tokio::fs::create_dir_all(&parent_dir).await?;
+        match &config.bucket {
+            Some(bucket_id) => {
+                let bucket = buckets::get(bucket_id, state.db()).await?;
+                let bucket_root = PathBuf::from(&bucket.path);
+
+                // validate bucket size
+                if !bucket_root.is_dir() {
+                    tokio::fs::create_dir_all(&bucket_root).await?
+                } else {
+                    if let Some(max_size) = &bucket.size {
+                        let target_size = bucket_root.metadata()?.len() + target_filesize;
+                        if target_size > (*max_size as u64) {
+                            return Err(anyhow!("Bucket size limit exceeded."));
+                        }
+                    }
+                }
+
+                // TODO: Validate bucket mime
+
+                // append target_path tp bucket path
+                target_path = bucket_root.join(&target_path);
+                if let Some(parent) = target_path.parent() && !parent.exists() {
+                    tokio::fs::create_dir_all(parent).await?;
+                }
+            }
+            None => {
+                if parent_dir != root_dir && !parent_dir.exists() {
+                    tokio::fs::create_dir_all(&parent_dir).await?;
+                }
+            }
         }
 
         tokio::fs::rename(tmp_path, target_path).await?;
@@ -211,14 +247,16 @@ async fn upload_file(
         .open(&tmp_path)
         .await?;
 
-    let filesize = tmp_file.metadata().await?.len();
-    let writing_size = data.len();
-    tracing::debug!("filesize {filesize}, writing_size {writing_size}");
-
     tmp_file.write_all(data).await?;
     tmp_file.flush().await?;
 
     let tmp_size = tmp_file.metadata().await?.len();
-    let completed = tmp_size >= target_filesize;
-    Ok((tmp_path, completed))
+    if tmp_size > target_filesize {
+        Err(anyhow!(
+            "Upload file too large. Expected {target_filesize} bytes. Found {tmp_size} bytes"
+        ))
+    } else {
+        let completed = tmp_size >= target_filesize;
+        Ok((tmp_path, completed))
+    }
 }

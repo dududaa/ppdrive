@@ -9,4 +9,4 @@ mod utils;
 
 mod tools;
 pub use tools::*;
-pub use utils::AssetOwnerName;
+pub use utils::{AssetOwnerName, check_ownership};

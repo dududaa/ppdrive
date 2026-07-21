@@ -89,6 +89,8 @@ pub struct UploadUrlConfig {
     /// overwrite asset if it already exists.
     pub overwrite: Option<bool>,
     pub resumable: Option<bool>,
+    /// The bucket to which the asset belongs
+    pub bucket: Option<String>,
 }
 
 impl UploadUrlConfig {
@@ -146,7 +148,7 @@ mod tests {
 
         let db = Database::new(&config.database_url).await?;
         let hasher = config.hasher.clone();
-        let client_details = create_client(&db, &secrets, "Signed Client", None).await?;
+        let client_details = create_client(&db, &secrets, "Signed Client").await?;
 
         let config = UploadUrlConfig::test();
         let info = UploadInfo {
