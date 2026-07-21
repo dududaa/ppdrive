@@ -4,6 +4,7 @@ use shared::config::AppConfig;
 use shared::db::Database;
 use shared::secrets::AppSecrets;
 use std::process::Command;
+use crate::subs::{BucketCommand, ClientCommand};
 
 /// PPDRIVE is a free, open-source object storage service built with Rust for speed, security,
 /// and reliability.
@@ -39,7 +40,16 @@ impl Cli {
                     println!("Client Token: {}", token);
                 }
                 _ => {}
-            },
+            }
+
+            CliCommand::Bucket { command } => match command {
+                BucketCommand::Create(data) => {
+                    let id = data.clone().insert(&pool).await?;
+                    
+                    println!("Bucket created successfully!");
+                    println!("Bucket ID: {id}");
+                }
+            }
 
             CliCommand::Serve { port } => {
                 if cfg!(debug_assertions) {
@@ -73,26 +83,9 @@ enum CliCommand {
         #[command(subcommand)]
         command: ClientCommand,
     },
+    Bucket {
+        #[command(subcommand)]
+        command: BucketCommand
+    }
 }
 
-#[derive(Subcommand, Debug)]
-enum ClientCommand {
-    /// create a new client and receive the client token.
-    Create {
-        /// Arbitrary name to remember the client. Use a name that describes the client application(s), e.g MyGoodness App
-        #[arg(long("name"))]
-        client_name: String,
-
-        #[arg(long)]
-        /// Total maximum size of buckets that this client can create.
-        max_bucket_size: Option<f64>,
-    },
-
-    /// refresh token for a given client.
-    Refresh {
-        #[arg(long("id"))]
-        client_id: String,
-    },
-
-    List,
-}

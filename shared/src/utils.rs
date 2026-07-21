@@ -1,3 +1,4 @@
+use clap::ValueEnum;
 use time::OffsetDateTime;
 /// Utilities used by database queries
 // use crate::sql_safe;
@@ -20,7 +21,7 @@ pub async fn asset_owner_id(owner_name: AssetOwnerName, owner_id: i32, db: &Data
     Ok(id)
 }
 
-#[derive(Default)]
+#[derive(ValueEnum, Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AssetOwnerName {
     User,
     #[default]

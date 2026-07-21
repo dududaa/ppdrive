@@ -9,3 +9,4 @@ mod utils;
 
 mod tools;
 pub use tools::*;
+pub use utils::AssetOwnerName;

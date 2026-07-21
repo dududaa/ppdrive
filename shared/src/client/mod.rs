@@ -3,6 +3,7 @@ use crate::tools::secrets::AppSecrets;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 use models::{Client, ClientInsertArgs};
+use crate::sql_safe;
 
 pub(crate) mod models;
 
@@ -78,6 +79,13 @@ pub async fn regenerate_token(
 
 pub async fn get_clients(db: &Database) -> anyhow::Result<Vec<Client>> {
     Client::all(db).await
+}
+
+pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
+    let query = sql_safe!("SELECT id FROM clients WHERE pid = {} LIMIT 1", db.placeholder(1));
+    let id = sqlx::query_scalar(query).bind(pid).fetch_one(&**db).await?;
+    
+    Ok(id)
 }
 
 pub async fn get_claims_data(db: &Database, id: &i32) -> anyhow::Result<(String, String)> {

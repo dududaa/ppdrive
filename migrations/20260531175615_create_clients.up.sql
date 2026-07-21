@@ -29,8 +29,11 @@ CREATE TABLE buckets
 (
     id         INTEGER PRIMARY KEY,
     pid        TEXT UNIQUE,
+    name       TEXT    NOT NULL,
+    public     BOOLEAN NOT NULL,
     size       BIGINT,
     accepts    TEXT,
+    path       TEXT    NOT NULL UNIQUE,
     created_at TEXT    NOT NULL,
     owner_id   INTEGER NOT NULL,
     FOREIGN KEY (owner_id) REFERENCES asset_owner (id) ON DELETE CASCADE

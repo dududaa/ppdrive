@@ -2,6 +2,7 @@ use crate::command::Cli;
 use clap::Parser;
 
 mod command;
+mod subs;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
