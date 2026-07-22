@@ -1,4 +1,4 @@
-use crate::client::models::Client;
+use crate::db::client::models::Client;
 use crate::db::Database;
 use crate::hasher::{Hashable, Hasher, errors::PayloadVerificationError};
 use anyhow::anyhow;
@@ -122,10 +122,8 @@ pub enum AssetType {
 
 #[cfg(test)]
 mod tests {
-    use crate::client;
-    use crate::client::create_client;
     use crate::config::AppConfig;
-    use crate::db::Database;
+    use crate::db::{client, Database};
     use crate::secrets::AppSecrets;
     use crate::server::{UploadInfo, UploadUrlConfig, seconds_from_now};
     use std::sync::Arc;
@@ -149,7 +147,7 @@ mod tests {
 
         let db = Database::new(&config.database_url).await?;
         let hasher = config.hasher.clone();
-        let client_details = create_client(&db, &secrets, "Signed Client").await?;
+        let client_details = client::create_client(&db, &secrets, "Signed Client").await?;
 
         let config = UploadUrlConfig::test();
         let info = UploadInfo {

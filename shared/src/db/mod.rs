@@ -4,6 +4,10 @@ use sqlx::{AnyPool, migrate};
 use sqlx::any::install_default_drivers;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
+pub mod buckets;
+pub mod client;
+pub mod utils;
+
 pub type DbPool = AnyPool;
 
 #[derive(Clone)]

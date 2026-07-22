@@ -8,7 +8,7 @@ use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::StatusCode;
 use shared::server::*;
-use shared::{AssetOwnerName, buckets, client, generate_nano_id, root_dir};
+use shared::{AssetOwnerName, db::{buckets, client}, generate_nano_id, root_dir};
 use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;

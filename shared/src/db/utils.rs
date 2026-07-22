@@ -8,7 +8,7 @@ use time::OffsetDateTime;
 macro_rules! sql_safe {
     ($($arg:tt)*) => {{
         let query = format!($($arg)*);
-        let sql = $crate::utils::SqlSafe::new(query);
+        let sql = $crate::db::utils::SqlSafe::new(query);
 
         sql.into_inner()
     }};

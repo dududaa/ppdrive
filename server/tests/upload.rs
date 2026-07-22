@@ -5,7 +5,7 @@ mod common;
 
 use crate::common::{TestServerWrapper, upload_config};
 use server::state::AppState;
-use shared::client::create_client;
+use shared::db::client::create_client;
 use shared::root_dir;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncReadExt;

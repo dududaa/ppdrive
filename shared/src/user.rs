@@ -1,7 +1,7 @@
 use crate::db::Database;
 use crate::server::make_password;
 use crate::{sql_safe};
-use crate::utils::{instance_as_string, AssetOwnerName};
+use crate::db::utils::{instance_as_string, AssetOwnerName};
 
 pub async fn create(email: &str, password: &str, db: &Database) -> anyhow::Result<()> {
     let password = make_password(password);

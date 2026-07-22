@@ -3,7 +3,7 @@ use crate::state::AppState;
 use axum::extract::{FromRef, FromRequestParts, Path};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use shared::client::verify_client;
+use shared::db::client::verify_client;
 use shared::server::UploadInfo;
 use shared::hasher::errors::PayloadVerificationError;
 

@@ -1,6 +1,6 @@
 use crate::subs::{BucketCommand, ClientCommand};
 use clap::{Parser, Subcommand};
-use shared::client::{create_client, regenerate_token};
+use shared::db::client::{create_client, regenerate_token};
 use shared::config::AppConfig;
 use shared::db::Database;
 use shared::secrets::AppSecrets;

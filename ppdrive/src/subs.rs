@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
-use shared::buckets::CreateBucketData;
+use shared::db::buckets::CreateBucketData;
 use shared::db::Database;
-use shared::{AssetOwnerName, client, buckets};
+use shared::{AssetOwnerName, db::{client, buckets}};
 
 #[derive(Subcommand, Debug)]
 pub enum ClientCommand {

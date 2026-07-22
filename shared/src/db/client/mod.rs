@@ -117,7 +117,7 @@ impl From<(String, String)> for ClientDetails {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::{create_client, verify_client};
+    use crate::db::client::{create_client, verify_client};
     use crate::db::Database;
     use crate::tools::secrets::AppSecrets;
     use std::env;

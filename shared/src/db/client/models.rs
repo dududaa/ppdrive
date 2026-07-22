@@ -1,5 +1,5 @@
 use crate::db::Database;
-use crate::utils::{AssetOwnerName, instance_as_string};
+use crate::db::utils::{AssetOwnerName, instance_as_string};
 use crate::{generate_nano_id, sql_safe};
 use serde::Serialize;
 use sqlx::FromRow;
@@ -14,11 +14,7 @@ pub struct Client {
 
 impl Client {
     pub async fn create(db: &Database, args: ClientInsertArgs) -> anyhow::Result<String> {
-        let ClientInsertArgs {
-            pid,
-            name,
-            key,
-        } = args;
+        let ClientInsertArgs { pid, name, key } = args;
 
         let now = instance_as_string()?;
         let mut placeholders = Vec::with_capacity(4);
@@ -27,9 +23,8 @@ impl Client {
         }
 
         let placeholders = placeholders.join(",");
-        let query = sql_safe!(
-            "INSERT INTO clients(pid, key, name, created_at) VALUES ({placeholders})"
-        );
+        let query =
+            sql_safe!("INSERT INTO clients(pid, key, name, created_at) VALUES ({placeholders})");
 
         sqlx::query(query)
             .bind(&pid)

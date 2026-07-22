@@ -1,5 +1,5 @@
 use crate::db::Database;
-use crate::utils::{AssetOwnerName, asset_owner_id, instance_as_string};
+use crate::db::utils::{AssetOwnerName, asset_owner_id, instance_as_string};
 use crate::{generate_nano_id, sql_safe};
 use sqlx::{FromRow, Row};
 
