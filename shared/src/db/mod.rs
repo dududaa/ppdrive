@@ -4,7 +4,7 @@ use sqlx::{AnyPool, migrate};
 use sqlx::any::install_default_drivers;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
-pub mod buckets;
+pub mod bucket;
 pub mod client;
 pub mod utils;
 

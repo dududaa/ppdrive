@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
-use shared::db::buckets::CreateBucketData;
+use shared::db::bucket::models::CreateBucketData;
 use shared::db::Database;
-use shared::{AssetOwnerName, db::{client, buckets}};
+use shared::{AssetOwnerName, db::{client, bucket}};
 
 #[derive(Subcommand, Debug)]
 pub enum ClientCommand {
@@ -75,7 +75,7 @@ impl CreateBucketArgs {
             accepts,
         };
 
-        let id = buckets::create(&data, db).await?;
+        let id = bucket::create(&data, db).await?;
         Ok(id)
     }
 }

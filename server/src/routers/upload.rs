@@ -8,7 +8,7 @@ use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::StatusCode;
 use shared::server::*;
-use shared::{AssetOwnerName, db::{buckets, client}, generate_nano_id, root_dir};
+use shared::{AssetOwnerName, db::{bucket, client}, generate_nano_id, root_dir};
 use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
@@ -27,7 +27,7 @@ pub(super) async fn create_session(
         .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
 
     if let Some(bucket_id) = &config.bucket {
-        let id = buckets::get_id(bucket_id, state.db()).await?;
+        let id = bucket::get_id(bucket_id, state.db()).await?;
         let is_owner = shared::check_ownership(AssetOwnerName::Client, id, state.db()).await?;
 
         if !is_owner {
@@ -192,7 +192,7 @@ async fn get_next_session(
     if completed {
         match &config.bucket {
             Some(bucket_id) => {
-                let bucket = buckets::get(bucket_id, state.db()).await?;
+                let bucket = bucket::get(bucket_id, state.db()).await?;
                 let bucket_root = PathBuf::from(&bucket.path);
 
                 // validate bucket size
