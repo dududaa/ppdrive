@@ -173,7 +173,8 @@ async fn handle_session(
                 }
             }
 
-            Err(api_error(err.to_string()))
+            tracing::error!("upload failed: {err:#}");
+            Err(api_error("upload failed"))
         }
     }
 }

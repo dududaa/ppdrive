@@ -68,21 +68,27 @@ impl IntoResponse for ResponseError {
 
 impl From<anyhow::Error> for ResponseError {
     fn from(err: anyhow::Error) -> Self {
-        api_error(err)
+        tracing::error!("internal error: {err:#}");
+        api_error("internal server error")
     }
 }
 
 impl From<io::Error> for ResponseError {
-    fn from(value: Error) -> Self {
-        api_error(value)
+    fn from(err: Error) -> Self {
+        tracing::error!("io error: {err}");
+        api_error("internal server error")
     }
 }
 
 impl From<sqlx::Error> for ResponseError {
     fn from(err: sqlx::Error) -> Self {
         match err {
-            sqlx::Error::RowNotFound => api_error(err).with_status_code(StatusCode::NOT_FOUND),
-            _ => api_error(err),
+            sqlx::Error::RowNotFound => api_error("resource not found")
+                .with_status_code(StatusCode::NOT_FOUND),
+            _ => {
+                tracing::error!("database error: {err}");
+                api_error("internal server error")
+            }
         }
     }
 }

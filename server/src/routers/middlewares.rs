@@ -35,7 +35,11 @@ where
 
         let client_id = verify_client(state.db(), state.secrets(), client_token)
             .await
-            .map_err(|e| api_error(format!("client verification failed: {e}")))?;
+            .map_err(|e| {
+                tracing::error!("client verification failed: {e}");
+                api_error("client verification failed")
+                    .with_status_code(StatusCode::UNAUTHORIZED)
+            })?;
 
         Ok(Self(client_id))
     }
