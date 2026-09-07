@@ -9,27 +9,35 @@ use crate::sql_safe;
 
 pub(crate) mod models;
 
-/// generate a cipher token for client's id.
-/// Uses a random nonce per encryption to prevent nonce reuse attacks.
-fn client_token(secrets: &AppSecrets, client_key: &str) -> anyhow::Result<String> {
-    let key = secrets.secret_key();
-    let cipher_key = Key::try_from(key)?;
-    let cipher = XChaCha20Poly1305::new(&cipher_key);
-
-    // Generate a fresh random nonce for each encryption
+/// Encrypt a plaintext key using ChaCha20Poly1305 with the app secret.
+/// Returns (encrypted_key_hex, nonce_bytes).
+fn encrypt_key(secrets: &AppSecrets, plaintext: &str) -> anyhow::Result<(String, Vec<u8>)> {
+    let key = Key::try_from(secrets.secret_key())?;
+    let cipher = XChaCha20Poly1305::new(&key);
     let nonce = XNonce::generate();
-    let encrypt = cipher.encrypt(&nonce, client_key.as_bytes())?;
-
-    // Prepend the nonce (24 bytes) to the ciphertext so decryption can recover it
-    let mut output = Vec::with_capacity(nonce.len() + encrypt.len());
-    output.extend_from_slice(nonce.as_slice());
-    output.extend_from_slice(&encrypt);
-
-    let encode = hex::encode(&output);
-    Ok(encode)
+    let ciphertext = cipher.encrypt(&nonce, plaintext.as_bytes())?;
+    Ok((hex::encode(&ciphertext), nonce.as_slice().to_vec()))
 }
 
-/// creates a new client and return the details
+/// Decrypt an encrypted key using ChaCha20Poly1305 with the app secret.
+pub fn decrypt_key(secrets: &AppSecrets, encrypted_hex: &str, nonce_bytes: &[u8]) -> anyhow::Result<String> {
+    let key = Key::try_from(secrets.secret_key())?;
+    let cipher = XChaCha20Poly1305::new(&key);
+    let nonce = XNonce::try_from(nonce_bytes)?;
+    let ciphertext = hex::decode(encrypted_hex)?;
+    let plaintext = cipher.decrypt(&nonce, ciphertext.as_slice())?;
+    Ok(String::from_utf8(plaintext)?)
+}
+
+/// Generate a SHA-256 hash of a key for database lookups.
+fn hash_key(key: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let hash = Sha256::digest(key.as_bytes());
+    hex::encode(hash)
+}
+
+/// Creates a new client and return the details.
+/// The plaintext key is encrypted before storage and only returned in the token.
 pub async fn create_client(
     db: &Database,
     secrets: &AppSecrets,
@@ -38,15 +46,38 @@ pub async fn create_client(
     let client_key = Client::generate_nano();
     let pid = Client::generate_nano();
 
+    let (encrypted_key, nonce) = encrypt_key(secrets, &client_key)?;
+    let key_hash = hash_key(&client_key);
+
     let args = ClientInsertArgs {
         name: name.to_string(),
         pid,
-        key: client_key.clone(),
+        encrypted_key,
+        key_nonce: nonce,
+        key_hash,
     };
 
-    let encode = client_token(secrets, &client_key)?;
+    let token = client_token(secrets, &client_key)?;
     let id = Client::create(db, args).await?;
-    Ok((id, encode).into())
+    Ok((id, token).into())
+}
+
+/// generate a cipher token for client's id.
+/// Uses a random nonce per encryption to prevent nonce reuse attacks.
+fn client_token(secrets: &AppSecrets, client_key: &str) -> anyhow::Result<String> {
+    let key = secrets.secret_key();
+    let cipher_key = Key::try_from(key)?;
+    let cipher = XChaCha20Poly1305::new(&cipher_key);
+
+    let nonce = XNonce::generate();
+    let encrypt = cipher.encrypt(&nonce, client_key.as_bytes())?;
+
+    let mut output = Vec::with_capacity(nonce.len() + encrypt.len());
+    output.extend_from_slice(nonce.as_slice());
+    output.extend_from_slice(&encrypt);
+
+    let encode = hex::encode(&output);
+    Ok(encode)
 }
 
 /// decrypt client's cipher token, validate client token and return client id
@@ -61,7 +92,6 @@ pub async fn verify_client(
     let cipher_key = Key::try_from(key)?;
     let cipher = XChaCha20Poly1305::new(&cipher_key);
 
-    // Extract the nonce (first 24 bytes) and ciphertext (remaining bytes)
     let nonce_len = XNonce::default().len();
     if decode.len() < nonce_len {
         return Err(anyhow!("token too short: missing nonce"));
@@ -72,7 +102,9 @@ pub async fn verify_client(
     let decrypt = cipher.decrypt(&nonce, ciphertext)?;
     let key = String::from_utf8(decrypt)?;
 
-    Client::id_by_key(db, &key).await
+    // Look up client by hashing the extracted key
+    let key_hash = hash_key(&key);
+    Client::id_by_key_hash(db, &key_hash).await
 }
 
 /// Regenerate token for a given client.
@@ -81,9 +113,13 @@ pub async fn regenerate_token(
     secrets: &AppSecrets,
     client_id: &str,
 ) -> anyhow::Result<String> {
-    let key = Client::update_key(db, client_id).await?;
-    let token = client_token(secrets, &key)?;
+    let plaintext_key = Client::generate_nano();
+    let (encrypted_key, nonce) = encrypt_key(secrets, &plaintext_key)?;
+    let key_hash = hash_key(&plaintext_key);
 
+    Client::update_key(db, client_id, &encrypted_key, &nonce, &key_hash).await?;
+
+    let token = client_token(secrets, &plaintext_key)?;
     Ok(token)
 }
 
@@ -98,12 +134,12 @@ pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
     Ok(id)
 }
 
-pub async fn get_claims_data(db: &Database, id: &i32) -> anyhow::Result<(String, String)> {
-    Client::get_claims_data(db, id).await
+pub async fn get_claims_data(db: &Database, id: &i32, secrets: &AppSecrets) -> anyhow::Result<(String, String)> {
+    Client::get_claims_data(db, id, secrets).await
 }
 
-pub async fn get_key(db: &Database, pid: &str) -> anyhow::Result<String> {
-    Client::get_key(db, pid).await
+pub async fn get_key(db: &Database, pid: &str, secrets: &AppSecrets) -> anyhow::Result<String> {
+    Client::get_key_encrypted(db, pid, secrets).await
 }
 
 pub struct ClientDetails {

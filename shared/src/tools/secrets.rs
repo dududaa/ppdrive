@@ -74,6 +74,16 @@ async fn generate_secret_file() -> anyhow::Result<()> {
     secret_file.write_all(secret_key.as_slice()).await?;
     secret_file.write_all(nonce.as_slice()).await?;
     secret_file.write_all(jwt_secret.as_slice()).await?;
+    drop(secret_file);
+
+    // Set restrictive permissions on Unix systems (owner read/write only)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let path = secret_filename()?;
+        let perms = std::fs::Permissions::from_mode(0o600);
+        std::fs::set_permissions(&path, perms)?;
+    }
 
     Ok(())
 }
@@ -84,6 +94,14 @@ async fn init_secrets() -> anyhow::Result<()> {
     let path = secret_filename()?;
     if !path.is_file() {
         generate_secret_file().await.map_err(|err| anyhow!(err))?;
+    }
+
+    // Ensure existing secrets file has restrictive permissions
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = std::fs::Permissions::from_mode(0o600);
+        std::fs::set_permissions(&path, perms)?;
     }
 
     Ok(())

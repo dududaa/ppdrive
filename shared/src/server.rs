@@ -1,9 +1,10 @@
-use crate::db::client::models::Client;
 use crate::db::Database;
 use crate::hasher::{Hashable, Hasher, errors::PayloadVerificationError};
 use anyhow::anyhow;
+use argon2::password_hash::rand_core::OsRng;
+use argon2::password_hash::{PasswordHasher, SaltString};
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use serde::{Deserialize, Serialize};
-use sha3::{Digest, Sha3_256};
 use std::time::{SystemTime, UNIX_EPOCH};
 use validator::Validate;
 
@@ -27,6 +28,10 @@ pub struct UploadInfo {
     /// to determine resumable chunk's url expiration.
     pub chunk_session_expiration: i64,
     pub config: Option<UploadUrlConfig>,
+    /// The decrypted client signing key, populated when creating a session.
+    /// Not serialized into the signed token for security.
+    #[serde(skip)]
+    pub client_key: Option<String>,
 }
 
 impl UploadInfo {
@@ -45,15 +50,23 @@ impl UploadInfo {
     pub async fn verify(
         signed: &str,
         db: &Database,
+        secrets: &crate::tools::secrets::AppSecrets,
         hasher: &Hasher,
     ) -> Result<UploadInfo, PayloadVerificationError> {
-        hasher.verify(signed, db).await
+        hasher.verify_upload_info(signed, db, secrets).await
     }
 }
 
 impl Hashable for UploadInfo {
-    fn key(&self, db: &Database) -> impl Future<Output = anyhow::Result<String>> {
-        async { Client::get_key(db, &self.client_id).await }
+    fn key(&self, _db: &Database) -> impl Future<Output = anyhow::Result<String>> {
+        async {
+            // If client_key is already populated (e.g., from create_session), use it directly
+            if let Some(key) = &self.client_key {
+                return Ok(key.clone());
+            }
+            // Otherwise, look up and decrypt from database
+            Err(anyhow!("client_key not available on deserialized UploadInfo; use verify_with_secrets"))
+        }
     }
 
     fn expires(&self) -> i64 {
@@ -62,18 +75,24 @@ impl Hashable for UploadInfo {
 }
 
 pub fn make_password(password: &str) -> String {
-    let hash_pass = Sha3_256::digest(password.to_string().as_bytes());
-    hex::encode(hash_pass)
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let hash = argon2
+        .hash_password(password.as_bytes(), &salt)
+        .expect("argon2 hashing should not fail");
+    hash.to_string()
 }
 
-pub fn check_password(password: &str, hashed: &str) -> anyhow::Result<String> {
-    let h = make_password(password);
+pub fn check_password(password: &str, hashed: &str) -> anyhow::Result<()> {
+    let parsed_hash = PasswordHash::new(hashed)
+        .map_err(|e| anyhow!("invalid password hash format: {e}"))?;
 
-    if *hashed != h {
-        return Err(anyhow!("wrong password!"));
-    }
+    let argon2 = Argon2::default();
+    argon2
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .map_err(|_| anyhow!("wrong password!"))?;
 
-    Ok(h)
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize, Validate, Default, Clone)]
@@ -150,22 +169,24 @@ mod tests {
         let client_details = client::create_client(&db, &secrets, "Signed Client").await?;
 
         let config = UploadUrlConfig::test();
+        let plaintext_key = client::get_key(&db, client_details.id(), &secrets).await?;
         let info = UploadInfo {
             client_id: client_details.id().to_string(),
             exp: seconds_from_now(config.expires)?,
             config: Some(config),
+            client_key: Some(plaintext_key),
             ..Default::default()
         };
 
-        let key = client::get_key(&db, client_details.id()).await?;
+        let key = info.client_key.clone().unwrap();
         let mut signed = info.sign(&key, &hasher)?;
 
-        let mut verified = UploadInfo::verify(&signed, &db, &hasher).await;
+        let mut verified = UploadInfo::verify(&signed, &db, &secrets, &hasher).await;
         assert!(verified.is_ok());
 
         // is tampered, this should fail
         signed.push_str("mod");
-        verified = UploadInfo::verify(&signed, &db, &hasher).await;
+        verified = UploadInfo::verify(&signed, &db, &secrets, &hasher).await;
         assert!(verified.is_err());
 
         Ok(())

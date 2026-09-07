@@ -97,7 +97,7 @@ pub(super) async fn create_session(
     }
 
     let exp = seconds_from_now(config.expires)?;
-    let (pid, key) = client::get_claims_data(state.db(), &client.id()).await?;
+    let (pid, key) = client::get_claims_data(state.db(), &client.id(), state.secrets()).await?;
 
     let data = UploadInfo {
         client_id: pid,
@@ -106,6 +106,7 @@ pub(super) async fn create_session(
         config: Some(config),
         chunk_index: 0,
         exp,
+        client_key: Some(key.clone()),
     };
 
     let token = data.sign(&key, state.hasher())?;
@@ -213,7 +214,7 @@ async fn get_next_session(
 
     if !completed && resumable {
         let session_id = session_id.clone().ok_or(anyhow!("session_id not found"))?;
-        let key = client::get_key(state.db(), &info.client_id).await?;
+        let key = info.client_key.clone().ok_or(anyhow!("client_key not available"))?;
         let mut info = info.clone();
 
         let broker = state.broker()?;

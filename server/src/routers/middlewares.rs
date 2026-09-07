@@ -56,7 +56,7 @@ where
             .map_err(|e| api_error(e))?;
 
         let state = AppState::from_ref(state);
-        match UploadInfo::verify(&payload, state.db(), state.hasher()).await {
+        match UploadInfo::verify(&payload, state.db(), state.secrets(), state.hasher()).await {
             Ok(info) => Ok(Self(info)),
             Err(err) => {
                 let resp = match err {

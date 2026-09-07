@@ -1,5 +1,6 @@
 use crate::db::Database;
 use crate::db::utils::{AssetOwnerName, instance_as_string};
+use crate::tools::secrets::AppSecrets;
 use crate::{generate_nano_id, sql_safe};
 use serde::Serialize;
 use sqlx::FromRow;
@@ -14,21 +15,24 @@ pub struct Client {
 
 impl Client {
     pub async fn create(db: &Database, args: ClientInsertArgs) -> anyhow::Result<String> {
-        let ClientInsertArgs { pid, name, key } = args;
+        let ClientInsertArgs { pid, name, encrypted_key, key_nonce, key_hash } = args;
 
         let now = instance_as_string()?;
-        let mut placeholders = Vec::with_capacity(4);
-        for idx in 1..5 {
+        let mut placeholders = Vec::with_capacity(6);
+        for idx in 1..7 {
             placeholders.push(db.placeholder(idx))
         }
 
         let placeholders = placeholders.join(",");
-        let query =
-            sql_safe!("INSERT INTO clients(pid, key, name, created_at) VALUES ({placeholders})");
+        let query = sql_safe!(
+            "INSERT INTO clients(pid, encrypted_key, key_nonce, key_hash, name, created_at) VALUES ({placeholders})"
+        );
 
         sqlx::query(query)
             .bind(&pid)
-            .bind(key)
+            .bind(&encrypted_key)
+            .bind(&key_nonce)
+            .bind(&key_hash)
             .bind(name)
             .bind(now)
             .execute(&**db)
@@ -55,14 +59,19 @@ impl Client {
         Ok(pid)
     }
 
-    pub async fn get_claims_data(db: &Database, id: &i32) -> anyhow::Result<(String, String)> {
+    pub async fn get_claims_data(db: &Database, id: &i32, secrets: &AppSecrets) -> anyhow::Result<(String, String)> {
         let query = sql_safe!(
-            "SELECT pid, key FROM clients WHERE id = {} LIMIT 1",
+            "SELECT pid, encrypted_key, key_nonce FROM clients WHERE id = {} LIMIT 1",
             db.placeholder(1)
         );
 
-        let data = sqlx::query_as(query).bind(id).fetch_one(&**db).await?;
-        Ok(data)
+        let row: (String, String, Vec<u8>) = sqlx::query_as(query)
+            .bind(id)
+            .fetch_one(&**db)
+            .await?;
+
+        let plaintext_key = super::decrypt_key(secrets, &row.1, &row.2)?;
+        Ok((row.0, plaintext_key))
     }
 
     pub async fn get(db: &Database, pid: &str) -> anyhow::Result<Client> {
@@ -83,41 +92,52 @@ impl Client {
         Ok(data)
     }
 
-    pub async fn get_key(db: &Database, pid: &str) -> anyhow::Result<String> {
+    /// Retrieve and decrypt the client's plaintext key.
+    pub async fn get_key_encrypted(db: &Database, pid: &str, secrets: &AppSecrets) -> anyhow::Result<String> {
         let query = sql_safe!(
-            "SELECT key FROM clients WHERE pid = {} LIMIT 1",
+            "SELECT encrypted_key, key_nonce FROM clients WHERE pid = {} LIMIT 1",
             db.placeholder(1)
         );
-        let key = sqlx::query_scalar(query).bind(pid).fetch_one(&**db).await?;
+        let row: (String, Vec<u8>) = sqlx::query_as(query).bind(pid).fetch_one(&**db).await?;
 
-        Ok(key)
+        super::decrypt_key(secrets, &row.0, &row.1)
     }
 
-    pub async fn id_by_key(db: &Database, key: &str) -> anyhow::Result<i32> {
+    /// Look up client id by key hash (O(1) index lookup).
+    pub async fn id_by_key_hash(db: &Database, key_hash: &str) -> anyhow::Result<i32> {
         let query = sql_safe!(
-            "SELECT id FROM clients WHERE key = {} LIMIT 1",
+            "SELECT id FROM clients WHERE key_hash = {} LIMIT 1",
             db.placeholder(1)
         );
-
-        let id = sqlx::query_scalar(query).bind(key).fetch_one(&**db).await?;
+        let id = sqlx::query_scalar(query).bind(key_hash).fetch_one(&**db).await?;
         Ok(id)
     }
 
-    pub async fn update_key(db: &Database, id: &str) -> anyhow::Result<String> {
-        let key = Self::generate_nano();
+    /// Update client's encrypted key, nonce, and hash.
+    pub async fn update_key(
+        db: &Database,
+        pid: &str,
+        encrypted_key: &str,
+        key_nonce: &[u8],
+        key_hash: &str,
+    ) -> anyhow::Result<()> {
         let query = sql_safe!(
-            "UPDATE clients SET key = {} WHERE pid = {}",
+            "UPDATE clients SET encrypted_key = {}, key_nonce = {}, key_hash = {} WHERE pid = {}",
             db.placeholder(1),
-            db.placeholder(2)
+            db.placeholder(2),
+            db.placeholder(3),
+            db.placeholder(4)
         );
 
         sqlx::query(query)
-            .bind(&key)
-            .bind(id)
+            .bind(encrypted_key)
+            .bind(key_nonce)
+            .bind(key_hash)
+            .bind(pid)
             .execute(&**db)
             .await?;
 
-        Ok(key)
+        Ok(())
     }
 
     pub fn generate_nano() -> String {
@@ -129,5 +149,7 @@ impl Client {
 pub struct ClientInsertArgs {
     pub pid: String,
     pub name: String,
-    pub key: String,
+    pub encrypted_key: String,
+    pub key_nonce: Vec<u8>,
+    pub key_hash: String,
 }
