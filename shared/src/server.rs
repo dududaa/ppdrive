@@ -42,7 +42,8 @@ impl UploadInfo {
     pub fn resign(&mut self, key: &str, hasher: &Hasher) -> anyhow::Result<String> {
         self.chunk_index += 1;
         self.config = None;
-        self.exp = seconds_from_now(self.exp)?;
+        // Use chunk_session_expiration (relative duration) not self.exp (absolute timestamp)
+        self.exp = seconds_from_now(self.chunk_session_expiration)?;
 
         self.sign(key, hasher)
     }
@@ -65,7 +66,9 @@ impl Hashable for UploadInfo {
                 return Ok(key.clone());
             }
             // Otherwise, look up and decrypt from database
-            Err(anyhow!("client_key not available on deserialized UploadInfo; use verify_with_secrets"))
+            Err(anyhow!(
+                "client_key not available on deserialized UploadInfo; use verify_with_secrets"
+            ))
         }
     }
 
@@ -74,18 +77,17 @@ impl Hashable for UploadInfo {
     }
 }
 
-pub fn make_password(password: &str) -> String {
+pub fn make_password(password: &str) -> anyhow::Result<String> {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
-    let hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .expect("argon2 hashing should not fail");
-    hash.to_string()
+
+    let hash = argon2.hash_password(password.as_bytes(), &salt)?;
+    Ok(hash.to_string())
 }
 
 pub fn check_password(password: &str, hashed: &str) -> anyhow::Result<()> {
-    let parsed_hash = PasswordHash::new(hashed)
-        .map_err(|e| anyhow!("invalid password hash format: {e}"))?;
+    let parsed_hash =
+        PasswordHash::new(hashed).map_err(|e| anyhow!("invalid password hash format: {e}"))?;
 
     let argon2 = Argon2::default();
     argon2
@@ -142,12 +144,12 @@ pub enum AssetType {
 #[cfg(test)]
 mod tests {
     use crate::config::AppConfig;
-    use crate::db::{client, Database};
+    use crate::db::{Database, client};
+    use crate::hasher::Hasher;
     use crate::secrets::AppSecrets;
     use crate::server::{UploadInfo, UploadUrlConfig, seconds_from_now};
     use std::sync::Arc;
     use tokio::sync::{Mutex, OnceCell};
-    use crate::hasher::Hasher;
 
     type SharedConfig = Arc<Mutex<AppConfig>>;
     static APP_CONFIG: OnceCell<SharedConfig> = OnceCell::const_new();
@@ -196,10 +198,10 @@ mod tests {
     async fn test_upload_info_hmac256_signing() -> anyhow::Result<()> {
         let config = get_config().await.lock().await;
         run_sign_info_test(config.clone()).await?;
-        
+
         Ok(())
     }
-    
+
     #[tokio::test]
     async fn test_upload_info_blake3_signing() -> anyhow::Result<()> {
         let mut config = get_config().await.lock().await;

@@ -106,10 +106,10 @@ async fn validate_parents_privacy(path: &str, db: &Database) -> anyhow::Result<b
         .collect::<Vec<&str>>();
 
     let mut placeholders = String::new();
-    for idx in 1..parents.len() {
-        let placeholder = db.placeholder(idx as u8);
+    for idx in 0..parents.len() {
+        let placeholder = db.placeholder(idx as u8 + 1);
 
-        if idx == 1 {
+        if idx == 0 {
             placeholders.push_str(&placeholder);
         } else {
             placeholders.push_str(" OR ");
@@ -128,6 +128,7 @@ async fn validate_parents_privacy(path: &str, db: &Database) -> anyhow::Result<b
     Ok(count == 0)
 }
 
+/// Validate that user owns all the parents for this bucket
 async fn validate_parent_ownership(
     path: &str,
     owner_id: i32,
@@ -146,12 +147,9 @@ async fn validate_parent_ownership(
             db.placeholder(1)
         );
 
-        if let Ok(rows) = sqlx::query(query).bind(parent).fetch_all(&**db).await {
-            if !rows.is_empty() {
-                for row in rows {
-                    owner_ids.push(row.get("owner_id"));
-                }
-            }
+        let rows = sqlx::query(query).bind(parent).fetch_all(&**db).await?;
+        for row in rows {
+            owner_ids.push(row.get("owner_id"));
         }
     }
 
