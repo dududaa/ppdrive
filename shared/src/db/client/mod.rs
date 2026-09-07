@@ -1,6 +1,8 @@
 use crate::db::Database;
 use crate::tools::secrets::AppSecrets;
+use anyhow::anyhow;
 use chacha20poly1305::aead::Aead;
+use chacha20poly1305::aead::common::Generate;
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 use models::{Client, ClientInsertArgs};
 use crate::sql_safe;
@@ -8,17 +10,22 @@ use crate::sql_safe;
 pub(crate) mod models;
 
 /// generate a cipher token for client's id.
+/// Uses a random nonce per encryption to prevent nonce reuse attacks.
 fn client_token(secrets: &AppSecrets, client_key: &str) -> anyhow::Result<String> {
     let key = secrets.secret_key();
-    let nonce_key = secrets.nonce();
-
     let cipher_key = Key::try_from(key)?;
-    let nonce = XNonce::try_from(nonce_key)?;
     let cipher = XChaCha20Poly1305::new(&cipher_key);
 
+    // Generate a fresh random nonce for each encryption
+    let nonce = XNonce::generate();
     let encrypt = cipher.encrypt(&nonce, client_key.as_bytes())?;
-    let encode = hex::encode(&encrypt);
 
+    // Prepend the nonce (24 bytes) to the ciphertext so decryption can recover it
+    let mut output = Vec::with_capacity(nonce.len() + encrypt.len());
+    output.extend_from_slice(nonce.as_slice());
+    output.extend_from_slice(&encrypt);
+
+    let encode = hex::encode(&output);
     Ok(encode)
 }
 
@@ -51,13 +58,18 @@ pub async fn verify_client(
     let decode = hex::decode(token)?;
 
     let key = secrets.secret_key();
-    let nonce_key = secrets.nonce();
-
     let cipher_key = Key::try_from(key)?;
     let cipher = XChaCha20Poly1305::new(&cipher_key);
-    let nonce = XNonce::try_from(nonce_key)?;
 
-    let decrypt = cipher.decrypt(&nonce, decode.as_slice())?;
+    // Extract the nonce (first 24 bytes) and ciphertext (remaining bytes)
+    let nonce_len = XNonce::default().len();
+    if decode.len() < nonce_len {
+        return Err(anyhow!("token too short: missing nonce"));
+    }
+    let (nonce_bytes, ciphertext) = decode.split_at(nonce_len);
+    let nonce = XNonce::try_from(nonce_bytes)?;
+
+    let decrypt = cipher.decrypt(&nonce, ciphertext)?;
     let key = String::from_utf8(decrypt)?;
 
     Client::id_by_key(db, &key).await

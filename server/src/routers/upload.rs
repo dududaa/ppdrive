@@ -14,6 +14,39 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use validator::Validate;
 
+/// Validate that a user-supplied path resolves within the given root directory.
+/// Rejects paths containing `..` components that could escape the root.
+fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
+    let cleaned = user_path.trim_start_matches('/');
+    if cleaned.is_empty() {
+        return Err(anyhow!("path must not be empty"));
+    }
+
+    for component in Path::new(cleaned).components() {
+        if matches!(component, std::path::Component::ParentDir) {
+            return Err(anyhow!("path traversal detected: '..' is not allowed"));
+        }
+    }
+
+    let joined = root.join(cleaned);
+    let canonical_root = std::fs::canonicalize(root)
+        .or_else(|_| std::fs::create_dir_all(root).and_then(|_| std::fs::canonicalize(root)))?;
+    let canonical_joined = std::fs::canonicalize(&joined)
+        .or_else(|_| {
+            // If the final path doesn't exist yet, canonicalize its nearest existing parent
+            let parent = joined.parent().unwrap_or(root);
+            std::fs::canonicalize(parent).map(|p| p.join(joined.file_name().unwrap_or_default()))
+        })?;
+
+    if !canonical_joined.starts_with(&canonical_root) {
+        return Err(anyhow!(
+            "path escapes root directory: not allowed"
+        ));
+    }
+
+    Ok(joined)
+}
+
 /// Creates an upload session and returns the session token. If [AppConfig::use_session] is enabled,
 /// we create the session id.
 #[axum::debug_handler]
@@ -95,7 +128,8 @@ pub(super) async fn play_session(
     let config = info.config.clone();
     let config = config.ok_or(api_error("missing configuration"))?;
     let root_dir = state.config().root_dir()?;
-    let target_path = root_dir.join(&config.path);
+    let target_path = safe_path(&root_dir, &config.path)
+        .map_err(|e| api_error(e).with_status_code(StatusCode::BAD_REQUEST))?;
 
     let parent_dir = target_path.parent().unwrap_or(&root_dir);
     if target_path.exists() && !config.overwrite.unwrap_or_default() {
@@ -162,7 +196,7 @@ async fn get_next_session(
         .ok_or(anyhow!("missing configuration"))?;
 
     let session_id = info.session_id.clone();
-    let mut target_path = root_dir.join(config.path.trim_start_matches("/"));
+    let mut target_path = safe_path(&root_dir, &config.path)?;
 
     let tp_clone = target_path.clone();
     let parent_dir = tp_clone.parent().unwrap_or(&root_dir);
