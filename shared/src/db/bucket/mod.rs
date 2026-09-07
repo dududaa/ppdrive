@@ -24,7 +24,7 @@ pub async fn create(data: &CreateBucketData, db: &Database) -> anyhow::Result<St
     let valid_parents_owner = validate_parent_ownership(path, owner_id, db).await?;
     if !valid_parents_owner {
         return Err(anyhow!(
-            "Bucket parent(s) is owned by someone else. Please choose a different path."
+            "Bucket parent(s) is owned by a different entity. Please choose a another path."
         ));
     }
 
@@ -82,7 +82,7 @@ pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
     );
 
     let row = sqlx::query(query).bind(pid).fetch_one(&**db).await?;
-    let accepts: Option<String> = row.get("name");
+    let accepts: Option<String> = row.get("accepts");
     let accepts = accepts.map(|s| s.split(",").map(|s| s.to_string()).collect());
 
     let data = Bucket {
@@ -104,6 +104,7 @@ async fn validate_parents_privacy(path: &str, db: &Database) -> anyhow::Result<b
         .ancestors()
         .flat_map(|p| p.to_str())
         .collect::<Vec<&str>>();
+
     let mut placeholders = String::new();
     for idx in 1..parents.len() {
         let placeholder = db.placeholder(idx as u8);
