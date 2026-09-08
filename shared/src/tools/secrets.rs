@@ -14,6 +14,21 @@ pub struct AppSecrets {
     jwt_secret: Vec<u8>,
 }
 
+impl Drop for AppSecrets {
+    fn drop(&mut self) {
+        // Zero out secret material on drop to minimize exposure in freed memory
+        for byte in self.secret_key.iter_mut() {
+            unsafe { std::ptr::write_volatile(byte, 0); }
+        }
+        for byte in self.secret_nonce.iter_mut() {
+            unsafe { std::ptr::write_volatile(byte, 0); }
+        }
+        for byte in self.jwt_secret.iter_mut() {
+            unsafe { std::ptr::write_volatile(byte, 0); }
+        }
+    }
+}
+
 impl AppSecrets {
     /// Initialize secrets file, generating it if it does not exist.
     /// Call this once at application startup before `read()`.

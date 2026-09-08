@@ -9,7 +9,6 @@ use sqlx::FromRow;
 pub struct Client {
     pid: String,
     name: String,
-    max_bucket_size: Option<f64>,
     created_at: String,
 }
 

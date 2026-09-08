@@ -1,3 +1,4 @@
+#[cfg(feature = "server")]
 pub mod broker;
 pub mod db;
 #[cfg(feature = "server")]

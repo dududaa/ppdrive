@@ -99,7 +99,6 @@ pub fn check_password(password: &str, hashed: &str) -> anyhow::Result<()> {
 
 #[derive(Serialize, Deserialize, Validate, Default, Clone)]
 pub struct UploadUrlConfig {
-    pub method: UploadUrlMethod,
     pub asset_type: AssetType,
     #[validate(range(min = 30))]
     pub expires: i64,
@@ -118,20 +117,12 @@ pub struct UploadUrlConfig {
 impl UploadUrlConfig {
     pub fn test() -> Self {
         UploadUrlConfig {
-            method: UploadUrlMethod::Post,
             asset_type: AssetType::File,
             path: "test-assets/uploads/creator.jpg".to_string(),
             expires: 120,
             ..Default::default()
         }
     }
-}
-
-#[derive(Serialize, Deserialize, Default, Clone)]
-pub enum UploadUrlMethod {
-    #[default]
-    Post,
-    Put,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]

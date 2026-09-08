@@ -1,6 +1,7 @@
 use crate::subs::{BucketCommand, ClientCommand};
 use clap::{Parser, Subcommand};
 use shared::db::client::{create_client, regenerate_token};
+use shared::db::bucket;
 use shared::config::AppConfig;
 use shared::db::Database;
 use shared::secrets::AppSecrets;
@@ -40,8 +41,10 @@ impl Cli {
             },
 
             CliCommand::Bucket { command } => match command {
-                BucketCommand::Create(data) => {
-                    let id = data.clone().insert(&pool).await?;
+                BucketCommand::Create(args) => {
+                    let owner_id = shared::db::client::get_id(&args.owner_id, &pool).await?;
+                    let data = args.clone().into_data(owner_id);
+                    let id = bucket::create(&data, &pool).await?;
 
                     println!("Bucket created successfully!");
                     println!("Bucket ID: {id}");
@@ -60,7 +63,10 @@ impl Cli {
             }
 
             CliCommand::Configure => {
-                Command::new("nano").arg("ppd_config.toml").status()?;
+                let editor = std::env::var("VISUAL")
+                    .or_else(|_| std::env::var("EDITOR"))
+                    .unwrap_or_else(|_| "nano".to_string());
+                Command::new(&editor).arg("ppd_config.toml").status()?;
             }
         }
 
