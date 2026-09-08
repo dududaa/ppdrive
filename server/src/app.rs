@@ -3,7 +3,7 @@
 //! Assembles the Axum [`Router`] with CORS, tracing, upload routes,
 //! static file serving, and shared [`AppState`].
 
-use crate::routers::upload_routes;
+use crate::routers::{download_serve_routes, download_sign_routes, upload_routes};
 use crate::state::AppState;
 use axum::Router;
 use axum::extract::MatchedPath;
@@ -68,6 +68,8 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
 
     let mut app = Router::new()
         .nest("/upload", upload_routes())
+        .nest("/download", download_sign_routes())
+        .nest("/download", download_serve_routes())
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let matched_path = request

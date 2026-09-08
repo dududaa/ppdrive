@@ -2,10 +2,11 @@
 //!
 //! Supports two hasher backends: HMAC-SHA256 and Blake3 (keyed).
 //! Provides [`Hasher::hash`] for signing payloads and [`Hasher::verify`] /
-//! [`Hasher::verify_upload_info`] for verifying and decoding signed tokens.
+//! [`Hasher::verify_upload_info`] / [`Hasher::verify_download_info`] for
+//! verifying and decoding signed tokens.
 
 use crate::db::Database;
-use crate::server::UploadInfo;
+use crate::server::{DownloadInfo, UploadInfo};
 use crate::tools::secrets::AppSecrets;
 use anyhow::anyhow;
 use base64::Engine;
@@ -121,6 +122,54 @@ impl Hasher {
             .as_secs() as i64;
 
         // Set the decrypted key on the result for downstream use
+        result.client_key = Some(key);
+
+        if now >= result.expires() {
+            return Err(PayloadVerificationError::Expired);
+        }
+
+        Ok(result)
+    }
+
+    /// Verify a signed DownloadInfo payload, decrypting the key from the database.
+    pub async fn verify_download_info(
+        &self,
+        signed: &str,
+        db: &Database,
+        secrets: &AppSecrets,
+    ) -> Result<DownloadInfo, PayloadVerificationError> {
+        let decode = URL_SAFE.decode(signed)?;
+        let (payload_len, data) = decode
+            .split_at_checked(4)
+            .ok_or(anyhow!("unable to decode payload_len"))?;
+
+        let payload_len = u32::from_be_bytes(
+            payload_len
+                .try_into()
+                .map_err(|_| anyhow!("unable to decode payload length"))?,
+        );
+
+        let (payload, hash) = data.split_at(payload_len as usize);
+        let mut result: DownloadInfo = serde_json::from_slice(payload)?;
+
+        // Decrypt the client key from the database
+        let row: (String, Vec<u8>) = sqlx::query_as(
+            "SELECT encrypted_key, key_nonce FROM clients WHERE pid = $1 LIMIT 1",
+        )
+        .bind(&result.client_id)
+        .fetch_one(&**db)
+        .await
+        .map_err(|e| anyhow!("failed to fetch client key: {e}"))?;
+
+        let key = crate::db::client::decrypt_key(secrets, &row.0, &row.1)
+            .map_err(|e| anyhow!("failed to decrypt client key: {e}"))?;
+        self.verify_payload(&key, payload, hash)?;
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| anyhow!("{e}"))?
+            .as_secs() as i64;
+
         result.client_key = Some(key);
 
         if now >= result.expires() {

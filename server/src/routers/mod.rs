@@ -1,16 +1,18 @@
 //! HTTP route definitions.
 //!
-//! Composes upload session endpoints with body-size and concurrency limits.
+//! Composes upload and download session endpoints with body-size and concurrency limits.
 
+mod download;
 mod middlewares;
 mod resp;
 mod upload;
 
+use self::download::*;
 use self::upload::*;
 use crate::state::AppState;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::post;
+use axum::routing::{get, post};
 use tower::limit::ConcurrencyLimitLayer;
 
 const DEFAULT_BODY_LIMIT: usize = 2 * 1024 * 1024; // 2MB max upload
@@ -23,4 +25,18 @@ pub(crate) fn upload_routes() -> Router<AppState> {
         .route("/session/play/{payload}", post(play_session))
         .layer(DefaultBodyLimit::max(DEFAULT_BODY_LIMIT))
         .layer(ConcurrencyLimitLayer::new(MAX_CONCURRENT_REQUESTS))
+}
+
+/// Build the `/download/sign` router (requires client auth header).
+pub(crate) fn download_sign_routes() -> Router<AppState> {
+    Router::new()
+        .route("/sign", post(sign_download))
+        .layer(DefaultBodyLimit::max(DEFAULT_BODY_LIMIT))
+        .layer(ConcurrencyLimitLayer::new(MAX_CONCURRENT_REQUESTS))
+}
+
+/// Build the `/download/{token}` router (public, no auth header needed).
+pub(crate) fn download_serve_routes() -> Router<AppState> {
+    Router::new()
+        .route("/{token}", get(serve_download))
 }

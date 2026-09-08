@@ -1,7 +1,8 @@
 //! Axum extractors for authentication and session verification.
 //!
 //! [`ClientExtractor`] validates the client API key header;
-//! [`UploadMiddleware`] verifies the signed upload-session payload.
+//! [`UploadMiddleware`] verifies the signed upload-session payload;
+//! [`DownloadMiddleware`] verifies the signed download token.
 
 use crate::routers::resp::{ResponseError, api_error};
 use crate::state::AppState;
@@ -9,7 +10,7 @@ use axum::extract::{FromRef, FromRequestParts, Path};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use shared::db::client::verify_client;
-use shared::server::UploadInfo;
+use shared::server::{DownloadInfo, UploadInfo};
 use shared::hasher::errors::PayloadVerificationError;
 
 /// Axum extractor that authenticates the request via the client API-key header.
@@ -73,6 +74,36 @@ where
                 let resp = match err {
                     PayloadVerificationError::Error(err) => api_error(err),
                     PayloadVerificationError::Expired => api_error("session expired"),
+                };
+
+                Err(resp.with_status_code(StatusCode::UNAUTHORIZED))
+            }
+        }
+    }
+}
+
+/// Axum extractor that verifies the signed download token from the URL path.
+pub struct DownloadMiddleware(pub DownloadInfo);
+
+impl<S> FromRequestParts<S> for DownloadMiddleware
+where
+    S: Send + Sync,
+    AppState: FromRef<S>,
+{
+    type Rejection = ResponseError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let Path(token) = Path::<String>::from_request_parts(parts, state)
+            .await
+            .map_err(|e| api_error(e))?;
+
+        let state = AppState::from_ref(state);
+        match DownloadInfo::verify(&token, state.db(), state.secrets(), state.hasher()).await {
+            Ok(info) => Ok(Self(info)),
+            Err(err) => {
+                let resp = match err {
+                    PayloadVerificationError::Error(err) => api_error(err),
+                    PayloadVerificationError::Expired => api_error("download token expired"),
                 };
 
                 Err(resp.with_status_code(StatusCode::UNAUTHORIZED))

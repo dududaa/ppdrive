@@ -1,6 +1,7 @@
-//! Upload session types and password hashing.
+//! Upload and download session types, and password hashing.
 //!
-//! Defines [`UploadInfo`] (the signed session token), [`UploadUrlConfig`]
+//! Defines [`UploadInfo`] (the signed upload session token), [`DownloadInfo`]
+//! (the signed download token), [`UploadUrlConfig`]
 //! (client-provided upload parameters), and Argon2 password helpers.
 
 use crate::db::Database;
@@ -83,6 +84,64 @@ impl Hashable for UploadInfo {
     fn expires(&self) -> i64 {
         self.exp
     }
+}
+
+/// Signed token for accessing a file in a private bucket.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct DownloadInfo {
+    pub client_id: String,
+    pub path: String,
+    pub bucket_pid: String,
+    pub exp: i64,
+    /// Decrypted client signing key. Never serialized into the token.
+    #[serde(skip)]
+    pub client_key: Option<String>,
+}
+
+impl DownloadInfo {
+    /// Sign this [`DownloadInfo`] with the given key and hasher, returning a base64url token.
+    pub fn sign(&self, key: &str, hasher: &Hasher) -> anyhow::Result<String> {
+        hasher.hash(key, self)
+    }
+
+    /// Verify a signed download token, returning the decoded [`DownloadInfo`].
+    pub async fn verify(
+        signed: &str,
+        db: &Database,
+        secrets: &crate::tools::secrets::AppSecrets,
+        hasher: &Hasher,
+    ) -> Result<DownloadInfo, PayloadVerificationError> {
+        hasher.verify_download_info(signed, db, secrets).await
+    }
+}
+
+impl Hashable for DownloadInfo {
+    fn key(&self, _db: &Database) -> impl Future<Output = anyhow::Result<String>> {
+        async {
+            if let Some(key) = &self.client_key {
+                return Ok(key.clone());
+            }
+            Err(anyhow!(
+                "client_key not available on deserialized DownloadInfo; use verify_download_info"
+            ))
+        }
+    }
+
+    fn expires(&self) -> i64 {
+        self.exp
+    }
+}
+
+/// Request body for `POST /download/sign`.
+#[derive(Serialize, Deserialize, Validate)]
+pub struct SignDownloadRequest {
+    /// Relative path of the file within the bucket.
+    pub path: String,
+    /// PID of the private bucket containing the file.
+    pub bucket: String,
+    /// Token lifetime in seconds (30–3600).
+    #[validate(range(min = 30, max = 3600))]
+    pub expires: i64,
 }
 
 /// Hash a plaintext password using Argon2 with a random salt.

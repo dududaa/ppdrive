@@ -25,6 +25,8 @@ tower-http = { version = "0.7.0", features = [
 ] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 shared = {workspace = true, features = ["server"]}
+tokio-util = { workspace = true, features = ["io"] }
+mime_guess = { workspace = true }
 
 [dev-dependencies]
 axum-test = "21.0.0"
