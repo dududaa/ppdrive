@@ -81,7 +81,8 @@ pub(super) async fn create_session(
     if let AssetType::File = config.asset_type {
         let size = config
             .target_filesize
-            .ok_or(api_error("target_filesize is required for file upload"))?;
+            .ok_or(api_error("target_filesize is required for file upload")
+                .with_status_code(StatusCode::BAD_REQUEST))?;
 
         if size >= DEFAULT_BODY_LIMIT as u64 && !config.resumable.unwrap_or_default() {
             return Err(api_error(format!(
@@ -134,12 +135,14 @@ pub(super) async fn play_session(
 
     let parent_dir = target_path.parent().unwrap_or(&root_dir);
     if target_path.exists() && !config.overwrite.unwrap_or_default() {
-        return Err(api_error("Asset already exists"));
+        return Err(api_error("Asset already exists")
+            .with_status_code(StatusCode::CONFLICT));
     }
 
     if parent_dir != root_dir && !parent_dir.exists() && !config.create_parents.unwrap_or_default()
     {
-        return Err(api_error("Parent directory does not exist"));
+        return Err(api_error("Parent directory does not exist")
+            .with_status_code(StatusCode::NOT_FOUND));
     }
 
     match config.asset_type {

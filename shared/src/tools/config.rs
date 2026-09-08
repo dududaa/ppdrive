@@ -20,9 +20,17 @@ pub struct AppConfig {
 impl AppConfig {
     pub async fn read() -> anyhow::Result<Self> {
         let filename = config_filename()?;
-        let config = match tokio::fs::read_to_string(filename).await {
-            Ok(content) => toml::from_str(&content)?,
-            Err(_) => AppConfig::default(),
+        let config = match tokio::fs::read_to_string(&filename).await {
+            Ok(content) => toml::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("failed to parse {}: {e}", filename.display()))?,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                tracing::warn!("config file {} not found, using defaults", filename.display());
+                AppConfig::default()
+            }
+            Err(err) => {
+                tracing::warn!("failed to read {}: {err}, using defaults", filename.display());
+                AppConfig::default()
+            }
         };
 
         Ok(config)

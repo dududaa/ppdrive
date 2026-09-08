@@ -60,8 +60,9 @@ impl Hasher {
         match self {
             HMAC256 => hmac256::verify(&key, payload, hash)?,
             Blake3 => {
-                let payload = serde_json::to_string(&result)?;
-                blake3::verify(&key, &payload, hash)?
+                let payload_str = std::str::from_utf8(payload)
+                    .map_err(|e| anyhow!("invalid payload utf8: {e}"))?;
+                blake3::verify(&key, payload_str, hash)?
             },
         }
 
@@ -115,8 +116,9 @@ impl Hasher {
         match self {
             HMAC256 => hmac256::verify(&key, payload, hash)?,
             Blake3 => {
-                let payload = serde_json::to_string(&result)?;
-                blake3::verify(&key, &payload, hash)?
+                let payload_str = std::str::from_utf8(payload)
+                    .map_err(|e| anyhow!("invalid payload utf8: {e}"))?;
+                blake3::verify(&key, payload_str, hash)?
             },
         }
 

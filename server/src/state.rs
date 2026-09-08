@@ -15,6 +15,7 @@ pub struct AppState {
 impl AppState {
     pub async fn new() -> anyhow::Result<Self> {
         let config = AppConfig::read().await?;
+        AppSecrets::init().await?;
         let secrets = AppSecrets::read().await?;
 
         let db = Database::new(&config.database_url).await?;

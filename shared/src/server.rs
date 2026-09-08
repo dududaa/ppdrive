@@ -164,6 +164,7 @@ mod tests {
     }
 
     async fn run_sign_info_test(config: AppConfig) -> anyhow::Result<()> {
+        AppSecrets::init().await?;
         let secrets = AppSecrets::read().await?;
 
         let db = Database::new(&config.database_url).await?;

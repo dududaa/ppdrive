@@ -47,10 +47,7 @@ pub async fn get_folder_size(folder_path: &str, size: &mut u64) -> anyhow::Resul
 }
 
 pub fn mb_to_bytes(value: f64) -> usize {
-    let bytes = (value * 1024.0 * 1000.0).round();
-    let bytes = bytes.to_le_bytes();
-
-    usize::from_le_bytes(bytes)
+    (value * 1024.0 * 1024.0).round() as usize
 }
 
 pub fn generate_nano_id(size: usize) -> String {

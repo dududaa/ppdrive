@@ -15,9 +15,14 @@ pub struct AppSecrets {
 }
 
 impl AppSecrets {
-    /// Read app secrets from secret file.
+    /// Initialize secrets file, generating it if it does not exist.
+    /// Call this once at application startup before `read()`.
+    pub async fn init() -> anyhow::Result<()> {
+        init_secrets().await
+    }
+
+    /// Read app secrets from the secret file. Does NOT create the file.
     pub async fn read() -> anyhow::Result<Self> {
-        init_secrets().await?;
         let secret_file = secret_filename()?;
         let mut secrets = tokio::fs::File::open(&secret_file).await?;
 

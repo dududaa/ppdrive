@@ -176,6 +176,7 @@ mod tests {
         let url = env::var("DATABASE_URL")?;
         let db = Database::new(&url).await?;
 
+        AppSecrets::init().await?;
         let secrets = AppSecrets::read().await?;
         let details = create_client(&db, &secrets, "Token Validation Test").await?;
 

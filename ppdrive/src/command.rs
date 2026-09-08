@@ -19,6 +19,7 @@ impl Cli {
     pub async fn execute(&self) -> Result<(), anyhow::Error> {
         let config = AppConfig::read().await?;
         let pool = Database::new(&config.database_url).await?;
+        AppSecrets::init().await?;
         let secret = AppSecrets::read().await?;
 
         match &self.command {

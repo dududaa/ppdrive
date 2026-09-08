@@ -4,7 +4,7 @@ use crate::{sql_safe};
 use crate::db::utils::{instance_as_string, AssetOwnerName};
 
 pub async fn create(email: &str, password: &str, db: &Database) -> anyhow::Result<()> {
-    let password = make_password(password);
+    let password = make_password(password)?;
     let now = instance_as_string()?;
 
     let mut placeholders = Vec::with_capacity(3);
