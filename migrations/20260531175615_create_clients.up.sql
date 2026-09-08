@@ -23,7 +23,9 @@ CREATE TABLE users
     id         INTEGER PRIMARY KEY,
     email      TEXT UNIQUE NOT NULL,
     password   TEXT        NOT NULL,
-    created_at TEXT        NOT NULL
+    metadata   TEXT,
+    created_at TEXT        NOT NULL,
+    updated_at TEXT        NOT NULL
 );
 
 CREATE TABLE buckets
@@ -40,4 +42,4 @@ CREATE TABLE buckets
     FOREIGN KEY (owner_id) REFERENCES asset_owner (id) ON DELETE CASCADE
 );
 CREATE INDEX idx_buckets_asset_owner on buckets (owner_id);
-CREATE INDEX idx_buckets_public on buckets(public);
+CREATE INDEX idx_buckets_public on buckets (public);

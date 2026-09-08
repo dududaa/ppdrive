@@ -1,0 +1,40 @@
+---
+title: PPDRIVE
+description: Self-hosted object storage built with Rust for speed, security, and reliability.
+template: splash
+hero:
+  tagline: A free, open-source S3-like object storage service built with Rust.
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/dududaa/ppdrive
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Features
+
+<CardGrid stagger>
+	<Card title="Fast" icon="rocket">
+		Built on Rust and Tokio for non-blocking I/O. Handles 50+ concurrent uploads with minimal memory usage.
+	</Card>
+	<Card title="Secure" icon="shield">
+		Client keys encrypted at rest with XChaCha20-Poly1305. Signed URLs for private bucket access. Argon2 password hashing.
+	</Card>
+	<Card title="Simple" icon="seti:database">
+		Single binary deployment. SQLite by default — no external database required. One config file.
+	</Card>
+	<Card title="Resumable" icon="refresh">
+		Chunked uploads with automatic retry. Redis-backed session state for large file transfers.
+	</Card>
+	<Card title="Flexible" icon="puzzle">
+		Supports SQLite, PostgreSQL, and MySQL. MIME type validation with wildcard patterns. CORS configurable.
+	</Card>
+	<Card title="Open Source" icon="open-book">
+		MIT licensed. Full source code on GitHub. Contributions welcome.
+	</Card>
+</CardGrid>

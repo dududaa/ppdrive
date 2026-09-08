@@ -1,0 +1,190 @@
+---
+title: Docker
+description: Deploying PPDRIVE with Docker and Docker Compose.
+---
+
+PPDRIVE provides Docker images and a Docker Compose setup for easy deployment.
+
+## Quick Start with Docker Compose
+
+```sh
+git clone https://github.com/dududaa/ppdrive.git
+cd ppdrive/core
+docker compose up -d
+```
+
+This starts:
+- **ppdrive** — The server on port 5000
+- **ppdrive_db** — PostgreSQL database
+
+## Docker Compose Configuration
+
+```yaml
+services:
+  ppdrive_db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ppdrive_user
+      POSTGRES_PASSWORD: Plug&PlayDrive2025
+      POSTGRES_DB: ppdrive
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  ppdrive:
+    image: dududaa/ppdrive:latest
+    ports:
+      - "5000:8000"
+    environment:
+      PPDRIVE_DATABASE_URL: postgres://ppdrive_user:Plug&PlayDrive2025@ppdrive_db:5432/ppdrive
+    depends_on:
+      - ppdrive_db
+    volumes:
+      - ppdrive_data:/app
+
+volumes:
+  postgres_data:
+  ppdrive_data:
+```
+
+## Environment Variables
+
+| Variable | Description |
+|---|---|
+| `PPDRIVE_DATABASE_URL` | Database connection URL (overrides config file) |
+
+## Standalone Docker
+
+### Build the Image
+
+```sh
+docker build -t ppdrive .
+```
+
+### Run the Container
+
+```sh
+docker run -p 8000:8000 ppdrive
+```
+
+### With Volume Mounts
+
+```sh
+docker run -p 8000:8000 \
+  -v ppdrive_data:/app \
+  -e PPDRIVE_DATABASE_URL=sqlite:/app/data.db \
+  ppdrive
+```
+
+## Dockerfile
+
+The Dockerfile uses a multi-stage build:
+
+```dockerfile
+# Builder stage
+FROM rust:1.83 AS builder
+WORKDIR /app
+COPY . .
+RUN cargo build --release
+
+# Runtime stage
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y libpq-dev libssl3 ca-certificates
+COPY --from=builder /app/target/release/ppdrive /app/ppdrive_server
+COPY --from=builder /app/target/release/server /app/ppdrive_cli
+COPY migrations /app/migrations
+COPY ppd_config.toml /app/ppd_config.toml
+CMD ["./ppdrive_server"]
+```
+
+## Production Docker Compose
+
+For production, create a `docker-compose.prod.yml`:
+
+```yaml
+services:
+  ppdrive_db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ppdrive
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  ppdrive:
+    image: dududaa/ppdrive:latest
+    ports:
+      - "8000:8000"
+    environment:
+      PPDRIVE_DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@ppdrive_db:5432/ppdrive
+    depends_on:
+      - ppdrive_db
+    volumes:
+      - ppdrive_data:/app
+    restart: always
+
+volumes:
+  postgres_data:
+  ppdrive_data:
+```
+
+Create a `.env` file:
+
+```bash
+DB_USER=ppdrive_user
+DB_PASSWORD=your_secure_password_here
+```
+
+```sh
+docker compose -f docker-compose.prod.yml up -d
+```
+
+## Networking
+
+When running in Docker, services communicate via the Docker network. Use the service name as the hostname:
+
+- Database: `ppdrive_db`
+- Redis (if added): `redis`
+
+## Volumes
+
+| Volume | Mount Point | Purpose |
+|---|---|---|
+| `ppdrive_data` | `/app` | Configuration, secrets, uploaded files |
+| `postgres_data` | `/var/lib/postgresql/data` | PostgreSQL data |
+
+## Troubleshooting
+
+### Container exits immediately
+
+Check logs:
+
+```sh
+docker compose logs ppdrive
+```
+
+Common issues:
+- Missing `ppd_config.toml`
+- Database connection refused (check `ppdrive_db` is running)
+- Invalid `PPDRIVE_DATABASE_URL`
+
+### Database connection refused
+
+Ensure the database container is healthy:
+
+```sh
+docker compose ps
+docker compose logs ppdrive_db
+```
+
+### Permission denied on secrets file
+
+The container runs as root by default. If you need a specific user, update the Dockerfile:
+
+```dockerfile
+RUN useradd -r ppdrive
+USER ppdrive
+```

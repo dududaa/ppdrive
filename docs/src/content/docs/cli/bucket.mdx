@@ -1,0 +1,133 @@
+---
+title: Bucket Commands
+description: Create and configure storage buckets.
+---
+
+Buckets are logical containers for storing files. They can be public (served directly) or private (requiring signed URLs).
+
+## Create a Bucket
+
+```sh
+ppdrive bucket create [OPTIONS]
+```
+
+### Arguments
+
+| Flag | Required | Default | Description |
+|---|---|---|---|
+| `--name` | Yes | — | Bucket name |
+| `--path` | Yes | — | Filesystem path for stored files |
+| `--owner-type` | Yes | — | Entity type: `user` or `client` |
+| `--owner-id` | Yes | — | ID of the owning entity |
+| `--public` | No | `false` | Make the bucket publicly accessible |
+| `--size` | No | unlimited | Maximum bucket size in bytes |
+| `--accepts` | No | any | Accepted MIME types (multiple values allowed) |
+
+### Examples
+
+#### Private bucket (default)
+
+```sh
+ppdrive bucket create \
+  --name documents \
+  --path storage/documents \
+  --owner-type client \
+  --owner-id a1b2c3d4e5f6...
+```
+
+#### Public bucket
+
+```sh
+ppdrive bucket create \
+  --name public-assets \
+  --path storage/public \
+  --owner-type client \
+  --owner-id a1b2c3d4e5f6... \
+  --public
+```
+
+#### Bucket with size limit
+
+```sh
+ppdrive bucket create \
+  --name limited \
+  --path storage/limited \
+  --owner-type client \
+  --owner-id a1b2c3d4e5f6... \
+  --size 1073741824
+```
+
+#### Bucket with MIME restrictions
+
+```sh
+ppdrive bucket create \
+  --name images \
+  --path storage/images \
+  --owner-type client \
+  --owner-id a1b2c3d4e5f6... \
+  --accepts image/png image/jpeg image/webp image/avif
+```
+
+#### Bucket with wildcard MIME pattern
+
+```sh
+ppdrive bucket create \
+  --name media \
+  --path storage/media \
+  --owner-type client \
+  --owner-id a1b2c3d4e5f6... \
+  --accepts "image/*" "video/*"
+```
+
+### Output
+
+```
+Bucket created successfully!
+Bucket ID: x9y8z7w6v5u4...
+```
+
+## Bucket Properties
+
+| Property | Description |
+|---|---|
+| **Public** | Files are served directly via HTTP without authentication |
+| **Private** | Files require a signed download URL |
+| **Size limit** | Maximum total size of all files in the bucket |
+| **Accepts** | MIME type restrictions (exact or wildcard patterns) |
+
+## How Buckets Work
+
+### Public Buckets
+
+When a bucket is marked `public`, its files are automatically served at the bucket's path:
+
+```
+Bucket path: storage/images
+File: storage/images/photo.jpg
+URL: http://localhost:8000/storage/images/photo.jpg
+```
+
+### Private Buckets
+
+Private buckets require a two-step process to download files:
+
+1. Call `POST /download/sign` with your client token to get a signed URL
+2. Use the signed URL to download the file
+
+See [Download Flow](/api/download/) for details.
+
+### MIME Validation
+
+If a bucket has `accepts` restrictions:
+
+1. At upload session creation, you must provide a `content_type` that matches
+2. At upload time, the server infers the file's MIME type and validates it matches
+3. Wildcard patterns like `image/*` match any MIME type starting with `image/`
+
+See [MIME Validation](/api/mime-validation/) for details.
+
+## See Also
+
+- [Client Commands](/cli/client/) — Create clients to own buckets
+- [Upload Flow](/api/upload/) — Upload files to buckets
+- [Download Flow](/api/download/) — Download files from buckets

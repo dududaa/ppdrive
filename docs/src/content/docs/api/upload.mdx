@@ -1,0 +1,194 @@
+---
+title: Upload Flow
+description: Complete guide to uploading files with PPDRIVE.
+---
+
+Uploading is a two-step process: create a session, then send the file data.
+
+## Overview
+
+```
+1. POST /upload/session    → Receive signed token
+2. POST /upload/session/play/{token} → Upload file data
+```
+
+## Step 1: Create Upload Session
+
+```sh
+curl -X POST http://localhost:8000/upload/session \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{
+    "asset_type": "File",
+    "path": "uploads/photos/avatar.jpg",
+    "target_filesize": 524288,
+    "expires": 120,
+    "bucket": "OPTIONAL_BUCKET_ID",
+    "content_type": "image/jpeg"
+  }'
+```
+
+### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `asset_type` | `File` \| `Folder` | Yes | Type of asset |
+| `path` | `String` | Yes | Target path (min 4 chars) |
+| `expires` | `i64` | Yes | Token lifetime in seconds (min 30) |
+| `target_filesize` | `u64` | Files only | Expected file size in bytes |
+| `create_parents` | `bool` | No | Create parent directories if missing |
+| `overwrite` | `bool` | No | Overwrite existing file |
+| `resumable` | `bool` | No | Enable chunked upload (requires Redis) |
+| `bucket` | `String` | No | Bucket PID to upload into |
+| `content_type` | `String` | If bucket has accepts | MIME type of the file |
+
+### Response
+
+```json
+{
+  "data": "eyJ0eXAiOiJKV1..."
+}
+```
+
+The `data` field contains a signed base64url token.
+
+### Validation Rules
+
+- Files >= 2 MB **must** use `resumable: true`
+- `target_filesize` is required for file uploads
+- Resumable uploads require Redis (`message_broker` in config)
+- If `bucket` is specified, the client must own it
+- If bucket has `accepts` restrictions, `content_type` is required
+
+## Step 2: Upload File Data
+
+```sh
+curl -X POST "http://localhost:8000/upload/session/play/eyJ0eXAiOiJKV1..." \
+  --data-binary @/path/to/file.jpg
+```
+
+The token from Step 1 goes in the URL path. The file data goes in the request body.
+
+### Response
+
+```json
+{
+  "data": null
+}
+```
+
+`null` means the upload is complete. For resumable uploads, a new token may be returned for the next chunk.
+
+## Folder Creation
+
+To create a folder instead of a file:
+
+```sh
+curl -X POST http://localhost:8000/upload/session \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{
+    "asset_type": "Folder",
+    "path": "uploads/photos/2024",
+    "expires": 120,
+    "create_parents": true
+  }'
+```
+
+Then play the session (body can be empty):
+
+```sh
+curl -X POST "http://localhost:8000/upload/session/play/TOKEN" \
+  --data-binary ''
+```
+
+## Resumable Uploads
+
+For large files, enable resumable uploads to send data in chunks:
+
+```sh
+# Step 1: Create session with resumable=true
+curl -X POST http://localhost:8000/upload/session \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{
+    "asset_type": "File",
+    "path": "uploads/large-video.mp4",
+    "target_filesize": 1073741824,
+    "expires": 120,
+    "resumable": true,
+    "bucket": "BUCKET_ID",
+    "content_type": "video/mp4"
+  }'
+
+# Step 2: Send first chunk
+curl -X POST "http://localhost:8000/upload/session/play/TOKEN" \
+  --data-binary @chunk1.bin
+
+# Response includes a new token for the next chunk
+# { "data": "NEW_TOKEN..." }
+
+# Step 3: Send next chunk with the new token
+curl -X POST "http://localhost:8000/upload/session/play/NEW_TOKEN..." \
+  --data-binary @chunk2.bin
+
+# Repeat until complete
+```
+
+### How Resumable Uploads Work
+
+1. Each chunk is appended to a temporary file
+2. When the accumulated size reaches `target_filesize`, the file is moved to its final path
+3. A new token is returned after each chunk with an incremented chunk index
+4. Session state is cached in Redis with TTL matching the token expiration
+5. If a chunk fails, you can resume from the last successful chunk using the latest token
+
+## Uploading to a Bucket
+
+When uploading to a bucket, the file path is relative to the bucket's root path:
+
+```
+Bucket path: storage/images
+Upload path: avatar.jpg
+Final location: storage/images/avatar.jpg
+```
+
+### Bucket Validations
+
+At upload time, the server checks:
+- **Ownership** — Client must own the bucket
+- **Size limit** — Bucket size + file size must not exceed the bucket's max size
+- **MIME type** — File type must match the bucket's `accepts` list (if configured)
+
+## Uploading Without a Bucket
+
+Files can be uploaded directly to any path without a bucket:
+
+```sh
+curl -X POST http://localhost:8000/upload/session \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{
+    "asset_type": "File",
+    "path": "documents/report.pdf",
+    "target_filesize": 102400,
+    "expires": 120
+  }'
+```
+
+No bucket ownership check or MIME validation is performed.
+
+## Error Responses
+
+| Status | Message | Cause |
+|---|---|---|
+| 400 | `content_type is required...` | Bucket has MIME restrictions but no content_type provided |
+| 400 | `content_type '...' is not accepted...` | Declared MIME doesn't match bucket accepts |
+| 403 | `Write access denied...` | Client doesn't own the bucket |
+| 409 | `Asset already exists` | File exists and `overwrite` is false |
+| 413 | `Files larger than 2MB must be resumable` | Large file without `resumable: true` |
+
+## Rate Limits
+
+- **50** concurrent requests per endpoint
+- **2 MB** maximum request body size (per chunk)

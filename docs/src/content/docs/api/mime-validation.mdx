@@ -1,0 +1,154 @@
+---
+title: MIME Validation
+description: How PPDRIVE validates file types against bucket restrictions.
+---
+
+Buckets can restrict which file types are accepted using MIME type validation with support for exact matches and wildcard patterns.
+
+## How It Works
+
+### Two-Phase Validation
+
+MIME validation happens at two points:
+
+1. **Session creation** — Client declares `content_type`, validated against bucket's `accepts`
+2. **File upload** — Server infers MIME from file extension, validates against bucket's `accepts`
+
+### Wildcard Support
+
+Buckets can use wildcard patterns:
+
+| Pattern | Matches |
+|---|---|
+| `image/*` | `image/png`, `image/jpeg`, `image/webp`, etc. |
+| `video/*` | `video/mp4`, `video/webm`, etc. |
+| `application/pdf` | Only `application/pdf` (exact match) |
+
+## Setting Up MIME Restrictions
+
+### At Bucket Creation (CLI)
+
+```sh
+# Accept only images
+ppdrive bucket create \
+  --name photos \
+  --path storage/photos \
+  --owner-type client \
+  --owner-id CLIENT_ID \
+  --accepts image/png image/jpeg image/webp
+
+# Accept any image or video
+ppdrive bucket create \
+  --name media \
+  --path storage/media \
+  --owner-type client \
+  --owner-id CLIENT_ID \
+  --accepts "image/*" "video/*"
+```
+
+### How Wildcards Are Stored
+
+Wildcards like `image/*` are stored as-is in the `accepts` field. At validation time, the server performs prefix matching:
+
+```
+Bucket accepts: ["image/*"]
+File MIME:      "image/png"
+Result:         Match! ("image/" is a prefix of "image/png")
+```
+
+## Validation at Session Creation
+
+When creating an upload session for a bucket with MIME restrictions, you must provide `content_type`:
+
+```sh
+curl -X POST http://localhost:8000/upload/session \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{
+    "asset_type": "File",
+    "path": "photos/avatar.jpg",
+    "target_filesize": 102400,
+    "expires": 120,
+    "bucket": "BUCKET_PID",
+    "content_type": "image/jpeg"
+  }'
+```
+
+### Validation Rules
+
+- If bucket has `accepts` and `content_type` is missing → **400 error**
+- If `content_type` doesn't match any entry in `accepts` → **400 error**
+
+### Error Example
+
+```json
+{
+  "error": "content_type 'video/mp4' is not accepted by this bucket. Accepted: image/png, image/jpeg, image/webp"
+}
+```
+
+## Validation at Upload Time
+
+When the file is uploaded, the server:
+
+1. Infers the MIME type from the file extension using `mime_guess`
+2. Checks the inferred type against the bucket's `accepts` list
+3. If `content_type` was declared, verifies the inferred type matches it
+
+```sh
+# Upload a .jpg file to a bucket that accepts only images
+curl -X POST "http://localhost:8000/upload/session/play/TOKEN" \
+  --data-binary @photo.jpg
+
+# If the file extension doesn't match accepts:
+# → Error: "file type 'application/pdf' is not accepted by this bucket"
+```
+
+### Temp File Cleanup
+
+If MIME validation fails at upload time, the temporary file is automatically deleted.
+
+## Validation Logic
+
+The matching algorithm:
+
+```
+for each pattern in bucket.accepts:
+    if pattern ends with "/*":
+        if mime starts with pattern without "*/": → MATCH
+    else:
+        if mime equals pattern (case-insensitive): → MATCH
+no match found → REJECT
+```
+
+## Examples
+
+### Exact Match
+
+```
+Bucket accepts: ["image/png", "image/jpeg"]
+Upload: photo.png → inferred "image/png" → ✅ Match
+Upload: doc.pdf → inferred "application/pdf" → ❌ No match
+```
+
+### Wildcard Match
+
+```
+Bucket accepts: ["image/*"]
+Upload: photo.jpg → inferred "image/jpeg" → ✅ Match
+Upload: video.mp4 → inferred "video/mp4" → ❌ No match
+```
+
+### Mixed Patterns
+
+```
+Bucket accepts: ["image/*", "application/pdf"]
+Upload: photo.png → inferred "image/png" → ✅ Match (wildcard)
+Upload: report.pdf → inferred "application/pdf" → ✅ Match (exact)
+Upload: doc.txt → inferred "text/plain" → ❌ No match
+```
+
+## See Also
+
+- [Bucket Commands](/cli/bucket/) — Creating buckets with MIME restrictions
+- [Upload Flow](/api/upload/) — How uploads work

@@ -1,0 +1,111 @@
+---
+title: Config File
+description: Complete reference for ppd_config.toml configuration.
+---
+
+PPDRIVE is configured via a TOML file at the project root. Use `ppdrive configure` to open it in your editor.
+
+## File Location
+
+The config file is `ppd_config.toml` in the same directory as the PPDRIVE binaries.
+
+## Configuration Reference
+
+```toml
+# Database connection URL (required)
+# Supports: sqlite:path, postgres://..., mysql://...
+database_url = "sqlite:data.db"
+
+# HTTP header name used for client authentication (required)
+client_header_key = "x-ppdrive-client"
+
+# Server listen port (optional, default: 8000)
+port = 8000
+
+# CORS allowed origins (optional, default: allow all)
+# Set to null or omit to allow all origins
+allowed_origins = ["https://example.com", "https://app.example.com"]
+
+# Subdirectory for file storage relative to the binary (optional)
+# Default: binary directory
+root_dir = "storage"
+
+# Redis URL for resumable uploads (optional)
+# Required only if you need resumable upload support
+message_broker = "redis://localhost:6379"
+
+# Hashing algorithm for signed tokens (required)
+# Options: "HMAC256" or "Blake3"
+hasher = "Blake3"
+
+# Static file directories to serve (optional)
+# Files are served at /{name} by default, or at a custom path
+[[static_folders]]
+name = "uploads"
+
+[[static_folders]]
+name = "public"
+path = "/static"
+```
+
+## Field Reference
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `database_url` | `String` | — | Database connection URL (required) |
+| `client_header_key` | `String` | `x-ppdrive-client` | HTTP header for client authentication |
+| `port` | `i16` | `8000` | Server listen port |
+| `allowed_origins` | `Vec<String>` | `null` (all) | CORS origin whitelist |
+| `root_dir` | `String` | `null` (binary dir) | Storage subdirectory |
+| `message_broker` | `String` | `null` | Redis URL for resumable uploads |
+| `hasher` | `String` | `HMAC256` | Hash algorithm: `HMAC256` or `Blake3` |
+| `static_folders` | `Array` | `[]` | Directories to serve as static files |
+
+## Static Folders
+
+Each `[[static_folders]]` entry has:
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `String` | Directory name on disk |
+| `path` | `String` | URL mount point (defaults to `/{name}`) |
+
+Example: A folder named `uploads` served at `/media`:
+
+```toml
+[[static_folders]]
+name = "uploads"
+path = "/media"
+```
+
+## Minimal Configuration
+
+The only required field is `database_url`. Everything else has sensible defaults:
+
+```toml
+database_url = "sqlite:data.db"
+```
+
+## Full Example
+
+```toml
+database_url = "postgres://user:pass@localhost:5432/ppdrive"
+client_header_key = "x-api-key"
+port = 3000
+allowed_origins = ["https://myapp.com"]
+root_dir = "data"
+message_broker = "redis://localhost:6379"
+hasher = "Blake3"
+
+[[static_folders]]
+name = "uploads"
+path = "/files"
+
+[[static_folders]]
+name = "public"
+```
+
+## Environment Variables
+
+- `RUST_LOG` — Controls tracing verbosity (default: `trace`)
+- `PPDRIVE_DATABASE_URL` — Can override `database_url` at runtime (used in Docker)

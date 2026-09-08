@@ -1,0 +1,160 @@
+---
+title: Quick Start
+description: Get PPDRIVE running and upload your first file in 5 minutes.
+---
+
+This guide walks you through starting the server, creating a client, and uploading a file.
+
+## 1. Start the Server
+
+```sh
+ppdrive serve
+```
+
+The server starts on port 8000 by default. You'll see tracing output in the terminal.
+
+To use a custom port:
+
+```sh
+ppdrive serve --port 3000
+```
+
+## 2. Create a Client
+
+In a new terminal:
+
+```sh
+ppdrive client create --name "My App"
+```
+
+Output:
+
+```
+Client created successfully!
+Client ID: abc123def456...
+Client Token: 7890123456...
+```
+
+Save the **Client Token** — you'll need it for all API requests.
+
+## 3. Create a Bucket
+
+```sh
+ppdrive bucket create \
+  --name media \
+  --path uploads/media \
+  --owner-type client \
+  --owner-id abc123def456...
+```
+
+Replace `abc123def456...` with your Client ID from the previous step.
+
+Output:
+
+```
+Bucket created successfully!
+Bucket ID: xyz789...
+```
+
+## 4. Upload a File
+
+### Step 1: Create an upload session
+
+```sh
+curl -X POST http://localhost:8000/upload/session \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: 7890123456..." \
+  -d '{
+    "asset_type": "File",
+    "path": "uploads/media/photo.jpg",
+    "target_filesize": 102400,
+    "expires": 120,
+    "bucket": "xyz789...",
+    "content_type": "image/jpeg"
+  }'
+```
+
+Replace `7890123456...` with your Client Token and `xyz789...` with your Bucket ID.
+
+Response:
+
+```json
+{
+  "data": "eyJ0eXAiOiJKV1..."
+}
+```
+
+Save the token from the `data` field.
+
+### Step 2: Upload the file
+
+```sh
+curl -X POST "http://localhost:8000/upload/session/play/eyJ0eXAiOiJKV1..." \
+  --data-binary @/path/to/photo.jpg
+```
+
+Replace the token with the one from Step 1.
+
+Response:
+
+```json
+{
+  "data": null
+}
+```
+
+## 5. Download the File
+
+### Public Bucket
+
+If the bucket is public, the file is accessible directly:
+
+```sh
+curl http://localhost:8000/uploads/media/photo.jpg
+```
+
+### Private Bucket
+
+For private buckets, generate a signed download URL:
+
+```sh
+# Step 1: Sign the download
+curl -X POST http://localhost:8000/download/sign \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: 7890123456..." \
+  -d '{
+    "path": "photo.jpg",
+    "bucket": "xyz789...",
+    "expires": 300
+  }'
+
+# Step 2: Download using the token
+curl "http://localhost:8000/download/eyJ0eXAiOiJKV1..."
+```
+
+## Uploading to a Folder (No Bucket)
+
+You can also upload directly to a path without a bucket:
+
+```sh
+# Create session
+curl -X POST http://localhost:8000/upload/session \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: 7890123456..." \
+  -d '{
+    "asset_type": "File",
+    "path": "documents/report.pdf",
+    "target_filesize": 204800,
+    "expires": 120
+  }'
+
+# Upload file
+curl -X POST "http://localhost:8000/upload/session/play/<token>" \
+  --data-binary @/path/to/report.pdf
+```
+
+## What's Next
+
+- [Configuration](/configuration/config-file/) — Customize database, port, CORS, and more
+- [CLI Reference](/cli/overview/) — All available commands
+- [API Reference](/api/upload/) — Complete upload and download documentation

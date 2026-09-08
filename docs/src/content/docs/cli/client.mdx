@@ -1,0 +1,98 @@
+---
+title: Client Commands
+description: Create and manage API clients.
+---
+
+Clients are API identities that can upload and download files. Each client has a unique token used for authentication.
+
+## Create a Client
+
+```sh
+ppdrive client create --name <NAME>
+```
+
+### Arguments
+
+| Flag | Required | Description |
+|---|---|---|
+| `--name` | Yes | Human-readable name for the client |
+
+### Example
+
+```sh
+ppdrive client create --name "My Mobile App"
+```
+
+### Output
+
+```
+Client created successfully!
+Client ID: a1b2c3d4e5f6...
+Client Token: g7h8i9j0k1l2...
+```
+
+:::caution
+The Client Token is shown only once. Save it securely — you'll need it for all API requests.
+:::
+
+### How It Works
+
+1. Generates a random 32-character hex key
+2. Encrypts the key with XChaCha20-Poly1305 using the app secret
+3. Stores the encrypted key, nonce, and SHA-256 hash in the database
+4. Returns the Client ID (public) and a signed Client Token (for API auth)
+
+## Refresh a Client Token
+
+```sh
+ppdrive client refresh --id <CLIENT_ID>
+```
+
+### Arguments
+
+| Flag | Required | Description |
+|---|---|---|
+| `--id` | Yes | Client PID to refresh |
+
+### Example
+
+```sh
+ppdrive client refresh --id a1b2c3d4e5f6...
+```
+
+### Output
+
+```
+Client token refreshed successfully!
+Client Token: n3o4p5q6r7s8...
+```
+
+:::note
+This generates a new client key and invalidates the previous token. The old token will no longer work for authentication.
+:::
+
+## List Clients
+
+```sh
+ppdrive client list
+```
+
+:::note
+This command is defined but not yet fully implemented.
+:::
+
+## Using the Client Token
+
+The client token is used in the `x-ppdrive-client` HTTP header (or whichever header name you configured):
+
+```sh
+curl -X POST http://localhost:8000/upload/session \
+  -H "x-ppdrive-client: g7h8i9j0k1l2..." \
+  -H "Content-Type: application/json" \
+  -d '{ ... }'
+```
+
+## See Also
+
+- [Authentication](/api/authentication/) — How client tokens work
+- [Bucket Commands](/cli/bucket/) — Create buckets owned by clients

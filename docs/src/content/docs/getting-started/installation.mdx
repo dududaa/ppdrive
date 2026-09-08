@@ -1,0 +1,94 @@
+---
+title: Installation
+description: How to install PPDRIVE on Linux, macOS, Windows, or Docker.
+---
+
+PPDRIVE is a single binary with no runtime dependencies for SQLite mode. Choose your installation method below.
+
+## Pre-built Binaries
+
+Download the latest release from [GitHub Releases](https://github.com/dududaa/ppdrive/releases).
+
+Each release includes:
+- `ppdrive` — The CLI tool
+- `server` — The HTTP server
+
+### Linux
+
+```sh
+# Download and extract
+curl -L https://github.com/dududaa/ppdrive/releases/latest/download/ppdrive-linux.tar.gz | tar xz
+chmod +x ppdrive server
+sudo mv ppdrive server /usr/local/bin/
+```
+
+### macOS
+
+```sh
+curl -L https://github.com/dududaa/ppdrive/releases/latest/download/ppdrive-macos.tar.gz | tar xz
+chmod +x ppdrive server
+sudo mv ppdrive server /usr/local/bin/
+```
+
+### Windows
+
+Download `ppdrive-windows.zip`, extract it, and add the directory to your PATH.
+
+## Install Script
+
+### Linux / macOS
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
+```
+
+This installs to `$HOME/.local/share/ppdrive` and creates symlinks in `$HOME/.local/bin`.
+
+### Windows (PowerShell)
+
+```sh
+irm https://raw.githubusercontent.com/dududaa/ppdrive/main/install.ps1 | iex
+```
+
+Installs to `C:\Program Files\ppdrive` and adds to system PATH.
+
+## Homebrew
+
+```sh
+brew tap dududaa/ppdrive
+brew install ppdrive
+```
+
+## Docker
+
+```sh
+docker pull dududaa/ppdrive:latest
+docker run -p 8000:8000 dududaa/ppdrive:latest
+```
+
+See [Docker Deployment](/deployment/docker/) for full Docker Compose setup.
+
+## Build from Source
+
+Requires [Rust](https://rustup.rs/) 1.83 or later.
+
+```sh
+git clone https://github.com/dududaa/ppdrive.git
+cd ppdrive/core
+
+# Build both binaries
+cargo build --release
+
+# Binaries will be in target/release/ppdrive and target/release/server
+```
+
+## Verify Installation
+
+```sh
+ppdrive --version
+```
+
+## Next Steps
+
+- [Quick Start](/getting-started/quick-start/) — Get running in 5 minutes
+- [Configuration](/configuration/config-file/) — Customize your setup

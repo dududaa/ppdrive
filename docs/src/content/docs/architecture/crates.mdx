@@ -1,0 +1,124 @@
+---
+title: Crate Structure
+description: Detailed breakdown of the PPDRIVE Rust workspace.
+---
+
+PPDRIVE is organized as a Cargo workspace with three crates.
+
+## Workspace Layout
+
+```
+ppdrive/
+├── Cargo.toml           # Workspace root
+├── ppdrive/             # CLI binary
+├── server/              # HTTP server binary
+├── shared/              # Shared library
+├── migrations/          # SQL migrations
+└── docs/                # Documentation site
+```
+
+## Crate: `ppdrive` (CLI)
+
+**Type:** Binary
+**Entry:** `ppdrive/src/main.rs`
+
+The command-line interface built with [Clap](https://docs.rs/clap).
+
+### Modules
+
+| Module | Purpose |
+|---|---|
+| `command` | Top-level `Cli` struct and `CliCommand` enum |
+| `subs` | Subcommand definitions (`ClientCommand`, `BucketCommand`, `CreateBucketArgs`) |
+
+### Key Dependencies
+
+- `clap` — CLI argument parsing
+- `shared` — Database and secrets access
+
+## Crate: `server` (HTTP Server)
+
+**Type:** Library + Binary
+**Entry:** `server/src/main.rs`
+
+An Axum-based HTTP server.
+
+### Modules
+
+| Module | Purpose |
+|---|---|
+| `app` | Router assembly, CORS, tracing, static file mounts |
+| `state` | `AppState` — shared state (secrets, config, DB, broker) |
+| `routers/mod` | Route definitions, body limits, concurrency limits |
+| `routers/upload` | `POST /upload/session`, `POST /upload/session/play/{payload}` |
+| `routers/download` | `POST /download/sign`, `GET /download/{token}` |
+| `routers/middlewares` | `ClientExtractor`, `UploadMiddleware`, `DownloadMiddleware` |
+| `routers/resp` | `ApiResponse`, `ResponseError` types |
+
+### Key Dependencies
+
+- `axum` — HTTP framework
+- `tower-http` — CORS, tracing, static file serving
+- `tower` — Concurrency limiting
+- `tokio-util` — Async file streaming
+- `mime_guess` — MIME type detection
+
+## Crate: `shared` (Common Library)
+
+**Type:** Library
+**Entry:** `shared/src/lib.rs`
+
+Shared types, database access, and cryptographic operations.
+
+### Modules
+
+| Module | Purpose |
+|---|---|
+| `tools/config` | `AppConfig` — TOML configuration parsing |
+| `tools/secrets` | `AppSecrets` — Secret key management |
+| `tools/hasher` | `Hasher` — HMAC256/Blake3 signing and verification |
+| `tools/mod` | Utilities: `root_dir()`, `generate_nano_id()`, `mb_to_bytes()` |
+| `db/mod` | `Database` — Connection pooling and migrations |
+| `db/utils` | `AssetOwnerName`, `sql_safe!` macro, ownership checks |
+| `db/client/mod` | Client CRUD, token encryption/decryption |
+| `db/client/models` | `Client` struct, `ClientInsertArgs` |
+| `db/bucket/mod` | Bucket CRUD, parent validation, MIME matching |
+| `db/bucket/models` | `Bucket`, `CreateBucketData` structs |
+| `server` | `UploadInfo`, `DownloadInfo`, `UploadUrlConfig`, password helpers |
+| `broker` | `MessageBroker` — Redis-backed resumable upload state |
+| `user` | User creation with Argon2 password hashing |
+
+### Feature Flags
+
+| Feature | Enables |
+|---|---|
+| `server` | `broker`, `server` modules, validator, HMAC, SHA2, SHA3 |
+
+The `server` crate depends on `shared` with `features = ["server"]`. The CLI crate depends on `shared` without this feature (no broker or server types needed).
+
+### Key Dependencies
+
+- `sqlx` — Database (SQLite, PostgreSQL, MySQL)
+- `chacha20poly1305` — Client key encryption
+- `argon2` — Password hashing
+- `blake3` — Blake3 keyed hashing
+- `hmac` + `sha2` — HMAC-SHA256 signing
+- `redis` — Message broker for resumable uploads
+- `validator` — Request validation
+
+## Dependency Graph
+
+```
+ppdrive (CLI)
+  └── shared (no features)
+
+server (HTTP)
+  └── shared (features = ["server"])
+        ├── broker (Redis)
+        └── server (UploadInfo, DownloadInfo)
+```
+
+## See Also
+
+- [Security Model](/architecture/security/) — Cryptographic design
+- [Codebase Walkthrough](/contributing/codebase/) — File-by-file tour

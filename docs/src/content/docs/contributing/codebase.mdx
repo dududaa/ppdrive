@@ -1,0 +1,206 @@
+---
+title: Codebase Walkthrough
+description: A file-by-file tour of the PPDRIVE codebase.
+---
+
+This guide walks through the key files in the PPDRIVE codebase and explains their roles.
+
+## Workspace Root
+
+### `Cargo.toml`
+
+Defines the workspace with three members and shared dependencies. The release profile uses aggressive optimizations (`opt-level = "z"`, LTO, stripped symbols).
+
+### `ppd_config.toml`
+
+Runtime configuration file. Parsed by `shared::config::AppConfig`. See [Config File](/configuration/config-file/) for all options.
+
+### `.ppdrive_secret`
+
+Auto-generated 88-byte binary file containing encryption keys. Created on first run with mode `0600`. Never committed to git.
+
+### `migrations/`
+
+SQL migration files run automatically by sqlx on server start.
+
+## CLI Crate (`ppdrive/`)
+
+### `src/main.rs`
+
+Entry point. Parses CLI arguments with Clap and dispatches to the appropriate handler.
+
+```rust
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
+    let cli = Cli::parse();
+    cli.execute().await?;
+    Ok(())
+}
+```
+
+### `src/command.rs`
+
+Defines the `Cli` struct and `CliCommand` enum. The `execute()` method handles:
+- `Serve` — Spawns the server process
+- `Configure` — Opens the config file in an editor
+- `Client` — Delegates to client subcommands
+- `Bucket` — Delegates to bucket subcommands
+
+### `src/subs.rs`
+
+Subcommand definitions:
+- `ClientCommand` — `Create`, `Refresh`, `List`
+- `BucketCommand` — `Create`
+- `CreateBucketArgs` — All flags for bucket creation
+
+## Server Crate (`server/`)
+
+### `src/main.rs`
+
+Entry point. Binds a TCP listener and serves the Axum app.
+
+### `src/app.rs`
+
+Assembles the complete Axum router:
+1. Creates `AppState` (loads config, secrets, DB, broker)
+2. Builds CORS layer from config
+3. Nests upload and download routes
+4. Mounts public bucket paths as static file services
+5. Mounts configured static folders
+6. Adds tracing middleware
+
+### `src/state.rs`
+
+`AppState` — Cheaply-cloneable struct passed to all handlers:
+- `secrets` — `AppSecrets` (encryption keys)
+- `config` — `AppConfig` (parsed TOML)
+- `db` — `Database` (connection pool)
+- `broker` — Optional `MessageBroker` (Redis)
+
+### `src/routers/mod.rs`
+
+Route definitions and middleware layers:
+- `upload_routes()` — POST endpoints with body limit (2MB) and concurrency limit (50)
+- `download_sign_routes()` — POST `/sign` with same limits
+- `download_serve_routes()` — GET `/{token}` (public, no auth header)
+
+### `src/routers/upload.rs`
+
+Upload handlers:
+- `create_session` — Validates config, checks bucket ownership, validates MIME, signs `UploadInfo`
+- `play_session` — Verifies token, handles folder creation or delegates to `handle_session`
+- `get_next_session` — Writes chunks to temp files, validates size/MIME, moves to final path
+- `safe_path` — Path traversal protection via canonicalization
+
+### `src/routers/download.rs`
+
+Download handlers:
+- `sign_download` — Validates bucket is private, client owns it, file exists; signs `DownloadInfo`
+- `serve_download` — Verifies token, resolves file, handles Range headers, serves file stream
+- `parse_range` — Parses `Range: bytes=START-END` headers
+
+### `src/routers/middlewares.rs`
+
+Axum extractors:
+- `ClientExtractor` — Authenticates via client header, returns client ID
+- `UploadMiddleware` — Verifies upload session token from URL path
+- `DownloadMiddleware` — Verifies download token from URL path
+
+### `src/routers/resp.rs`
+
+Response types:
+- `ApiResponse<T>` — `Result<ResponsePayload<T>, ResponseError>`
+- `ResponsePayload` — JSON success response with status code
+- `ResponseError` — Error response with status code, logs internal errors
+
+## Shared Library (`shared/`)
+
+### `src/lib.rs`
+
+Module declarations and re-exports. Conditionally compiles `broker` and `server` modules behind the `server` feature flag.
+
+### `src/server.rs`
+
+Core types:
+- `UploadInfo` — Signed upload session token (client_id, session_id, exp, config, chunk_index)
+- `DownloadInfo` — Signed download token (client_id, path, bucket_pid, exp)
+- `SignDownloadRequest` — Request body for download signing
+- `UploadUrlConfig` — Upload session configuration (path, expires, bucket, content_type, etc.)
+- `seconds_from_now()` — Timestamp helper
+- `make_password()` / `check_password()` — Argon2 password hashing
+
+### `src/tools/config.rs`
+
+`AppConfig` — Parsed from `ppd_config.toml`. Provides defaults for all fields. `read()` falls back to defaults if the file is missing.
+
+### `src/tools/secrets.rs`
+
+`AppSecrets` — Manages the 88-byte `.ppdrive_secret` file:
+- `init()` — Creates the file if it doesn't exist
+- `read()` — Reads the three keys (encryption, nonce, JWT)
+- `Drop` impl — Zeros all secret material
+
+### `src/tools/hasher.rs`
+
+`Hasher` — Enum with `HMAC256` and `Blake3` variants:
+- `hash()` — Signs a payload, returns base64url token
+- `verify()` — Generic verification using `Hashable` trait
+- `verify_upload_info()` — Verifies upload tokens (decrypts key from DB)
+- `verify_download_info()` — Verifies download tokens (decrypts key from DB)
+
+### `src/db/mod.rs`
+
+`Database` — Wraps sqlx `AnyPool`:
+- `new()` — Connects, runs migrations, detects engine type
+- `placeholder()` — Returns engine-specific placeholder (`?` or `$N`)
+- `Deref` to `DbPool` for direct query access
+
+### `src/db/client/mod.rs`
+
+Client operations:
+- `create_client()` — Generates key, encrypts, stores, returns token
+- `verify_client()` — Decrypts token, hashes key, looks up ID
+- `regenerate_token()` — Rotates client key
+- `encrypt_key()` / `decrypt_key()` — XChaCha20-Poly1305 operations
+- `hash_key()` — SHA-256 hash for lookups
+
+### `src/db/bucket/mod.rs`
+
+Bucket operations:
+- `create()` — Validates parent ownership/privacy, inserts row
+- `get()` / `get_id()` — Lookup by PID
+- `get_public_paths()` — Returns all public bucket paths
+- `mime_matches_accepts()` — Validates MIME against accepts list with wildcard support
+
+### `src/broker.rs`
+
+`MessageBroker` — Redis client for resumable uploads:
+- `get_upload_info()` — Retrieve cached upload state
+- `upsert_upload_info()` — Store with TTL
+- `remove_upload_info()` — Delete session
+
+### `src/user.rs`
+
+User creation with Argon2 password hashing and asset_owner registration.
+
+## Key Design Patterns
+
+### Signed Tokens
+
+All tokens use the same format: `base64url([4-byte length][JSON payload][hash])`. This allows:
+- Self-contained verification (no DB lookup for the payload)
+- DB lookup only for the decryption key
+- Easy debugging (base64url decode reveals the JSON)
+
+### Path Safety
+
+Every file path goes through `safe_path()` or equivalent canonicalization. This is the primary defense against path traversal attacks.
+
+### Feature Gating
+
+Server-only code (broker, UploadInfo, DownloadInfo) is behind `#[cfg(feature = "server")]`. The CLI doesn't depend on these types.
+
+## See Also
+
+- [Crate Structure](/architecture/crates/) — High-level module overview
+- [Security Model](/architecture/security/) — Cryptographic design details

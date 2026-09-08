@@ -1,0 +1,219 @@
+---
+title: Production Setup
+description: Deploying PPDRIVE in production.
+---
+
+This guide covers production deployment considerations for PPDRIVE.
+
+## Prerequisites
+
+- Rust 1.83+ (for building from source)
+- PostgreSQL (recommended) or MySQL for the database
+- Redis (optional, required for resumable uploads)
+- A reverse proxy (nginx, Caddy, etc.) for TLS termination
+
+## Build for Production
+
+```sh
+git clone https://github.com/dududaa/ppdrive.git
+cd ppdrive/core
+cargo build --release
+```
+
+The release profile uses aggressive optimizations:
+- `opt-level = "z"` — Optimize for size
+- LTO enabled — Link-time optimization
+- Symbols stripped — Smaller binary
+- Single codegen unit — Better optimization
+
+## Configuration
+
+Create `ppd_config.toml` next to the binaries:
+
+```toml
+database_url = "postgres://ppdrive_user:password@localhost:5432/ppdrive"
+client_header_key = "x-ppdrive-client"
+port = 8000
+allowed_origins = ["https://yourdomain.com"]
+hasher = "Blake3"
+message_broker = "redis://localhost:6379"
+```
+
+## Database Setup
+
+### PostgreSQL
+
+```sql
+CREATE DATABASE ppdrive;
+CREATE USER ppdrive_user WITH PASSWORD 'secure_password';
+GRANT ALL PRIVILEGES ON DATABASE ppdrive TO ppdrive_user;
+```
+
+Set the `database_url` in `ppd_config.toml`.
+
+### Connection Pooling
+
+For high-traffic deployments, consider using PgBouncer or similar connection pooling in front of PostgreSQL.
+
+## Redis Setup
+
+Required only for resumable uploads. Install Redis and ensure it's running:
+
+```sh
+# Ubuntu/Debian
+sudo apt install redis-server
+sudo systemctl enable redis-server
+
+# macOS
+brew install redis
+brew services start redis
+```
+
+Configure the connection:
+
+```toml
+message_broker = "redis://localhost:6379"
+```
+
+## Running the Server
+
+```sh
+./ppdrive serve --port 8000
+```
+
+### Process Management
+
+Use a process manager like systemd, supervisord, or Docker to keep the server running.
+
+#### Systemd Service
+
+```ini
+[Unit]
+Description=PPDRIVE Object Storage Server
+After=network.target
+
+[Service]
+Type=simple
+User=ppdrive
+WorkingDirectory=/opt/ppdrive
+ExecStart=/opt/ppdrive/ppdrive serve --port 8000
+Restart=always
+RestartSec=5
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```sh
+sudo systemctl enable ppdrive
+sudo systemctl start ppdrive
+```
+
+## Reverse Proxy
+
+### Nginx
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name storage.yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/storage.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/storage.yourdomain.com/privkey.pem;
+
+    client_max_body_size 10M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Caddy
+
+```
+storage.yourdomain.com {
+    reverse_proxy localhost:8000
+}
+```
+
+## CORS Configuration
+
+If your frontend is on a different domain, configure CORS:
+
+```toml
+allowed_origins = ["https://app.yourdomain.com"]
+```
+
+For development, you can allow all origins (default):
+
+```toml
+# Remove allowed_origins or set to null
+```
+
+## Monitoring
+
+### Logging
+
+PPDRIVE uses `tracing` for structured logging. Control verbosity with `RUST_LOG`:
+
+```sh
+# Detailed logging
+RUST_LOG=trace ./ppdrive serve
+
+# Info level only
+RUST_LOG=info ./ppdrive serve
+
+# Per-module control
+RUST_LOG=server=info,shared=debug ./ppdrive serve
+```
+
+### Health Check
+
+The server doesn't have a dedicated health endpoint, but you can check if it's responding:
+
+```sh
+curl -I http://localhost:8000/
+```
+
+## Performance Tuning
+
+- **Database connection pool** — sqlx manages a connection pool automatically
+- **Concurrency limit** — 50 concurrent requests per endpoint (configurable in code)
+- **Body size limit** — 2 MB per chunk (configurable in code)
+- **Release build** — Always use `--release` for production (optimized binary)
+
+## Backup
+
+### Database
+
+```sh
+# SQLite
+cp data.db data.db.backup
+
+# PostgreSQL
+pg_dump ppdrive > ppdrive_backup.sql
+```
+
+### Files
+
+Back up the storage directory containing all uploaded files.
+
+### Secrets
+
+Back up `.ppdrive_secret` securely. If lost, you'll need to recreate all clients.
+
+## Security Checklist
+
+- [ ] Secrets file has mode `0600`
+- [ ] Database uses strong credentials
+- [ ] Redis is not exposed to the internet
+- [ ] CORS origins are restricted
+- [ ] TLS is enabled via reverse proxy
+- [ ] Server runs as a non-root user
+- [ ] File permissions are restrictive on the storage directory

@@ -1,0 +1,114 @@
+---
+title: Architecture Overview
+description: High-level system design of PPDRIVE.
+---
+
+PPDRIVE is a Rust workspace with three crates: a CLI, an HTTP server, and a shared library.
+
+## System Diagram
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   Client     │────▶│   Server     │────▶│   Database   │
+│  (curl/app)  │     │   (Axum)     │     │ (SQLite/PG)  │
+└──────────────┘     └──────┬───────┘     └──────────────┘
+                            │
+                     ┌──────┴───────┐
+                     │    Redis     │ (optional)
+                     │  (resumable) │
+                     └──────────────┘
+```
+
+## Components
+
+### CLI (`ppdrive`)
+
+The command-line interface for managing PPDRIVE resources:
+- Creating and managing API clients
+- Creating and configuring buckets
+- Starting the server
+- Opening the configuration file
+
+### HTTP Server (`server`)
+
+An Axum-based HTTP server handling:
+- Upload session management (create, chunk, finalize)
+- Download serving (public and signed URLs)
+- Client authentication middleware
+- CORS, tracing, and static file serving
+
+### Shared Library (`common`)
+
+Common types and logic used by both the CLI and server:
+- Database layer (sqlx with SQLite/PostgreSQL/MySQL)
+- Cryptographic operations (encryption, signing, hashing)
+- Configuration parsing
+- Upload/download info types
+
+## Request Flow
+
+### Upload Flow
+
+```
+Client                    Server                    Database
+  │                         │                          │
+  │──POST /upload/session──▶│                          │
+  │  (auth header + config) │──verify client──────────▶│
+  │                         │◀──client id──────────────│
+  │                         │──check bucket ownership──▶│
+  │                         │◀──ownership result───────│
+  │                         │──validate MIME───────────│
+  │◀──signed token──────────│                          │
+  │                         │                          │
+  │──POST /session/play/{token}──▶│                   │
+  │  (file data)            │──verify token────────────│
+  │                         │──write to temp file──────│
+  │                         │──move to final path──────│
+  │◀──null (complete)───────│                          │
+```
+
+### Download Flow (Private Bucket)
+
+```
+Client                    Server                    Database
+  │                         │                          │
+  │──POST /download/sign────▶│                          │
+  │  (auth + bucket + path) │──verify client──────────▶│
+  │                         │◀──client id──────────────│
+  │                         │──validate bucket private──│
+  │                         │──validate file exists─────│
+  │◀──signed token──────────│                          │
+  │                         │                          │
+  │──GET /download/{token}──▶│                         │
+  │                         │──verify token────────────│
+  │                         │──resolve file path────────│
+  │◀──file bytes────────────│                          │
+```
+
+## Data Flow
+
+### File Storage
+
+1. Upload data is written to a temporary file in `{root_dir}/tmp/`
+2. On completion, the file is atomically moved to its final path
+3. For bucket uploads, the final path is `{bucket.path}/{user.path}`
+
+### Token Signing
+
+Tokens use a `[4-byte length][JSON payload][hash]` format:
+1. Serialize the payload to JSON
+2. Compute a keyed hash (HMAC-SHA256 or Blake3)
+3. Prepend the payload length as a 4-byte big-endian integer
+4. Base64url-encode the result
+
+### Client Authentication
+
+1. Client token is XChaCha20-Poly1305 encrypted
+2. Decryption recovers the plaintext client key
+3. SHA-256 hash of the key is looked up in the database
+4. The client ID is returned for request processing
+
+## See Also
+
+- [Crate Structure](/architecture/crates/) — Detailed module breakdown
+- [Security Model](/architecture/security/) — Cryptographic design

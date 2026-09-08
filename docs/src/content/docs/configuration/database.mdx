@@ -1,0 +1,120 @@
+---
+title: Database
+description: Database setup and configuration for PPDRIVE.
+---
+
+PPDRIVE supports SQLite, PostgreSQL, and MySQL. SQLite is the default and requires no external dependencies.
+
+## SQLite (Default)
+
+Zero-config. The database file is created automatically.
+
+```toml
+database_url = "sqlite:data.db"
+```
+
+The SQLite file is created in the project root. For production, consider using PostgreSQL.
+
+## PostgreSQL
+
+```toml
+database_url = "postgres://user:password@localhost:5432/ppdrive"
+```
+
+### Connection Parameters
+
+| Parameter | Description |
+|---|---|
+| `user` | Database username |
+| `password` | Database password |
+| `host` | Database host |
+| `port` | Database port (default: 5432) |
+| `database` | Database name |
+
+### Setup
+
+```sql
+CREATE DATABASE ppdrive;
+CREATE USER ppdrive_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE ppdrive TO ppdrive_user;
+```
+
+## MySQL
+
+```toml
+database_url = "mysql://user:password@localhost:3306/ppdrive"
+```
+
+## Schema
+
+PPDRIVE uses SQLx migrations to create and manage the schema automatically. Tables are created on first run.
+
+### Tables
+
+#### `asset_owner`
+
+Tracks which entity (user or client) owns assets.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `INTEGER PRIMARY KEY` | Auto-increment ID |
+| `name` | `SMALLINT` | Owner type: `0` = User, `1` = Client |
+| `owner_id` | `INTEGER NOT NULL` | Reference to the owning entity |
+
+#### `clients`
+
+Stores API clients with encrypted keys.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `INTEGER PRIMARY KEY` | Auto-increment ID |
+| `pid` | `TEXT UNIQUE` | Public identifier (32-char nanoid) |
+| `encrypted_key` | `TEXT NOT NULL` | XChaCha20-Poly1305 encrypted client key (hex) |
+| `key_nonce` | `BLOB NOT NULL` | Nonce used for key encryption |
+| `key_hash` | `TEXT NOT NULL UNIQUE` | SHA-256 hash of plaintext key |
+| `name` | `TEXT NOT NULL` | Human-readable name |
+| `created_at` | `TEXT NOT NULL` | RFC 3339 timestamp |
+
+#### `users`
+
+Application users with Argon2 hashed passwords.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `INTEGER PRIMARY KEY` | Auto-increment ID |
+| `email` | `TEXT UNIQUE NOT NULL` | User email |
+| `password` | `TEXT NOT NULL` | Argon2 password hash |
+| `metadata` | `TEXT` | Optional JSON metadata |
+| `created_at` | `TEXT NOT NULL` | RFC 3339 timestamp |
+| `updated_at` | `TEXT NOT NULL` | RFC 3339 timestamp |
+
+#### `buckets`
+
+Storage buckets with access control and MIME restrictions.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `INTEGER PRIMARY KEY` | Auto-increment ID |
+| `pid` | `TEXT UNIQUE` | Public identifier (32-char nanoid) |
+| `name` | `TEXT NOT NULL` | Human-readable name |
+| `public` | `BOOLEAN NOT NULL` | Whether the bucket is publicly accessible |
+| `size` | `BIGINT` | Maximum size in bytes (`NULL` = unlimited) |
+| `accepts` | `TEXT` | Comma-separated MIME types (supports wildcards) |
+| `path` | `TEXT NOT NULL UNIQUE` | Filesystem path for stored files |
+| `created_at` | `TEXT NOT NULL` | RFC 3339 timestamp |
+| `owner_id` | `INTEGER NOT NULL` | Foreign key to `asset_owner` |
+
+### Indexes
+
+- `idx_asset_owner_name_id` — Unique index on `(name, owner_id)`
+- `idx_buckets_asset_owner` — Index on `buckets(owner_id)`
+- `idx_buckets_public` — Index on `buckets(public)`
+
+## Environment Variables
+
+The `PPDRIVE_DATABASE_URL` environment variable can override the `database_url` config field at runtime. This is used in Docker deployments:
+
+```yaml
+environment:
+  - PPDRIVE_DATABASE_URL=postgres://user:pass@db:5432/ppdrive
+```

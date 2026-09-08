@@ -1,0 +1,149 @@
+---
+title: Security Model
+description: Cryptographic design and security properties of PPDRIVE.
+---
+
+PPDRIVE implements multiple layers of security: encrypted client keys, signed tokens, path traversal protection, and memory-safe secret handling.
+
+## Client Key Encryption
+
+### Algorithm
+
+**XChaCha20-Poly1305** — An authenticated encryption algorithm with a 256-bit key and 192-bit nonce.
+
+### Flow
+
+```
+Client Creation:
+  1. Generate random 32-char hex key (nanoid)
+  2. Generate random 24-byte nonce
+  3. Encrypt key with XChaCha20-Poly1305(app_secret, nonce)
+  4. Store: encrypted_key (hex), nonce, SHA-256(key) in database
+
+Token Verification:
+  1. Decrypt token → recover plaintext key
+  2. SHA-256(key) → hash
+  3. Lookup client by hash → client ID
+```
+
+### Properties
+
+- **Encrypted at rest** — Client keys are never stored in plaintext
+- **Authenticated encryption** — Tampering with ciphertext is detected
+- **Random nonces** — Each encryption operation uses a fresh nonce
+
+## Token Signing
+
+### Format
+
+```
+base64url( [4-byte BE length] [JSON payload] [hash] )
+```
+
+### Algorithms
+
+Two backends are supported (configurable in `ppd_config.toml`):
+
+| Algorithm | Type | Key Requirement |
+|---|---|---|
+| `HMAC256` | HMAC-SHA256 | Any length |
+| `Blake3` | Blake3 keyed hash | Exactly 32 bytes |
+
+### Verification Flow
+
+1. Base64url-decode the token
+2. Split into `[length][payload][hash]` using the 4-byte length prefix
+3. Deserialize the JSON payload
+4. Retrieve the signing key (from the decrypted client key)
+5. Compute hash over the payload
+6. Compare with the stored hash
+7. Check the expiration timestamp
+
+### Properties
+
+- **Tamper-evident** — Any modification to the payload invalidates the hash
+- **Time-limited** — Tokens expire after a configurable duration
+- **Per-client keys** — Each client has a unique signing key
+
+## Path Traversal Protection
+
+All file paths are validated using canonicalization:
+
+```rust
+fn safe_path(root: &Path, user_path: &str) -> Result<PathBuf> {
+    // 1. Reject empty paths
+    // 2. Reject ".." components
+    // 3. Join with root
+    // 4. Canonicalize both root and joined path
+    // 5. Verify joined starts with root
+}
+```
+
+This prevents:
+- `../../etc/passwd` — Directory traversal
+- Symlink attacks — Canonicalization resolves symlinks
+- Race conditions — Canonical path is checked against root
+
+## Secrets Management
+
+### File Layout
+
+`.ppdrive_secret` — 88 bytes, mode `0600`:
+
+| Bytes | Purpose |
+|---|---|
+| 0–31 | XChaCha20-Poly1305 encryption key |
+| 32–55 | XChaCha20 nonce |
+| 56–87 | JWT secret (reserved) |
+
+### Memory Safety
+
+When `AppSecrets` is dropped, all secret bytes are zeroed using `std::ptr::write_volatile`:
+
+```rust
+impl Drop for AppSecrets {
+    fn drop(&mut self) {
+        for byte in self.secret_key.iter_mut() {
+            unsafe { std::ptr::write_volatile(byte, 0); }
+        }
+        // ... same for nonce and jwt_secret
+    }
+}
+```
+
+This prevents secret material from persisting in freed memory.
+
+## Password Hashing
+
+**Argon2** — A memory-hard password hashing algorithm.
+
+- Random salt per password
+- Default Argon2 parameters (memory, iterations, parallelism)
+- Used for user accounts (not client tokens)
+
+## Download Token Security
+
+Download tokens for private buckets have additional constraints:
+
+1. **Bucket must be private** — Public buckets use direct URLs
+2. **Client must own the bucket** — Verified at signing time
+3. **File must exist** — Verified at signing time
+4. **Path must be within bucket** — Canonicalization prevents traversal
+5. **Short expiration** — Maximum 1 hour (3600 seconds)
+
+## Security Properties Summary
+
+| Property | Mechanism |
+|---|---|
+| Confidentiality | XChaCha20-Poly1305 encryption |
+| Integrity | HMAC/Blake3 signed tokens |
+| Authentication | Client token verification |
+| Authorization | Bucket ownership checks |
+| Path safety | Canonicalization + root boundary checks |
+| Memory safety | Volatile zeroing on drop |
+| Time bounds | Token expiration timestamps |
+
+## See Also
+
+- [Secrets & Security](/configuration/secrets/) — Configuration details
+- [Authentication](/api/authentication/) — API authentication flow

@@ -1,0 +1,88 @@
+---
+title: Serve & Configure
+description: Start the server and manage configuration.
+---
+
+## Serve
+
+Start the PPDRIVE HTTP server.
+
+```sh
+ppdrive serve [--port <PORT>]
+```
+
+### Arguments
+
+| Flag | Default | Description |
+|---|---|---|
+| `--port` | `8000` | Port to listen on |
+
+### Examples
+
+```sh
+# Start on default port (8000)
+ppdrive serve
+
+# Start on custom port
+ppdrive serve --port 3000
+
+# Positional syntax also works
+ppdrive serve 3000
+```
+
+### Behavior
+
+- In **debug mode** (development): runs `cargo run -p server <port>`
+- In **release mode** (production): runs `./server <port>`
+
+### What Happens on Start
+
+1. Reads `ppd_config.toml` (or uses defaults if missing)
+2. Initializes `.ppdrive_secret` if it doesn't exist
+3. Connects to the database and runs migrations
+4. Optionally connects to Redis (if `message_broker` is configured)
+5. Mounts public bucket paths and static folders
+6. Starts listening for HTTP requests
+
+### Output
+
+The server logs all requests using `tracing`. The default log level is `trace`. Override with `RUST_LOG`:
+
+```sh
+RUST_LOG=info ppdrive serve
+```
+
+## Configure
+
+Open the configuration file in your system editor.
+
+```sh
+ppdrive configure
+```
+
+### Editor Selection
+
+The command checks for editors in this order:
+
+1. `$VISUAL` environment variable
+2. `$EDITOR` environment variable
+3. Falls back to `nano`
+
+### Example
+
+```sh
+# Use VS Code as the editor
+export VISUAL="code --wait"
+ppdrive configure
+
+# Use Vim
+export EDITOR="vim"
+ppdrive configure
+```
+
+This opens `ppd_config.toml` for editing. See [Config File](/configuration/config-file/) for all available options.
+
+## See Also
+
+- [Config File](/configuration/config-file/) — All configuration options
+- [Docker Deployment](/deployment/docker/) — Running with Docker

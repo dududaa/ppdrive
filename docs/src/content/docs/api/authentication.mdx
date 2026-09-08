@@ -1,0 +1,95 @@
+---
+title: Authentication
+description: How client authentication works in PPDRIVE.
+---
+
+PPDRIVE uses client tokens for API authentication. Tokens are encrypted, self-contained, and can be rotated.
+
+## How It Works
+
+### Token Format
+
+A client token is a hex-encoded string containing:
+
+```
+[24-byte nonce][encrypted client key]
+```
+
+The client key is encrypted with XChaCha20-Poly1305 using the application's secret key.
+
+### Authentication Flow
+
+1. Client sends a request with the token in a header
+2. Server decrypts the token to recover the client key
+3. Server hashes the client key with SHA-256
+4. Server looks up the client ID by the hash
+5. Server processes the request with the authenticated client ID
+
+```
+Client Request
+  ↓
+Header: x-ppdrive-client: <token>
+  ↓
+Decrypt token → client key
+  ↓
+SHA-256(client key) → hash
+  ↓
+Lookup client by hash → client ID
+  ↓
+Process request
+```
+
+### Header Name
+
+The header name is configurable in `ppd_config.toml`:
+
+```toml
+client_header_key = "x-ppdrive-client"
+```
+
+Default: `x-ppdrive-client`
+
+## Using the Token
+
+Include the client token in the configured header for all API requests:
+
+```sh
+curl -X POST http://localhost:8000/upload/session \
+  -H "x-ppdrive-client: YOUR_CLIENT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ ... }'
+```
+
+## Token Rotation
+
+Rotate a client's token with the CLI:
+
+```sh
+ppdrive client refresh --id <CLIENT_ID>
+```
+
+This:
+1. Generates a new client key
+2. Encrypts and stores it in the database
+3. Returns a new token
+4. The old token is immediately invalidated
+
+## Which Endpoints Require Auth
+
+| Endpoint | Auth Required | Method |
+|---|---|---|
+| `POST /upload/session` | Client header | Create upload session |
+| `POST /upload/session/play/{payload}` | Signed token in URL | Upload chunk |
+| `POST /download/sign` | Client header | Sign download URL |
+| `GET /download/{token}` | Signed token in URL | Download file |
+
+:::note
+The download endpoint uses the signed token itself as authentication — no client header is needed.
+:::
+
+## Security Properties
+
+- **Encrypted at rest** — Client keys are never stored in plaintext
+- **Random nonces** — Each token encryption uses a fresh nonce
+- **Rotatable** — Tokens can be rotated without recreating the client
+- **Time-limited** — Upload and download tokens expire after a configurable duration

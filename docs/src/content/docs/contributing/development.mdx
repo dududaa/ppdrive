@@ -1,0 +1,196 @@
+---
+title: Development Setup
+description: Setting up a development environment for PPDRIVE.
+---
+
+This guide covers setting up a local development environment for contributing to PPDRIVE.
+
+## Prerequisites
+
+- [Rust](https://rustup.rs/) 1.83+ (edition 2024)
+- [Bun](https://bun.sh/) (for the documentation site)
+- [Redis](https://redis.io/) (optional, for resumable uploads)
+- Git
+
+## Clone the Repository
+
+```sh
+git clone https://github.com/dududaa/ppdrive.git
+cd ppdrive/core
+```
+
+## Build
+
+```sh
+# Debug build (faster compilation)
+cargo build
+
+# Release build (optimized)
+cargo build --release
+```
+
+## Run the Server
+
+```sh
+# Using cargo
+cargo run -p server
+
+# Or build first, then run
+cargo build
+./target/debug/server
+```
+
+The server starts on port 8000 by default.
+
+## Run the CLI
+
+```sh
+cargo run -p ppdrive -- --help
+
+# Example: create a client
+cargo run -p ppdrive -- client create --name "Dev Client"
+```
+
+## Configuration
+
+Create `ppd_config.toml` at the workspace root:
+
+```toml
+database_url = "sqlite:data.db"
+client_header_key = "x-ppdrive-client"
+hasher = "Blake3"
+```
+
+Or use the configure command:
+
+```sh
+cargo run -p ppdrive -- configure
+```
+
+## Running Tests
+
+```sh
+# Run all tests
+cargo test
+
+# Run tests for a specific crate
+cargo test -p shared
+cargo test -p server
+
+# Run a specific test
+cargo test test_token_validation
+```
+
+:::note
+Some tests require a database. Set the `DATABASE_URL` environment variable or ensure `data.db` exists.
+:::
+
+## Documentation Site
+
+The documentation site uses Astro + Starlight.
+
+```sh
+cd docs
+
+# Install dependencies (if not already installed)
+bun install
+
+# Start dev server
+bun dev
+
+# Build for production
+bun build
+```
+
+The dev server runs at `http://localhost:4321`.
+
+## Code Style
+
+- **No comments** unless explicitly requested
+- Follow existing code patterns and conventions
+- Use `cargo check` and `cargo test` before committing
+- Keep functions focused and small
+
+## Project Structure
+
+```
+ppdrive/
+├── Cargo.toml           # Workspace configuration
+├── ppd_config.toml      # Runtime configuration
+├── .ppdrive_secret      # Auto-generated secrets (git-ignored)
+├── ppdrive/             # CLI crate
+│   ├── Cargo.toml
+│   └── src/
+│       ├── main.rs
+│       ├── command.rs
+│       └── subs.rs
+├── server/              # HTTP server crate
+│   ├── Cargo.toml
+│   └── src/
+│       ├── main.rs
+│       ├── lib.rs
+│       ├── app.rs
+│       ├── state.rs
+│       └── routers/
+├── shared/              # Shared library crate
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── server.rs
+│       ├── broker.rs
+│       ├── user.rs
+│       ├── tools/
+│       └── db/
+├── migrations/          # SQL migrations
+└── docs/                # Documentation site
+```
+
+## Debugging
+
+### Logging
+
+PPDRIVE uses `tracing` for structured logging:
+
+```sh
+# Verbose output
+RUST_LOG=trace cargo run -p server
+
+# Filter to specific modules
+RUST_LOG=server=debug,shared=info cargo run -p server
+```
+
+### VS Code
+
+The workspace includes VS Code configuration in `.vscode/`:
+
+- `launch.json` — Debug configuration for the server
+- `extensions.json` — Recommended extensions
+
+## Common Tasks
+
+### Add a New API Endpoint
+
+1. Define the handler in `server/src/routers/`
+2. Add the route in `server/src/routers/mod.rs`
+3. Nest the route in `server/src/app.rs`
+4. Add request/response types in `shared/src/server.rs` if needed
+
+### Add a New CLI Command
+
+1. Define the subcommand in `ppdrive/src/subs.rs`
+2. Add the match arm in `ppdrive/src/command.rs`
+
+### Add a New Database Table
+
+1. Create a migration in `migrations/`
+2. Add models in `shared/src/db/`
+3. Add query functions in the appropriate module
+
+### Modify the Shared Library
+
+If adding server-only features, use the `server` feature flag:
+
+```rust
+#[cfg(feature = "server")]
+pub mod my_module;
+```

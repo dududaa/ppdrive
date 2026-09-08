@@ -1,0 +1,76 @@
+---
+title: CLI Overview
+description: Command-line interface reference for PPDRIVE.
+---
+
+PPDRIVE provides a CLI tool for managing clients, buckets, and the server.
+
+## Usage
+
+```sh
+ppdrive [OPTIONS] <COMMAND>
+```
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `ppdrive serve` | Start the HTTP server |
+| `ppdrive configure` | Open config file in editor |
+| `ppdrive client create` | Create a new API client |
+| `ppdrive client refresh` | Rotate a client's token |
+| `ppdrive client list` | List all clients |
+| `ppdrive bucket create` | Create a new storage bucket |
+
+## Global Options
+
+| Flag | Description |
+|---|---|
+| `--version` | Print version |
+| `--help` | Print help |
+
+## Command Tree
+
+```
+ppdrive
+├── serve [--port <PORT>]
+├── configure
+├── client
+│   ├── create --name <NAME>
+│   ├── refresh --id <ID>
+│   └── list
+└── bucket
+    └── create [OPTIONS]
+```
+
+## Examples
+
+```sh
+# Start server on custom port
+ppdrive serve --port 3000
+
+# Create a client
+ppdrive client create --name "Mobile App"
+
+# Create a private bucket
+ppdrive bucket create \
+  --name documents \
+  --path storage/documents \
+  --owner-type client \
+  --owner-id <CLIENT_ID>
+
+# Create a public bucket with MIME restrictions
+ppdrive bucket create \
+  --name images \
+  --path storage/images \
+  --owner-type client \
+  --owner-id <CLIENT_ID> \
+  --public \
+  --accepts image/png image/jpeg image/webp
+```
+
+## See Also
+
+- [Client Commands](/cli/client/) — Create and manage API clients
+- [Bucket Commands](/cli/bucket/) — Create and configure storage buckets
+- [Serve & Configure](/cli/serve-configure/) — Server and configuration management
