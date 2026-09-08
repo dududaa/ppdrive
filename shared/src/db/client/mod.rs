@@ -151,6 +151,18 @@ pub async fn get_key(db: &Database, pid: &str, secrets: &AppSecrets) -> anyhow::
     Client::get_key_encrypted(db, pid, secrets).await
 }
 
+pub async fn get_description_keys(db: &Database, pid: &str) -> anyhow::Result<(String, Vec<u8>)> {
+    let row: (String, Vec<u8>) = sqlx::query_as(
+        "SELECT encrypted_key, key_nonce FROM clients WHERE pid = $1 LIMIT 1",
+    )
+        .bind(pid)
+        .fetch_one(&**db)
+        .await
+        .map_err(|e| anyhow!("failed to fetch client key: {e}"))?;
+
+    Ok(row)
+}
+
 /// The public PID and plaintext token for a newly created client.
 pub struct ClientDetails {
     id: String,

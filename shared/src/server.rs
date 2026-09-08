@@ -68,7 +68,7 @@ impl UploadInfo {
 }
 
 impl Hashable for UploadInfo {
-    fn key(&self, _db: &Database) -> impl Future<Output = anyhow::Result<String>> {
+    fn key(&self) -> impl Future<Output = anyhow::Result<String>> {
         async {
             // If client_key is already populated (e.g., from create_session), use it directly
             if let Some(key) = &self.client_key {
@@ -116,7 +116,7 @@ impl DownloadInfo {
 }
 
 impl Hashable for DownloadInfo {
-    fn key(&self, _db: &Database) -> impl Future<Output = anyhow::Result<String>> {
+    fn key(&self) -> impl Future<Output = anyhow::Result<String>> {
         async {
             if let Some(key) = &self.client_key {
                 return Ok(key.clone());

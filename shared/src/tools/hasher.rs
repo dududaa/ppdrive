@@ -5,7 +5,8 @@
 //! [`Hasher::verify_upload_info`] / [`Hasher::verify_download_info`] for
 //! verifying and decoding signed tokens.
 
-use crate::db::Database;
+use crate::db::{Database, client};
+use crate::hasher::errors::PayloadVerificationError;
 use crate::server::{DownloadInfo, UploadInfo};
 use crate::tools::secrets::AppSecrets;
 use anyhow::anyhow;
@@ -14,8 +15,6 @@ use base64::engine::general_purpose::URL_SAFE;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::hasher::errors::PayloadVerificationError;
-use crate::hasher::Hasher::{Blake3, HMAC256};
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum Hasher {
@@ -50,10 +49,7 @@ impl Hasher {
     pub async fn verify<T: Serialize + DeserializeOwned + Hashable>(
         &self,
         signed: &str,
-        db: &Database,
     ) -> Result<T, PayloadVerificationError> {
-        use Hasher::*;
-
         let decode = URL_SAFE.decode(signed)?;
         let (payload_len, data) = decode
             .split_at_checked(4)
@@ -67,7 +63,7 @@ impl Hasher {
 
         let (payload, hash) = data.split_at(payload_len as usize);
         let result: T = serde_json::from_slice(payload)?;
-        let key = result.key(db).await?;
+        let key = result.key().await?;
         self.verify_payload(&key, payload, hash)?;
 
         let now = SystemTime::now()
@@ -104,18 +100,11 @@ impl Hasher {
         let mut result: UploadInfo = serde_json::from_slice(payload)?;
 
         // Decrypt the client key from the database
-        let row: (String, Vec<u8>) = sqlx::query_as(
-            "SELECT encrypted_key, key_nonce FROM clients WHERE pid = $1 LIMIT 1",
-        )
-        .bind(&result.client_id)
-        .fetch_one(&**db)
-        .await
-        .map_err(|e| anyhow!("failed to fetch client key: {e}"))?;
-
-        let key = crate::db::client::decrypt_key(secrets, &row.0, &row.1)
+        let row = client::get_description_keys(db, &result.client_id).await?;
+        let key = client::decrypt_key(secrets, &row.0, &row.1)
             .map_err(|e| anyhow!("failed to decrypt client key: {e}"))?;
-        self.verify_payload(&key, payload, hash)?;
 
+        self.verify_payload(&key, payload, hash)?;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| anyhow!("{e}"))?
@@ -153,18 +142,11 @@ impl Hasher {
         let mut result: DownloadInfo = serde_json::from_slice(payload)?;
 
         // Decrypt the client key from the database
-        let row: (String, Vec<u8>) = sqlx::query_as(
-            "SELECT encrypted_key, key_nonce FROM clients WHERE pid = $1 LIMIT 1",
-        )
-        .bind(&result.client_id)
-        .fetch_one(&**db)
-        .await
-        .map_err(|e| anyhow!("failed to fetch client key: {e}"))?;
-
-        let key = crate::db::client::decrypt_key(secrets, &row.0, &row.1)
+        let row = client::get_description_keys(db, &result.client_id).await?;
+        let key = client::decrypt_key(secrets, &row.0, &row.1)
             .map_err(|e| anyhow!("failed to decrypt client key: {e}"))?;
-        self.verify_payload(&key, payload, hash)?;
 
+        self.verify_payload(&key, payload, hash)?;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| anyhow!("{e}"))?
@@ -184,7 +166,7 @@ impl Hasher {
 
         match self {
             HMAC256 => hmac256::verify(&key, payload, hash),
-            Blake3 =>  blake3::verify(&key, payload, hash),
+            Blake3 => blake3::verify(&key, payload, hash),
         }
     }
 }
@@ -192,7 +174,7 @@ impl Hasher {
 /// Trait for types that can be signed and verified with a keyed hash.
 pub trait Hashable {
     /// Describe how to retrieve the key
-    fn key(&self, db: &Database) -> impl Future<Output = anyhow::Result<String>>;
+    fn key(&self) -> impl Future<Output = anyhow::Result<String>>;
 
     /// Time (seconds) assigned for the hash to expire.
     fn expires(&self) -> i64;
@@ -231,7 +213,6 @@ mod blake3 {
             key.as_bytes()
                 .try_into()
                 .map_err(|_| anyhow!("Key must be a 32-byte long string"))?,
-
             payload.as_bytes(),
         );
 
@@ -240,8 +221,8 @@ mod blake3 {
     }
 
     pub fn verify(key: &str, payload: &[u8], hash_raw: &[u8]) -> anyhow::Result<()> {
-        let payload_str = std::str::from_utf8(payload)
-            .map_err(|e| anyhow!("invalid payload utf8: {e}"))?;
+        let payload_str =
+            std::str::from_utf8(payload).map_err(|e| anyhow!("invalid payload utf8: {e}"))?;
 
         let hash = hash(key, payload_str)?;
         if &hash != hash_raw {
