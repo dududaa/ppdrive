@@ -181,6 +181,9 @@ pub struct UploadUrlConfig {
     pub resumable: Option<bool>,
     /// The bucket to which the asset belongs
     pub bucket: Option<String>,
+    /// MIME type of the file being uploaded (e.g. "image/png").
+    /// Required when the target bucket has an `accepts` restriction.
+    pub content_type: Option<String>,
 }
 
 impl UploadUrlConfig {

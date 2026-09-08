@@ -13,6 +13,21 @@ use models::{Bucket, CreateBucketData};
 use sqlx::Row;
 use std::path::PathBuf;
 
+/// Check if a MIME type matches any entry in an accepts list.
+///
+/// Exact match for concrete types (e.g. `image/png` matches `image/png`).
+/// Prefix match for wildcards (e.g. `image/*` matches `image/png`).
+pub fn mime_matches_accepts(mime: &str, accepts: &[String]) -> bool {
+    accepts.iter().any(|a| {
+        if a.ends_with("/*") {
+            let prefix = a.trim_end_matches('*');
+            mime.starts_with(prefix)
+        } else {
+            a.eq_ignore_ascii_case(mime)
+        }
+    })
+}
+
 /// Create a new bucket after validating parent ownership and privacy constraints.
 /// Returns the bucket's public PID.
 pub async fn create(data: &CreateBucketData, db: &Database) -> anyhow::Result<String> {

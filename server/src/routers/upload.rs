@@ -68,12 +68,31 @@ pub(super) async fn create_session(
         .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
 
     if let Some(bucket_id) = &config.bucket {
+        let bucket = bucket::get(bucket_id, state.db()).await?;
         let id = bucket::get_id(bucket_id, state.db()).await?;
         let is_owner = shared::check_ownership(AssetOwnerName::Client, id, state.db()).await?;
 
         if !is_owner {
             return Err(api_error("Write access denied for the specified bucket.")
                 .with_status_code(StatusCode::FORBIDDEN));
+        }
+
+        // Validate MIME type against bucket accepts
+        if let Some(ref accepts) = bucket.accepts {
+            if !accepts.is_empty() {
+                let content_type = config.content_type.as_ref().ok_or(
+                    api_error("content_type is required for buckets with MIME restrictions")
+                        .with_status_code(StatusCode::BAD_REQUEST),
+                )?;
+
+                if !bucket::mime_matches_accepts(content_type, accepts) {
+                    let list = accepts.join(", ");
+                    return Err(api_error(format!(
+                        "content_type '{content_type}' is not accepted by this bucket. Accepted: {list}"
+                    ))
+                    .with_status_code(StatusCode::BAD_REQUEST));
+                }
+            }
         }
     }
 
@@ -260,7 +279,33 @@ async fn get_next_session(
                     }
                 }
 
-                // TODO: Validate bucket mime
+                // Validate MIME type against bucket accepts
+                if let Some(ref accepts) = bucket.accepts {
+                    if !accepts.is_empty() {
+                        let inferred_mime = mime_guess::from_path(&target_path)
+                            .first_or_octet_stream()
+                            .to_string();
+
+                        if !bucket::mime_matches_accepts(&inferred_mime, accepts) {
+                            // Clean up temp file on validation failure
+                            let _ = tokio::fs::remove_file(&tmp_path).await;
+                            let list = accepts.join(", ");
+                            return Err(anyhow!(
+                                "file type '{inferred_mime}' is not accepted by this bucket. Accepted: {list}"
+                            ));
+                        }
+
+                        // Also verify against client-declared content_type if provided
+                        if let Some(ref declared) = config.content_type {
+                            if !bucket::mime_matches_accepts(declared, &[inferred_mime.clone()]) {
+                                let _ = tokio::fs::remove_file(&tmp_path).await;
+                                return Err(anyhow!(
+                                    "file MIME type '{inferred_mime}' does not match declared content_type '{declared}'"
+                                ));
+                            }
+                        }
+                    }
+                }
 
                 // append target_path tp bucket path
                 target_path = bucket_root.join(&target_path);
