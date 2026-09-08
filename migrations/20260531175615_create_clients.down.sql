@@ -1,4 +1,5 @@
 DROP INDEX idx_buckets_asset_owner;
+DROP INDEX idx_buckets_public;
 DROP TABLE buckets;
 
 DROP TABLE users;

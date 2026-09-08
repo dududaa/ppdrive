@@ -20,6 +20,7 @@ use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
+use shared::db::bucket;
 
 /// Convert whitelisted url to axum AllowOrigin. When no url is provided, all origins will be allowed.
 fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
@@ -83,6 +84,12 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
             }),
         );
 
+    let paths = bucket::get_public_paths(state.db()).await?.unwrap_or_default();
+    
+    for path in &paths {
+        app = app.nest_service(path, ServeDir::new(path));
+    }
+    
     for folder in state.config().static_folders.clone() {
         let path = folder.path.unwrap_or(format!("/{}", folder.name));
         app = app.nest_service(&path, ServeDir::new(folder.name));
@@ -93,7 +100,7 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
     Ok((app, port))
 }
 
-/// Initialise the tracing subscriber with an env-filter (defaults to `trace`).
+/// Initialize the tracing subscriber with an env-filter (defaults to `trace`).
 fn start_logger() -> anyhow::Result<()> {
     if let Err(err) = tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace")))

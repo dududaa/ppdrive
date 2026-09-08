@@ -14,6 +14,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::hasher::errors::PayloadVerificationError;
+use crate::hasher::Hasher::{Blake3, HMAC256};
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum Hasher {
@@ -66,15 +67,7 @@ impl Hasher {
         let (payload, hash) = data.split_at(payload_len as usize);
         let result: T = serde_json::from_slice(payload)?;
         let key = result.key(db).await?;
-
-        match self {
-            HMAC256 => hmac256::verify(&key, payload, hash)?,
-            Blake3 => {
-                let payload_str = std::str::from_utf8(payload)
-                    .map_err(|e| anyhow!("invalid payload utf8: {e}"))?;
-                blake3::verify(&key, payload_str, hash)?
-            },
-        }
+        self.verify_payload(&key, payload, hash)?;
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -95,8 +88,6 @@ impl Hasher {
         db: &Database,
         secrets: &AppSecrets,
     ) -> Result<UploadInfo, PayloadVerificationError> {
-        use Hasher::*;
-
         let decode = URL_SAFE.decode(signed)?;
         let (payload_len, data) = decode
             .split_at_checked(4)
@@ -122,15 +113,7 @@ impl Hasher {
 
         let key = crate::db::client::decrypt_key(secrets, &row.0, &row.1)
             .map_err(|e| anyhow!("failed to decrypt client key: {e}"))?;
-
-        match self {
-            HMAC256 => hmac256::verify(&key, payload, hash)?,
-            Blake3 => {
-                let payload_str = std::str::from_utf8(payload)
-                    .map_err(|e| anyhow!("invalid payload utf8: {e}"))?;
-                blake3::verify(&key, payload_str, hash)?
-            },
-        }
+        self.verify_payload(&key, payload, hash)?;
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -145,6 +128,15 @@ impl Hasher {
         }
 
         Ok(result)
+    }
+
+    fn verify_payload(&self, key: &str, payload: &[u8], hash: &[u8]) -> anyhow::Result<()> {
+        use Hasher::*;
+
+        match self {
+            HMAC256 => hmac256::verify(&key, payload, hash),
+            Blake3 =>  blake3::verify(&key, payload, hash),
+        }
     }
 }
 
@@ -198,8 +190,11 @@ mod blake3 {
         Ok(res)
     }
 
-    pub fn verify(key: &str, payload: &str, hash_raw: &[u8]) -> anyhow::Result<()> {
-        let hash = hash(key, payload)?;
+    pub fn verify(key: &str, payload: &[u8], hash_raw: &[u8]) -> anyhow::Result<()> {
+        let payload_str = std::str::from_utf8(payload)
+            .map_err(|e| anyhow!("invalid payload utf8: {e}"))?;
+
+        let hash = hash(key, payload_str)?;
         if &hash != hash_raw {
             return Err(anyhow!("Blake3: verification failed."));
         }

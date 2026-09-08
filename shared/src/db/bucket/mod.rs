@@ -105,6 +105,20 @@ pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
     Ok(data)
 }
 
+pub async fn get_public_paths(db: &Database) -> anyhow::Result<Option<Vec<String>>> {
+    let query = sql_safe!("SELECT path FROM buckets WHERE public = TRUE");
+    match sqlx::query_scalar(query).fetch_all(&**db).await {
+        Ok(result) => Ok(Some(result)),
+        Err(err) => {
+            match err {
+                sqlx::Error::RowNotFound => Ok(None),
+                _ => Err(err)?,
+            }
+        }
+    }
+
+}
+
 /// Check whether any of bucket's parent path is not saved as a public bucket. This is to ensure that the rule
 /// **private bucket cannot be created within a public bucket** is not violated.
 async fn validate_parents_privacy(path: &str, db: &Database) -> anyhow::Result<bool> {

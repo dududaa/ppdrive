@@ -40,3 +40,4 @@ CREATE TABLE buckets
     FOREIGN KEY (owner_id) REFERENCES asset_owner (id) ON DELETE CASCADE
 );
 CREATE INDEX idx_buckets_asset_owner on buckets (owner_id);
+CREATE INDEX idx_buckets_public on buckets(public);
