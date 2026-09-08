@@ -1,9 +1,19 @@
+//! Utility functions and configuration for PPDRIVE.
+//!
+//! Provides filesystem helpers, configuration loading, secrets management,
+//! and cryptographic hashing.
+
 pub mod config;
 pub mod secrets;
 pub mod hasher;
 
 use anyhow::anyhow;
 use std::path::{Path, PathBuf};
+
+/// Returns the project root directory.
+///
+/// In debug builds this is the workspace root (`CARGO_MANIFEST_DIR` parent).
+/// In release builds it is the directory containing the running executable.
 pub fn root_dir() -> anyhow::Result<PathBuf> {
     let path = if cfg!(debug_assertions) {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -22,7 +32,7 @@ pub fn root_dir() -> anyhow::Result<PathBuf> {
     Ok(path)
 }
 
-/// compute total size (in bytes) of a folder.
+/// Compute the total size in bytes of a folder recursively.
 pub async fn get_folder_size(folder_path: &str, size: &mut u64) -> anyhow::Result<()> {
     let path = Path::new(folder_path);
 
@@ -46,10 +56,12 @@ pub async fn get_folder_size(folder_path: &str, size: &mut u64) -> anyhow::Resul
     Ok(())
 }
 
+/// Convert megabytes to bytes.
 pub fn mb_to_bytes(value: f64) -> usize {
     (value * 1024.0 * 1024.0).round() as usize
 }
 
+/// Generate a cryptographically random hex-encoded ID of the given byte length.
 pub fn generate_nano_id(size: usize) -> String {
     let alphabet: [char; 16] = [
         '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f',

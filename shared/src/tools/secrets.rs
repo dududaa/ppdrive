@@ -1,3 +1,9 @@
+//! Application secrets management.
+//!
+//! Generates, stores, and reads a 88-byte binary secrets file (`.ppdrive_secret`)
+//! containing the ChaCha20 encryption key, nonce, and JWT secret. On Unix the
+//! file is created with mode `0600`. Secret memory is zeroed on drop.
+
 use std::io::SeekFrom;
 use std::path::PathBuf;
 use chacha20poly1305::{Key, XNonce};
@@ -36,7 +42,7 @@ impl AppSecrets {
         init_secrets().await
     }
 
-    /// Read app secrets from the secret file. Does NOT create the file.
+    /// Read app secrets from the binary secrets file (88 bytes: 32 key + 24 nonce + 32 jwt).
     pub async fn read() -> anyhow::Result<Self> {
         let secret_file = secret_filename()?;
         let mut secrets = tokio::fs::File::open(&secret_file).await?;
@@ -60,14 +66,17 @@ impl AppSecrets {
         })
     }
 
+    /// 32-byte ChaCha20-Poly1305 encryption key.
     pub fn secret_key(&self) -> &[u8] {
         self.secret_key.as_slice()
     }
 
+    /// 24-byte XChaCha20 nonce used for key encryption.
     pub fn nonce(&self) -> &[u8] {
         self.secret_nonce.as_slice()
     }
 
+    /// 32-byte JWT signing secret.
     pub fn jwt_secret(&self) -> &[u8] {
         self.jwt_secret.as_slice()
     }

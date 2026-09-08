@@ -1,3 +1,8 @@
+//! Database utility types and helpers.
+//!
+//! Provides the [`AssetOwnerName`] enum, [`sql_safe!`] macro for engine-agnostic
+//! placeholder interpolation, and ownership-checking queries.
+
 /// Utilities used by database queries
 // use crate::sql_safe;
 use crate::db::Database;
@@ -14,6 +19,7 @@ macro_rules! sql_safe {
     }};
 }
 
+/// Resolve an [`AssetOwnerName`] + numeric owner ID to the `asset_owner.id` primary key.
 pub async fn asset_owner_id(
     owner_name: AssetOwnerName,
     owner_id: i32,
@@ -34,6 +40,7 @@ pub async fn asset_owner_id(
     Ok(id)
 }
 
+/// The type of entity that owns a bucket or other asset (User or Client).
 #[derive(ValueEnum, Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AssetOwnerName {
     User,
@@ -64,6 +71,7 @@ impl From<AssetOwnerName> for i16 {
     }
 }
 
+/// Wrapper that asserts a SQL string is safe for direct interpolation (no user input).
 pub struct SqlSafe<T> {
     inner: sqlx::AssertSqlSafe<T>,
 }
@@ -80,11 +88,13 @@ impl<T> SqlSafe<T> {
     }
 }
 
+/// Return the current UTC time formatted as RFC 3339.
 pub fn instance_as_string() -> anyhow::Result<String> {
     let now = OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339)?;
     Ok(now)
 }
 
+/// Check whether an asset owner entry exists for the given type and numeric ID.
 pub async fn check_ownership(owner_type: AssetOwnerName, owner_id: i32, db: &Database) -> anyhow::Result<bool> {
     let query = sql_safe!("SELECT Count(*) FROM asset_owner WHERE name = {} AND owner_id = {} LIMIT 1", db.placeholder(1), db.placeholder(2));
     let  count: i32 = sqlx::query_scalar(query).bind(i16::from(owner_type)).bind(owner_id).fetch_one(&**db).await?;

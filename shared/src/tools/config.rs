@@ -1,3 +1,7 @@
+//! Application configuration (TOML).
+//!
+//! Parses `ppd_config.toml` and provides [`AppConfig`] with sensible defaults.
+
 use crate::hasher::Hasher;
 use crate::root_dir;
 use serde::{Deserialize, Serialize};
@@ -18,7 +22,11 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub async fn read() -> anyhow::Result<Self> {
+/// Load the application configuration from `ppd_config.toml`.
+///
+/// Falls back to [`AppConfig::default`] if the file is missing or unreadable,
+/// logging a warning in either case.
+pub async fn read() -> anyhow::Result<Self> {
         let filename = config_filename()?;
         let config = match tokio::fs::read_to_string(&filename).await {
             Ok(content) => toml::from_str(&content)
@@ -36,6 +44,7 @@ impl AppConfig {
         Ok(config)
     }
 
+    /// Resolve the storage root directory, optionally appending a user-configured sub-path.
     pub fn root_dir(&self) -> anyhow::Result<PathBuf> {
         match &self.root_dir {
             Some(dir) => Ok(root_dir()?.join(dir)),

@@ -16,6 +16,7 @@ pub struct Cli {
     command: CliCommand,
 }
 
+/// Parse CLI arguments and execute the corresponding subcommand.
 impl Cli {
     pub async fn execute(&self) -> Result<(), anyhow::Error> {
         let config = AppConfig::read().await?;

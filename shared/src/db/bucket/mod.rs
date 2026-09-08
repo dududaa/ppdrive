@@ -1,3 +1,8 @@
+//! Bucket management — creation, lookup, and parent-path validation.
+//!
+//! Enforces that private buckets cannot be created inside public buckets
+//! and that the requesting entity owns all ancestor paths.
+
 pub mod models;
 
 use crate::db::Database;
@@ -8,6 +13,8 @@ use models::{Bucket, CreateBucketData};
 use sqlx::Row;
 use std::path::PathBuf;
 
+/// Create a new bucket after validating parent ownership and privacy constraints.
+/// Returns the bucket's public PID.
 pub async fn create(data: &CreateBucketData, db: &Database) -> anyhow::Result<String> {
     let CreateBucketData {
         name,
@@ -65,6 +72,7 @@ pub async fn create(data: &CreateBucketData, db: &Database) -> anyhow::Result<St
     Ok(pid)
 }
 
+/// Resolve a bucket PID to its numeric ID.
 pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
     let query = sql_safe!(
         "SELECT id FROM buckets WHERE pid = {} LIMIT 1",
@@ -75,6 +83,7 @@ pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
     Ok(id)
 }
 
+/// Fetch a bucket by PID.
 pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
     let query = sql_safe!(
         "SELECT name, path, public, size, accepts FROM buckets WHERE pid = {} LIMIT 1",

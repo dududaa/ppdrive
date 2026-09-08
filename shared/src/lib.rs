@@ -1,3 +1,8 @@
+//! Core shared library for PPDRIVE.
+//!
+//! This crate provides the common types, database access, cryptographic utilities,
+//! and configuration parsing used by both the HTTP server and the CLI.
+
 #[cfg(feature = "server")]
 pub mod broker;
 pub mod db;

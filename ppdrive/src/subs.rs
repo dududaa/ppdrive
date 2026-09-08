@@ -50,6 +50,7 @@ pub struct CreateBucketArgs {
     pub accepts: Option<Vec<String>>,
 }
 
+/// Validate that a bucket path is non-empty and contains no `..` components.
 fn validate_bucket_path(s: &str) -> Result<String, String> {
     if s.is_empty() {
         return Err("path must not be empty".into());
@@ -61,6 +62,7 @@ fn validate_bucket_path(s: &str) -> Result<String, String> {
 }
 
 impl CreateBucketArgs {
+    /// Convert CLI args into the database insert model, resolving the owner PID.
     pub fn into_data(self, resolved_owner_id: i32) -> CreateBucketData {
         CreateBucketData {
             name: self.name,

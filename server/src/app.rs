@@ -1,3 +1,8 @@
+//! HTTP application construction.
+//!
+//! Assembles the Axum [`Router`] with CORS, tracing, upload routes,
+//! static file serving, and shared [`AppState`].
+
 use crate::routers::upload_routes;
 use crate::state::AppState;
 use axum::Router;
@@ -37,6 +42,9 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
+/// Build the complete Axum application: router, CORS, tracing, static dirs, state.
+///
+/// Returns the [`IntoMakeService`] and the configured port.
 pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
     start_logger()?;
     let state = AppState::new().await?;
@@ -85,6 +93,7 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
     Ok((app, port))
 }
 
+/// Initialise the tracing subscriber with an env-filter (defaults to `trace`).
 fn start_logger() -> anyhow::Result<()> {
     if let Err(err) = tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace")))

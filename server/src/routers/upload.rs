@@ -1,3 +1,9 @@
+//! Upload session handlers.
+//!
+//! Implements `POST /upload/session` (create) and `POST /upload/session/play/{payload}`
+//! (play/chunk) endpoints, including path traversal protection, resumable-upload
+//! orchestration, and temporary-file management.
+
 use crate::routers::DEFAULT_BODY_LIMIT;
 use crate::routers::middlewares::{ClientExtractor, UploadMiddleware};
 use crate::routers::resp::{ApiResponse, api_error, api_response};
@@ -14,8 +20,8 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use validator::Validate;
 
-/// Validate that a user-supplied path resolves within the given root directory.
-/// Rejects paths containing `..` components that could escape the root.
+/// Validate that `user_path` resolves within `root` without path-traversal (`..`).
+/// Returns the joined [`PathBuf`] on success.
 fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
     let cleaned = user_path.trim_start_matches('/');
     if cleaned.is_empty() {
@@ -47,8 +53,10 @@ fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
     Ok(joined)
 }
 
-/// Creates an upload session and returns the session token. If [AppConfig::use_session] is enabled,
-/// we create the session id.
+/// Create an upload session and return a signed session token.
+///
+/// Validates the config, checks bucket ownership, enforces the resumable-upload
+/// broker requirement, and signs an [`UploadInfo`] token for the client.
 #[axum::debug_handler]
 pub(super) async fn create_session(
     State(state): State<AppState>,
@@ -114,6 +122,10 @@ pub(super) async fn create_session(
     api_response(token)
 }
 
+/// Process a chunk or finalise an upload session.
+///
+/// For files, delegates to [`handle_session`]. For folders, creates the
+/// directory (with optional `create_parents`).
 #[axum::debug_handler]
 pub(super) async fn play_session(
     State(state): State<AppState>,
@@ -160,6 +172,7 @@ pub(super) async fn play_session(
     }
 }
 
+/// Dispatch the upload to [`get_next_session`], cleaning up temp files on failure.
 async fn handle_session(
     state: &AppState,
     info: UploadInfo,
@@ -182,7 +195,8 @@ async fn handle_session(
     }
 }
 
-/// Upload file and get next session token.
+/// Write chunk data to a temp file, move it to the final path when complete,
+/// and return the next resumable session token (or `None`).
 async fn get_next_session(
     state: &AppState,
     info: UploadInfo,
@@ -271,6 +285,7 @@ async fn get_next_session(
     Ok(next_token)
 }
 
+/// Append `data` to a temporary file and report whether the target size is reached.
 async fn upload_file(
     session_id: Option<String>,
     tmp_dir: &Path,

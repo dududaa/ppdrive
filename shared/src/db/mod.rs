@@ -1,3 +1,8 @@
+//! Database abstraction layer.
+//!
+//! Wraps sqlx [`AnyPool`] to support SQLite, PostgreSQL, and MySQL backends.
+//! Handles connection setup, migrations, and engine-specific placeholder syntax.
+
 use std::ops::Deref;
 use std::str::FromStr;
 use sqlx::{AnyPool, migrate};
@@ -17,6 +22,7 @@ pub struct Database {
 }
 
 impl Database {
+    /// Create a new database connection pool, run migrations, and detect the engine type.
     pub async fn new(url: &str) -> anyhow::Result<Self> {
         install_default_drivers();
 
@@ -34,6 +40,7 @@ impl Database {
         Ok(Self { pool, engine })
     }
 
+    /// Return the engine-specific placeholder (`?` for MySQL, `$N` otherwise).
     pub fn placeholder(&self, idx: u8) -> String {
         match self.engine {
             DbEngine::Mysql => "?".to_string(),

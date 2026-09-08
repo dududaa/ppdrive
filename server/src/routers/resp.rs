@@ -1,3 +1,8 @@
+//! Standardised JSON response and error types.
+//!
+//! [`ApiResponse<T>`] is the handler return type; [`ResponseError`] converts
+//! internal errors into safe, non-leaking HTTP responses.
+
 use std::fmt::Display;
 use std::io::Error;
 use axum::http::{header, HeaderValue, StatusCode};
@@ -6,6 +11,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use tokio::io;
 
+/// Standard handler return type: either a success payload or a [`ResponseError`].
 pub type ApiResponse<T> = Result<ResponsePayload<T>, ResponseError>;
 
 pub struct ResponsePayload<T: Serialize> {
@@ -93,10 +99,12 @@ impl From<sqlx::Error> for ResponseError {
     }
 }
 
+/// Build a [`ResponseError`] with the given display message (defaults to 500).
 pub fn api_error(message: impl Display) -> ResponseError {
     ResponseError::new(message.to_string())
 }
 
+/// Wrap `data` into a 200 OK [`ResponsePayload`].
 pub fn api_response<T: Serialize>(data: T) -> Result<ResponsePayload<T>, ResponseError> {
     Ok(ResponsePayload::new(data))
 }

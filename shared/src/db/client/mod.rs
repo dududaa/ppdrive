@@ -1,3 +1,8 @@
+//! Client management — creation, authentication, and token encryption.
+//!
+//! Client keys are encrypted at rest using ChaCha20Poly1305 and looked up
+//! via a SHA-256 hash to avoid decrypting every row.
+
 use crate::db::Database;
 use crate::tools::secrets::AppSecrets;
 use anyhow::anyhow;
@@ -36,8 +41,8 @@ fn hash_key(key: &str) -> String {
     hex::encode(hash)
 }
 
-/// Creates a new client and return the details.
-/// The plaintext key is encrypted before storage and only returned in the token.
+/// Create a new client, encrypting its key at rest. Returns [`ClientDetails`]
+/// with the public PID and the plaintext token (shown once to the operator).
 pub async fn create_client(
     db: &Database,
     secrets: &AppSecrets,
@@ -80,7 +85,7 @@ fn client_token(secrets: &AppSecrets, client_key: &str) -> anyhow::Result<String
     Ok(encode)
 }
 
-/// decrypt client's cipher token, validate client token and return client id
+/// Decrypt a client token, look up the client by key hash, and return its numeric ID.
 pub async fn verify_client(
     db: &Database,
     secrets: &AppSecrets,
@@ -107,7 +112,7 @@ pub async fn verify_client(
     Client::id_by_key_hash(db, &key_hash).await
 }
 
-/// Regenerate token for a given client.
+/// Rotate a client's key, re-encrypt it, and return a new token.
 pub async fn regenerate_token(
     db: &Database,
     secrets: &AppSecrets,
@@ -123,10 +128,12 @@ pub async fn regenerate_token(
     Ok(token)
 }
 
+/// Return all clients.
 pub async fn get_clients(db: &Database) -> anyhow::Result<Vec<Client>> {
     Client::all(db).await
 }
 
+/// Resolve a public client PID to its numeric ID.
 pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
     let query = sql_safe!("SELECT id FROM clients WHERE pid = {} LIMIT 1", db.placeholder(1));
     let id = sqlx::query_scalar(query).bind(pid).fetch_one(&**db).await?;
@@ -134,14 +141,17 @@ pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
     Ok(id)
 }
 
+/// Retrieve the client's PID and decrypted key for signing purposes.
 pub async fn get_claims_data(db: &Database, id: &i32, secrets: &AppSecrets) -> anyhow::Result<(String, String)> {
     Client::get_claims_data(db, id, secrets).await
 }
 
+/// Retrieve the decrypted client key by PID.
 pub async fn get_key(db: &Database, pid: &str, secrets: &AppSecrets) -> anyhow::Result<String> {
     Client::get_key_encrypted(db, pid, secrets).await
 }
 
+/// The public PID and plaintext token for a newly created client.
 pub struct ClientDetails {
     id: String,
     token: String,

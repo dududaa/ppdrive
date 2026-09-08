@@ -1,3 +1,8 @@
+//! Upload session types and password hashing.
+//!
+//! Defines [`UploadInfo`] (the signed session token), [`UploadUrlConfig`]
+//! (client-provided upload parameters), and Argon2 password helpers.
+
 use crate::db::Database;
 use crate::hasher::{Hashable, Hasher, errors::PayloadVerificationError};
 use anyhow::anyhow;
@@ -8,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use validator::Validate;
 
+/// Compute a UNIX timestamp `seconds` seconds from now.
 pub fn seconds_from_now(seconds: i64) -> anyhow::Result<i64> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -35,10 +41,12 @@ pub struct UploadInfo {
 }
 
 impl UploadInfo {
+    /// Sign this [`UploadInfo`] with the given key and hasher, returning a base64url token.
     pub fn sign(&self, key: &str, hasher: &Hasher) -> anyhow::Result<String> {
         hasher.hash(key, self)
     }
 
+    /// Increment the chunk index, clear config, re-expire, and re-sign.
     pub fn resign(&mut self, key: &str, hasher: &Hasher) -> anyhow::Result<String> {
         self.chunk_index += 1;
         self.config = None;
@@ -77,6 +85,7 @@ impl Hashable for UploadInfo {
     }
 }
 
+/// Hash a plaintext password using Argon2 with a random salt.
 pub fn make_password(password: &str) -> anyhow::Result<String> {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
@@ -85,6 +94,7 @@ pub fn make_password(password: &str) -> anyhow::Result<String> {
     Ok(hash.to_string())
 }
 
+/// Verify a plaintext password against an Argon2 hash.
 pub fn check_password(password: &str, hashed: &str) -> anyhow::Result<()> {
     let parsed_hash =
         PasswordHash::new(hashed).map_err(|e| anyhow!("invalid password hash format: {e}"))?;

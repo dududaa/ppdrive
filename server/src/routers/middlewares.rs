@@ -1,3 +1,8 @@
+//! Axum extractors for authentication and session verification.
+//!
+//! [`ClientExtractor`] validates the client API key header;
+//! [`UploadMiddleware`] verifies the signed upload-session payload.
+
 use crate::routers::resp::{ResponseError, api_error};
 use crate::state::AppState;
 use axum::extract::{FromRef, FromRequestParts, Path};
@@ -7,6 +12,7 @@ use shared::db::client::verify_client;
 use shared::server::UploadInfo;
 use shared::hasher::errors::PayloadVerificationError;
 
+/// Axum extractor that authenticates the request via the client API-key header.
 pub struct ClientExtractor(i32);
 impl ClientExtractor {
     pub fn id(&self) -> i32 {
@@ -45,6 +51,7 @@ where
     }
 }
 
+/// Axum extractor that verifies the signed upload session token from the URL path.
 pub struct UploadMiddleware(pub UploadInfo);
 
 impl<S> FromRequestParts<S> for UploadMiddleware

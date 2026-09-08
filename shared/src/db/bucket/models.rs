@@ -1,6 +1,9 @@
+//! Bucket database models.
+
 use sqlx::FromRow;
 use crate::AssetOwnerName;
 
+/// Data required to create a new bucket.
 #[derive(Default, Debug)]
 pub struct CreateBucketData {
     pub name: String,
@@ -12,6 +15,7 @@ pub struct CreateBucketData {
     pub accepts: Option<Vec<String>>,
 }
 
+/// Bucket row returned from the database.
 #[derive(FromRow)]
 pub struct Bucket {
     pub name: String,

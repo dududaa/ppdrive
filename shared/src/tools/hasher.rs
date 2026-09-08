@@ -1,3 +1,9 @@
+//! Cryptographic hashing and signed-token verification.
+//!
+//! Supports two hasher backends: HMAC-SHA256 and Blake3 (keyed).
+//! Provides [`Hasher::hash`] for signing payloads and [`Hasher::verify`] /
+//! [`Hasher::verify_upload_info`] for verifying and decoding signed tokens.
+
 use crate::db::Database;
 use crate::server::UploadInfo;
 use crate::tools::secrets::AppSecrets;
@@ -16,6 +22,8 @@ pub enum Hasher {
 }
 
 impl Hasher {
+    /// Serialize `message`, compute a keyed hash, and return a base64url-encoded token
+    /// containing `[4-byte length][payload][hash]`.
     pub fn hash<T: Serialize>(&self, key: &str, message: &T) -> anyhow::Result<String> {
         use Hasher::*;
 
@@ -35,6 +43,8 @@ impl Hasher {
         Ok(signed)
     }
 
+    /// Decode a signed token, verify its hash using the key obtained via [`Hashable::key`],
+    /// check expiration, and return the deserialized payload.
     pub async fn verify<T: Serialize + DeserializeOwned + Hashable>(
         &self,
         signed: &str,
@@ -138,6 +148,7 @@ impl Hasher {
     }
 }
 
+/// Trait for types that can be signed and verified with a keyed hash.
 pub trait Hashable {
     /// Describe how to retrieve the key
     fn key(&self, db: &Database) -> impl Future<Output = anyhow::Result<String>>;
@@ -197,9 +208,11 @@ mod blake3 {
     }
 }
 
+/// Errors that can occur during signed-payload verification.
 pub mod errors {
     use std::fmt::Display;
 
+    /// The signed payload has expired.
     #[derive(Debug)]
     pub enum PayloadVerificationError {
         Expired,

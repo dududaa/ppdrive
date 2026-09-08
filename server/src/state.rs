@@ -1,3 +1,8 @@
+//! Shared application state.
+//!
+//! Holds the database pool, secrets, config, and optional Redis broker,
+//! all behind a cheaply-cloneable wrapper passed to every Axum handler.
+
 use shared::broker::MessageBroker;
 use shared::config::AppConfig;
 use shared::db::{Database, DbPool};
@@ -13,6 +18,7 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Initialise all application subsystems (config, secrets, database, broker).
     pub async fn new() -> anyhow::Result<Self> {
         let config = AppConfig::read().await?;
         AppSecrets::init().await?;
@@ -48,6 +54,7 @@ impl AppState {
         &self.db
     }
 
+    /// Access the [`MessageBroker`], returning an error if Redis is not configured.
     pub fn broker(&self) -> anyhow::Result<&MessageBroker> {
         match self.broker {
             Some(ref broker) => Ok(broker),
@@ -55,6 +62,7 @@ impl AppState {
         }
     }
 
+    /// Access the configured [`Hasher`] from application config.
     pub fn hasher(&self) -> &Hasher {
         &self.config().hasher
     }
