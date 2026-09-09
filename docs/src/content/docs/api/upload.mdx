@@ -74,6 +74,7 @@ curl -X POST http://localhost:8000/upload/session \
 | `resumable` | `bool` | No | Enable chunked upload (requires Redis) |
 | `bucket` | `String` | No | Bucket PID to upload into |
 | `content_type` | `String` | If bucket has accepts | MIME type of the file |
+| `accepts` | `String[]` | If no bucket | MIME types accepted for this upload (e.g. `["image/*"]`) |
 
 ### Response
 
@@ -92,6 +93,8 @@ The `data` field contains a signed base64url token.
 - Resumable uploads require Redis (`message_broker` in config)
 - If `bucket` is specified, the client must own it
 - If bucket has `accepts` restrictions, `content_type` is required
+- If `bucket` is not provided, `accepts` is required
+- If `accepts` is provided without a bucket, uploaded file MIME is validated against it
 
 ## Step 2: Upload File Data
 
@@ -293,6 +296,8 @@ At upload time, the server checks:
 
 Files can be uploaded directly to a path without a bucket, but only if the target path starts with a [configured static directory](/configuration/config-file/#static-folders) in `ppd_config.toml`. Paths outside of configured static directories require a bucket.
 
+The `accepts` field is **required** when uploading without a bucket. It specifies which MIME types are allowed for the upload.
+
 <Tabs>
 <TabItem label="JavaScript">
 
@@ -305,9 +310,10 @@ const sessionRes = await fetch("http://localhost:8000/upload/session", {
   },
   body: JSON.stringify({
     asset_type: "File",
-    path: "documents/report.pdf",
+    path: "uploads/documents/report.pdf",
     target_filesize: 102400,
     expires: 120,
+    accepts: ["application/pdf"],
   }),
 });
 
@@ -328,23 +334,26 @@ curl -X POST http://localhost:8000/upload/session \
   -H "x-ppdrive-client: YOUR_TOKEN" \
   -d '{
     "asset_type": "File",
-    "path": "documents/report.pdf",
+    "path": "uploads/documents/report.pdf",
     "target_filesize": 102400,
-    "expires": 120
+    "expires": 120,
+    "accepts": ["application/pdf"]
   }'
 ```
 
 </TabItem>
 </Tabs>
 
-No bucket ownership check or MIME validation is performed, but the upload will be rejected if the path doesn't start with a configured static directory.
+The uploaded file's MIME type (inferred from the file extension) is validated against the `accepts` list. No bucket ownership check is performed, but the upload will be rejected if the path doesn't start with a configured static directory.
 
 ## Error Responses
 
 | Status | Message | Cause |
 |---|---|---|
+| 400 | `accepts is required when bucket is not provided` | No bucket and no accepts list |
 | 400 | `content_type is required...` | Bucket has MIME restrictions but no content_type provided |
 | 400 | `content_type '...' is not accepted...` | Declared MIME doesn't match bucket accepts |
+| 400 | `file type '...' is not accepted` | File MIME doesn't match accepts list (no bucket) |
 | 403 | `Write access denied...` | Client doesn't own the bucket |
 | 409 | `Asset already exists` | File exists and `overwrite` is false |
 | 413 | `Files larger than 2MB must be resumable` | Large file without `resumable: true` |

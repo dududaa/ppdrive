@@ -94,6 +94,15 @@ pub(super) async fn create_session(
                 }
             }
         }
+    } else {
+        if let AssetType::File = config.asset_type {
+            if config.accepts.as_ref().is_none_or(|a| a.is_empty()) {
+                return Err(api_error(
+                    "accepts is required when bucket is not provided",
+                )
+                .with_status_code(StatusCode::BAD_REQUEST));
+            }
+        }
     }
 
     let resumable = config.resumable.unwrap_or_default();
@@ -314,6 +323,22 @@ async fn get_next_session(
                 }
             }
             None => {
+                if let Some(ref accepts) = config.accepts {
+                    if !accepts.is_empty() {
+                        let inferred_mime = mime_guess::from_path(&target_path)
+                            .first_or_octet_stream()
+                            .to_string();
+
+                        if !bucket::mime_matches_accepts(&inferred_mime, accepts) {
+                            let _ = tokio::fs::remove_file(&tmp_path).await;
+                            let list = accepts.join(", ");
+                            return Err(anyhow!(
+                                "file type '{inferred_mime}' is not accepted. Accepted: {list}"
+                            ));
+                        }
+                    }
+                }
+
                 if parent_dir != root_dir && !parent_dir.exists() {
                     tokio::fs::create_dir_all(&parent_dir).await?;
                 }

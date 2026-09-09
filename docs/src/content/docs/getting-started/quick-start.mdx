@@ -247,6 +247,8 @@ name = "uploads"
 
 You can upload to `uploads/documents/report.pdf` without a bucket. Uploading to a path like `other/report.pdf` (not under a configured static directory) will fail.
 
+When uploading without a bucket, you must specify which MIME types are allowed via the `accepts` field:
+
 <Tabs>
 <TabItem label="JavaScript">
 
@@ -260,9 +262,10 @@ const sessionRes = await fetch("http://localhost:8000/upload/session", {
   },
   body: JSON.stringify({
     asset_type: "File",
-    path: "documents/report.pdf",
+    path: "uploads/documents/report.pdf",
     target_filesize: 204800,
     expires: 120,
+    accepts: ["application/pdf"],
   }),
 });
 
@@ -285,9 +288,10 @@ curl -X POST http://localhost:8000/upload/session \
   -H "x-ppdrive-client: 7890123456..." \
   -d '{
     "asset_type": "File",
-    "path": "documents/report.pdf",
+    "path": "uploads/documents/report.pdf",
     "target_filesize": 204800,
-    "expires": 120
+    "expires": 120,
+    "accepts": ["application/pdf"]
   }'
 
 # Upload file

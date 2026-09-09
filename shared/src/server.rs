@@ -173,6 +173,7 @@ pub struct UploadUrlConfig {
     pub expires: i64,
     #[validate(length(min = 4))]
     pub path: String,
+    /// expect filesize for this upload
     pub target_filesize: Option<u64>,
     /// Create asset parent folders if they don't exist, else error will be returned.
     pub create_parents: Option<bool>,
@@ -184,6 +185,9 @@ pub struct UploadUrlConfig {
     /// MIME type of the file being uploaded (e.g. "image/png").
     /// Required when the target bucket has an `accepts` restriction.
     pub content_type: Option<String>,
+    /// MIME types accepted for this upload (e.g. ["image/png", "image/*"]).
+    /// Required when `bucket` is not provided.
+    pub accepts: Option<Vec<String>>,
 }
 
 impl UploadUrlConfig {
