@@ -3,6 +3,8 @@ title: Authentication
 description: How client authentication works in PPDRIVE.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 PPDRIVE uses client tokens for API authentication. Tokens are encrypted, self-contained, and can be rotated.
 
 ## How It Works
@@ -53,12 +55,34 @@ Default: `x-ppdrive-client`
 
 Include the client token in the configured header for all API requests:
 
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const CLIENT_TOKEN = "YOUR_CLIENT_TOKEN";
+
+const res = await fetch("http://localhost:8000/upload/session", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({ ... }),
+});
+```
+
+</TabItem>
+<TabItem label="curl">
+
 ```sh
 curl -X POST http://localhost:8000/upload/session \
   -H "x-ppdrive-client: YOUR_CLIENT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ ... }'
 ```
+
+</TabItem>
+</Tabs>
 
 ## Token Rotation
 

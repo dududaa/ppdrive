@@ -3,6 +3,8 @@ title: Upload Flow
 description: Complete guide to uploading files with PPDRIVE.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Uploading is a two-step process: create a session, then send the file data.
 
 ## Overview
@@ -13,6 +15,34 @@ Uploading is a two-step process: create a session, then send the file data.
 ```
 
 ## Step 1: Create Upload Session
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const CLIENT_TOKEN = "YOUR_TOKEN";
+
+const res = await fetch("http://localhost:8000/upload/session", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    asset_type: "File",
+    path: "uploads/photos/avatar.jpg",
+    target_filesize: 524288,
+    expires: 120,
+    bucket: "OPTIONAL_BUCKET_ID",
+    content_type: "image/jpeg",
+  }),
+});
+
+const { data: token } = await res.json();
+```
+
+</TabItem>
+<TabItem label="curl">
 
 ```sh
 curl -X POST http://localhost:8000/upload/session \
@@ -27,6 +57,9 @@ curl -X POST http://localhost:8000/upload/session \
     "content_type": "image/jpeg"
   }'
 ```
+
+</TabItem>
+</Tabs>
 
 ### Request Body
 
@@ -62,10 +95,32 @@ The `data` field contains a signed base64url token.
 
 ## Step 2: Upload File Data
 
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const token = "eyJ0eXAiOiJKV1..."; // from Step 1
+const file = /* your File object */;
+
+const res = await fetch(`http://localhost:8000/upload/session/play/${token}`, {
+  method: "POST",
+  body: file,
+});
+
+const { data } = await res.json();
+// data is null when complete, or a new token for resumable uploads
+```
+
+</TabItem>
+<TabItem label="curl">
+
 ```sh
 curl -X POST "http://localhost:8000/upload/session/play/eyJ0eXAiOiJKV1..." \
   --data-binary @/path/to/file.jpg
 ```
+
+</TabItem>
+</Tabs>
 
 The token from Step 1 goes in the URL path. The file data goes in the request body.
 
@@ -83,7 +138,38 @@ The token from Step 1 goes in the URL path. The file data goes in the request bo
 
 To create a folder instead of a file:
 
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+// Create session
+const sessionRes = await fetch("http://localhost:8000/upload/session", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    asset_type: "Folder",
+    path: "uploads/photos/2024",
+    expires: 120,
+    create_parents: true,
+  }),
+});
+
+const { data: token } = await sessionRes.json();
+
+// Play the session (empty body for folders)
+await fetch(`http://localhost:8000/upload/session/play/${token}`, {
+  method: "POST",
+});
+```
+
+</TabItem>
+<TabItem label="curl">
+
 ```sh
+# Create session
 curl -X POST http://localhost:8000/upload/session \
   -H "Content-Type: application/json" \
   -H "x-ppdrive-client: YOUR_TOKEN" \
@@ -93,18 +179,58 @@ curl -X POST http://localhost:8000/upload/session \
     "expires": 120,
     "create_parents": true
   }'
-```
 
-Then play the session (body can be empty):
-
-```sh
+# Play the session (body can be empty)
 curl -X POST "http://localhost:8000/upload/session/play/TOKEN" \
   --data-binary ''
 ```
 
+</TabItem>
+</Tabs>
+
 ## Resumable Uploads
 
 For large files, enable resumable uploads to send data in chunks:
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+// Step 1: Create session with resumable=true
+const sessionRes = await fetch("http://localhost:8000/upload/session", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    asset_type: "File",
+    path: "uploads/large-video.mp4",
+    target_filesize: 1073741824,
+    expires: 120,
+    resumable: true,
+    bucket: "BUCKET_ID",
+    content_type: "video/mp4",
+  }),
+});
+
+let { data: token } = await sessionRes.json();
+
+// Step 2: Send chunks
+for (const chunk of chunks) {
+  const res = await fetch(`http://localhost:8000/upload/session/play/${token}`, {
+    method: "POST",
+    body: chunk,
+  });
+
+  const { data } = await res.json();
+  if (data === null) break; // upload complete
+  token = data; // use new token for next chunk
+}
+```
+
+</TabItem>
+<TabItem label="curl">
 
 ```sh
 # Step 1: Create session with resumable=true
@@ -135,6 +261,9 @@ curl -X POST "http://localhost:8000/upload/session/play/NEW_TOKEN..." \
 # Repeat until complete
 ```
 
+</TabItem>
+</Tabs>
+
 ### How Resumable Uploads Work
 
 1. Each chunk is appended to a temporary file
@@ -162,7 +291,36 @@ At upload time, the server checks:
 
 ## Uploading Without a Bucket
 
-Files can be uploaded directly to any path without a bucket:
+Files can be uploaded directly to a path without a bucket, but only if the target path starts with a [configured static directory](/configuration/config-file/#static-folders) in `ppd_config.toml`. Paths outside of configured static directories require a bucket.
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const sessionRes = await fetch("http://localhost:8000/upload/session", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    asset_type: "File",
+    path: "documents/report.pdf",
+    target_filesize: 102400,
+    expires: 120,
+  }),
+});
+
+const { data: token } = await sessionRes.json();
+
+await fetch(`http://localhost:8000/upload/session/play/${token}`, {
+  method: "POST",
+  body: file,
+});
+```
+
+</TabItem>
+<TabItem label="curl">
 
 ```sh
 curl -X POST http://localhost:8000/upload/session \
@@ -176,7 +334,10 @@ curl -X POST http://localhost:8000/upload/session \
   }'
 ```
 
-No bucket ownership check or MIME validation is performed.
+</TabItem>
+</Tabs>
+
+No bucket ownership check or MIME validation is performed, but the upload will be rejected if the path doesn't start with a configured static directory.
 
 ## Error Responses
 

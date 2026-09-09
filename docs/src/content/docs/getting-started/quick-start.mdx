@@ -3,6 +3,8 @@ title: Quick Start
 description: Get PPDRIVE running and upload your first file in 5 minutes.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 This guide walks you through starting the server, creating a client, and uploading a file.
 
 ## 1. Start the Server
@@ -60,6 +62,35 @@ Bucket ID: xyz789...
 
 ### Step 1: Create an upload session
 
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const CLIENT_TOKEN = "7890123456...";
+const BUCKET_ID = "xyz789...";
+
+const res = await fetch("http://localhost:8000/upload/session", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    asset_type: "File",
+    path: "uploads/media/photo.jpg",
+    target_filesize: 102400,
+    expires: 120,
+    bucket: BUCKET_ID,
+    content_type: "image/jpeg",
+  }),
+});
+
+const { data: token } = await res.json();
+```
+
+</TabItem>
+<TabItem label="curl">
+
 ```sh
 curl -X POST http://localhost:8000/upload/session \
   -H "Content-Type: application/json" \
@@ -73,6 +104,9 @@ curl -X POST http://localhost:8000/upload/session \
     "content_type": "image/jpeg"
   }'
 ```
+
+</TabItem>
+</Tabs>
 
 Replace `7890123456...` with your Client Token and `xyz789...` with your Bucket ID.
 
@@ -88,10 +122,32 @@ Save the token from the `data` field.
 
 ### Step 2: Upload the file
 
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const token = "eyJ0eXAiOiJKV1..."; // from Step 1
+const file = document.querySelector("input[type=file]").files[0];
+
+const res = await fetch(`http://localhost:8000/upload/session/play/${token}`, {
+  method: "POST",
+  body: file,
+});
+
+const { data } = await res.json();
+// data is null when complete, or a new token for resumable uploads
+```
+
+</TabItem>
+<TabItem label="curl">
+
 ```sh
 curl -X POST "http://localhost:8000/upload/session/play/eyJ0eXAiOiJKV1..." \
   --data-binary @/path/to/photo.jpg
 ```
+
+</TabItem>
+</Tabs>
 
 Replace the token with the one from Step 1.
 
@@ -109,13 +165,58 @@ Response:
 
 If the bucket is public, the file is accessible directly:
 
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const res = await fetch("http://localhost:8000/uploads/media/photo.jpg");
+const blob = await res.blob();
+```
+
+</TabItem>
+<TabItem label="curl">
+
 ```sh
 curl http://localhost:8000/uploads/media/photo.jpg
 ```
 
+</TabItem>
+</Tabs>
+
 ### Private Bucket
 
 For private buckets, generate a signed download URL:
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const CLIENT_TOKEN = "7890123456...";
+const BUCKET_ID = "xyz789...";
+
+// Step 1: Sign the download
+const signRes = await fetch("http://localhost:8000/download/sign", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    path: "photo.jpg",
+    bucket: BUCKET_ID,
+    expires: 300,
+  }),
+});
+
+const { data: token } = await signRes.json();
+
+// Step 2: Download using the token
+const fileRes = await fetch(`http://localhost:8000/download/${token}`);
+const blob = await fileRes.blob();
+```
+
+</TabItem>
+<TabItem label="curl">
 
 ```sh
 # Step 1: Sign the download
@@ -132,9 +233,50 @@ curl -X POST http://localhost:8000/download/sign \
 curl "http://localhost:8000/download/eyJ0eXAiOiJKV1..."
 ```
 
+</TabItem>
+</Tabs>
+
 ## Uploading to a Folder (No Bucket)
 
-You can also upload directly to a path without a bucket:
+You can upload directly to a path without a bucket, but only if the path starts with a [configured static directory](/configuration/config-file/#static-folders) in `ppd_config.toml`. For example, with the default config:
+
+```toml
+[[static_folders]]
+name = "uploads"
+```
+
+You can upload to `uploads/documents/report.pdf` without a bucket. Uploading to a path like `other/report.pdf` (not under a configured static directory) will fail.
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+// Create session
+const sessionRes = await fetch("http://localhost:8000/upload/session", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    asset_type: "File",
+    path: "documents/report.pdf",
+    target_filesize: 204800,
+    expires: 120,
+  }),
+});
+
+const { data: token } = await sessionRes.json();
+
+// Upload file
+await fetch(`http://localhost:8000/upload/session/play/${token}`, {
+  method: "POST",
+  body: file,
+});
+```
+
+</TabItem>
+<TabItem label="curl">
 
 ```sh
 # Create session
@@ -152,6 +294,9 @@ curl -X POST http://localhost:8000/upload/session \
 curl -X POST "http://localhost:8000/upload/session/play/<token>" \
   --data-binary @/path/to/report.pdf
 ```
+
+</TabItem>
+</Tabs>
 
 ## What's Next
 

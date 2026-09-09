@@ -3,15 +3,31 @@ title: Download Flow
 description: How to download files from public and private buckets.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 PPDRIVE supports two download methods: direct access for public buckets and signed URLs for private buckets.
 
 ## Public Buckets
 
 Files in public buckets are served directly via HTTP. No authentication required.
 
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const res = await fetch("http://localhost:8000/storage/images/photo.jpg");
+const blob = await res.blob();
+```
+
+</TabItem>
+<TabItem label="curl">
+
 ```sh
 curl http://localhost:8000/storage/images/photo.jpg
 ```
+
+</TabItem>
+</Tabs>
 
 The server auto-detects the `Content-Type` from the file extension.
 
@@ -20,6 +36,32 @@ The server auto-detects the `Content-Type` from the file extension.
 Private buckets require a signed download URL. This is a two-step process.
 
 ### Step 1: Sign the Download
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const CLIENT_TOKEN = "YOUR_TOKEN";
+const BUCKET_PID = "BUCKET_PID";
+
+const res = await fetch("http://localhost:8000/download/sign", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    path: "photo.jpg",
+    bucket: BUCKET_PID,
+    expires: 300,
+  }),
+});
+
+const { data: token } = await res.json();
+```
+
+</TabItem>
+<TabItem label="curl">
 
 ```sh
 curl -X POST http://localhost:8000/download/sign \
@@ -31,6 +73,9 @@ curl -X POST http://localhost:8000/download/sign \
     "expires": 300
   }'
 ```
+
+</TabItem>
+</Tabs>
 
 #### Request Body
 
@@ -50,15 +95,53 @@ curl -X POST http://localhost:8000/download/sign \
 
 ### Step 2: Download the File
 
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const token = "eyJ0eXAiOiJKV1..."; // from Step 1
+
+const res = await fetch(`http://localhost:8000/download/${token}`);
+const blob = await res.blob();
+
+// Save to file (Node.js)
+// const fs = require("fs");
+// fs.writeFileSync("photo.jpg", Buffer.from(await res.arrayBuffer()));
+```
+
+</TabItem>
+<TabItem label="curl">
+
 ```sh
 curl "http://localhost:8000/download/eyJ0eXAiOiJKV1..." --output photo.jpg
 ```
+
+</TabItem>
+</Tabs>
 
 No client header is needed — the signed token itself is the authentication.
 
 ## Range Requests
 
 The download endpoint supports HTTP Range requests for partial content:
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const token = "eyJ0eXAiOiJKV1...";
+
+// Download first 1024 bytes
+const res = await fetch(`http://localhost:8000/download/${token}`, {
+  headers: { Range: "bytes=0-1023" },
+});
+
+// res.status === 206 for partial content
+const blob = await res.blob();
+```
+
+</TabItem>
+<TabItem label="curl">
 
 ```sh
 # Download first 1024 bytes
@@ -71,6 +154,9 @@ curl "http://localhost:8000/download/TOKEN" \
   -H "Range: bytes=-1024" \
   --output tail.bin
 ```
+
+</TabItem>
+</Tabs>
 
 ### Range Response Headers
 
@@ -114,31 +200,49 @@ When serving the file, the server:
 
 ## Example: Full Flow
 
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+// 1. Sign the download
+const signRes = await fetch("http://localhost:8000/download/sign", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    path: "report.pdf",
+    bucket: BUCKET_PID,
+    expires: 300,
+  }),
+});
+
+const { data: token } = await signRes.json();
+
+// 2. Download the file
+const fileRes = await fetch(`http://localhost:8000/download/${token}`);
+const buffer = Buffer.from(await fileRes.arrayBuffer());
+require("fs").writeFileSync("report.pdf", buffer);
+```
+
+</TabItem>
+<TabItem label="curl">
+
 ```sh
-# 1. Create client
-ppdrive client create --name "Download Client"
-# → Client Token: abc123...
-
-# 2. Create private bucket
-ppdrive bucket create \
-  --name private-docs \
-  --path storage/private \
-  --owner-type client \
-  --owner-id CLIENT_ID
-
-# 3. Upload a file
-# (See Upload Flow guide)
-
-# 4. Sign download
+# 1. Sign download
 TOKEN=$(curl -s -X POST http://localhost:8000/download/sign \
   -H "Content-Type: application/json" \
   -H "x-ppdrive-client: abc123..." \
   -d '{"path":"report.pdf","bucket":"BUCKET_PID","expires":300}' \
   | jq -r '.data')
 
-# 5. Download
+# 2. Download
 curl "http://localhost:8000/download/$TOKEN" --output report.pdf
 ```
+
+</TabItem>
+</Tabs>
 
 ## Error Responses
 
