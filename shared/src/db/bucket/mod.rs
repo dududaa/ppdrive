@@ -7,7 +7,8 @@ pub mod models;
 
 use crate::db::Database;
 use crate::db::utils::{asset_owner_id, instance_as_string};
-use crate::{generate_nano_id, sql_safe};
+use crate::tools::config::StaticFolder;
+use crate::{generate_nano_id, paths_cross, sql_safe};
 use anyhow::anyhow;
 use models::{Bucket, CreateBucketData};
 use sqlx::Row;
@@ -28,9 +29,14 @@ pub fn mime_matches_accepts(mime: &str, accepts: &[String]) -> bool {
     })
 }
 
-/// Create a new bucket after validating parent ownership and privacy constraints.
+/// Create a new bucket after validating parent ownership, privacy constraints,
+/// and ensuring the path does not cross any existing static folder.
 /// Returns the bucket's public PID.
-pub async fn create(data: &CreateBucketData, db: &Database) -> anyhow::Result<String> {
+pub async fn create(
+    data: &CreateBucketData,
+    static_folders: &[StaticFolder],
+    db: &Database,
+) -> anyhow::Result<String> {
     let CreateBucketData {
         name,
         public,
@@ -40,6 +46,17 @@ pub async fn create(data: &CreateBucketData, db: &Database) -> anyhow::Result<St
         owner_type,
         owner_id,
     } = data;
+
+    for folder in static_folders {
+        let default_path = format!("/{}", folder.name);
+        let folder_path = folder.path.as_deref().unwrap_or(&default_path);
+        if paths_cross(path, folder_path) {
+            return Err(anyhow!(
+                "Bucket path '{path}' conflicts with static folder '{}' at '{folder_path}'",
+                folder.name
+            ));
+        }
+    }
 
     let owner_id = asset_owner_id(*owner_type, *owner_id, db).await?;
 
@@ -132,6 +149,13 @@ pub async fn get_public_paths(db: &Database) -> anyhow::Result<Option<Vec<String
         }
     }
 
+}
+
+/// Fetch all bucket paths from the database.
+pub async fn get_all_paths(db: &Database) -> anyhow::Result<Vec<String>> {
+    let query = sql_safe!("SELECT path FROM buckets");
+    let paths = sqlx::query_scalar(query).fetch_all(&**db).await?;
+    Ok(paths)
 }
 
 /// Check whether any of bucket's parent path is not saved as a public bucket. This is to ensure that the rule

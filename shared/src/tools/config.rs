@@ -2,7 +2,9 @@
 //!
 //! Parses `ppd_config.toml` and provides [`AppConfig`] with sensible defaults.
 
+use crate::db;
 use crate::hasher::Hasher;
+use crate::paths_cross;
 use crate::root_dir;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -50,6 +52,52 @@ pub async fn read() -> anyhow::Result<Self> {
             Some(dir) => Ok(root_dir()?.join(dir)),
             None => Ok(root_dir()?),
         }
+    }
+
+    /// Persist the current configuration to `ppd_config.toml`.
+    pub async fn save(&self) -> anyhow::Result<()> {
+        let filename = config_filename()?;
+        let content = toml::to_string_pretty(self)
+            .map_err(|e| anyhow::anyhow!("failed to serialize config: {e}"))?;
+        tokio::fs::write(&filename, content).await?;
+        Ok(())
+    }
+
+    /// Remove any static folder whose path crosses an existing bucket path,
+    /// log the details, and save the updated configuration.
+    pub async fn validate_static_folders(
+        &mut self,
+        db: &db::Database,
+    ) -> anyhow::Result<()> {
+        let bucket_paths = db::bucket::get_all_paths(db).await?;
+        let mut removed = Vec::new();
+
+        self.static_folders.retain(|folder| {
+            let default_path = format!("/{}", folder.name);
+            let folder_path = folder.path.as_deref().unwrap_or(&default_path);
+
+            for bucket_path in &bucket_paths {
+                if paths_cross(folder_path, bucket_path) {
+                    tracing::warn!(
+                        "Removing static folder '{}' (path: '{folder_path}') — conflicts with existing bucket path '{bucket_path}'",
+                        folder.name
+                    );
+                    removed.push((folder.name.clone(), folder_path.to_string(), bucket_path.clone()));
+                    return false;
+                }
+            }
+            true
+        });
+
+        if !removed.is_empty() {
+            tracing::info!(
+                "Removed {} static folder(s) due to path conflicts with existing buckets",
+                removed.len()
+            );
+            self.save().await?;
+        }
+
+        Ok(())
     }
 }
 

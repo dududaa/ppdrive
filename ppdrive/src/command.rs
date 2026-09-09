@@ -19,8 +19,9 @@ pub struct Cli {
 /// Parse CLI arguments and execute the corresponding subcommand.
 impl Cli {
     pub async fn execute(&self) -> Result<(), anyhow::Error> {
-        let config = AppConfig::read().await?;
+        let mut config = AppConfig::read().await?;
         let pool = Database::new(&config.database_url).await?;
+        config.validate_static_folders(&pool).await?;
         AppSecrets::init().await?;
         let secret = AppSecrets::read().await?;
 
@@ -45,7 +46,7 @@ impl Cli {
                 BucketCommand::Create(args) => {
                     let owner_id = shared::db::client::get_id(&args.owner_id, &pool).await?;
                     let data = args.clone().into_data(owner_id);
-                    let id = bucket::create(&data, &pool).await?;
+                    let id = bucket::create(&data, &config.static_folders, &pool).await?;
 
                     println!("Bucket created successfully!");
                     println!("Bucket ID: {id}");

@@ -20,11 +20,12 @@ pub struct AppState {
 impl AppState {
     /// Initialise all application subsystems (config, secrets, database, broker).
     pub async fn new() -> anyhow::Result<Self> {
-        let config = AppConfig::read().await?;
+        let mut config = AppConfig::read().await?;
         AppSecrets::init().await?;
         let secrets = AppSecrets::read().await?;
 
         let db = Database::new(&config.database_url).await?;
+        config.validate_static_folders(&db).await?;
         let mut broker = None;
         if let Some(url) = &config.message_broker {
             broker = Some(MessageBroker::new(url).await?);
