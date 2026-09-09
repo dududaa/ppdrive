@@ -14,7 +14,11 @@ use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::StatusCode;
 use shared::server::*;
-use shared::{AssetOwnerName, db::{bucket, client}, generate_nano_id, root_dir};
+use shared::{
+    AssetOwnerName,
+    db::{bucket, client},
+    generate_nano_id, root_dir,
+};
 use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
@@ -37,17 +41,15 @@ fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
     let joined = root.join(cleaned);
     let canonical_root = std::fs::canonicalize(root)
         .or_else(|_| std::fs::create_dir_all(root).and_then(|_| std::fs::canonicalize(root)))?;
-    let canonical_joined = std::fs::canonicalize(&joined)
-        .or_else(|_| {
-            // If the final path doesn't exist yet, canonicalize its nearest existing parent
-            let parent = joined.parent().unwrap_or(root);
-            std::fs::canonicalize(parent).map(|p| p.join(joined.file_name().unwrap_or_default()))
-        })?;
+
+    let canonical_joined = std::fs::canonicalize(&joined).or_else(|_| {
+        // If the final path doesn't exist yet, canonicalize its nearest existing parent
+        let parent = joined.parent().unwrap_or(root);
+        std::fs::canonicalize(parent).map(|p| p.join(joined.file_name().unwrap_or_default()))
+    })?;
 
     if !canonical_joined.starts_with(&canonical_root) {
-        return Err(anyhow!(
-            "path escapes root directory: not allowed"
-        ));
+        return Err(anyhow!("path escapes root directory: not allowed"));
     }
 
     Ok(joined)
@@ -97,10 +99,8 @@ pub(super) async fn create_session(
     } else {
         if let AssetType::File = config.asset_type {
             if config.accepts.as_ref().is_none_or(|a| a.is_empty()) {
-                return Err(api_error(
-                    "accepts is required when bucket is not provided",
-                )
-                .with_status_code(StatusCode::BAD_REQUEST));
+                return Err(api_error("accepts is required when bucket is not provided")
+                    .with_status_code(StatusCode::BAD_REQUEST));
             }
         }
     }
@@ -115,10 +115,10 @@ pub(super) async fn create_session(
 
     let mut session_id = None;
     if let AssetType::File = config.asset_type {
-        let size = config
-            .target_filesize
-            .ok_or(api_error("target_filesize is required for file upload")
-                .with_status_code(StatusCode::BAD_REQUEST))?;
+        let size = config.target_filesize.ok_or(
+            api_error("target_filesize is required for file upload")
+                .with_status_code(StatusCode::BAD_REQUEST),
+        )?;
 
         if size >= DEFAULT_BODY_LIMIT as u64 && !config.resumable.unwrap_or_default() {
             return Err(api_error(format!(
@@ -150,7 +150,7 @@ pub(super) async fn create_session(
     api_response(token)
 }
 
-/// Process a chunk or finalise an upload session.
+/// Process a chunk or finalize an upload session.
 ///
 /// For files, delegates to [`handle_session`]. For folders, creates the
 /// directory (with optional `create_parents`).
@@ -170,24 +170,32 @@ pub(super) async fn play_session(
     let config = info.config.clone();
     let config = config.ok_or(api_error("missing configuration"))?;
     let root_dir = state.config().root_dir()?;
-    let target_path = safe_path(&root_dir, &config.path)
+    let mut target_path = safe_path(&root_dir, &config.path)
         .map_err(|e| api_error(e).with_status_code(StatusCode::BAD_REQUEST))?;
+
+    if let Some(bucket_id) = &config.bucket {
+        let bucket = bucket::get(bucket_id, state.db()).await?;
+        let bucket_root = PathBuf::from(&bucket.path);
+
+        let new_root = root_dir.join(bucket_root);
+        target_path = safe_path(&new_root, &config.path)
+            .map_err(|e| api_error(e).with_status_code(StatusCode::BAD_REQUEST))?;
+    }
 
     let parent_dir = target_path.parent().unwrap_or(&root_dir);
     if target_path.exists() && !config.overwrite.unwrap_or_default() {
-        return Err(api_error("Asset already exists")
-            .with_status_code(StatusCode::CONFLICT));
+        return Err(api_error("Asset already exists").with_status_code(StatusCode::CONFLICT));
     }
 
     if parent_dir != root_dir && !parent_dir.exists() && !config.create_parents.unwrap_or_default()
     {
-        return Err(api_error("Parent directory does not exist")
-            .with_status_code(StatusCode::NOT_FOUND));
+        return Err(
+            api_error("Parent directory does not exist").with_status_code(StatusCode::NOT_FOUND)
+        );
     }
 
     match config.asset_type {
-        AssetType::File => handle_session(&state, info, body).await,
-
+        AssetType::File => handle_session(&state, info, body, &target_path).await,
         AssetType::Folder => {
             if config.create_parents.unwrap_or_default() {
                 tokio::fs::create_dir_all(target_path).await?;
@@ -205,9 +213,10 @@ async fn handle_session(
     state: &AppState,
     info: UploadInfo,
     body: Bytes,
+    target_path: &PathBuf,
 ) -> ApiResponse<Option<String>> {
     let session_id = info.session_id.clone();
-    match get_next_session(state, info, body).await {
+    match get_next_session(state, info, body, target_path).await {
         Ok(token) => api_response(token),
         Err(err) => {
             if let Some(id) = session_id {
@@ -229,6 +238,7 @@ async fn get_next_session(
     state: &AppState,
     info: UploadInfo,
     body: Bytes,
+    target_path: &PathBuf,
 ) -> anyhow::Result<Option<String>> {
     let tmp_dir = root_dir()?.join("tmp");
     let root_dir = state.config().root_dir()?;
@@ -243,8 +253,6 @@ async fn get_next_session(
         .ok_or(anyhow!("missing configuration"))?;
 
     let session_id = info.session_id.clone();
-    let mut target_path = safe_path(&root_dir, &config.path)?;
-
     let tp_clone = target_path.clone();
     let parent_dir = tp_clone.parent().unwrap_or(&root_dir);
 
@@ -260,7 +268,10 @@ async fn get_next_session(
 
     if !completed && resumable {
         let session_id = session_id.clone().ok_or(anyhow!("session_id not found"))?;
-        let key = info.client_key.clone().ok_or(anyhow!("client_key not available"))?;
+        let key = info
+            .client_key
+            .clone()
+            .ok_or(anyhow!("client_key not available"))?;
         let mut info = info.clone();
 
         let broker = state.broker()?;
@@ -314,12 +325,6 @@ async fn get_next_session(
                             }
                         }
                     }
-                }
-
-                // append target_path tp bucket path
-                target_path = bucket_root.join(&target_path);
-                if let Some(parent) = target_path.parent() && !parent.exists() {
-                    tokio::fs::create_dir_all(parent).await?;
                 }
             }
             None => {
