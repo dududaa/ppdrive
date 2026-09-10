@@ -93,13 +93,20 @@ jobs:
           echo "Checksums:"
           cat SHA256SUMS.txt
 
+      - name: Read release notes
+        id: notes
+        run: |
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          cat RELEASE_NOTES.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref, '-') }}
-          generate_release_notes: true
+          body: ${{ steps.notes.outputs.content }}
           files: |
             dist/**/*.tar.gz
             dist/**/SHA256SUMS.txt
