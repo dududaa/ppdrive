@@ -20,6 +20,7 @@ pub struct CreateBucketData {
 /// Client-facing request body for `POST /buckets`.
 #[cfg(feature = "server")]
 #[derive(Serialize, Deserialize, Validate)]
+#[serde(deny_unknown_fields)]
 pub struct CreateBucketRequest {
     /// Human-readable bucket name (1–255 chars).
     #[validate(length(min = 1, max = 255))]
@@ -31,6 +32,7 @@ pub struct CreateBucketRequest {
     #[serde(default)]
     pub public: bool,
     /// Maximum bucket size in megabytes (None = unlimited).
+    #[validate(range(min = 1))]
     pub size: Option<i64>,
     /// Accepted MIME types (e.g. `["image/*", "application/pdf"]`).
     pub accepts: Option<Vec<String>>,

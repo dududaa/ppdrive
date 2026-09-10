@@ -138,18 +138,10 @@ pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
     Ok(data)
 }
 
-pub async fn get_public_paths(db: &Database) -> anyhow::Result<Option<Vec<String>>> {
+pub async fn get_public_paths(db: &Database) -> anyhow::Result<Vec<String>> {
     let query = sql_safe!("SELECT path FROM buckets WHERE public = TRUE");
-    match sqlx::query_scalar(query).fetch_all(&**db).await {
-        Ok(result) => Ok(Some(result)),
-        Err(err) => {
-            match err {
-                sqlx::Error::RowNotFound => Ok(None),
-                _ => Err(err)?,
-            }
-        }
-    }
-
+    let result = sqlx::query_scalar(query).fetch_all(&**db).await?;
+    Ok(result)
 }
 
 /// Fetch all bucket paths from the database.

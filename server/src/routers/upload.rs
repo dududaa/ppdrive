@@ -171,6 +171,13 @@ pub(super) async fn play_session(
         info.config = cache.config;
     }
 
+    // Limit resumable upload chunk count to prevent abuse
+    const MAX_CHUNKS: u16 = 10000;
+    if info.chunk_index >= MAX_CHUNKS {
+        return Err(api_error(format!("upload exceeded maximum chunk limit of {MAX_CHUNKS}"))
+            .with_status_code(StatusCode::PAYLOAD_TOO_LARGE));
+    }
+
     let config = info.config.clone();
     let config = config.ok_or(api_error("missing configuration"))?;
     let root_dir = state.config().root_dir()?;
@@ -368,6 +375,8 @@ async fn get_next_session(
             let broker = state.broker()?;
             broker.remove_upload_info(&id).await?;
         }
+
+        tracing::info!(path = %config.path, client_id = %info.client_id, "upload completed");
     }
 
     Ok(next_token)

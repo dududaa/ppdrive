@@ -61,6 +61,10 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, u16)> {
     let client_header_key = state.config().client_header_key.clone();
     let port = state.config().port.unwrap_or(8000);
 
+    if origins.is_none() {
+        tracing::warn!("CORS: no allowed_origins configured, all origins are permitted");
+    }
+
     let cors = CorsLayer::new()
         .allow_origin(whitelist_to_origins(&origins))
         .allow_headers([
@@ -104,7 +108,7 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, u16)> {
             }),
         );
 
-    let paths = bucket::get_public_paths(state.db()).await?.unwrap_or_default();
+    let paths = bucket::get_public_paths(state.db()).await.unwrap_or_default();
     
     for path in &paths {
         app = app.nest_service(path, ServeDir::new(path));

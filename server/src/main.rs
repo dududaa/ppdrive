@@ -8,6 +8,17 @@ async fn main() -> anyhow::Result<()> {
 
     let (app, config_port) = create_app().await?;
 
+    // Spawn background temp file cleanup (every hour, remove files older than 2 hours)
+    tokio::spawn(async {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+        loop {
+            interval.tick().await;
+            if let Err(err) = shared::cleanup_tmp_files(std::time::Duration::from_secs(7200)).await {
+                tracing::error!("tmp cleanup failed: {err}");
+            }
+        }
+    });
+
     // Try to parse port from CLI args: accept "--port <N>" or "<N>" as first user arg
     let port = args
         .iter()

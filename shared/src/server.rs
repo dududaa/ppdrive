@@ -120,10 +120,13 @@ impl Hashable for DownloadInfo {
 
 /// Request body for `POST /download/sign`.
 #[derive(Serialize, Deserialize, Validate)]
+#[serde(deny_unknown_fields)]
 pub struct SignDownloadRequest {
     /// Relative path of the file within the bucket.
+    #[validate(length(min = 1, max = 2048))]
     pub path: String,
     /// PID of the private bucket containing the file.
+    #[validate(length(min = 1, max = 64))]
     pub bucket: String,
     /// Token lifetime in seconds (30–3600).
     #[validate(range(min = 30, max = 3600))]
@@ -131,11 +134,12 @@ pub struct SignDownloadRequest {
 }
 
 #[derive(Serialize, Deserialize, Validate, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct UploadUrlConfig {
     pub asset_type: AssetType,
-    #[validate(range(min = 30))]
+    #[validate(range(min = 30, max = 86400))]
     pub expires: i64,
-    #[validate(length(min = 4))]
+    #[validate(length(min = 4, max = 2048))]
     pub path: String,
     /// expect filesize for this upload
     pub target_filesize: Option<u64>,
@@ -145,12 +149,15 @@ pub struct UploadUrlConfig {
     pub overwrite: Option<bool>,
     pub resumable: Option<bool>,
     /// The bucket to which the asset belongs
+    #[validate(length(min = 1, max = 64))]
     pub bucket: Option<String>,
     /// MIME type of the file being uploaded (e.g. "image/png").
     /// Required when the target bucket has an `accepts` restriction.
+    #[validate(length(min = 1, max = 128))]
     pub content_type: Option<String>,
     /// MIME types accepted for this upload (e.g. ["image/png", "image/*"]).
     /// Required when `bucket` is not provided.
+    #[validate(length(max = 20))]
     pub accepts: Option<Vec<String>>,
 }
 

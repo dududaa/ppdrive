@@ -60,7 +60,10 @@ impl From<i16> for AssetOwnerName {
         match value {
             0 => User,
             1 => Client,
-            _ => Default::default(),
+            _ => {
+                tracing::warn!("unknown asset owner type value: {value}, defaulting to Client");
+                Client
+            }
         }
     }
 }

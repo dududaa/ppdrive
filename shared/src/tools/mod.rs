@@ -98,4 +98,39 @@ pub fn generate_nano_id(size: usize) -> String {
     nanoid::nanoid!(size, &alphabet)
 }
 
+/// Cleanup stale temporary files older than the given duration.
+///
+/// Removes files in the `tmp/` directory that haven't been modified
+/// within `max_age`. Returns the number of files removed.
+pub async fn cleanup_tmp_files(max_age: std::time::Duration) -> anyhow::Result<usize> {
+    let tmp_dir = root_dir()?.join("tmp");
+    if !tokio::fs::metadata(&tmp_dir).await.map(|m| m.is_dir()).unwrap_or(false) {
+        return Ok(0);
+    }
+
+    let mut removed = 0;
+    let mut entries = tokio::fs::read_dir(&tmp_dir).await?;
+    let now = std::time::SystemTime::now();
+
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        if let Ok(metadata) = entry.metadata().await {
+            if let Ok(modified) = metadata.modified() {
+                if now.duration_since(modified).unwrap_or_default() > max_age {
+                    if let Err(err) = tokio::fs::remove_file(entry.path()).await {
+                        tracing::warn!("failed to remove stale tmp file {:?}: {err}", entry.path());
+                    } else {
+                        removed += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if removed > 0 {
+        tracing::info!(removed, "cleaned up stale temporary files");
+    }
+
+    Ok(removed)
+}
+
 

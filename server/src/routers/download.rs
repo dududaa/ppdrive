@@ -32,9 +32,11 @@ async fn resolve_file_path(
     let root_dir = state.config().root_dir()?;
     let bucket_root = root_dir.join(&bucket.path);
 
-    if relative_path.contains("..") {
-        return Err(api_error("path contains invalid components")
-            .with_status_code(StatusCode::BAD_REQUEST));
+    for component in std::path::Path::new(relative_path).components() {
+        if matches!(component, std::path::Component::ParentDir) {
+            return Err(api_error("path contains invalid components: '..' is not allowed")
+                .with_status_code(StatusCode::BAD_REQUEST));
+        }
     }
 
     let file_path = bucket_root.join(relative_path);
@@ -200,14 +202,12 @@ pub(super) async fn serve_download(
         if let Some((start, end)) = parse_range(range_str, file_size) {
             let content_length = end - start + 1;
 
-            response_headers.insert(
-                header::CONTENT_LENGTH,
-                HeaderValue::from_str(&content_length.to_string()).unwrap(),
-            );
-            response_headers.insert(
-                header::CONTENT_RANGE,
-                HeaderValue::from_str(&format!("bytes {start}-{end}/{file_size}")).unwrap(),
-            );
+            if let Ok(val) = HeaderValue::from_str(&content_length.to_string()) {
+                response_headers.insert(header::CONTENT_LENGTH, val);
+            }
+            if let Ok(val) = HeaderValue::from_str(&format!("bytes {start}-{end}/{file_size}")) {
+                response_headers.insert(header::CONTENT_RANGE, val);
+            }
 
             let mut file = tokio::fs::File::open(&file_path).await
                 .map_err(|e| api_error(format!("failed to open file: {e}")))?;
@@ -226,10 +226,9 @@ pub(super) async fn serve_download(
     }
 
     // Full file response
-    response_headers.insert(
-        header::CONTENT_LENGTH,
-        HeaderValue::from_str(&file_size.to_string()).unwrap(),
-    );
+    if let Ok(val) = HeaderValue::from_str(&file_size.to_string()) {
+        response_headers.insert(header::CONTENT_LENGTH, val);
+    }
 
     let file = tokio::fs::File::open(&file_path).await
         .map_err(|e| api_error(format!("failed to open file: {e}")))?;
