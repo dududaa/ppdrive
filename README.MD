@@ -50,9 +50,6 @@ curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | b
 
 # Using wget (macOS/Linux)
 wget -qO- https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
-
-# Using Homebrew (macOS)
-brew tap dududaa/ppdrive && brew install ppdrive
 ```
 
 **Windows**
