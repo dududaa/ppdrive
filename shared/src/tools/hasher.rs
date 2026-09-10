@@ -221,15 +221,17 @@ mod blake3 {
     }
 
     pub fn verify(key: &str, payload: &[u8], hash_raw: &[u8]) -> anyhow::Result<()> {
+        use subtle::ConstantTimeEq;
+
         let payload_str =
             std::str::from_utf8(payload).map_err(|e| anyhow!("invalid payload utf8: {e}"))?;
 
         let hash = hash(key, payload_str)?;
-        if &hash != hash_raw {
-            return Err(anyhow!("Blake3: verification failed."));
+        if hash.ct_eq(hash_raw).into() {
+            Ok(())
+        } else {
+            Err(anyhow!("Blake3: verification failed."))
         }
-
-        Ok(())
     }
 }
 

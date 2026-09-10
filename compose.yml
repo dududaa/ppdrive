@@ -3,10 +3,9 @@ services:
     image: postgres:latest
     container_name: ppdrive_db
     environment:
-      POSTGRES_USER: ppdrive_user
-      POSTGRES_PASSWORD: Plug&PlayDrive2025
-      POSTGRES_DB: ppdrive
-      PPDRIVE_DB_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
 
     ports:
       - 5432:5432
@@ -20,7 +19,7 @@ services:
     container_name: ppdrive_app
     restart: unless-stopped
     environment:
-      PPDRIVE_DATABASE_URL: postgres://ppdrive_user:Plug&PlayDrive2025@127.0.0.1:5432/ppdrive
+      PPDRIVE_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@ppdrive_db:5432/${POSTGRES_DB}
 
     depends_on:
       - ppdrive_db
