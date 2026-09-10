@@ -27,6 +27,11 @@ impl<T: Serialize> ResponsePayload<T> {
         }
     }
 
+    pub fn with_status_code(mut self, status_code: StatusCode) -> Self {
+        self.status_code = status_code;
+        self
+    }
+
     pub fn data(&self) -> &T {
         &self.data
     }
