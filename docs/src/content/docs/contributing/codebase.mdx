@@ -17,7 +17,7 @@ Runtime configuration file. Parsed by `shared::config::AppConfig`. See [Config F
 
 ### `.ppdrive_secret`
 
-Auto-generated 88-byte binary file containing encryption keys. Created on first run with mode `0600`. Never committed to git.
+Auto-generated 56-byte binary file containing encryption keys. Created on first run with mode `0600`. Never committed to git.
 
 ### `migrations/`
 
@@ -57,17 +57,18 @@ Subcommand definitions:
 
 ### `src/main.rs`
 
-Entry point. Binds a TCP listener and serves the Axum app.
+Entry point. Binds a TCP listener, installs Prometheus metrics, spawns background cleanup task, and serves the Axum app with graceful shutdown.
 
 ### `src/app.rs`
 
 Assembles the complete Axum router:
 1. Creates `AppState` (loads config, secrets, DB, broker)
 2. Builds CORS layer from config
-3. Nests upload and download routes
+3. Nests upload, download, and bucket routes
 4. Mounts public bucket paths as static file services
 5. Mounts configured static folders
-6. Adds tracing middleware
+6. Adds tracing, rate limiting (100 req/s per IP), and timeout (30s) middleware
+7. Spawns background temp file cleanup task (hourly)
 
 ### `src/state.rs`
 
@@ -97,7 +98,13 @@ Upload handlers:
 Download handlers:
 - `sign_download` — Validates bucket is private, client owns it, file exists; signs `DownloadInfo`
 - `serve_download` — Verifies token, resolves file, handles Range headers, serves file stream
+- `resolve_file_path` — Path traversal protection via `Path::components()` + canonicalization
 - `parse_range` — Parses `Range: bytes=START-END` headers
+
+### `src/routers/bucket.rs`
+
+Bucket management:
+- `create_bucket` — Validates request, checks path constraints, inserts row, creates directory
 
 ### `src/routers/middlewares.rs`
 
@@ -135,9 +142,9 @@ Core types:
 
 ### `src/tools/secrets.rs`
 
-`AppSecrets` — Manages the 88-byte `.ppdrive_secret` file:
+`AppSecrets` — Manages the 56-byte `.ppdrive_secret` file:
 - `init()` — Creates the file if it doesn't exist
-- `read()` — Reads the three keys (encryption, nonce, JWT)
+- `read()` — Reads the two keys (encryption, nonce)
 - `Drop` impl — Zeros all secret material
 
 ### `src/tools/hasher.rs`

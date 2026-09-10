@@ -34,8 +34,12 @@ The command-line interface for managing PPDRIVE resources:
 An Axum-based HTTP server handling:
 - Upload session management (create, chunk, finalize)
 - Download serving (public and signed URLs)
+- Bucket management (create buckets via API)
 - Client authentication middleware
 - CORS, tracing, and static file serving
+- Per-IP rate limiting (100 req/s, burst 200)
+- Request timeout (30s)
+- Background temp file cleanup (hourly)
 
 ### Shared Library (`common`)
 
@@ -92,6 +96,7 @@ Client                    Server                    Database
 1. Upload data is written to a temporary file in `{root_dir}/tmp/`
 2. On completion, the file is atomically moved to its final path
 3. For bucket uploads, the final path is `{bucket.path}/{user.path}`
+4. A background task runs hourly to clean up stale temp files (older than 2 hours)
 
 ### Token Signing
 

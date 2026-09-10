@@ -248,10 +248,12 @@ curl "http://localhost:8000/download/$TOKEN" --output report.pdf
 
 | Status | Message | Cause |
 |---|---|---|
+| 400 | `path contains invalid components: '..' is not allowed` | Path traversal attempt (contains `..`) |
 | 401 | `download token expired` | Token has passed its expiration |
 | 401 | `...` (verification error) | Token is invalid or tampered |
-| 403 | `path escapes storage root` | Path traversal attempt |
+| 403 | `path escapes storage root` | Canonicalized path escapes storage |
 | 404 | `file not found` | File doesn't exist on disk |
+| 408 | `Request Timeout` | Server did not receive a complete request within 30 seconds |
 | 416 | `Range not satisfiable` | Invalid Range header |
 
 ## See Also

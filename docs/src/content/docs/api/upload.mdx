@@ -67,14 +67,14 @@ curl -X POST http://localhost:8000/upload/session \
 |---|---|---|---|
 | `asset_type` | `File` \| `Folder` | Yes | Type of asset |
 | `path` | `String` | Yes | Target path (min 4 chars) |
-| `expires` | `i64` | Yes | Token lifetime in seconds (min 30) |
+| `expires` | `i64` | Yes | Token lifetime in seconds (30–86400) |
 | `target_filesize` | `u64` | Files only | Expected file size in bytes |
 | `create_parents` | `bool` | No | Create parent directories if missing |
 | `overwrite` | `bool` | No | Overwrite existing file |
 | `resumable` | `bool` | No | Enable chunked upload (requires Redis) |
 | `bucket` | `String` | No | Bucket PID to upload into |
 | `content_type` | `String` | If bucket has accepts | MIME type of the file |
-| `accepts` | `String[]` | If no bucket | MIME types accepted for this upload (e.g. `["image/*"]`) |
+| `accepts` | `String[]` | If no bucket | MIME types accepted for this upload (max 20 items, e.g. `["image/*"]`) |
 
 ### Response
 
@@ -90,11 +90,15 @@ The `data` field contains a signed base64url token.
 
 - Files >= 2 MB **must** use `resumable: true`
 - `target_filesize` is required for file uploads
+- `expires` must be between 30 and 86400 seconds (24 hours max)
+- `accepts` list is limited to 20 items
+- Unknown JSON fields are rejected (requests must not contain extra keys)
 - Resumable uploads require Redis (`message_broker` in config)
 - If `bucket` is specified, the client must own it
 - If bucket has `accepts` restrictions, `content_type` is required
 - If `bucket` is not provided, `accepts` is required
 - If `accepts` is provided without a bucket, uploaded file MIME is validated against it
+- Maximum 10,000 chunks per resumable upload
 
 ## Step 2: Upload File Data
 
@@ -354,11 +358,20 @@ The uploaded file's MIME type (inferred from the file extension) is validated ag
 | 400 | `content_type is required...` | Bucket has MIME restrictions but no content_type provided |
 | 400 | `content_type '...' is not accepted...` | Declared MIME doesn't match bucket accepts |
 | 400 | `file type '...' is not accepted` | File MIME doesn't match accepts list (no bucket) |
+| 400 | `upload exceeded maximum chunk limit of 10000` | Resumable upload exceeded 10,000 chunks |
 | 403 | `Write access denied...` | Client doesn't own the bucket |
+| 408 | `Request Timeout` | Server did not receive a complete request within 30 seconds |
 | 409 | `Asset already exists` | File exists and `overwrite` is false |
 | 413 | `Files larger than 2MB must be resumable` | Large file without `resumable: true` |
 
 ## Rate Limits
 
+- **100** requests per second per IP (burst up to 200)
 - **50** concurrent requests per endpoint
 - **2 MB** maximum request body size (per chunk)
+- **30s** global request timeout (returns HTTP 408)
+
+Rate limit headers are included in responses:
+- `X-RateLimit-Limit` — Maximum requests per second
+- `X-RateLimit-Remaining` — Requests remaining in the current window
+- `X-RateLimit-Retry-After` — Seconds until the rate limit resets

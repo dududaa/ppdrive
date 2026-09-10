@@ -22,6 +22,9 @@ client_header_key = "x-ppdrive-client"
 # Server listen port (optional, default: 8000)
 port = 8000
 
+# Maximum database connections in the pool (optional, default: 10)
+# db_pool_size = 10
+
 # CORS allowed origins (optional, default: allow all)
 # Set to null or omit to allow all origins
 allowed_origins = ["https://example.com", "https://app.example.com"]
@@ -54,9 +57,10 @@ path = "/static"
 |---|---|---|---|
 | `database_url` | `String` | — | Database connection URL (required) |
 | `client_header_key` | `String` | `x-ppdrive-client` | HTTP header for client authentication |
-| `port` | `i16` | `8000` | Server listen port |
-| `allowed_origins` | `Vec<String>` | `null` (all) | CORS origin whitelist |
+| `port` | `u16` | `8000` | Server listen port |
+| `allowed_origins` | `Vec<String>` | `null` (all) | CORS origin whitelist. When `null`, all origins are permitted and a warning is logged at startup |
 | `root_dir` | `String` | `null` (binary dir) | Storage subdirectory |
+| `db_pool_size` | `u32` | `10` | Max database connections in pool |
 | `message_broker` | `String` | `null` | Redis URL for resumable uploads |
 | `hasher` | `String` | `HMAC256` | Hash algorithm: `HMAC256` or `Blake3` |
 | `static_folders` | `Array` | `[]` | Directories to serve as static files |
@@ -92,6 +96,7 @@ database_url = "sqlite:data.db"
 database_url = "postgres://user:pass@localhost:5432/ppdrive"
 client_header_key = "x-api-key"
 port = 3000
+db_pool_size = 20
 allowed_origins = ["https://myapp.com"]
 root_dir = "data"
 message_broker = "redis://localhost:6379"

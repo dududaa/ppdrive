@@ -118,3 +118,16 @@ The `PPDRIVE_DATABASE_URL` environment variable can override the `database_url` 
 environment:
   - PPDRIVE_DATABASE_URL=postgres://user:pass@db:5432/ppdrive
 ```
+
+## Connection Pool
+
+PPDRIVE manages a database connection pool via sqlx with these defaults:
+
+| Parameter | Default | Configurable | Description |
+|---|---|---|---|
+| `max_connections` | 10 | `db_pool_size` in config | Maximum open connections |
+| `acquire_timeout` | 10s | In code | Max wait for a connection |
+| `idle_timeout` | 5 min | In code | Close idle connections after this |
+| `max_lifetime` | 30 min | In code | Recycle connections after this |
+
+For production, tune `db_pool_size` based on your database's `max_connections` and expected load. A value of 10–20 works well for most deployments.

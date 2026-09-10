@@ -52,14 +52,16 @@ An Axum-based HTTP server.
 | `routers/mod` | Route definitions, body limits, concurrency limits |
 | `routers/upload` | `POST /upload/session`, `POST /upload/session/play/{payload}` |
 | `routers/download` | `POST /download/sign`, `GET /download/{token}` |
+| `routers/bucket` | `POST /buckets` — create bucket |
 | `routers/middlewares` | `ClientExtractor`, `UploadMiddleware`, `DownloadMiddleware` |
 | `routers/resp` | `ApiResponse`, `ResponseError` types |
 
 ### Key Dependencies
 
 - `axum` — HTTP framework
-- `tower-http` — CORS, tracing, static file serving
+- `tower-http` — CORS, tracing, static file serving, timeouts
 - `tower` — Concurrency limiting
+- `tower_governor` — Per-IP rate limiting
 - `tokio-util` — Async file streaming
 - `mime_guess` — MIME type detection
 
@@ -77,7 +79,7 @@ Shared types, database access, and cryptographic operations.
 | `tools/config` | `AppConfig` — TOML configuration parsing |
 | `tools/secrets` | `AppSecrets` — Secret key management |
 | `tools/hasher` | `Hasher` — HMAC256/Blake3 signing and verification |
-| `tools/mod` | Utilities: `root_dir()`, `generate_nano_id()`, `mb_to_bytes()` |
+| `tools/mod` | Utilities: `root_dir()`, `generate_nano_id()`, `mb_to_bytes()`, `cleanup_tmp_files()` |
 | `db/mod` | `Database` — Connection pooling and migrations |
 | `db/utils` | `AssetOwnerName`, `sql_safe!` macro, ownership checks |
 | `db/client/mod` | Client CRUD, token encryption/decryption |

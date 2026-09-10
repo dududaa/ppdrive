@@ -106,7 +106,7 @@ curl -X POST "http://localhost:8000/upload/session/play/TOKEN" \
 
 ### Temp File Cleanup
 
-If MIME validation fails at upload time, the temporary file is automatically deleted.
+If MIME validation fails at upload time, the temporary file is automatically deleted. Additionally, a background task runs hourly to clean up stale temporary files older than 2 hours (e.g., from failed or abandoned uploads).
 
 ## Validation Logic
 

@@ -81,6 +81,8 @@ The `data` field contains the bucket's public PID — use it for upload/download
 - `name` must be 1–255 characters
 - `path` must not be empty
 - `path` must not contain `..` (path traversal)
+- `size` must be at least 1 if provided
+- Unknown JSON fields are rejected (requests must not contain extra keys)
 - Bucket path must not conflict with a [static folder](/configuration/config-file/#static-folders)
 - Private buckets cannot be created inside public buckets
 - The client must own all parent paths
@@ -95,6 +97,7 @@ The `data` field contains the bucket's public PID — use it for upload/download
 | 401 | `missing client header key` | No auth header |
 | 401 | `client verification failed` | Invalid or expired token |
 | 403 | `Bucket parent(s) is owned by a different entity...` | Path overlaps another client's bucket |
+| 408 | `Request Timeout` | Server did not receive a complete request within 30 seconds |
 | 409 | `Bucket path '...' conflicts with static folder...` | Path crosses a configured static folder |
 
 ## Upload to a Bucket
@@ -147,7 +150,9 @@ For public buckets, files are served directly at the bucket path. See [Download 
 
 ## Rate Limits
 
+- **100** requests per second per IP (burst up to 200)
 - **50** concurrent requests per endpoint
+- **30s** global request timeout (returns HTTP 408)
 
 ## See Also
 

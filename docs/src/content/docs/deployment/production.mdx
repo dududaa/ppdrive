@@ -53,7 +53,7 @@ Set the `database_url` in `ppd_config.toml`.
 
 ### Connection Pooling
 
-For high-traffic deployments, consider using PgBouncer or similar connection pooling in front of PostgreSQL.
+For high-traffic deployments, consider using PgBouncer or similar connection pooling in front of PostgreSQL. You can also tune PPDRIVE's internal connection pool via the `db_pool_size` config option (default: 10). The pool has a 30-minute max connection lifetime and 5-minute idle timeout.
 
 ## Redis Setup
 
@@ -175,17 +175,30 @@ RUST_LOG=server=info,shared=debug ./ppdrive serve
 
 ### Health Check
 
-The server doesn't have a dedicated health endpoint, but you can check if it's responding:
+The server has a `/health` endpoint that returns HTTP 200 when the server is running:
 
 ```sh
-curl -I http://localhost:8000/
+curl http://localhost:8000/health
 ```
+
+### Metrics
+
+The server exposes Prometheus metrics at `/metrics`:
+
+```sh
+curl http://localhost:8000/metrics
+```
+
+Metrics include `http_requests_total` (counter) and `http_request_duration_seconds` (histogram) per endpoint.
 
 ## Performance Tuning
 
-- **Database connection pool** — sqlx manages a connection pool automatically
+- **Database connection pool** — Configure `db_pool_size` in `ppd_config.toml` (default: 10, max lifetime 30min)
+- **Per-IP rate limiting** — 100 requests/second per IP, burst up to 200 (via `tower_governor`)
+- **Request timeout** — 30-second global timeout returns HTTP 408
 - **Concurrency limit** — 50 concurrent requests per endpoint (configurable in code)
 - **Body size limit** — 2 MB per chunk (configurable in code)
+- **Temp file cleanup** — Background task runs hourly, removing files older than 2 hours
 - **Release build** — Always use `--release` for production (optimized binary)
 
 ## Backup

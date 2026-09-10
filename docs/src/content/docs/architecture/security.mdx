@@ -72,7 +72,7 @@ All file paths are validated using canonicalization:
 ```rust
 fn safe_path(root: &Path, user_path: &str) -> Result<PathBuf> {
     // 1. Reject empty paths
-    // 2. Reject ".." components
+    // 2. Reject ".." components via Path::components()
     // 3. Join with root
     // 4. Canonicalize both root and joined path
     // 5. Verify joined starts with root
@@ -84,17 +84,18 @@ This prevents:
 - Symlink attacks — Canonicalization resolves symlinks
 - Race conditions — Canonical path is checked against root
 
+Both upload and download paths use this validation. The download path resolver (`resolve_file_path`) iterates `Path::components()` to reject `ParentDir` components before canonicalization.
+
 ## Secrets Management
 
 ### File Layout
 
-`.ppdrive_secret` — 88 bytes, mode `0600`:
+`.ppdrive_secret` — 56 bytes, mode `0600`:
 
 | Bytes | Purpose |
 |---|---|
 | 0–31 | XChaCha20-Poly1305 encryption key |
 | 32–55 | XChaCha20 nonce |
-| 56–87 | JWT secret (reserved) |
 
 ### Memory Safety
 
@@ -106,7 +107,9 @@ impl Drop for AppSecrets {
         for byte in self.secret_key.iter_mut() {
             unsafe { std::ptr::write_volatile(byte, 0); }
         }
-        // ... same for nonce and jwt_secret
+        for byte in self.secret_nonce.iter_mut() {
+            unsafe { std::ptr::write_volatile(byte, 0); }
+        }
     }
 }
 ```
