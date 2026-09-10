@@ -32,6 +32,7 @@ impl<T: Serialize> ResponsePayload<T> {
         self
     }
 
+    #[allow(dead_code)]
     pub fn data(&self) -> &T {
         &self.data
     }

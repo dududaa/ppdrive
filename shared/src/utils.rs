@@ -131,6 +131,7 @@ pub fn make_password(password: &str) -> anyhow::Result<String> {
 }
 
 /// Verify a plaintext password against an Argon2 hash.
+#[allow(dead_code)]
 pub fn check_password(password: &str, hashed: &str) -> anyhow::Result<()> {
     let parsed_hash =
         PasswordHash::new(hashed).map_err(|e| anyhow!("invalid password hash format: {e}"))?;

@@ -171,8 +171,8 @@ impl Hasher {
         use Hasher::*;
 
         match self {
-            HMAC256 => hmac256::verify(&key, payload, hash),
-            Blake3 => blake3::verify(&key, payload, hash),
+            HMAC256 => hmac256::verify(key, payload, hash),
+            Blake3 => blake3::verify(key, payload, hash),
         }
     }
 }

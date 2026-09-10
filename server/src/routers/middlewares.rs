@@ -65,7 +65,7 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let Path(payload) = Path::<String>::from_request_parts(parts, state)
             .await
-            .map_err(|e| api_error(e))?;
+            .map_err(api_error)?;
 
         let state = AppState::from_ref(state);
         match UploadInfo::verify(&payload, state.db(), state.secrets(), state.hasher()).await {
@@ -95,7 +95,7 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let Path(token) = Path::<String>::from_request_parts(parts, state)
             .await
-            .map_err(|e| api_error(e))?;
+            .map_err(api_error)?;
 
         let state = AppState::from_ref(state);
         match DownloadInfo::verify(&token, state.db(), state.secrets(), state.hasher()).await {

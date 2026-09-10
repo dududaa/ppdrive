@@ -54,6 +54,7 @@ impl UploadInfo {
 }
 
 impl Hashable for UploadInfo {
+    #[allow(clippy::manual_async_fn)]
     fn key(&self) -> impl Future<Output = anyhow::Result<String>> {
         async {
             // If client_key is already populated (e.g., from create_session), use it directly
@@ -102,6 +103,7 @@ impl DownloadInfo {
 }
 
 impl Hashable for DownloadInfo {
+    #[allow(clippy::manual_async_fn)]
     fn key(&self) -> impl Future<Output = anyhow::Result<String>> {
         async {
             if let Some(key) = &self.client_key {

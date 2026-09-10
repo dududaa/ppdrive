@@ -113,17 +113,15 @@ pub async fn cleanup_tmp_files(max_age: std::time::Duration) -> anyhow::Result<u
     let now = std::time::SystemTime::now();
 
     while let Ok(Some(entry)) = entries.next_entry().await {
-        if let Ok(metadata) = entry.metadata().await {
-            if let Ok(modified) = metadata.modified() {
-                if now.duration_since(modified).unwrap_or_default() > max_age {
+        if let Ok(metadata) = entry.metadata().await
+            && let Ok(modified) = metadata.modified()
+                && now.duration_since(modified).unwrap_or_default() > max_age {
                     if let Err(err) = tokio::fs::remove_file(entry.path()).await {
                         tracing::warn!("failed to remove stale tmp file {:?}: {err}", entry.path());
                     } else {
                         removed += 1;
                     }
                 }
-            }
-        }
     }
 
     if removed > 0 {

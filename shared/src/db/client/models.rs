@@ -8,6 +8,7 @@ use serde::Serialize;
 use sqlx::FromRow;
 
 #[derive(FromRow)]
+#[allow(dead_code)]
 pub struct Client {
     pid: String,
     name: String,

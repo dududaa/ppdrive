@@ -84,8 +84,8 @@ pub(super) async fn create_session(
         }
 
         // Validate MIME type against bucket accepts
-        if let Some(ref accepts) = bucket.accepts {
-            if !accepts.is_empty() {
+        if let Some(ref accepts) = bucket.accepts
+            && !accepts.is_empty() {
                 let content_type = config.content_type.as_ref().ok_or(
                     api_error("content_type is required for buckets with MIME restrictions")
                         .with_status_code(StatusCode::BAD_REQUEST),
@@ -99,14 +99,12 @@ pub(super) async fn create_session(
                     .with_status_code(StatusCode::BAD_REQUEST));
                 }
             }
-        }
     } else {
-        if let AssetType::File = config.asset_type {
-            if config.accepts.as_ref().is_none_or(|a| a.is_empty()) {
+        if let AssetType::File = config.asset_type
+            && config.accepts.as_ref().is_none_or(|a| a.is_empty()) {
                 return Err(api_error("accepts is required when bucket is not provided")
                     .with_status_code(StatusCode::BAD_REQUEST));
             }
-        }
     }
 
     let resumable = config.resumable.unwrap_or_default();
@@ -317,9 +315,9 @@ async fn get_next_session(
                 }
 
                 // Validate MIME type against bucket accepts
-                if let Some(ref accepts) = bucket.accepts {
-                    if !accepts.is_empty() {
-                        let inferred_mime = mime_guess::from_path(&target_path)
+                if let Some(ref accepts) = bucket.accepts
+                    && !accepts.is_empty() {
+                        let inferred_mime = mime_guess::from_path(target_path)
                             .first_or_octet_stream()
                             .to_string();
 
@@ -333,21 +331,19 @@ async fn get_next_session(
                         }
 
                         // Also verify against client-declared content_type if provided
-                        if let Some(ref declared) = config.content_type {
-                            if !bucket::mime_matches_accepts(declared, &[inferred_mime.clone()]) {
+                        if let Some(ref declared) = config.content_type
+                            && !bucket::mime_matches_accepts(declared, std::slice::from_ref(&inferred_mime)) {
                                 let _ = tokio::fs::remove_file(&tmp_path).await;
                                 return Err(anyhow!(
                                     "file MIME type '{inferred_mime}' does not match declared content_type '{declared}'"
                                 ));
                             }
-                        }
                     }
-                }
             }
             None => {
-                if let Some(ref accepts) = config.accepts {
-                    if !accepts.is_empty() {
-                        let inferred_mime = mime_guess::from_path(&target_path)
+                if let Some(ref accepts) = config.accepts
+                    && !accepts.is_empty() {
+                        let inferred_mime = mime_guess::from_path(target_path)
                             .first_or_octet_stream()
                             .to_string();
 
@@ -359,7 +355,6 @@ async fn get_next_session(
                             ));
                         }
                     }
-                }
 
                 if parent_dir != root_dir {
                     let parent_exists = tokio::fs::metadata(parent_dir).await.map(|m| m.is_dir()).unwrap_or(false);
