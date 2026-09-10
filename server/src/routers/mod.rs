@@ -4,11 +4,13 @@
 
 mod download;
 mod middlewares;
+mod metrics;
 mod resp;
 mod upload;
 
 use self::download::*;
 use self::upload::*;
+pub(crate) use self::metrics::MetricsLayer;
 use crate::state::AppState;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
