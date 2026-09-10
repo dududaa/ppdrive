@@ -1,9 +1,17 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { fileURLToPath } from 'node:url';
+
+const satteriWasmStub = fileURLToPath(new URL('./satteri-wasi-stub.mjs', import.meta.url));
 
 // https://astro.build/config
 export default defineConfig({
+	vite: {
+		resolve: {
+			alias: [{ find: '@bruits/satteri-wasm32-wasi', replacement: satteriWasmStub }],
+		},
+	},
 	integrations: [
 		starlight({
 			title: 'PPDRIVE',
@@ -39,9 +47,9 @@ export default defineConfig({
 				{
 					label: 'API Reference',
 					items: [
-				{ label: 'Authentication', slug: 'api/authentication' },
-					{ label: 'Bucket Management', slug: 'api/buckets' },
-					{ label: 'Upload Flow', slug: 'api/upload' },
+						{ label: 'Authentication', slug: 'api/authentication' },
+						{ label: 'Bucket Management', slug: 'api/buckets' },
+						{ label: 'Upload Flow', slug: 'api/upload' },
 						{ label: 'Download Flow', slug: 'api/download' },
 						{ label: 'MIME Validation', slug: 'api/mime-validation' },
 					],
