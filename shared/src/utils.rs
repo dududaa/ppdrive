@@ -135,7 +135,7 @@ pub fn check_password(password: &str, hashed: &str) -> anyhow::Result<()> {
     let argon2 = Argon2::default();
     argon2
         .verify_password(password.as_bytes(), &parsed_hash)
-        .map_err(|_| anyhow!("wrong password!"))?;
+        .map_err(|_| anyhow!("invalid credentials"))?;
 
     Ok(())
 }

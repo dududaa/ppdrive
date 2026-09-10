@@ -77,7 +77,7 @@ impl Client {
 
     pub async fn get(db: &Database, pid: &str) -> anyhow::Result<Client> {
         let query = sql_safe!(
-            "SELECT * FROM clients WHERE pid = {} LIMIT 1",
+            "SELECT pid, name, created_at FROM clients WHERE pid = {} LIMIT 1",
             db.placeholder(1)
         );
         let data = sqlx::query_as(query).bind(pid).fetch_one(&**db).await?;
@@ -86,7 +86,7 @@ impl Client {
     }
 
     pub async fn all(db: &Database) -> anyhow::Result<Vec<Client>> {
-        let data = sqlx::query_as("SELECT * FROM clients")
+        let data = sqlx::query_as("SELECT pid, name, created_at FROM clients")
             .fetch_all(&**db)
             .await?;
 

@@ -61,7 +61,9 @@ impl Hasher {
                 .map_err(|_| anyhow!("unable to decode payload length"))?,
         );
 
-        let (payload, hash) = data.split_at(payload_len as usize);
+        let (payload, hash) = data
+            .split_at_checked(payload_len as usize)
+            .ok_or(PayloadVerificationError::Error("malformed token".into()))?;
         let result: T = serde_json::from_slice(payload)?;
         let key = result.key().await?;
         self.verify_payload(&key, payload, hash)?;
@@ -96,7 +98,9 @@ impl Hasher {
                 .map_err(|_| anyhow!("unable to decode payload length"))?,
         );
 
-        let (payload, hash) = data.split_at(payload_len as usize);
+        let (payload, hash) = data
+            .split_at_checked(payload_len as usize)
+            .ok_or(PayloadVerificationError::Error("malformed token".into()))?;
         let mut result: UploadInfo = serde_json::from_slice(payload)?;
 
         // Decrypt the client key from the database
@@ -138,7 +142,9 @@ impl Hasher {
                 .map_err(|_| anyhow!("unable to decode payload length"))?,
         );
 
-        let (payload, hash) = data.split_at(payload_len as usize);
+        let (payload, hash) = data
+            .split_at_checked(payload_len as usize)
+            .ok_or(PayloadVerificationError::Error("malformed token".into()))?;
         let mut result: DownloadInfo = serde_json::from_slice(payload)?;
 
         // Decrypt the client key from the database

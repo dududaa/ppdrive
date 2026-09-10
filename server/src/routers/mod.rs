@@ -39,4 +39,5 @@ pub(crate) fn download_sign_routes() -> Router<AppState> {
 pub(crate) fn download_serve_routes() -> Router<AppState> {
     Router::new()
         .route("/{token}", get(serve_download))
+        .layer(ConcurrencyLimitLayer::new(MAX_CONCURRENT_REQUESTS))
 }

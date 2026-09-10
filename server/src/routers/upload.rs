@@ -44,8 +44,7 @@ async fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
         }
 
         let joined = root.join(cleaned);
-        let canonical_root = std::fs::canonicalize(&root)
-            .or_else(|_| std::fs::create_dir_all(&root).and_then(|_| std::fs::canonicalize(&root)))?;
+        let canonical_root = std::fs::canonicalize(&root)?;
 
         let canonical_joined = std::fs::canonicalize(&joined).or_else(|_| {
             let parent = joined.parent().unwrap_or(&root);
@@ -127,7 +126,7 @@ pub(super) async fn create_session(
 
         if size >= DEFAULT_BODY_LIMIT as u64 && !config.resumable.unwrap_or_default() {
             return Err(api_error(format!(
-                "Files larger than ${DEFAULT_BODY_LIMIT} must be resumable."
+                "Files larger than {DEFAULT_BODY_LIMIT} bytes must be resumable."
             ))
             .with_status_code(StatusCode::PAYLOAD_TOO_LARGE));
         }
@@ -301,9 +300,10 @@ async fn get_next_session(
                     tokio::fs::create_dir_all(&bucket_root).await?
                 } else {
                     if let Some(max_size) = &bucket.size {
-                        let meta = tokio::fs::metadata(&bucket_root).await?;
-                        let target_size = meta.len() + target_filesize;
-                        if target_size > (*max_size as u64) {
+                        let mut current_size: u64 = 0;
+                        let path_str = bucket_root.to_string_lossy().to_string();
+                        shared::get_folder_size(&path_str, &mut current_size).await.unwrap_or(());
+                        if current_size + target_filesize > (*max_size as u64) {
                             return Err(anyhow!("Bucket size limit exceeded."));
                         }
                     }

@@ -38,7 +38,7 @@ where
 
         let client_token = header
             .to_str()
-            .map_err(|_| api_error("invalid client token"))?;
+            .map_err(|_| api_error("invalid client token").with_status_code(StatusCode::BAD_REQUEST))?;
 
         let client_id = verify_client(state.db(), state.secrets(), client_token)
             .await

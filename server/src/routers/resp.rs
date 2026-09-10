@@ -5,7 +5,7 @@
 
 use std::fmt::Display;
 use std::io::Error;
-use axum::http::{header, HeaderValue, StatusCode};
+use axum::http::StatusCode;
 use axum::Json;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
@@ -39,6 +39,11 @@ impl<T: Serialize> IntoResponse for ResponsePayload<T> {
     }
 }
 
+#[derive(Serialize)]
+struct ErrorBody {
+    error: String,
+}
+
 pub struct ResponseError {
     message: String,
     status_code: StatusCode,
@@ -60,15 +65,10 @@ impl ResponseError {
 
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
-        (
-            self.status_code,
-            [(
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("text/plain; charset=utf-8"),
-            )],
-            self.message,
-        )
-            .into_response()
+        let body = ErrorBody {
+            error: self.message,
+        };
+        (self.status_code, Json(body)).into_response()
     }
 }
 

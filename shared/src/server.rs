@@ -155,6 +155,7 @@ pub struct UploadUrlConfig {
 }
 
 impl UploadUrlConfig {
+    #[cfg(test)]
     pub fn test() -> Self {
         UploadUrlConfig {
             asset_type: AssetType::File,

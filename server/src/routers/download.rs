@@ -40,11 +40,7 @@ async fn resolve_file_path(
     let file_path = bucket_root.join(relative_path);
 
     let (canonical_file, is_file) = tokio::task::spawn_blocking(move || {
-        let canonical_root = std::fs::canonicalize(&root_dir)
-            .or_else(|_| {
-                std::fs::create_dir_all(&root_dir)?;
-                std::fs::canonicalize(&root_dir)
-            })?;
+        let canonical_root = std::fs::canonicalize(&root_dir)?;
 
         let canonical_file = std::fs::canonicalize(&file_path).or_else(|_| {
             let parent = file_path.parent().unwrap_or(&bucket_root);

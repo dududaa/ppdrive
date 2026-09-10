@@ -153,9 +153,8 @@ pub async fn get_key(db: &Database, pid: &str, secrets: &AppSecrets) -> anyhow::
 }
 
 pub async fn get_description_keys(db: &Database, pid: &str) -> anyhow::Result<(String, Vec<u8>)> {
-    let row: (String, Vec<u8>) = sqlx::query_as(
-        "SELECT encrypted_key, key_nonce FROM clients WHERE pid = $1 LIMIT 1",
-    )
+    let query = sql_safe!("SELECT encrypted_key, key_nonce FROM clients WHERE pid = {} LIMIT 1", db.placeholder(1));
+    let row: (String, Vec<u8>) = sqlx::query_as(query)
         .bind(pid)
         .fetch_one(&**db)
         .await
