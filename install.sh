@@ -1,67 +1,113 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # === CONFIGURATION ===
 REPO="dududaa/ppdrive"
 INSTALL_DIR="$HOME/.local/share/ppdrive"
 BIN_DIR="$HOME/.local/bin"
-ASSET_PATTERN="ppdrive-linux.tar.gz"
+
+# === DETECT PLATFORM ===
+detect_asset() {
+  local os arch
+  os="$(uname -s)"
+  arch="$(uname -m)"
+
+  case "$os" in
+    Linux)  ASSET_PATTERN="ppdrive-linux.tar.gz" ;;
+    Darwin) ASSET_PATTERN="ppdrive-macos.tar.gz" ;;
+    *)
+      echo "❌ Unsupported OS: $os"
+      echo "   Supported: Linux, macOS"
+      exit 1
+      ;;
+  esac
+
+  case "$arch" in
+    x86_64|amd64) ;; # supported
+    arm64|aarch64) ;; # supported
+    *)
+      echo "⚠️  Warning: unexpected architecture '$arch'. Continuing anyway."
+      ;;
+  esac
+}
 
 # === FUNCTIONS ===
 
+get_installed_version() {
+  if [[ -f "$INSTALL_DIR/ppdrive" ]]; then
+    "$INSTALL_DIR/ppdrive" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo ""
+  else
+    echo ""
+  fi
+}
+
+get_latest_version() {
+  local api_url="https://api.github.com/repos/${REPO}/releases/latest"
+  curl -sL "$api_url" | grep '"tag_name"' | sed -E 's/.*"v?([0-9]+\.[0-9]+\.[0-9]+).*/\1/'
+}
+
 download_latest_release() {
   echo "📦 Fetching latest release info..."
-  API_URL="https://api.github.com/repos/${REPO}/releases/336200039"
-  DOWNLOAD_URL=$(curl -sL "$API_URL" | grep "browser_download_url" | grep "$ASSET_PATTERN" | cut -d '"' -f 4)
+  local api_url="https://api.github.com/repos/${REPO}/releases/latest"
+  local download_url
+  download_url=$(curl -sL "$api_url" | grep "browser_download_url" | grep "$ASSET_PATTERN" | cut -d '"' -f 4)
 
-  if [[ -z "$DOWNLOAD_URL" ]]; then
+  if [[ -z "$download_url" ]]; then
     echo "❌ Could not find a release asset matching pattern '$ASSET_PATTERN'."
+    echo "   This may be a network issue or the release may not include this platform."
     exit 1
   fi
 
-  echo "⬇️  Downloading: $DOWNLOAD_URL"
+  echo "⬇️  Downloading: $download_url"
   mkdir -p /tmp/ppdrive-install
-  cd /tmp/ppdrive-install
-  curl -L -o "$ASSET_PATTERN" "$DOWNLOAD_URL"
+  curl -L -o "/tmp/ppdrive-install/$ASSET_PATTERN" "$download_url"
 }
 
 extract_and_install() {
   echo "📂 Installing to: $INSTALL_DIR"
   mkdir -p "$INSTALL_DIR"
-  tar -xzf "$ASSET_PATTERN" -C "$INSTALL_DIR"
+  tar -xzf "/tmp/ppdrive-install/$ASSET_PATTERN" -C "$INSTALL_DIR"
 
   echo "🔧 Making executables runnable..."
-  chmod +x "$INSTALL_DIR"/ppdrive "$INSTALL_DIR"/manager || true
+  chmod +x "$INSTALL_DIR/ppdrive" "$INSTALL_DIR/server"
 
   echo "🔗 Linking to $BIN_DIR..."
   mkdir -p "$BIN_DIR"
   ln -sf "$INSTALL_DIR/ppdrive" "$BIN_DIR/ppdrive"
-  ln -sf "$INSTALL_DIR/manager" "$BIN_DIR/server"
+  ln -sf "$INSTALL_DIR/server" "$BIN_DIR/server"
 }
 
 ensure_bin_in_path() {
-  # If ~/.local/bin isn't in PATH, try to fix it
   if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
     echo "⚠️  $BIN_DIR is not in your PATH. Attempting to fix..."
-    SHELL_NAME=$(basename "$SHELL")
+    local shell_name
+    shell_name=$(basename "${SHELL:-/bin/bash}")
 
-    case "$SHELL_NAME" in
+    case "$shell_name" in
       bash)
-        CONFIG_FILE="$HOME/.bashrc"
-        echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$CONFIG_FILE"
-        echo "✅ Added ~/.local/bin to PATH in $CONFIG_FILE"
+        local config="$HOME/.bashrc"
+        if ! grep -q '$HOME/.local/bin' "$config" 2>/dev/null; then
+          echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$config"
+          echo "✅ Added ~/.local/bin to PATH in $config"
+        else
+          echo "✅ ~/.local/bin already in $config"
+        fi
         ;;
       zsh)
-        CONFIG_FILE="$HOME/.zshrc"
-        echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$CONFIG_FILE"
-        echo "✅ Added ~/.local/bin to PATH in $CONFIG_FILE"
+        local config="$HOME/.zshrc"
+        if ! grep -q '$HOME/.local/bin' "$config" 2>/dev/null; then
+          echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$config"
+          echo "✅ Added ~/.local/bin to PATH in $config"
+        else
+          echo "✅ ~/.local/bin already in $config"
+        fi
         ;;
       fish)
         fish -c 'set -U fish_user_paths ~/.local/bin $fish_user_paths'
         echo "✅ Added ~/.local/bin to PATH for fish shell"
         ;;
       *)
-        echo "⚠️ Unknown shell ($SHELL_NAME). Please manually add this line to your shell config:"
+        echo "⚠️ Unknown shell ($shell_name). Please manually add this line to your shell config:"
         echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
         ;;
     esac
@@ -71,15 +117,28 @@ ensure_bin_in_path() {
 }
 
 cleanup() {
-  echo "🧹 Cleaning up temporary files..."
   rm -rf /tmp/ppdrive-install
 }
 
 # === MAIN ===
+trap cleanup EXIT
+
+detect_asset
+
+INSTALLED_VERSION=$(get_installed_version)
+LATEST_VERSION=$(get_latest_version)
+
+if [[ -n "$INSTALLED_VERSION" && -n "$LATEST_VERSION" ]]; then
+  if [[ "$INSTALLED_VERSION" == "$LATEST_VERSION" ]]; then
+    echo "✅ ppdrive is already up to date ($INSTALLED_VERSION)."
+    exit 0
+  fi
+  echo "⬆️  Upgrading ppdrive: $INSTALLED_VERSION → $LATEST_VERSION"
+fi
+
 download_latest_release
 extract_and_install
 ensure_bin_in_path
-cleanup
 
 echo "✅ PPDRIVE installation complete!"
 echo "You can now run:"
