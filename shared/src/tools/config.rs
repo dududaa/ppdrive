@@ -16,7 +16,7 @@ pub struct AppConfig {
     pub database_url: String,
     pub client_header_key: String,
     pub allowed_origins: Option<Vec<String>>,
-    pub port: Option<i16>,
+    pub port: Option<u16>,
     pub root_dir: Option<String>,
     pub message_broker: Option<String>,
     pub static_folders: Vec<StaticFolder>,

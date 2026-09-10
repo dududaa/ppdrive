@@ -7,7 +7,7 @@ version.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "fs"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "fs", "signal"] }
 time.workspace = true
 axum = { workspace = true, features = ["macros", "multipart"] }
 tower = { version = "0.5", features = ["limit"] }
@@ -25,6 +25,8 @@ tower-http = { version = "0.7.0", features = [
 ] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 shared = {workspace = true, features = ["server"]}
+metrics = "0.24"
+metrics-exporter-prometheus = "0.18"
 tokio-util = { workspace = true, features = ["io"] }
 mime_guess = { workspace = true }
 

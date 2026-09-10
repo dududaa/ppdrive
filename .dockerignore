@@ -1,3 +1,11 @@
-/targets
-/cross
-/docs
+target/
+.git/
+.env
+.env.docker
+data.db*
+.ppdrive_secret*
+ppd_config.toml
+tmp/
+uploads/
+docs/
+test-assets/

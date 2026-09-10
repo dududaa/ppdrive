@@ -10,8 +10,8 @@ use axum::extract::MatchedPath;
 use axum::http::header::{
     ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
 };
-use axum::http::{HeaderName, HeaderValue, Request};
-use axum::routing::IntoMakeService;
+use axum::http::{HeaderName, HeaderValue, Request, StatusCode};
+use axum::routing::{IntoMakeService, get};
 use std::str::FromStr;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::services::ServeDir;
@@ -21,6 +21,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
 use shared::db::bucket;
+use metrics_exporter_prometheus::PrometheusHandle;
+use std::sync::OnceLock;
 
 /// Convert whitelisted url to axum AllowOrigin. When no url is provided, all origins will be allowed.
 fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
@@ -46,7 +48,7 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
 /// Build the complete Axum application: router, CORS, tracing, static dirs, state.
 ///
 /// Returns the [`IntoMakeService`] and the configured port.
-pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
+pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, u16)> {
     start_logger()?;
     let state = AppState::new().await?;
     let origins = state.config().allowed_origins.clone();
@@ -67,6 +69,8 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
         .allow_methods(Any);
 
     let mut app = Router::new()
+        .route("/health", get(|| async { StatusCode::OK }))
+        .route("/metrics", get(metrics_handler))
         .nest("/upload", upload_routes())
         .nest("/download", download_sign_routes())
         .nest("/download", download_serve_routes())
@@ -102,14 +106,35 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, i16)> {
     Ok((app, port))
 }
 
-/// Initialize the tracing subscriber with an env-filter (defaults to `trace`).
+/// Initialize the tracing subscriber with an env-filter (defaults to `info`).
 fn start_logger() -> anyhow::Result<()> {
     if let Err(err) = tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace")))
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with(fmt::layer())
         .try_init() {
         tracing::error!("logger error: {err}");
     }
 
+    Ok(())
+}
+
+/// Prometheus metrics endpoint handler.
+async fn metrics_handler() -> Result<String, StatusCode> {
+    let handle = PROMETHEUS_HANDLE
+        .get()
+        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(handle.render())
+}
+static PROMETHEUS_HANDLE: OnceLock<PrometheusHandle> = OnceLock::new();
+
+/// Install the Prometheus recorder and store the handle for the `/metrics` endpoint.
+pub fn install_metrics() -> anyhow::Result<()> {
+    use metrics_exporter_prometheus::PrometheusBuilder;
+
+    let builder = PrometheusBuilder::new();
+    let handle = builder.install_recorder()?;
+    PROMETHEUS_HANDLE
+        .set(handle)
+        .map_err(|_| anyhow::anyhow!("metrics already initialized"))?;
     Ok(())
 }
