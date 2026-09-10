@@ -1,8 +1,21 @@
 services:
+  ppdrive_redis:
+    image: redis:7-alpine
+    container_name: ppdrive_redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app_network
+
   ppdrive_db:
-    image: postgres:latest
+    image: postgres:17-alpine
     container_name: ppdrive_db
     env_file: .env.docker
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -23,10 +36,12 @@ services:
     depends_on:
       ppdrive_db:
         condition: service_healthy
+      ppdrive_redis:
+        condition: service_healthy
     ports:
-      - 5000:5000
+      - "8000:8000"
     volumes:
-      - ppdrive_data:/app
+      - ppdrive_data:/app/data
     networks:
       - app_network
 

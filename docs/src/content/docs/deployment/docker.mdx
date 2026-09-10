@@ -9,39 +9,54 @@ PPDRIVE provides Docker images and a Docker Compose setup for easy deployment.
 
 ```sh
 git clone https://github.com/dududaa/ppdrive.git
-cd ppdrive/core
+cd ppdrive
 docker compose up -d
 ```
 
 This starts:
-- **ppdrive** — The server on port 5000
+- **ppdrive** — The server on port 8000
 - **ppdrive_db** — PostgreSQL database
+- **ppdrive_redis** — Redis for resumable uploads
 
 ## Docker Compose Configuration
 
 ```yaml
 services:
+  ppdrive_redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   ppdrive_db:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: ppdrive_user
-      POSTGRES_PASSWORD: Plug&PlayDrive2025
+      POSTGRES_PASSWORD: your_secure_password_here
       POSTGRES_DB: ppdrive
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ppdrive_user -d ppdrive"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   ppdrive:
     image: dududaa/ppdrive:latest
     ports:
-      - "5000:8000"
+      - "8000:8000"
     environment:
-      PPDRIVE_DATABASE_URL: postgres://ppdrive_user:Plug&PlayDrive2025@ppdrive_db:5432/ppdrive
+      PPDRIVE_DATABASE_URL: postgres://ppdrive_user:your_secure_password_here@ppdrive_db:5432/ppdrive
     depends_on:
-      - ppdrive_db
+      ppdrive_db:
+        condition: service_healthy
+      ppdrive_redis:
+        condition: service_healthy
     volumes:
-      - ppdrive_data:/app
+      - ppdrive_data:/app/data
 
 volumes:
   postgres_data:
@@ -72,8 +87,8 @@ docker run -p 8000:8000 ppdrive
 
 ```sh
 docker run -p 8000:8000 \
-  -v ppdrive_data:/app \
-  -e PPDRIVE_DATABASE_URL=sqlite:/app/data.db \
+  -v ppdrive_data:/app/data \
+  -e PPDRIVE_DATABASE_URL=sqlite:/app/data/data.db \
   ppdrive
 ```
 
@@ -90,12 +105,16 @@ RUN cargo build --release
 
 # Runtime stage
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y libpq-dev libssl3 ca-certificates
-COPY --from=builder /app/target/release/ppdrive /app/ppdrive_server
-COPY --from=builder /app/target/release/server /app/ppdrive_cli
-COPY migrations /app/migrations
-COPY ppd_config.toml /app/ppd_config.toml
-CMD ["./ppdrive_server"]
+RUN apt-get update && apt-get install -y libpq-dev libssl3 ca-certificates curl
+RUN groupadd -r ppdrive && useradd -r -g ppdrive -d /app ppdrive
+WORKDIR /app
+COPY --from=builder /app/target/release/ppdrive /usr/local/bin/ppdrive
+COPY --from=builder /app/target/release/server /usr/local/bin/server
+COPY --from=builder /app/migrations ./migrations
+RUN chown -R ppdrive:ppdrive /app
+USER ppdrive
+EXPOSE 8000
+CMD ["server"]
 ```
 
 ## Production Docker Compose
@@ -104,6 +123,15 @@ For production, create a `docker-compose.prod.yml`:
 
 ```yaml
 services:
+  ppdrive_redis:
+    image: redis:7-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   ppdrive_db:
     image: postgres:17-alpine
     environment:
@@ -113,6 +141,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${DB_USER} -d ppdrive"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   ppdrive:
     image: dududaa/ppdrive:latest
@@ -121,9 +154,12 @@ services:
     environment:
       PPDRIVE_DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@ppdrive_db:5432/ppdrive
     depends_on:
-      - ppdrive_db
+      ppdrive_db:
+        condition: service_healthy
+      ppdrive_redis:
+        condition: service_healthy
     volumes:
-      - ppdrive_data:/app
+      - ppdrive_data:/app/data
     restart: always
 
 volumes:
@@ -147,13 +183,13 @@ docker compose -f docker-compose.prod.yml up -d
 When running in Docker, services communicate via the Docker network. Use the service name as the hostname:
 
 - Database: `ppdrive_db`
-- Redis (if added): `redis`
+- Redis: `ppdrive_redis`
 
 ## Volumes
 
 | Volume | Mount Point | Purpose |
 |---|---|---|
-| `ppdrive_data` | `/app` | Configuration, secrets, uploaded files |
+| `ppdrive_data` | `/app/data` | Uploaded files and data |
 | `postgres_data` | `/var/lib/postgresql/data` | PostgreSQL data |
 
 ## Troubleshooting
@@ -167,7 +203,6 @@ docker compose logs ppdrive
 ```
 
 Common issues:
-- Missing `ppd_config.toml`
 - Database connection refused (check `ppdrive_db` is running)
 - Invalid `PPDRIVE_DATABASE_URL`
 
@@ -182,9 +217,4 @@ docker compose logs ppdrive_db
 
 ### Permission denied on secrets file
 
-The container runs as root by default. If you need a specific user, update the Dockerfile:
-
-```dockerfile
-RUN useradd -r ppdrive
-USER ppdrive
-```
+The container runs as the `ppdrive` user. The secrets file and data directory are owned by this user. If you mount a host directory, ensure it is writable by uid `ppdrive` (typically uid 100 in the container).
