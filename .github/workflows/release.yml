@@ -89,7 +89,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          find . -name '*.tar.gz' -exec sha256sum {} + > SHA256SUMS.txt
+          find . -name '*.tar.gz' -type f -exec sha256sum {} + > SHA256SUMS.txt
           echo "Checksums:"
           cat SHA256SUMS.txt
 
