@@ -19,32 +19,44 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: ppdrive-linux.tar.gz
-            bin_ext:
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: ppdrive-linux-arm64.tar.gz
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: ppdrive-windows.zip
+            artifact_name: ppdrive-windows.tar.gz
             bin_ext: .exe
 
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: ppdrive-macos.tar.gz
-            bin_ext:
+
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: ppdrive-macos-arm64.tar.gz
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Build
         run: |
           cargo build --release --bin ppdrive --target ${{ matrix.target }}
           cargo build --release --bin server --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
       - name: Prepare Release Package
         run: |
@@ -55,11 +67,7 @@ jobs:
 
           mkdir -p dist
 
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            powershell -Command "Compress-Archive -Path package\\* -DestinationPath dist\\${{ matrix.artifact_name }}"
-          else
-            tar -czvf dist/${{ matrix.artifact_name }} -C package .
-          fi
+          tar -czvf dist/${{ matrix.artifact_name }} -C package .
         shell: bash
 
       - name: Upload Artifact
@@ -78,31 +86,23 @@ jobs:
         with:
           path: dist
 
+      - name: Generate checksums
+        run: |
+          cd dist
+          find . -name '*.tar.gz' -exec sha256sum {} + > SHA256SUMS.txt
+          echo "Checksums:"
+          cat SHA256SUMS.txt
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref, '-') }}
+          generate_release_notes: true
           files: |
             dist/**/*.tar.gz
-            dist/**/*.zip
-
-          body: |
-            # 🚀 PPDRIVE Pre-Release Notes
-            **Version:** v0.1.0-alpha
-            **Date:** June 2026
-
-            ## What’s New
-            - Cli Tool
-            - Resumable uploads
-            - Serving static folders
-            - And several others
-
-            ## ⚠️ Notes
-            
-            This is a **prerelease build**, intended for early adopters and internal testing.
-            Feedback and bug reports are highly appreciated as we prepare for the first stable release.
+            dist/**/SHA256SUMS.txt
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

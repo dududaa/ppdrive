@@ -8,13 +8,12 @@ $LocalExe = Join-Path $InstallDir "ppdrive.exe"
 
 # 2. Detect architecture
 $Arch = if ([System.Environment]::Is64BitOperatingSystem) {
-    if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "aarch64" } else { "x86_64" }
+    if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x86_64" }
 } else {
     Write-Error "32-bit Windows is not supported."
     exit 1
 }
-$Artifact = "windows-$Arch"
-$FileName = "ppdrive-windows.tar.gz"
+$Artifact = if ($Arch -eq "arm64") { "ppdrive-windows-arm64.tar.gz" } else { "ppdrive-windows.tar.gz" }
 
 # 3. Fetch Latest Version from GitHub API
 Write-Host "Checking GitHub for the latest release..."
@@ -52,7 +51,7 @@ if (Test-Path $LocalExe) {
 }
 
 # 5. Download URL
-$DownloadUrl = "https://github.com/$Repo/releases/download/$LatestTag/$FileName"
+$DownloadUrl = "https://github.com/$Repo/releases/download/$LatestTag/$Artifact"
 
 # 6. Prepare install directory
 if (-not (Test-Path $InstallDir)) {
@@ -62,21 +61,18 @@ Write-Host "Installing to $InstallDir..."
 
 # 7. Download and Extract
 $TempDir = Join-Path $env:TEMP "ppdrive_install_$(Get-Random)"
-$TempTar = Join-Path $TempDir $FileName
+$TempArchive = Join-Path $TempDir $Artifact
 
 try {
     New-Item -ItemType Directory -Force -Path $TempDir | Out-Null
 
     Write-Host "Downloading $DownloadUrl..."
-    Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempTar -UseBasicParsing -ErrorAction Stop
+    Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempArchive -UseBasicParsing -ErrorAction Stop
 
     Write-Host "Extracting artifacts..."
-    tar -xzf $TempTar -C $TempDir 2>$null
+    tar -xzf $TempArchive -C $TempDir
     if ($LASTEXITCODE -ne 0) {
-        # Fallback: try PowerShell Expand-Archive if tar fails (older Windows)
-        $TempZip = Join-Path $TempDir "ppdrive.zip"
-        Copy-Item $TempTar $TempZip
-        Expand-Archive -Path $TempZip -DestinationPath $TempDir -Force
+        throw "tar extraction failed (exit code $LASTEXITCODE). Ensure tar is available."
     }
 
     # Copy binaries to install dir
@@ -87,10 +83,10 @@ try {
             Copy-Item -Path $Src -Destination $InstallDir -Force
             Write-Host "  Installed $Bin"
         } else {
-            # Check nested directory (some archive formats create a subfolder)
-            $Src = Get-ChildItem -Path $TempDir -Recurse -Filter $Bin | Select-Object -First 1
-            if ($Src) {
-                Copy-Item -Path $Src.FullName -Destination $InstallDir -Force
+            # Check nested directory
+            $Found = Get-ChildItem -Path $TempDir -Recurse -Filter $Bin | Select-Object -First 1
+            if ($Found) {
+                Copy-Item -Path $Found.FullName -Destination $InstallDir -Force
                 Write-Host "  Installed $Bin"
             } else {
                 Write-Warning "Binary '$Bin' not found in archive."
@@ -101,13 +97,12 @@ try {
     Write-Error "Installation failed: $_"
     exit 1
 } finally {
-    # Clean up temp directory
     if (Test-Path $TempDir) {
         Remove-Item -Recurse -Force $TempDir
     }
 }
 
-# 8. Add to User PATH (not Machine PATH — no admin required)
+# 8. Add to User PATH (no admin required)
 $CurrentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($CurrentUserPath -notlike "*$InstallDir*") {
     $NewPath = if ($CurrentUserPath) { "$CurrentUserPath;$InstallDir" } else { $InstallDir }

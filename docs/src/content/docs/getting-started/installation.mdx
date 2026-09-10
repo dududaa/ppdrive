@@ -13,11 +13,17 @@ Each release includes:
 - `ppdrive` — The CLI tool
 - `server` — The HTTP server
 
+Platforms: Linux (x86_64, arm64), macOS (x86_64, arm64), Windows (x86_64).
+
 ### Linux
 
 ```sh
-# Download and extract
+# x86_64
 curl -L https://github.com/dududaa/ppdrive/releases/latest/download/ppdrive-linux.tar.gz | tar xz
+
+# arm64
+curl -L https://github.com/dududaa/ppdrive/releases/latest/download/ppdrive-linux-arm64.tar.gz | tar xz
+
 chmod +x ppdrive server
 sudo mv ppdrive server /usr/local/bin/
 ```
@@ -25,14 +31,19 @@ sudo mv ppdrive server /usr/local/bin/
 ### macOS
 
 ```sh
+# Intel (x86_64)
 curl -L https://github.com/dududaa/ppdrive/releases/latest/download/ppdrive-macos.tar.gz | tar xz
+
+# Apple Silicon (arm64)
+curl -L https://github.com/dududaa/ppdrive/releases/latest/download/ppdrive-macos-arm64.tar.gz | tar xz
+
 chmod +x ppdrive server
 sudo mv ppdrive server /usr/local/bin/
 ```
 
 ### Windows
 
-Download `ppdrive-windows.zip`, extract it, and add the directory to your PATH.
+Download `ppdrive-windows.tar.gz`, extract it, and add the directory to your PATH.
 
 ## Install Script
 
@@ -50,7 +61,7 @@ This installs to `$HOME/.local/share/ppdrive` and creates symlinks in `$HOME/.lo
 irm https://raw.githubusercontent.com/dududaa/ppdrive/main/install.ps1 | iex
 ```
 
-Installs to `C:\Program Files\ppdrive` and adds to system PATH.
+Installs to `%LOCALAPPDATA%\ppdrive` and adds to your user PATH.
 
 ## Homebrew
 

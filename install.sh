@@ -13,20 +13,32 @@ detect_asset() {
   arch="$(uname -m)"
 
   case "$os" in
-    Linux)  ASSET_PATTERN="ppdrive-linux.tar.gz" ;;
-    Darwin) ASSET_PATTERN="ppdrive-macos.tar.gz" ;;
+    Linux)
+      case "$arch" in
+        x86_64|amd64) ASSET_PATTERN="ppdrive-linux.tar.gz" ;;
+        arm64|aarch64) ASSET_PATTERN="ppdrive-linux-arm64.tar.gz" ;;
+        *)
+          echo "❌ Unsupported architecture: $arch"
+          echo "   Supported: x86_64, arm64"
+          exit 1
+          ;;
+      esac
+      ;;
+    Darwin)
+      case "$arch" in
+        x86_64|amd64) ASSET_PATTERN="ppdrive-macos.tar.gz" ;;
+        arm64|aarch64) ASSET_PATTERN="ppdrive-macos-arm64.tar.gz" ;;
+        *)
+          echo "❌ Unsupported architecture: $arch"
+          echo "   Supported: x86_64, arm64"
+          exit 1
+          ;;
+      esac
+      ;;
     *)
       echo "❌ Unsupported OS: $os"
       echo "   Supported: Linux, macOS"
       exit 1
-      ;;
-  esac
-
-  case "$arch" in
-    x86_64|amd64) ;; # supported
-    arm64|aarch64) ;; # supported
-    *)
-      echo "⚠️  Warning: unexpected architecture '$arch'. Continuing anyway."
       ;;
   esac
 }
