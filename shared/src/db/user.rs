@@ -1,9 +1,8 @@
 //! User management — creation and asset-owner registration.
 
 use crate::db::Database;
-use crate::server::make_password;
 use crate::{sql_safe};
-use crate::db::utils::{instance_as_string, AssetOwnerName};
+use crate::utils::{instance_as_string, AssetOwnerName, make_password};
 
 /// Create a new user, hash the password with Argon2, and register as an asset owner.
 pub async fn create(email: &str, password: &str, db: &Database) -> anyhow::Result<()> {

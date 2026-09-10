@@ -4,19 +4,20 @@
 //! `GET /download/{token}` serves the file with Range-header support.
 
 use crate::routers::middlewares::{ClientExtractor, DownloadMiddleware};
-use crate::routers::resp::{ApiResponse, ResponseError, api_error, api_response};
+use crate::routers::resp::{api_error, api_response, ApiResponse, ResponseError};
 use crate::state::AppState;
 use axum::Json;
 use axum::body::Body;
 use axum::extract::State;
-use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use shared::AssetOwnerName;
 use shared::db::{bucket, client};
-use shared::server::{DownloadInfo, SignDownloadRequest, seconds_from_now};
+use shared::server::{DownloadInfo, SignDownloadRequest};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 use validator::Validate;
+use shared::seconds_from_now;
 
 /// Resolve the file path for a download request.
 ///

@@ -1,7 +1,7 @@
 //! Client database model and insert helpers.
 
 use crate::db::Database;
-use crate::db::utils::{AssetOwnerName, instance_as_string};
+use crate::utils::{AssetOwnerName, instance_as_string};
 use crate::tools::secrets::AppSecrets;
 use crate::{generate_nano_id, sql_safe};
 use serde::Serialize;

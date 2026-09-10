@@ -8,8 +8,8 @@ sqlx = { features = ["runtime-tokio", "tls-native-tls", "any", "postgres", "sqli
 anyhow.workspace = true
 chacha20poly1305 = "0.11.0"
 sha3 = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
-hmac = { workspace = true, optional = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
 base64.workspace = true
 hex = "0.4.3"
 serde = { workspace = true, features = ["derive"] }
@@ -23,7 +23,6 @@ redis = { workspace = true, features = ["tokio-comp", "aio", "r2d2"] }
 blake3 = "1.8.5"
 clap = {workspace = true, features = ["derive"] }
 argon2 = { workspace = true, features = ["std"] }
-rand = { version = "0.8", features = ["std"] }
 tracing.workspace = true
 subtle = "2.6"
 
@@ -31,4 +30,4 @@ subtle = "2.6"
 dotenvy.workspace = true
 
 [features]
-server = ["dep:validator", "dep:hmac", "dep:sha2", "dep:sha3"]
+server = ["dep:validator", "dep:sha3"]

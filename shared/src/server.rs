@@ -7,23 +7,9 @@
 use crate::db::Database;
 use crate::hasher::{Hashable, Hasher, errors::PayloadVerificationError};
 use anyhow::anyhow;
-use argon2::password_hash::rand_core::OsRng;
-use argon2::password_hash::{PasswordHasher, SaltString};
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
 use validator::Validate;
-
-/// Compute a UNIX timestamp `seconds` seconds from now.
-pub fn seconds_from_now(seconds: i64) -> anyhow::Result<i64> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|e| anyhow!("{e}"))?
-        .as_secs() as i64;
-
-    let res = now + seconds;
-    Ok(res)
-}
+use crate::utils;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct UploadInfo {
@@ -52,7 +38,7 @@ impl UploadInfo {
         self.chunk_index += 1;
         self.config = None;
         // Use chunk_session_expiration (relative duration) not self.exp (absolute timestamp)
-        self.exp = seconds_from_now(self.chunk_session_expiration)?;
+        self.exp = utils::seconds_from_now(self.chunk_session_expiration)?;
 
         self.sign(key, hasher)
     }
@@ -144,28 +130,6 @@ pub struct SignDownloadRequest {
     pub expires: i64,
 }
 
-/// Hash a plaintext password using Argon2 with a random salt.
-pub fn make_password(password: &str) -> anyhow::Result<String> {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-
-    let hash = argon2.hash_password(password.as_bytes(), &salt)?;
-    Ok(hash.to_string())
-}
-
-/// Verify a plaintext password against an Argon2 hash.
-pub fn check_password(password: &str, hashed: &str) -> anyhow::Result<()> {
-    let parsed_hash =
-        PasswordHash::new(hashed).map_err(|e| anyhow!("invalid password hash format: {e}"))?;
-
-    let argon2 = Argon2::default();
-    argon2
-        .verify_password(password.as_bytes(), &parsed_hash)
-        .map_err(|_| anyhow!("wrong password!"))?;
-
-    Ok(())
-}
-
 #[derive(Serialize, Deserialize, Validate, Default, Clone)]
 pub struct UploadUrlConfig {
     pub asset_type: AssetType,
@@ -211,10 +175,11 @@ pub enum AssetType {
 #[cfg(test)]
 mod tests {
     use crate::config::AppConfig;
+    use crate::utils::seconds_from_now;
     use crate::db::{Database, client};
     use crate::hasher::Hasher;
     use crate::secrets::AppSecrets;
-    use crate::server::{UploadInfo, UploadUrlConfig, seconds_from_now};
+    use crate::server::{UploadInfo, UploadUrlConfig};
     use std::sync::Arc;
     use tokio::sync::{Mutex, OnceCell};
 

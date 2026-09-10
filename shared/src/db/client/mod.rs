@@ -38,6 +38,7 @@ pub fn decrypt_key(secrets: &AppSecrets, encrypted_hex: &str, nonce_bytes: &[u8]
 fn hash_key(key: &str) -> String {
     use sha2::{Sha256, Digest};
     let hash = Sha256::digest(key.as_bytes());
+
     hex::encode(hash)
 }
 

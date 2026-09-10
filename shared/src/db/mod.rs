@@ -13,7 +13,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 pub mod bucket;
 pub mod client;
-pub mod utils;
+pub mod user;
 
 pub type DbPool = AnyPool;
 

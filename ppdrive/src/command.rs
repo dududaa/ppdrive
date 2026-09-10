@@ -54,6 +54,8 @@ impl Cli {
             },
 
             CliCommand::Serve { port } => {
+
+
                 if cfg!(debug_assertions) {
                     Command::new("cargo")
                         .args(["run", "-p", "server"])
@@ -79,7 +81,7 @@ impl Cli {
 #[derive(Subcommand, Debug)]
 enum CliCommand {
     Serve {
-        #[arg(long = "port")]
+        #[arg(long = "port", default_value = "8000")]
         port: u16,
     },
     Configure,

@@ -3,17 +3,22 @@
 //! Provides the [`AssetOwnerName`] enum, [`sql_safe!`] macro for engine-agnostic
 //! placeholder interpolation, and ownership-checking queries.
 
+use std::time::{SystemTime, UNIX_EPOCH};
 /// Utilities used by database queries
 // use crate::sql_safe;
 use crate::db::Database;
 use clap::ValueEnum;
 use time::OffsetDateTime;
+use argon2::password_hash::SaltString;
+use argon2::password_hash::rand_core::OsRng;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use anyhow::anyhow;
 
 #[macro_export]
 macro_rules! sql_safe {
     ($($arg:tt)*) => {{
         let query = format!($($arg)*);
-        let sql = $crate::db::utils::SqlSafe::new(query);
+        let sql = $crate::utils::SqlSafe::new(query);
 
         sql.into_inner()
     }};
@@ -100,4 +105,37 @@ pub async fn check_ownership(owner_type: AssetOwnerName, owner_id: i32, db: &Dat
     let exists: bool = sqlx::query_scalar(query).bind(i16::from(owner_type)).bind(owner_id).fetch_one(&**db).await?;
 
     Ok(exists)
+}
+
+/// Compute a UNIX timestamp `seconds` seconds from now.
+pub fn seconds_from_now(seconds: i64) -> anyhow::Result<i64> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| anyhow!("{e}"))?
+        .as_secs() as i64;
+
+    let res = now + seconds;
+    Ok(res)
+}
+
+/// Hash a plaintext password using Argon2 with a random salt.
+pub fn make_password(password: &str) -> anyhow::Result<String> {
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+
+    let hash = argon2.hash_password(password.as_bytes(), &salt)?;
+    Ok(hash.to_string())
+}
+
+/// Verify a plaintext password against an Argon2 hash.
+pub fn check_password(password: &str, hashed: &str) -> anyhow::Result<()> {
+    let parsed_hash =
+        PasswordHash::new(hashed).map_err(|e| anyhow!("invalid password hash format: {e}"))?;
+
+    let argon2 = Argon2::default();
+    argon2
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .map_err(|_| anyhow!("wrong password!"))?;
+
+    Ok(())
 }

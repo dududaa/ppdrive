@@ -123,6 +123,7 @@ async fn metrics_handler() -> Result<String, StatusCode> {
     let handle = PROMETHEUS_HANDLE
         .get()
         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+
     Ok(handle.render())
 }
 static PROMETHEUS_HANDLE: OnceLock<PrometheusHandle> = OnceLock::new();

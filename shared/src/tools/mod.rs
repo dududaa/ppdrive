@@ -5,6 +5,8 @@
 
 pub mod config;
 pub mod secrets;
+
+#[cfg(feature = "server")]
 pub mod hasher;
 
 use anyhow::anyhow;

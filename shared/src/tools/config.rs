@@ -3,7 +3,9 @@
 //! Parses `ppd_config.toml` and provides [`AppConfig`] with sensible defaults.
 
 use crate::db;
+#[cfg(feature = "server")]
 use crate::hasher::Hasher;
+
 use crate::paths_cross;
 use crate::root_dir;
 use serde::{Deserialize, Serialize};
@@ -20,6 +22,8 @@ pub struct AppConfig {
     pub root_dir: Option<String>,
     pub message_broker: Option<String>,
     pub static_folders: Vec<StaticFolder>,
+
+    #[cfg(feature = "server")]
     pub hasher: Hasher,
 }
 
@@ -111,6 +115,7 @@ impl Default for AppConfig {
             root_dir: None,
             message_broker: None,
             static_folders: vec![],
+            #[cfg(feature = "server")]
             hasher: Hasher::HMAC256,
         }
     }

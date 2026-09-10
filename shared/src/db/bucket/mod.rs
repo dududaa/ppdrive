@@ -6,7 +6,7 @@
 pub mod models;
 
 use crate::db::Database;
-use crate::db::utils::{asset_owner_id, instance_as_string};
+use crate::utils::{asset_owner_id, instance_as_string};
 use crate::tools::config::StaticFolder;
 use crate::{generate_nano_id, paths_cross, sql_safe};
 use anyhow::anyhow;
