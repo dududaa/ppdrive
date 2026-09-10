@@ -1,7 +1,28 @@
 ---
-title: PPDRIVE
-description: Self-hosted object storage built with Rust for speed, security, and reliability.
+title: PPDRIVE — Self-Hosted Object Storage Built in Rust
+description: "Self-hosted S3-compatible object storage built in Rust. Upload, store, and serve files with signed URLs, resumable uploads, and MIME validation — no vendor lock-in, no hidden costs."
 template: splash
+head:
+  - tag: meta
+    attrs:
+      property: "og:title"
+      content: "PPDRIVE — Self-Hosted Object Storage Built in Rust"
+  - tag: meta
+    attrs:
+      property: "og:description"
+      content: "Deploy your own object storage in minutes. Rust-powered, S3-compatible API with signed URLs, resumable uploads, and multi-database support."
+  - tag: meta
+    attrs:
+      property: "og:type"
+      content: "website"
+  - tag: meta
+    attrs:
+      name: "keywords"
+      content: "object storage, self-hosted, S3 alternative, file storage, Rust, open source, cloud storage, self-hosted file server, S3-compatible API, file upload service"
+  - tag: meta
+    attrs:
+      name: "author"
+      content: "Dududaa"
 hero:
   tagline: A free, open-source S3-like object storage service built with Rust.
   actions:
@@ -38,3 +59,52 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 		MIT licensed. Full source code on GitHub. Contributions welcome.
 	</Card>
 </CardGrid>
+
+## What is PPDRIVE?
+
+PPDRIVE is a self-hosted object storage service that lets you deploy a fully functional remote file storage system in minutes. It provides an S3-compatible API for uploading, storing, and downloading files — giving you the same capabilities as commercial cloud storage services like Amazon S3, without the vendor lock-in or recurring costs.
+
+Whether you're building a web application that needs file uploads, serving media assets, or running a development environment that requires local object storage, PPDRIVE gives you full control over your data and infrastructure.
+
+## Why PPDRIVE?
+
+- **Language Agnostic** — Works with any programming language or framework that sends HTTP requests. JavaScript, Python, Go, Rust, Flutter — you name it.
+- **Privacy and Data Control** — All your data stays on your server. PPDRIVE does not collect, transmit, or monetize your data in any way.
+- **No Vendor Lock-in** — Open source and free forever. Migrate away at any time with zero friction.
+- **User-Level Authorization** — Fine-grained resource ownership ensures only authorized clients can access specific buckets and files.
+- **Cross-Platform** — Runs on Linux, macOS, and Windows. Pre-built binaries for x86_64 and ARM64. Docker support included.
+- **Lightweight** — Single binary. SQLite by default. No JVM, no Node.js runtime, no external dependencies required.
+
+## Quick Start
+
+Install PPDRIVE and have your object storage running in three commands:
+
+```bash
+# Install (Linux/macOS)
+curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
+
+# Create a client
+ppdrive client create --name myapp --max-bucket-size 100
+
+# Start the server
+ppdrive serve
+```
+
+That's it. Your storage API is now available at `http://localhost:8000`. Upload files using the client token from any HTTP-capable application.
+
+## Supported Platforms
+
+| Platform | Architecture | Status |
+|----------|-------------|--------|
+| Linux | x86_64, ARM64 | Supported |
+| macOS | x86_64, ARM64 (Apple Silicon) | Supported |
+| Windows | x86_64 | Supported |
+| Docker | x86_64, ARM64 | Supported |
+
+## Community
+
+PPDRIVE is built by the [Dududaa](https://discord.gg/BeVPFS7wkp) community. Contributions are welcome — whether it's client libraries for new languages, documentation improvements, or feature development.
+
+- [GitHub](https://github.com/dududaa/ppdrive) — Source code, issues, and releases
+- [Discord](https://discord.gg/BeVPFS7wkp) — Community chat and support
+- [Contributing Guide](/contributing/development/) — How to get involved

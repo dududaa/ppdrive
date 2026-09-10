@@ -7,6 +7,7 @@ const satteriWasmStub = fileURLToPath(new URL('./satteri-wasi-stub.mjs', import.
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://ppdrive.dududaa.org',
 	vite: {
 		resolve: {
 			alias: [{ find: '@bruits/satteri-wasm32-wasi', replacement: satteriWasmStub }],
