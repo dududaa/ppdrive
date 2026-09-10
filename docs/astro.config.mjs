@@ -39,8 +39,9 @@ export default defineConfig({
 				{
 					label: 'API Reference',
 					items: [
-						{ label: 'Authentication', slug: 'api/authentication' },
-						{ label: 'Upload Flow', slug: 'api/upload' },
+				{ label: 'Authentication', slug: 'api/authentication' },
+					{ label: 'Bucket Management', slug: 'api/buckets' },
+					{ label: 'Upload Flow', slug: 'api/upload' },
 						{ label: 'Download Flow', slug: 'api/download' },
 						{ label: 'MIME Validation', slug: 'api/mime-validation' },
 					],
