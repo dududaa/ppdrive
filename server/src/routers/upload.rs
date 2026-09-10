@@ -26,33 +26,38 @@ use validator::Validate;
 
 /// Validate that `user_path` resolves within `root` without path-traversal (`..`).
 /// Returns the joined [`PathBuf`] on success.
-fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
-    let cleaned = user_path.trim_start_matches('/');
-    if cleaned.is_empty() {
-        return Err(anyhow!("path must not be empty"));
-    }
+async fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
+    let root = root.to_path_buf();
+    let user_path = user_path.to_string();
 
-    for component in Path::new(cleaned).components() {
-        if matches!(component, std::path::Component::ParentDir) {
-            return Err(anyhow!("path traversal detected: '..' is not allowed"));
+    tokio::task::spawn_blocking(move || {
+        let cleaned = user_path.trim_start_matches('/');
+        if cleaned.is_empty() {
+            return Err(anyhow!("path must not be empty"));
         }
-    }
 
-    let joined = root.join(cleaned);
-    let canonical_root = std::fs::canonicalize(root)
-        .or_else(|_| std::fs::create_dir_all(root).and_then(|_| std::fs::canonicalize(root)))?;
+        for component in Path::new(cleaned).components() {
+            if matches!(component, std::path::Component::ParentDir) {
+                return Err(anyhow!("path traversal detected: '..' is not allowed"));
+            }
+        }
 
-    let canonical_joined = std::fs::canonicalize(&joined).or_else(|_| {
-        // If the final path doesn't exist yet, canonicalize its nearest existing parent
-        let parent = joined.parent().unwrap_or(root);
-        std::fs::canonicalize(parent).map(|p| p.join(joined.file_name().unwrap_or_default()))
-    })?;
+        let joined = root.join(cleaned);
+        let canonical_root = std::fs::canonicalize(&root)
+            .or_else(|_| std::fs::create_dir_all(&root).and_then(|_| std::fs::canonicalize(&root)))?;
 
-    if !canonical_joined.starts_with(&canonical_root) {
-        return Err(anyhow!("path escapes root directory: not allowed"));
-    }
+        let canonical_joined = std::fs::canonicalize(&joined).or_else(|_| {
+            let parent = joined.parent().unwrap_or(&root);
+            std::fs::canonicalize(parent).map(|p| p.join(joined.file_name().unwrap_or_default()))
+        })?;
 
-    Ok(joined)
+        if !canonical_joined.starts_with(&canonical_root) {
+            return Err(anyhow!("path escapes root directory: not allowed"));
+        }
+
+        Ok(joined)
+    })
+    .await?
 }
 
 /// Create an upload session and return a signed session token.
@@ -71,8 +76,7 @@ pub(super) async fn create_session(
 
     if let Some(bucket_id) = &config.bucket {
         let bucket = bucket::get(bucket_id, state.db()).await?;
-        let id = bucket::get_id(bucket_id, state.db()).await?;
-        let is_owner = shared::check_ownership(AssetOwnerName::Client, id, state.db()).await?;
+        let is_owner = shared::check_ownership(AssetOwnerName::Client, bucket.id, state.db()).await?;
 
         if !is_owner {
             return Err(api_error("Write access denied for the specified bucket.")
@@ -170,7 +174,7 @@ pub(super) async fn play_session(
     let config = info.config.clone();
     let config = config.ok_or(api_error("missing configuration"))?;
     let root_dir = state.config().root_dir()?;
-    let mut target_path = safe_path(&root_dir, &config.path)
+    let mut target_path = safe_path(&root_dir, &config.path).await
         .map_err(|e| api_error(e).with_status_code(StatusCode::BAD_REQUEST))?;
 
     if let Some(bucket_id) = &config.bucket {
@@ -178,16 +182,18 @@ pub(super) async fn play_session(
         let bucket_root = PathBuf::from(&bucket.path);
 
         let new_root = root_dir.join(bucket_root);
-        target_path = safe_path(&new_root, &config.path)
+        target_path = safe_path(&new_root, &config.path).await
             .map_err(|e| api_error(e).with_status_code(StatusCode::BAD_REQUEST))?;
     }
 
     let parent_dir = target_path.parent().unwrap_or(&root_dir);
-    if target_path.exists() && !config.overwrite.unwrap_or_default() {
+    let target_exists = tokio::fs::metadata(&target_path).await.map(|m| m.is_file()).unwrap_or(false);
+    if target_exists && !config.overwrite.unwrap_or_default() {
         return Err(api_error("Asset already exists").with_status_code(StatusCode::CONFLICT));
     }
 
-    if parent_dir != root_dir && !parent_dir.exists() && !config.create_parents.unwrap_or_default()
+    let parent_exists = tokio::fs::metadata(parent_dir).await.map(|m| m.is_dir()).unwrap_or(false);
+    if parent_dir != root_dir && !parent_exists && !config.create_parents.unwrap_or_default()
     {
         return Err(
             api_error("Parent directory does not exist").with_status_code(StatusCode::NOT_FOUND)
@@ -243,7 +249,8 @@ async fn get_next_session(
     let tmp_dir = root_dir()?.join("tmp");
     let root_dir = state.config().root_dir()?;
 
-    if !tmp_dir.exists() {
+    let tmp_exists = tokio::fs::metadata(&tmp_dir).await.map(|m| m.is_dir()).unwrap_or(false);
+    if !tmp_exists {
         tokio::fs::create_dir(&tmp_dir).await?;
     }
 
@@ -288,11 +295,13 @@ async fn get_next_session(
                 let bucket_root = PathBuf::from(&bucket.path);
 
                 // validate bucket size
-                if !bucket_root.is_dir() {
+                let is_dir = tokio::fs::metadata(&bucket_root).await.map(|m| m.is_dir()).unwrap_or(false);
+                if !is_dir {
                     tokio::fs::create_dir_all(&bucket_root).await?
                 } else {
                     if let Some(max_size) = &bucket.size {
-                        let target_size = bucket_root.metadata()?.len() + target_filesize;
+                        let meta = tokio::fs::metadata(&bucket_root).await?;
+                        let target_size = meta.len() + target_filesize;
                         if target_size > (*max_size as u64) {
                             return Err(anyhow!("Bucket size limit exceeded."));
                         }
@@ -344,8 +353,11 @@ async fn get_next_session(
                     }
                 }
 
-                if parent_dir != root_dir && !parent_dir.exists() {
-                    tokio::fs::create_dir_all(&parent_dir).await?;
+                if parent_dir != root_dir {
+                    let parent_exists = tokio::fs::metadata(parent_dir).await.map(|m| m.is_dir()).unwrap_or(false);
+                    if !parent_exists {
+                        tokio::fs::create_dir_all(&parent_dir).await?;
+                    }
                 }
             }
         }

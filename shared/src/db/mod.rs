@@ -5,9 +5,11 @@
 
 use std::ops::Deref;
 use std::str::FromStr;
+use std::time::Duration;
 use sqlx::{AnyPool, migrate};
+use sqlx::pool::PoolOptions;
 use sqlx::any::install_default_drivers;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 pub mod bucket;
 pub mod client;
@@ -35,7 +37,12 @@ impl Database {
             DbEngine::Sqlite
         };
 
-        let pool = AnyPool::connect(url).await?;
+        let pool = PoolOptions::new()
+            .max_connections(10)
+            .acquire_timeout(Duration::from_secs(10))
+            .idle_timeout(Duration::from_secs(300))
+            .connect(url)
+            .await?;
         migrate!("../migrations").run(&pool).await?;
         Ok(Self { pool, engine })
     }
@@ -64,10 +71,12 @@ pub enum DbEngine {
     Mysql,
 }
 
-/// Forces the creation of sqlite file (in case the URL is a file)
+/// Forces the creation of sqlite file (in case the URL is a file) and enables WAL mode.
 async fn create_sqlite(url: &str) -> anyhow::Result<()> {
     let options = SqliteConnectOptions::from_str(url)?
-        .create_if_missing(true);
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .busy_timeout(Duration::from_secs(5));
 
     let _ = SqlitePoolOptions::new().connect_with(options).await?;
     Ok(())

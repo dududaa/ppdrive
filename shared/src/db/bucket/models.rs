@@ -18,6 +18,7 @@ pub struct CreateBucketData {
 /// Bucket row returned from the database.
 #[derive(FromRow)]
 pub struct Bucket {
+    pub id: i32,
     pub name: String,
     pub path: String,
     pub public: bool,

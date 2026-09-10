@@ -38,24 +38,30 @@ async fn resolve_file_path(
 
     let file_path = bucket_root.join(relative_path);
 
-    let canonical_root = std::fs::canonicalize(&root_dir)
-        .or_else(|_| {
-            std::fs::create_dir_all(&root_dir)?;
-            std::fs::canonicalize(&root_dir)
-        })
-        .map_err(|e| api_error(format!("failed to resolve root: {e}")))?;
+    let (canonical_file, is_file) = tokio::task::spawn_blocking(move || {
+        let canonical_root = std::fs::canonicalize(&root_dir)
+            .or_else(|_| {
+                std::fs::create_dir_all(&root_dir)?;
+                std::fs::canonicalize(&root_dir)
+            })?;
 
-    let canonical_file = std::fs::canonicalize(&file_path).or_else(|_| {
-        let parent = file_path.parent().unwrap_or(&bucket_root);
-        std::fs::canonicalize(parent).map(|p| p.join(file_path.file_name().unwrap_or_default()))
-    }).map_err(|e| api_error(format!("failed to resolve file: {e}")))?;
+        let canonical_file = std::fs::canonicalize(&file_path).or_else(|_| {
+            let parent = file_path.parent().unwrap_or(&bucket_root);
+            std::fs::canonicalize(parent).map(|p| p.join(file_path.file_name().unwrap_or_default()))
+        })?;
 
-    if !canonical_file.starts_with(&canonical_root) {
-        return Err(api_error("path escapes storage root")
-            .with_status_code(StatusCode::FORBIDDEN));
-    }
+        if !canonical_file.starts_with(&canonical_root) {
+            return Err(anyhow::anyhow!("path escapes storage root"));
+        }
 
-    if !canonical_file.is_file() {
+        let is_file = canonical_file.is_file();
+        Ok::<_, anyhow::Error>((canonical_file, is_file))
+    })
+    .await
+    .map_err(|e| api_error(format!("failed to resolve path: {e}")))?
+    .map_err(|e| api_error(format!("failed to resolve path: {e}")))?;
+
+    if !is_file {
         return Err(api_error("file not found")
             .with_status_code(StatusCode::NOT_FOUND));
     }
@@ -112,8 +118,7 @@ pub(super) async fn sign_download(
             .with_status_code(StatusCode::BAD_REQUEST));
     }
 
-    let bucket_id = bucket::get_id(&config.bucket, state.db()).await?;
-    let is_owner = shared::check_ownership(AssetOwnerName::Client, bucket_id, state.db()).await?;
+    let is_owner = shared::check_ownership(AssetOwnerName::Client, bucket_data.id, state.db()).await?;
 
     if !is_owner {
         return Err(api_error("access denied for the specified bucket")
@@ -139,7 +144,8 @@ pub(super) async fn sign_download(
     // Validate the file exists on disk
     let root_dir = state.config().root_dir()?;
     let file_path = root_dir.join(&full_path);
-    if !file_path.is_file() {
+    let is_file = tokio::fs::metadata(&file_path).await.map(|m| m.is_file()).unwrap_or(false);
+    if !is_file {
         return Err(api_error("file not found")
             .with_status_code(StatusCode::NOT_FOUND));
     }

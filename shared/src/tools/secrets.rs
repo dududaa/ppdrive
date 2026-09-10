@@ -111,7 +111,7 @@ async fn generate_secret_file() -> anyhow::Result<()> {
         use std::os::unix::fs::PermissionsExt;
         let path = secret_filename()?;
         let perms = std::fs::Permissions::from_mode(0o600);
-        std::fs::set_permissions(&path, perms)?;
+        tokio::fs::set_permissions(&path, perms).await?;
     }
 
     Ok(())
@@ -121,7 +121,8 @@ async fn generate_secret_file() -> anyhow::Result<()> {
 /// for app initialization.
 async fn init_secrets() -> anyhow::Result<()> {
     let path = secret_filename()?;
-    if !path.is_file() {
+    let exists = tokio::fs::metadata(&path).await.map(|m| m.is_file()).unwrap_or(false);
+    if !exists {
         generate_secret_file().await.map_err(|err| anyhow!(err))?;
     }
 
@@ -130,7 +131,7 @@ async fn init_secrets() -> anyhow::Result<()> {
     {
         use std::os::unix::fs::PermissionsExt;
         let perms = std::fs::Permissions::from_mode(0o600);
-        std::fs::set_permissions(&path, perms)?;
+        tokio::fs::set_permissions(&path, perms).await?;
     }
 
     Ok(())

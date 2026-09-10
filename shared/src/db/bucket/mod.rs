@@ -118,7 +118,7 @@ pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
 /// Fetch a bucket by PID.
 pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
     let query = sql_safe!(
-        "SELECT name, path, public, size, accepts FROM buckets WHERE pid = {} LIMIT 1",
+        "SELECT id, name, path, public, size, accepts FROM buckets WHERE pid = {} LIMIT 1",
         db.placeholder(1)
     );
 
@@ -127,6 +127,7 @@ pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
     let accepts = accepts.map(|s| s.split(",").map(|s| s.to_string()).collect());
 
     let data = Bucket {
+        id: row.get("id"),
         name: row.get("name"),
         path: row.get("path"),
         public: row.get("public"),
@@ -180,14 +181,14 @@ async fn validate_parents_privacy(path: &str, db: &Database) -> anyhow::Result<b
     }
 
     let query =
-        sql_safe!("SELECT Count(*) FROM buckets WHERE path = ({placeholders}) AND public IS TRUE");
+        sql_safe!("SELECT EXISTS(SELECT 1 FROM buckets WHERE path = ({placeholders}) AND public IS TRUE)");
     let mut qs = sqlx::query_scalar(query);
     for parent in parents {
         qs = qs.bind(parent);
     }
 
-    let count: i32 = qs.fetch_one(&**db).await?;
-    Ok(count == 0)
+    let exists: bool = qs.fetch_one(&**db).await?;
+    Ok(!exists)
 }
 
 /// Validate that user owns all the parents for this bucket
@@ -202,26 +203,32 @@ async fn validate_parent_ownership(
         .flat_map(|p| p.to_str())
         .collect::<Vec<&str>>();
 
-    let mut owner_ids: Vec<i32> = Vec::with_capacity(parents.len());
-    for parent in parents {
-        let query = sql_safe!(
-            "SELECT owner_id FROM buckets WHERE path = {}",
-            db.placeholder(1)
-        );
-
-        let rows = sqlx::query(query).bind(parent).fetch_all(&**db).await?;
-        for row in rows {
-            owner_ids.push(row.get("owner_id"));
+    let mut placeholders = String::new();
+    for idx in 0..parents.len() {
+        let placeholder = db.placeholder(idx as u8 + 1);
+        if idx == 0 {
+            placeholders.push_str(&placeholder);
+        } else {
+            placeholders.push_str(", ");
+            placeholders.push_str(&placeholder);
         }
     }
 
-    let mut valid_owner = true;
+    let query = sql_safe!(
+        "SELECT DISTINCT owner_id FROM buckets WHERE path IN ({placeholders})",
+    );
+    let mut qs = sqlx::query_scalar(query);
+    for parent in parents {
+        qs = qs.bind(parent);
+    }
+
+    let owner_ids: Vec<i32> = qs.fetch_all(&**db).await?;
+
     for id in owner_ids {
         if id != owner_id {
-            valid_owner = false;
-            break;
+            return Ok(false);
         }
     }
 
-    Ok(valid_owner)
+    Ok(true)
 }

@@ -34,20 +34,20 @@ pub fn root_dir() -> anyhow::Result<PathBuf> {
 
 /// Compute the total size in bytes of a folder recursively.
 pub async fn get_folder_size(folder_path: &str, size: &mut u64) -> anyhow::Result<()> {
-    let path = Path::new(folder_path);
+    let path = std::path::Path::new(folder_path);
 
-    if path.is_file() {
-        return Err(anyhow!("provided path is not a folder path",));
+    let meta = tokio::fs::metadata(path).await?;
+    if meta.is_file() {
+        return Err(anyhow!("provided path is not a folder path"));
     }
 
     let mut rd = tokio::fs::read_dir(path).await?;
 
     while let Ok(Some(entry)) = rd.next_entry().await {
         let path = entry.path();
-
-        if path.is_file() {
-            let m = path.metadata()?;
-            *size += m.len()
+        let m = tokio::fs::metadata(&path).await?;
+        if m.is_file() {
+            *size += m.len();
         } else if let Some(folder) = path.to_str() {
             Box::pin(get_folder_size(folder, size)).await?;
         }
