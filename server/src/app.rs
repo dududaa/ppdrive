@@ -13,8 +13,13 @@ use axum::http::header::{
 use axum::http::{HeaderName, HeaderValue, Request, StatusCode};
 use axum::routing::{IntoMakeService, get};
 use std::str::FromStr;
+use std::time::Duration;
+use tower_governor::GovernorLayer;
+use tower_governor::governor::GovernorConfigBuilder;
+use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::services::ServeDir;
+use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
@@ -68,6 +73,14 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, u16)> {
         ])
         .allow_methods(Any);
 
+    // Per-IP rate limiter: 100 requests/sec with burst of 200
+    let mut builder = GovernorConfigBuilder::default();
+    builder.per_second(100).burst_size(200);
+    let mut builder = builder.key_extractor(SmartIpKeyExtractor);
+    let governor_conf = builder
+        .finish()
+        .ok_or_else(|| anyhow::anyhow!("failed to build rate limiter config"))?;
+
     let mut app = Router::new()
         .route("/health", get(|| async { StatusCode::OK }))
         .route("/metrics", get(metrics_handler))
@@ -102,7 +115,16 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, u16)> {
         app = app.nest_service(&path, ServeDir::new(folder.name));
     }
 
-    let app = app.layer(cors).layer(MetricsLayer).with_state(state).into_make_service();
+    let app = app
+        .layer(cors)
+        .layer(MetricsLayer)
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(30),
+        ))
+        .layer(GovernorLayer::new(governor_conf))
+        .with_state(state)
+        .into_make_service();
 
     Ok((app, port))
 }

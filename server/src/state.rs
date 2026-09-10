@@ -24,7 +24,7 @@ impl AppState {
         AppSecrets::init().await?;
         let secrets = AppSecrets::read().await?;
 
-        let db = Database::new(&config.database_url).await?;
+        let db = Database::new(&config.database_url, config.db_pool_size.unwrap_or(10)).await?;
         config.validate_static_folders(&db).await?;
         let mut broker = None;
         if let Some(url) = &config.message_broker {

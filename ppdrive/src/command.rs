@@ -20,7 +20,7 @@ pub struct Cli {
 impl Cli {
     pub async fn execute(&self) -> Result<(), anyhow::Error> {
         let mut config = AppConfig::read().await?;
-        let pool = Database::new(&config.database_url).await?;
+        let pool = Database::new(&config.database_url, config.db_pool_size.unwrap_or(10)).await?;
         config.validate_static_folders(&pool).await?;
         AppSecrets::init().await?;
         let secret = AppSecrets::read().await?;

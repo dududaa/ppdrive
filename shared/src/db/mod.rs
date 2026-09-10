@@ -25,7 +25,7 @@ pub struct Database {
 
 impl Database {
     /// Create a new database connection pool, run migrations, and detect the engine type.
-    pub async fn new(url: &str) -> anyhow::Result<Self> {
+    pub async fn new(url: &str, max_connections: u32) -> anyhow::Result<Self> {
         install_default_drivers();
 
         let engine = if url.starts_with("postgres") {
@@ -38,7 +38,7 @@ impl Database {
         };
 
         let pool = PoolOptions::new()
-            .max_connections(10)
+            .max_connections(max_connections)
             .acquire_timeout(Duration::from_secs(10))
             .idle_timeout(Duration::from_secs(300))
             .connect(url)

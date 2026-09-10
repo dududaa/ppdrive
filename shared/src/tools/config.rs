@@ -22,6 +22,8 @@ pub struct AppConfig {
     pub root_dir: Option<String>,
     pub message_broker: Option<String>,
     pub static_folders: Vec<StaticFolder>,
+    /// Max database connections in the pool (default: 10).
+    pub db_pool_size: Option<u32>,
 
     #[cfg(feature = "server")]
     pub hasher: Hasher,
@@ -115,6 +117,7 @@ impl Default for AppConfig {
             root_dir: None,
             message_broker: None,
             static_folders: vec![],
+            db_pool_size: Some(10),
             #[cfg(feature = "server")]
             hasher: Hasher::HMAC256,
         }

@@ -196,7 +196,7 @@ mod tests {
     async fn test_token_validation() -> anyhow::Result<()> {
         dotenvy::dotenv()?;
         let url = env::var("DATABASE_URL")?;
-        let db = Database::new(&url).await?;
+        let db = Database::new(&url, 10).await?;
 
         AppSecrets::init().await?;
         let secrets = AppSecrets::read().await?;

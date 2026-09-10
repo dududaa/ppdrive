@@ -22,11 +22,13 @@ tower-http = { version = "0.7.0", features = [
     "trace",
     "tracing",
     "fs",
+    "timeout",
 ] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 shared = {workspace = true, features = ["server"]}
 metrics = "0.24"
 metrics-exporter-prometheus = "0.18"
+tower_governor = { version = "0.8", features = ["axum"] }
 tokio-util = { workspace = true, features = ["io"] }
 mime_guess = { workspace = true }
 

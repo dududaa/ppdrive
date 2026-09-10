@@ -200,7 +200,7 @@ mod tests {
         AppSecrets::init().await?;
         let secrets = AppSecrets::read().await?;
 
-        let db = Database::new(&config.database_url).await?;
+        let db = Database::new(&config.database_url, 10).await?;
         let hasher = config.hasher.clone();
         let client_details = client::create_client(&db, &secrets, "Signed Client").await?;
 
