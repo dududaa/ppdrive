@@ -40,7 +40,7 @@ of APIs for remote file management and storage.
 ---
 
 ###### Documentation
-Please see the [Documentation Website](https:/ppdrive.dududaa.org).
+Please see the [Documentation Website](https://ppdrive.dududaa.org).
 
 #### Roadmap Features (Let's Build Together)
 
