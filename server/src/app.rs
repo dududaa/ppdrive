@@ -11,7 +11,7 @@ use axum::http::header::{
     ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
 };
 use axum::http::{HeaderName, HeaderValue, Request, StatusCode};
-use axum::routing::{IntoMakeService, get};
+use axum::routing::get;
 use std::str::FromStr;
 use std::time::Duration;
 use tower_governor::GovernorLayer;
@@ -52,8 +52,8 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
 
 /// Build the complete Axum application: router, CORS, tracing, static dirs, state.
 ///
-/// Returns the [`IntoMakeService`] and the configured port.
-pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, u16)> {
+/// Returns the [`Router`] and the configured port.
+pub async fn create_app() -> anyhow::Result<(Router, u16)> {
     start_logger()?;
     let state = AppState::new().await?;
     let origins = state.config().allowed_origins.clone();
@@ -128,8 +128,7 @@ pub async fn create_app() -> anyhow::Result<(IntoMakeService<Router>, u16)> {
             Duration::from_secs(30),
         ))
         .layer(GovernorLayer::new(governor_conf))
-        .with_state(state)
-        .into_make_service();
+        .with_state(state);
 
     Ok((app, port))
 }

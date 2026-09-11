@@ -55,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("shutdown signal received, draining connections...");
     };
 
-    axum::serve(listener, app)
+    axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>())
         .with_graceful_shutdown(shutdown)
         .await?;
 

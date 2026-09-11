@@ -97,7 +97,7 @@ pub async fn create(
         .bind(owner_id)
         .bind(path)
         .bind(name)
-        .bind(public)
+        .bind(i32::from(*public))
         .execute(&**db)
         .await?;
 
@@ -130,7 +130,7 @@ pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
         id: row.get("id"),
         name: row.get("name"),
         path: row.get("path"),
-        public: row.get("public"),
+        public: row.get::<i32, _>("public") != 0,
         size: row.get("size"),
         accepts,
         owner_id: row.get("owner_id"),
@@ -140,7 +140,7 @@ pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
 }
 
 pub async fn get_public_paths(db: &Database) -> anyhow::Result<Vec<String>> {
-    let query = sql_safe!("SELECT path FROM buckets WHERE public = TRUE");
+    let query = sql_safe!("SELECT path FROM buckets WHERE public = 1");
     let result = sqlx::query_scalar(query).fetch_all(&**db).await?;
     Ok(result)
 }
@@ -174,14 +174,14 @@ async fn validate_parents_privacy(path: &str, db: &Database) -> anyhow::Result<b
     }
 
     let query =
-        sql_safe!("SELECT EXISTS(SELECT 1 FROM buckets WHERE path = ({placeholders}) AND public IS TRUE)");
+        sql_safe!("SELECT EXISTS(SELECT 1 FROM buckets WHERE path = ({placeholders}) AND public = 1)");
     let mut qs = sqlx::query_scalar(query);
     for parent in parents {
         qs = qs.bind(parent);
     }
 
-    let exists: bool = qs.fetch_one(&**db).await?;
-    Ok(!exists)
+    let exists: i32 = qs.fetch_one(&**db).await?;
+    Ok(exists == 0)
 }
 
 /// Validate that user owns all the parents for this bucket

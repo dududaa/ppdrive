@@ -45,7 +45,12 @@ impl Database {
             .max_lifetime(Duration::from_secs(1800))
             .connect(url)
             .await?;
-        migrate!("../migrations").run(&pool).await?;
+
+        match engine {
+            DbEngine::Postgres => migrate!("../migrations_postgres").run(&pool).await?,
+            _ => migrate!("../migrations").run(&pool).await?,
+        };
+
         Ok(Self { pool, engine })
     }
 

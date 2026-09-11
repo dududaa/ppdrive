@@ -133,7 +133,8 @@ impl Cli {
                         .arg(port.to_string())
                         .status()?;
                 } else {
-                    Command::new("./server").arg(port.to_string()).status()?;
+                    let server_path = shared::root_dir()?.join("server");
+                    Command::new(&server_path).arg(port.to_string()).status()?;
                 }
             }
 
