@@ -81,27 +81,7 @@ See the [SDK Contributor Guide](https://ppdrive.dududaa.org/contributing/sdk/) f
 
 ## Contributing
 
-We welcome contributions to PPDRIVE! Here’s how you can help:
-
-- You can create a PPDRIVE Client for your favorite language or framework. Please check our REST API Docs to get
-  started.
-
-- You can help improve code-level documentations.
-
-- Or you can contribute directly to PPDRIVE by helping us resolve an issue or implement our roadmap feature. Please
-  follow these steps.
-
-1. Fork the repository.
-
-2. Create a new branch (git checkout -b feature-name).
-
-3. Make your changes.
-
-4. Commit your changes (git commit -am 'Add new feature').
-
-5. Push to your fork (git push origin feature-name).
-
-6. Create a pull request.
+Please see [Contribution Guide](https://ppdrive.dududaa.org/contributing/development/) for detailed contribution guide.
 
 ---
 

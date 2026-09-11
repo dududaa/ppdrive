@@ -18,6 +18,7 @@ export default defineConfig({
 			title: 'PPDRIVE',
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/dududaa/ppdrive' },
+				{ icon: 'discord', label: 'Discord', href: 'https://discord.gg/6nB4xYnxeC' },
 			],
 			sidebar: [
 				{ label: 'Introduction', slug: 'introduction' },
