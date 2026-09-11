@@ -16,7 +16,7 @@ A PPDRIVE client SDK wraps the HTTP API in a native-language client class. The S
 The [SDK Specification](https://github.com/dududaa/ppdrive/blob/main/SDK_SPEC.md) defines:
 
 - **Client class** — Constructor, options, methods
-- **7 API methods** — Upload, download, buckets, permissions
+- **10 API methods** — Upload, download, signed URLs, buckets, permissions
 - **Type definitions** — Request/response shapes
 - **Error handling** — Status code mapping and error classes
 - **Resumable uploads** — Chunking flow and resume support
@@ -113,8 +113,10 @@ Implement these methods based on the SDK specification:
 |--------|-------------|
 | `uploadFile(path, data, options?)` | Upload a file (two-step: session + data). |
 | `uploadFolder(path, options?)` | Create a folder. |
+| `signUploadUrl(path, options?)` | Generate a signed upload URL (returns URL, does not upload). |
 | `downloadFile(bucketPid, path, options?)` | Download from a private bucket (two-step: sign + fetch). |
 | `downloadPublicFile(url)` | Download from a public bucket (direct HTTP). |
+| `signDownloadUrl(bucketPid, path, options?)` | Generate a signed download URL (returns URL, does not download). |
 | `createBucket(options)` | Create a storage bucket. |
 | `grantPermission(bucketPid, options)` | Grant file-level permission. |
 | `revokePermission(bucketPid, options)` | Revoke file-level permission. |
@@ -364,8 +366,10 @@ Open a pull request on [ppdrive/ppdrive](https://github.com/dududaa/ppdrive) to 
 |------------|-----------|------|
 | `uploadFile` | `POST /upload/session` + `POST /upload/session/play/{token}` | Client |
 | `uploadFolder` | `POST /upload/session` + `POST /upload/session/play/{token}` | Client |
+| `signUploadUrl` | `POST /upload/session` | Client |
 | `downloadFile` | `POST /download/sign` + `GET /download/{token}` | Client |
 | `downloadPublicFile` | `GET {url}` | None |
+| `signDownloadUrl` | `POST /download/sign` | Client |
 | `createBucket` | `POST /buckets` | Client |
 | `grantPermission` | `POST /buckets/{pid}/permissions` | Client |
 | `revokePermission` | `DELETE /buckets/{pid}/permissions` | Client |

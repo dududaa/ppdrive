@@ -135,6 +135,35 @@ await client.uploadFolder("documents/2024/reports");
 
 ---
 
+#### `signUploadUrl(path, options?)`
+
+Generate a signed upload URL without sending file data. Useful for generating upload links to share with clients or browsers.
+
+```javascript
+const uploadUrl = await client.signUploadUrl("docs/report.pdf", {
+  bucket: "BUCKET_PID",
+  contentType: "application/pdf",
+  expires: 300,
+});
+// uploadUrl → "http://localhost:8000/upload/session/play/eyJ0eXAiOiJKV1..."
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `path` | `string` | Yes | Destination path (relative to bucket or static dir) |
+| `options.bucket` | `string` | No | Bucket PID (omit for static directory upload) |
+| `options.contentType` | `string` | No | MIME type (required if bucket has `accepts` restrictions) |
+| `options.targetFilesize` | `number` | No | Expected file size in bytes (required for files) |
+| `options.overwrite` | `boolean` | No | Allow overwriting existing file (default: `false`) |
+| `options.createParents` | `boolean` | No | Create parent directories (default: `false`) |
+| `options.expires` | `number` | No | Session lifetime in seconds (default: `120`, range: `30–86400`) |
+
+**Returns:** `string` (full signed upload URL)
+
+**HTTP:** `POST /upload/session`
+
+---
+
 ### Download
 
 #### `downloadFile(bucketPid, path, options?)`
@@ -183,6 +212,29 @@ const data = await client.downloadPublicFile("http://localhost:8000/storage/imag
 **Returns:** `bytes`
 
 **HTTP:** `GET {url}`
+
+---
+
+#### `signDownloadUrl(bucketPid, path, options?)`
+
+Generate a signed download URL for a private bucket file without downloading it. Useful for generating temporary download links to share with clients or browsers.
+
+```javascript
+const downloadUrl = await client.signDownloadUrl("BUCKET_PID", "report.pdf", {
+  expires: 300,
+});
+// downloadUrl → "http://localhost:8000/download/eyJ0eXAiOiJKV1..."
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `bucketPid` | `string` | Yes | Bucket PID |
+| `path` | `string` | Yes | File path within the bucket |
+| `options.expires` | `number` | No | Token lifetime in seconds (default: `300`, range: `30–3600`) |
+
+**Returns:** `string` (full signed download URL)
+
+**HTTP:** `POST /download/sign`
 
 ---
 
@@ -325,6 +377,19 @@ interface UploadOptions {
 
 interface DownloadOptions {
   range?: { start: number; end?: number };
+  expires?: number;  // seconds, default 300
+}
+
+interface SignUploadUrlOptions {
+  bucket?: string;
+  contentType?: string;
+  targetFilesize?: number;
+  overwrite?: boolean;
+  createParents?: boolean;
+  expires?: number;  // seconds, default 120
+}
+
+interface SignDownloadUrlOptions {
   expires?: number;  // seconds, default 300
 }
 
