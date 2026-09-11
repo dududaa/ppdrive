@@ -87,7 +87,7 @@ Please see [Contribution Guide](https://ppdrive.dududaa.org/contributing/develop
 
 ## License
 
-PPDRIVE is open-source software licensed under the [MIT License](#/LICENSE).
+PPDRIVE is open-source software licensed under the [PolyForm Noncommercial License](https://polyformproject.org/licenses/noncommercial/1.0.0). Commercial use requires permission — see [LICENSE](LICENSE) for details.
 
 ---
 
