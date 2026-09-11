@@ -17,7 +17,7 @@ serde_json.workspace = true
 toml = "1.1.2"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 nanoid.workspace = true
-validator = { workspace = true, features = ["derive"], optional = true }
+validator = { workspace = true, features = ["derive"] }
 time.workspace = true
 redis = { workspace = true, features = ["tokio-comp", "aio", "r2d2"] }
 blake3 = "1.8.5"
@@ -30,4 +30,4 @@ subtle = "2.6"
 dotenvy.workspace = true
 
 [features]
-server = ["dep:validator", "dep:sha3"]
+server = ["dep:sha3"]

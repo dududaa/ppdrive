@@ -105,5 +105,4 @@ We ride on the shoulders of giants! We'll just mention a few:
   can [find us on Discord](https://discord.gg/6nB4xYnxeC).
 - Rust: The systems programming language used to build PPDRIVE.
 - Tokio: For Axum web framework and several other crates that simplify asynchronous Rust.
-- RBatis: RBatis serves as a drive for our modeller crate and record management within PPDRIVE.
 - Community: Thanks to the open-source community for their valuable contributions!
