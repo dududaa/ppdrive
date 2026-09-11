@@ -1,6 +1,6 @@
 [![Actions Status](https://github.com/dududaa/ppdrive/workflows/Release%20PPDRIVE/badge.svg)](https://github.com/dududaa/ppdrive/actions) [![Actions Status](https://github.com/dududaa/ppdrive/workflows/Release%20Dynamic%20Libraries/badge.svg)](https://github.com/dududaa/ppdrive/actions)
 
-# PPDRIVE (Work In Progress)
+# PPDRIVE
 
 **PPDRIVE** is an open-source Object Storage Service designed to let you deploy a fully functional remote file storage
 system in seconds. It provides a ready-made solution for uploading, downloading, and managing files, enabling your
