@@ -46,12 +46,7 @@ Please see the [Documentation Website](https:/ppdrive.dududaa.org).
 
 - [x] Private object access.
 - [x] Resumable Upload.
-- Client SDKs
-  - [ ] Node.js
-  - [ ] Python
-  - [ ] GoLang
-  - [ ] Kotlin
-  - [ ] Rust
+- [ ] Client SDKs (Node.js, Python, Go, Kotlin, Rust, or any language — see [SDK_SPEC.md](SDK_SPEC.md))
 - Extensions
   - [ ] Dashboard UI
   - [ ] Image transformation.
@@ -64,6 +59,25 @@ Please see the [Documentation Website](https:/ppdrive.dududaa.org).
   - [ ] And many more.
 
 ---
+
+## Client SDKs
+
+PPDRIVE works with any language that can send HTTP requests. We encourage developers to build client SDKs for their language of choice.
+
+### Available SDKs
+
+| Language | Repository | Author |
+|----------|-----------|--------|
+| *(none yet — be the first!)* | | |
+
+### Build an SDK?
+
+1. Read the [SDK Specification](SDK_SPEC.md) for the full API architecture
+2. Create a repo named `ppdrive-[language]-sdk`
+3. Implement the SDK following the spec
+4. Open a PR here to add your SDK to the list above
+
+See the [SDK Contributor Guide](https://ppdrive.dududaa.org/contributing/sdk/) for detailed instructions.
 
 ## Contributing
 

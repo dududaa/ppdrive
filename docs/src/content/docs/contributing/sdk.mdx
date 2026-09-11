@@ -1,0 +1,380 @@
+---
+title: SDK Contributor Guide
+description: How to build a client SDK for PPDRIVE in your language of choice.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+PPDRIVE works with any language that can send HTTP requests. We encourage developers to build client SDKs for their favorite languages and share them with the community.
+
+## Overview
+
+A PPDRIVE client SDK wraps the HTTP API in a native-language client class. The SDK handles client token authentication, request formatting, error handling, and the two-step upload/download flows — so users of your SDK don't need to manage these details.
+
+## Step 1: Read the SDK Specification
+
+The [SDK Specification](https://github.com/dududaa/ppdrive/blob/main/SDK_SPEC.md) defines:
+
+- **Client class** — Constructor, options, methods
+- **7 API methods** — Upload, download, buckets, permissions
+- **Type definitions** — Request/response shapes
+- **Error handling** — Status code mapping and error classes
+- **Resumable uploads** — Chunking flow and resume support
+- **Range downloads** — Partial file downloads
+- **Naming conventions** — How to adapt to your language's style
+
+## Step 2: Create Your Repository
+
+Create a new repository named `ppdrive-[language]-sdk`:
+
+| Language | Example Repo Name |
+|----------|------------------|
+| JavaScript | `ppdrive-js-sdk` |
+| Python | `ppdrive-python-sdk` |
+| Go | `ppdrive-go-sdk` |
+| Rust | `ppdrive-rust-sdk` |
+| Java | `ppdrive-java-sdk` |
+| Dart | `ppdrive-dart-sdk` |
+| Ruby | `ppdrive-ruby-sdk` |
+| C# | `ppdrive-csharp-sdk` |
+| PHP | `ppdrive-php-sdk` |
+| Kotlin | `ppdrive-kotlin-sdk` |
+| Swift | `ppdrive-swift-sdk` |
+| Any other | `ppdrive-[language]-sdk` |
+
+Your repo should include:
+
+```
+ppdrive-[language]-sdk/
+├── src/                  # SDK source code
+├── tests/                # Unit and integration tests
+├── README.md             # Installation and usage examples
+├── LICENSE               # MIT license (recommended)
+└── SDK_SPEC.md           # Copy from ppdrive repo (optional, for reference)
+```
+
+## Step 3: Implement the SDK
+
+### Client Class
+
+Create a client class that wraps all PPDRIVE API operations:
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```javascript
+class PPDRIVEClient {
+  constructor({ baseUrl, clientToken }) {
+    this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.clientToken = clientToken;
+  }
+
+  // Methods go here...
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+class PPDRIVEClient:
+    def __init__(self, base_url, client_token):
+        self.base_url = base_url.rstrip("/")
+        self.client_token = client_token
+
+    # Methods go here...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+```go
+type Client struct {
+    BaseURL     string
+    ClientToken string
+}
+
+func NewClient(baseURL, clientToken string) *Client {
+    return &Client{
+        BaseURL:     strings.TrimRight(baseURL, "/"),
+        ClientToken: clientToken,
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### API Methods
+
+Implement these methods based on the SDK specification:
+
+| Method | Description |
+|--------|-------------|
+| `uploadFile(path, data, options?)` | Upload a file (two-step: session + data). |
+| `uploadFolder(path, options?)` | Create a folder. |
+| `downloadFile(bucketPid, path, options?)` | Download from a private bucket (two-step: sign + fetch). |
+| `downloadPublicFile(url)` | Download from a public bucket (direct HTTP). |
+| `createBucket(options)` | Create a storage bucket. |
+| `grantPermission(bucketPid, options)` | Grant file-level permission. |
+| `revokePermission(bucketPid, options)` | Revoke file-level permission. |
+| `listPermissions(bucketPid, path?)` | List file permissions. |
+
+### Two-Step Upload Flow
+
+The upload is a two-step process. Your SDK should handle this internally:
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```javascript
+async uploadFile(path, data, options = {}) {
+  // Step 1: Create session
+  const sessionRes = await this._request("POST", "/upload/session", {
+    asset_type: "File",
+    path,
+    target_filesize: data.length,
+    expires: options.expires || 120,
+    bucket: options.bucket,
+    content_type: options.contentType,
+    overwrite: options.overwrite || false,
+    create_parents: options.createParents || false,
+    resumable: options.resumable || false,
+  });
+
+  const token = sessionRes.data;
+
+  // Step 2: Upload data
+  await this._request("POST", `/upload/session/play/${token}`, data, {
+    raw: true,
+  });
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+def upload_file(self, path, data, **options):
+    # Step 1: Create session
+    session_res = self._request("POST", "/upload/session", {
+        "asset_type": "File",
+        "path": path,
+        "target_filesize": len(data),
+        "expires": options.get("expires", 120),
+        "bucket": options.get("bucket"),
+        "content_type": options.get("content_type"),
+        "overwrite": options.get("overwrite", False),
+        "create_parents": options.get("create_parents", False),
+        "resumable": options.get("resumable", False),
+    })
+
+    token = session_res["data"]
+
+    # Step 2: Upload data
+    self._request("POST", f"/upload/session/play/{token}", data, raw=True)
+```
+
+</TabItem>
+</Tabs>
+
+### Two-Step Download Flow
+
+The private bucket download is also two steps:
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```javascript
+async downloadFile(bucketPid, path, options = {}) {
+  // Step 1: Sign the download
+  const signRes = await this._request("POST", "/download/sign", {
+    path,
+    bucket: bucketPid,
+    expires: options.expires || 300,
+  });
+
+  const token = signRes.data;
+
+  // Step 2: Download the file
+  return this._request("GET", `/download/${token}`, null, {
+    raw: true,
+    range: options.range,
+  });
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+def download_file(self, bucket_pid, path, **options):
+    # Step 1: Sign the download
+    sign_res = self._request("POST", "/download/sign", {
+        "path": path,
+        "bucket": bucket_pid,
+        "expires": options.get("expires", 300),
+    })
+
+    token = sign_res["data"]
+
+    # Step 2: Download the file
+    return self._request("GET", f"/download/{token}", raw=True,
+                         range_header=options.get("range"))
+```
+
+</TabItem>
+</Tabs>
+
+### Error Handling
+
+Define a typed error class and map HTTP status codes:
+
+```javascript
+class PPDRIVEError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.name = "PPDRIVEError";
+    this.status = status;
+  }
+}
+```
+
+| Status | Error Name |
+|--------|-----------|
+| 400 | `ValidationError` |
+| 401 | `AuthenticationError` |
+| 403 | `AuthorizationError` |
+| 404 | `NotFoundError` |
+| 409 | `ConflictError` |
+| 413 | `PayloadTooLargeError` |
+| 416 | `RangeError` |
+| 429 | `RateLimitError` |
+| 500 | `ServerError` |
+
+### Internal HTTP Client
+
+Your SDK should have a thin HTTP client wrapper that:
+
+- Sets the `x-ppdrive-client` header with the client token
+- Sends JSON for request bodies
+- Parses `{"data": ...}` responses
+- Throws `PPDRIVEError` on non-2xx responses
+- Supports raw binary responses for uploads/downloads
+
+## Step 4: Write Tests
+
+Include both unit and integration tests:
+
+### Unit Tests
+
+Mock HTTP responses and verify:
+- Correct headers are sent
+- Request bodies are formatted correctly
+- Responses are parsed into the right types
+- Errors are thrown for bad status codes
+
+### Integration Tests
+
+Run against a live PPDRIVE server:
+
+```bash
+# Start test server
+ppdrive serve --port 8000 &
+
+# Create test client
+ppdrive client create --name "SDK Tests"
+
+# Run tests with the token
+TEST_TOKEN="..." npm test
+```
+
+Test the full flow:
+1. Create a bucket
+2. Upload a file
+3. Download the file
+4. Grant permission to another client
+5. Verify the other client can download
+6. Revoke permission
+7. Verify access is denied
+
+## Step 5: Write the README
+
+Your README should include:
+
+1. **Installation** — Package manager command for your language
+2. **Quick Start** — Minimal example (create client → upload → download)
+3. **API Reference** — Link to full docs or inline docs
+4. **Error Handling** — How to catch and handle errors
+5. **License** — MIT recommended
+
+## Step 6: Publish
+
+Publish your SDK to your language's package registry:
+
+| Language | Registry |
+|----------|----------|
+| JavaScript | npm (`npm publish`) |
+| Python | PyPI (`twine upload`) |
+| Go | Go modules (tagged release) |
+| Rust | crates.io (`cargo publish`) |
+| Java | Maven Central |
+| Dart | pub.dev |
+| Ruby | RubyGems |
+| C# | NuGet |
+| PHP | Packagist |
+| Swift | Swift Package Manager |
+
+## Step 7: Submit a PR
+
+Open a pull request on [ppdrive/ppdrive](https://github.com/dududaa/ppdrive) to add your SDK to the list.
+
+### PR Template
+
+```markdown
+### Add [Language] SDK
+
+- **SDK name:** ppdrive-[language]-sdk
+- **Language:** [Language]
+- **Repository:** [link]
+- **Package Registry:** [link to package page]
+- **Author:** [name/handle]
+
+#### Checklist
+- [ ] Implements all methods from SDK_SPEC.md
+- [ ] Has README with installation and usage examples
+- [ ] Includes unit tests
+- [ ] Includes integration tests (or instructions to run against local server)
+- [ ] Published to package registry
+- [ ] Follows naming conventions from SDK_SPEC.md
+```
+
+## Naming Conventions
+
+| Concept | JavaScript | Python | Go | Rust |
+|---------|-----------|--------|----|------|
+| Class | `PPDRIVEClient` | `PPDRIVEClient` | `Client` | `Client` |
+| Methods | `camelCase` | `snake_case` | `PascalCase` | `snake_case` |
+| Error | `PPDRIVEError` | `PPDRIVEError` | `*Error` | `Error` |
+| Options | `UploadOptions` | `UploadOptions` | `UploadOpts` | `UploadOptions` |
+
+## API Endpoint Reference
+
+| SDK Method | HTTP Call | Auth |
+|------------|-----------|------|
+| `uploadFile` | `POST /upload/session` + `POST /upload/session/play/{token}` | Client |
+| `uploadFolder` | `POST /upload/session` + `POST /upload/session/play/{token}` | Client |
+| `downloadFile` | `POST /download/sign` + `GET /download/{token}` | Client |
+| `downloadPublicFile` | `GET {url}` | None |
+| `createBucket` | `POST /buckets` | Client |
+| `grantPermission` | `POST /buckets/{pid}/permissions` | Client |
+| `revokePermission` | `DELETE /buckets/{pid}/permissions` | Client |
+| `listPermissions` | `GET /buckets/{pid}/permissions` | Client |
+
+## See Also
+
+- [SDK Specification](https://github.com/dududaa/ppdrive/blob/main/SDK_SPEC.md) — Full API architecture and type definitions
+- [API Authentication](/api/authentication/) — How client tokens work
+- [Upload Flow](/api/upload/) — Detailed upload documentation
+- [Download Flow](/api/download/) — Detailed download documentation
+- [File Permissions](/api/permissions/) — Permission management

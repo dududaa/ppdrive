@@ -79,6 +79,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Development Setup', slug: 'contributing/development' },
 						{ label: 'Codebase Walkthrough', slug: 'contributing/codebase' },
+						{ label: 'SDK Contributor Guide', slug: 'contributing/sdk' },
 					],
 				},
 			],
