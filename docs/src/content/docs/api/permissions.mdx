@@ -1,0 +1,190 @@
+---
+title: File Permissions
+description: Fine-grained access control for private bucket files.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+PPDRIVE supports file-level permissions for private buckets. Each file in a private bucket can have individual access controls for both clients and users.
+
+## How It Works
+
+When a file is uploaded to a **private bucket**, it is automatically registered as an asset. The uploader (client or user) is granted **admin** permission on that file.
+
+You can then grant read, write, or admin permissions to other clients or users.
+
+### Permission Levels
+
+| Level | Value | Description |
+|---|---|---|
+| **Read** | `0` | Can download the file |
+| **Write** | `1` | Can overwrite or delete the file |
+| **Admin** | `2` | Can grant/revoke permissions for others |
+
+### Grantee Types
+
+Permissions can be granted to two types of entities:
+
+- **Client** — An API client identified by PID
+- **User** — A registered user identified by email
+
+## Grant Permission
+
+Grant a permission to a client or user on a specific file.
+
+<Tabs>
+<TabItem label="curl">
+
+```sh
+curl -X POST http://localhost:8000/buckets/BUCKET_PID/permissions \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{
+    "path": "report.pdf",
+    "grantee": "client_pid_here",
+    "grantee_type": "client",
+    "permission": "read"
+  }'
+```
+
+</TabItem>
+<TabItem label="curl (user auth)">
+
+```sh
+curl -X POST http://localhost:8000/buckets/BUCKET_PID/permissions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_USER_TOKEN" \
+  -d '{
+    "path": "report.pdf",
+    "grantee": "user@example.com",
+    "grantee_type": "user",
+    "permission": "read"
+  }'
+```
+
+</TabItem>
+</Tabs>
+
+### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | `String` | Yes | File path relative to the bucket |
+| `grantee` | `String` | Yes | Client PID or user email |
+| `grantee_type` | `String` | Yes | `"client"` or `"user"` |
+| `permission` | `String` | Yes | `"read"`, `"write"`, or `"admin"` |
+
+### Response
+
+```json
+{
+  "data": {
+    "id": 1,
+    "grantee": "user@example.com",
+    "grantee_type": "user",
+    "permission": "read"
+  }
+}
+```
+
+## Revoke Permission
+
+Remove a previously granted permission.
+
+<Tabs>
+<TabItem label="curl">
+
+```sh
+curl -X DELETE http://localhost:8000/buckets/BUCKET_PID/permissions \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{
+    "path": "report.pdf",
+    "grantee": "client_pid_here",
+    "grantee_type": "client"
+  }'
+```
+
+</TabItem>
+</Tabs>
+
+### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | `String` | Yes | File path relative to the bucket |
+| `grantee` | `String` | Yes | Client PID or user email |
+| `grantee_type` | `String` | Yes | `"client"` or `"user"` |
+
+## List Permissions
+
+List all permissions for a specific file.
+
+<Tabs>
+<TabItem label="curl">
+
+```sh
+curl http://localhost:8000/buckets/BUCKET_PID/permissions \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{
+    "path": "report.pdf"
+  }'
+```
+
+</TabItem>
+</Tabs>
+
+### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "grantee": "client-a1b2c3",
+      "grantee_type": "client",
+      "permission": "admin"
+    },
+    {
+      "id": 2,
+      "grantee": "user@example.com",
+      "grantee_type": "user",
+      "permission": "read"
+    }
+  ]
+}
+```
+
+## Authorization Rules
+
+1. **Bucket owner** — Only the bucket owner can grant or revoke permissions
+2. **Auto-admin** — The uploader is automatically granted admin permission on their files
+3. **Public files** — Permission checks only apply to private bucket files; public bucket files are always accessible
+4. **Owner access** — The bucket owner always has full access to all files in their bucket
+
+## Download with Permissions
+
+When downloading from a private bucket, the server checks:
+
+1. The requester is the bucket owner, **OR**
+2. The requester has at least **read** permission on the file
+
+See [Download Flow](/api/download/) for details on the download process.
+
+## Error Responses
+
+| Status | Message | Cause |
+|---|---|---|
+| 400 | `missing required field: path` | Path not provided |
+| 400 | `invalid permission level` | Unknown permission string |
+| 400 | `invalid grantee type` | Not `"client"` or `"user"` |
+| 403 | `only bucket owner can manage permissions` | Non-owner trying to grant/revoke |
+| 404 | `bucket not found` | Invalid bucket PID |
+| 404 | `file not found` | File doesn't exist on disk |
+
+## See Also
+
+- [Authentication](/api/authentication/) — Client and user authentication
+- [Download Flow](/api/download/) — How file permissions affect downloads
+- [Asset Commands](/cli/asset/) — CLI for managing file permissions

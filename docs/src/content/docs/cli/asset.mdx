@@ -1,0 +1,131 @@
+---
+title: Asset Commands
+description: Manage file permissions via the CLI.
+---
+
+PPDRIVE provides CLI commands for managing file-level permissions on private bucket assets.
+
+## Grant Permission
+
+Grant a permission to a client or user on a specific file.
+
+```sh
+ppdrive asset grant [OPTIONS]
+```
+
+### Arguments
+
+| Flag | Required | Default | Description |
+|---|---|---|---|
+| `--bucket` | Yes | — | Bucket PID |
+| `--path` | Yes | — | File path relative to the bucket |
+| `--grantee` | Yes | — | Client PID or user email |
+| `--grantee-type` | Yes | — | `"client"` or `"user"` |
+| `--permission` | Yes | — | `"read"`, `"write"`, or `"admin"` |
+
+### Examples
+
+#### Grant read access to a client
+
+```sh
+ppdrive asset grant \
+  --bucket x9y8z7w6v5u4... \
+  --path report.pdf \
+  --grantee a1b2c3d4e5f6... \
+  --grantee-type client \
+  --permission read
+```
+
+#### Grant write access to a user
+
+```sh
+ppdrive asset grant \
+  --bucket x9y8z7w6v5u4... \
+  --path report.pdf \
+  --grantee user@example.com \
+  --grantee-type user \
+  --permission write
+```
+
+## Revoke Permission
+
+Remove a previously granted permission.
+
+```sh
+ppdrive asset revoke [OPTIONS]
+```
+
+### Arguments
+
+| Flag | Required | Default | Description |
+|---|---|---|---|
+| `--bucket` | Yes | — | Bucket PID |
+| `--path` | Yes | — | File path relative to the bucket |
+| `--grantee` | Yes | — | Client PID or user email |
+| `--grantee-type` | Yes | — | `"client"` or `"user"` |
+
+### Example
+
+```sh
+ppdrive asset revoke \
+  --bucket x9y8z7w6v5u4... \
+  --path report.pdf \
+  --grantee user@example.com \
+  --grantee-type user
+```
+
+## List Permissions
+
+List all permissions for a file in a bucket.
+
+```sh
+ppdrive asset list [OPTIONS]
+```
+
+### Arguments
+
+| Flag | Required | Default | Description |
+|---|---|---|---|
+| `--bucket` | Yes | — | Bucket PID |
+| `--path` | Yes | — | File path relative to the bucket |
+
+### Example
+
+```sh
+ppdrive asset list \
+  --bucket x9y8z7w6v5u4... \
+  --path report.pdf
+```
+
+### Output
+
+```
+Permissions for report.pdf:
+  admin  client  a1b2c3d4e5f6...
+  read   user    user@example.com
+```
+
+## Permission Levels
+
+| Level | Description |
+|---|---|
+| `read` | Can download the file |
+| `write` | Can overwrite or delete the file |
+| `admin` | Can grant/revoke permissions for others |
+
+## Grantee Types
+
+| Type | Identifier | Description |
+|---|---|---|
+| `client` | Client PID | An API client |
+| `user` | User email | A registered user |
+
+## Authorization
+
+Only the **bucket owner** can grant or revoke permissions. The uploader is automatically granted admin permission on their files.
+
+## See Also
+
+- [File Permissions](/api/permissions/) — API reference for permissions
+- [User Commands](/cli/user/) — Create and manage users
+- [Client Commands](/cli/client/) — Create and manage API clients

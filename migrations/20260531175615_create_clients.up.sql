@@ -24,6 +24,7 @@ CREATE TABLE users
     email      TEXT UNIQUE NOT NULL,
     password   TEXT        NOT NULL,
     metadata   TEXT,
+    is_admin   BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at TEXT        NOT NULL,
     updated_at TEXT        NOT NULL
 );

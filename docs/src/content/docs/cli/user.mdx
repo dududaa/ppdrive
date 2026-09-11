@@ -1,0 +1,58 @@
+---
+title: User Commands
+description: Create and manage user accounts.
+---
+
+PPDRIVE provides CLI commands for managing user accounts. Users can be granted file-level permissions on private buckets.
+
+## Create a User
+
+```sh
+ppdrive user create [OPTIONS]
+```
+
+### Arguments
+
+| Flag | Required | Default | Description |
+|---|---|---|---|
+| `--email` | Yes | — | User's email address (used as identifier) |
+| `--password` | Yes | — | User's password |
+
+### Example
+
+```sh
+ppdrive user create \
+  --email user@example.com \
+  --password securepassword
+```
+
+### Output
+
+```
+User created successfully!
+User ID: 1
+Email: user@example.com
+```
+
+## How Users Work
+
+- Users are identified by their **email address**
+- Passwords are hashed with Argon2id before storage
+- Users can be granted **read**, **write**, or **admin** permissions on files in private buckets
+- Users authenticate via the `/auth/login` endpoint to receive a signed token
+
+## User vs Client
+
+| Feature | Client | User |
+|---|---|---|
+| **Auth method** | Encrypted token in header | Email + password login |
+| **Primary use** | API automation | Individual access |
+| **Can own buckets** | Yes | Yes |
+| **Can manage permissions** | Yes (bucket owner) | Yes (bucket owner) |
+| **File permissions** | Granted by PID | Granted by email |
+
+## See Also
+
+- [User Authentication](/api/user-auth/) — Login and token usage
+- [File Permissions](/api/permissions/) — Grant/revoke file access
+- [Asset Commands](/cli/asset/) — CLI for managing file permissions

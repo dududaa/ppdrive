@@ -1,0 +1,161 @@
+---
+title: User Authentication
+description: How user login and token-based authentication works.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+PPDRIVE supports user accounts for fine-grained file permissions. Users authenticate via email and password, receiving a signed token for API requests.
+
+## Login
+
+Authenticate a user by email and password.
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const res = await fetch("http://localhost:8000/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: "user@example.com",
+    password: "securepassword",
+  }),
+});
+
+const { data: token } = await res.json();
+```
+
+</TabItem>
+<TabItem label="curl">
+
+```sh
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "securepassword"
+  }'
+```
+
+</TabItem>
+</Tabs>
+
+### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | `String` | Yes | User's email address |
+| `password` | `String` | Yes | User's password |
+
+### Response
+
+```json
+{
+  "data": "eyJ0eXAiOiJKV1..."
+}
+```
+
+The returned token is a signed string containing the user's email and expiration time. Include it in the `Authorization` header for authenticated requests.
+
+## Using the Token
+
+Include the user token as a Bearer token in the `Authorization` header:
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const USER_TOKEN = "eyJ0eXAiOiJKV1...";
+
+const res = await fetch("http://localhost:8000/buckets/BUCKET_PID/permissions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${USER_TOKEN}`,
+  },
+  body: JSON.stringify({
+    path: "report.pdf",
+    grantee: "user@example.com",
+    grantee_type: "user",
+    permission: "read",
+  }),
+});
+```
+
+</TabItem>
+<TabItem label="curl">
+
+```sh
+curl -X POST http://localhost:8000/buckets/BUCKET_PID/permissions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_USER_TOKEN" \
+  -d '{
+    "path": "report.pdf",
+    "grantee": "user@example.com",
+    "grantee_type": "user",
+    "permission": "read"
+  }'
+```
+
+</TabItem>
+</Tabs>
+
+## Token Format
+
+The user token is a signed string containing:
+
+```json
+{
+  "user_email": "user@example.com",
+  "exp": 1694438400
+}
+```
+
+The token is signed using the application's secret key with HMAC-SHA256 + Blake3 hashing.
+
+## Token Expiration
+
+User tokens expire after a configurable duration (default: 1 hour). When the token expires, the user must log in again.
+
+## Client vs User Auth
+
+PPDRIVE supports two authentication methods:
+
+| Method | Header | Use Case |
+|---|---|---|
+| **Client token** | `x-ppdrive-client: <token>` | API operations (upload, download, bucket management) |
+| **User token** | `Authorization: Bearer <token>` | File permission management |
+
+Some endpoints accept **either** authentication method:
+
+- **Permission endpoints** — Grant/revoke/list file permissions
+
+The server tries the client header first, then falls back to the Bearer token.
+
+## Creating Users
+
+Users are created via the CLI:
+
+```sh
+ppdrive user create --email user@example.com --password securepassword
+```
+
+See [User Commands](/cli/user/) for details.
+
+## Error Responses
+
+| Status | Message | Cause |
+|---|---|---|
+| 400 | `missing required field: email` | Email not provided |
+| 400 | `missing required field: password` | Password not provided |
+| 401 | `invalid credentials` | Wrong email or password |
+| 401 | `token expired` | Token has passed its expiration |
+| 401 | `invalid token` | Token is malformed or tampered |
+
+## See Also
+
+- [Authentication](/api/authentication/) — Client token authentication
+- [File Permissions](/api/permissions/) — How to manage file-level access
+- [User Commands](/cli/user/) — CLI for creating users

@@ -184,9 +184,13 @@ When signing a download URL, the server validates:
 
 1. **Bucket exists** — Returns 404 if bucket PID is invalid
 2. **Bucket is private** — Returns 400 if bucket is public (use direct URL instead)
-3. **Client owns bucket** — Returns 403 if client doesn't have access
+3. **Client owns bucket or has file permission** — Returns 403 if no access
 4. **Path is within bucket** — Returns 403 if path escapes the bucket
 5. **File exists** — Returns 404 if file is not on disk
+
+:::note
+For private buckets, access is granted if the requester is the bucket owner **or** has at least **read** permission on the file. See [File Permissions](/api/permissions/) for details.
+:::
 
 ## Download Token Verification
 
@@ -259,4 +263,5 @@ curl "http://localhost:8000/download/$TOKEN" --output report.pdf
 ## See Also
 
 - [Authentication](/api/authentication/) — How client tokens work
+- [File Permissions](/api/permissions/) — Fine-grained access control
 - [MIME Validation](/api/mime-validation/) — How file types are validated

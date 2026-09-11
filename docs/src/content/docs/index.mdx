@@ -35,7 +35,7 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Features
 
@@ -64,10 +64,12 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 PPDRIVE is a self-hosted object storage service that lets you deploy a fully functional remote file storage system in minutes. It provides an S3-compatible API for uploading, storing, and downloading files — giving you the same capabilities as commercial cloud storage services like Amazon S3, without the vendor lock-in or recurring costs.
 
+## Who Can Use PPDRIVE?
+The idea behind PPDRIVE is simple — deploy your own fast, efficient and highly capable object storage service in less than 3 minutes. If you're looking to take full control of your application's file management system without sacrificing time, performance and security, PPDRIVE is for you.
+
 Whether you're building a web application that needs file uploads, serving media assets, or running a development environment that requires local object storage, PPDRIVE gives you full control over your data and infrastructure.
 
 ## Why PPDRIVE?
-
 - **Language Agnostic** — Works with any programming language or framework that sends HTTP requests. JavaScript, Python, Go, Rust, Flutter — you name it.
 - **Privacy and Data Control** — All your data stays on your server. PPDRIVE does not collect, transmit, or monetize your data in any way.
 - **No Vendor Lock-in** — Open source and free forever. Migrate away at any time with zero friction.
@@ -83,28 +85,157 @@ Install PPDRIVE and have your object storage running in three commands:
 # Install (Linux/macOS)
 curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
 
-# Create a client
-ppdrive client create --name myapp --max-bucket-size 100
-
 # Start the server
 ppdrive serve
 ```
 
 That's it. Your storage API is now available at `http://localhost:8000`. Upload files using the client token from any HTTP-capable application.
 
+## How It Works
+
+PPDRIVE follows a simple three-step workflow: authenticate, upload, and download.
+
+### 1. Get a Client Token
+
+Create a client to get an authentication token. This token is used for all API requests.
+
+```bash
+ppdrive client create --name "My App"
+```
+
+```
+Client created successfully!
+Client ID: a1b2c3d4...
+Token: eyJ0eXAiOiJKV1...
+```
+
+### 2. Upload a File
+
+Use the client token to upload files. First create an upload session, then send the file data.
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const CLIENT_TOKEN = "eyJ0eXAiOiJKV1...";
+
+// Step 1: Create upload session
+const sessionRes = await fetch("http://localhost:8000/upload/session", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    asset_type: "File",
+    path: "uploads/photo.jpg",
+    target_filesize: file.size,
+    expires: 120,
+  }),
+});
+
+const { data: token } = await sessionRes.json();
+
+// Step 2: Upload the file
+await fetch(`http://localhost:8000/upload/session/play/${token}`, {
+  method: "POST",
+  body: file,
+});
+```
+
+</TabItem>
+<TabItem label="curl">
+
+```bash
+# Step 1: Create upload session
+TOKEN=$(curl -s -X POST http://localhost:8000/upload/session \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{
+    "asset_type": "File",
+    "path": "uploads/photo.jpg",
+    "target_filesize": 102400,
+    "expires": 120
+  }' | jq -r '.data')
+
+# Step 2: Upload the file
+curl -X POST "http://localhost:8000/upload/session/play/$TOKEN" \
+  --data-binary @photo.jpg
+```
+
+</TabItem>
+</Tabs>
+
+You can also upload to a **bucket** by including the bucket PID in the session request. Buckets let you organize files and set size limits, MIME restrictions, and public/private access.
+
+### 3. Download Files
+
+**Public buckets** — Files are served directly via HTTP:
+
+```bash
+curl http://localhost:8000/storage/images/photo.jpg --output photo.jpg
+```
+
+**Private buckets** — Use a signed download URL:
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+// Step 1: Sign the download
+const signRes = await fetch("http://localhost:8000/download/sign", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-ppdrive-client": CLIENT_TOKEN,
+  },
+  body: JSON.stringify({
+    path: "photo.jpg",
+    bucket: "BUCKET_PID",
+    expires: 300,
+  }),
+});
+
+const { data: token } = await signRes.json();
+
+// Step 2: Download the file
+const fileRes = await fetch(`http://localhost:8000/download/${token}`);
+const blob = await fileRes.blob();
+```
+
+</TabItem>
+<TabItem label="curl">
+
+```bash
+# Step 1: Sign the download
+TOKEN=$(curl -s -X POST http://localhost:8000/download/sign \
+  -H "Content-Type: application/json" \
+  -H "x-ppdrive-client: YOUR_TOKEN" \
+  -d '{"path":"photo.jpg","bucket":"BUCKET_PID","expires":300}' \
+  | jq -r '.data')
+
+# Step 2: Download the file
+curl "http://localhost:8000/download/$TOKEN" --output photo.jpg
+```
+
+</TabItem>
+</Tabs>
+
+For more details, see the full [Upload](/api/upload/) and [Download](/api/download/) guides.
+
 ## Supported Platforms
 
-| Platform | Architecture | Status |
-|----------|-------------|--------|
-| Linux | x86_64, ARM64 | Supported |
-| macOS | x86_64, ARM64 (Apple Silicon) | Supported |
-| Windows | x86_64 | Supported |
-| Docker | x86_64, ARM64 | Supported |
+| Platform | Architecture                  | Status    |
+|----------|-------------------------------|-----------|
+| Linux    | x86_64, ARM64                 | Supported |
+| macOS    | x86_64, ARM64 (Apple Silicon) | Supported |
+| Windows  | x86_64                        | Supported |
+| Docker   | x86_64, ARM64                 | Supported |
 
 ## Community
 
-PPDRIVE is built by the [Dududaa](https://discord.gg/BeVPFS7wkp) community. Contributions are welcome — whether it's client libraries for new languages, documentation improvements, or feature development.
+PPDRIVE is built by the [Dududaa](https://dududaa.org) community. Contributions are welcome — whether it's client libraries for new languages, documentation improvements, or feature development.
 
 - [GitHub](https://github.com/dududaa/ppdrive) — Source code, issues, and releases
-- [Discord](https://discord.gg/BeVPFS7wkp) — Community chat and support
+- [Discord](https://discord.gg/6nB4xYnxeC) — Community chat and support
 - [Contributing Guide](/contributing/development/) — How to get involved

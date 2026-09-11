@@ -39,135 +39,29 @@ of APIs for remote file management and storage.
 
 ---
 
-###### Installation
-The installation script has only been tested on Linux but should work on other platforms. If you experienced any issue, please
-download platform's binary on [release page](https://github.com/dududaa/ppdrive/releases) or simply build from source.
-
-**Linux / macOS**
-```sh
-# Using curl (Linux)
-curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
-
-# Using wget (macOS/Linux)
-wget -qO- https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
-```
-
-**Windows**
-
-```shell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/dududaa/ppdrive/main/install.ps1 | iex"
-```
-
-Type `ppdrive --help` to check if all goes well.
-
----
-
-#### 🚀 Getting Started
-
-PPDRIVE takes less than 2 minutes to set up. Create your own Object Storage service and buckets in seconds - no vendor lock-in, no hidden costs.
-
-###### Basic Usage
-###### Step 1: Create Your First Client
-Create authentication tokens for your applications:
-```shell
-# Create a new client with name "myapp"
-ppdrive client create --name myapp --max-bucket-size 100
-
-# Output:
-# Client created successfully!
-# Client ID: gctR57Tekg
-# Client Token: 3add30b582768e...
-```
-
-To regenerate token for an existing client (in case of compromise):
-```shell
-# Create a new client with name "myapp"
-ppdrive client refresh --id gctR57Tekg
-
-# Output:
-# Client token refreshed successfully!
-# Client Token: 4adb30b582768e...
-```
-
-###### Step 2: Create Your First Client
-Now that your client token is ready, start the server:
-```shell
-# Start the API server
-ppdrive serve
-```
-
-The command above will attempt to start the server on port `8000`. You can specify service port:
-```shell
-# Start the API server
-ppdrive serve --port 3000
-```
-
-###### Step 3: Upload File or Folder
-PLEASE NOTE: The following examples uses JavaScript but you can use any language that supports HTTP client requests.
-
-To upload files or folders, follow these steps:
-1. Create upload session from your app server. Create a signed token from your app server and use the token on your app client:
-```javascript
-// server code
-let token = fetch('https://localhost:8000/upload/session', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'x-ppdrive-client': 'YOUR-CLIENT-ID'
-  },
-  body: JSON.stringify({
-    method: 'POST',
-    asset_type: 'File',
-    expires: 300, // token expires in 5 mins,
-    path: 'uploads/my-image.png', // target filename
-    target_filesize: 1024 // 1MB. Derive from this from your file,
-    // ... Check docs for more options
-  })
-});
-
-// RETURN TOKEN TO CLIENT APP
-```
-
-2. Upload the file from your client side:
-```javascript
-// Just a file reader simulator. All you need to do is to send a chunk of bytes.
-const reader = new FileReader();
-
-// Read the file as an ArrayBuffer (raw bytes)
-reader.onload = (event) => {
-  const arrayBuffer = event.target.result;
-
-  fetch('https://localhost:8000/upload/session/play', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'TOKEN-CREATED-EARLIER',
-    },
-    body: arrayBuffer // Send raw bytes
-  })
-  .then(response => {
-    if (!response.ok) throw new Error('Upload failed');
-    return response.json();
-  })
-  .then(data => resolve(data))
-  .catch(error => reject(error));
-};
-
-reader.onerror = (error) => reject(error);
-reader.readAsArrayBuffer(file);
-```
-
-Your file will now be available on `https://localhost:8000/uploads/my-image.png`.
+###### Documentation
+Please see the [Documentation Website](https:/ppdrive.dududaa.org).
 
 #### Roadmap Features (Let's Build Together)
 
-- [ ] Private object access.
-- [ ] Image transformation.
-- [ ] Image conversion.
-- [ ] File conversion.
-- [ ] File compression.
-- [ ] Resumable Upload.
-- [ ] Live File Streaming.
-- [ ] And many more.
+- [x] Private object access.
+- [x] Resumable Upload.
+- Client SDKs
+  - [ ] Node.js
+  - [ ] Python
+  - [ ] GoLang
+  - [ ] Kotlin
+  - [ ] Rust
+- Extensions
+  - [ ] Dashboard UI
+  - [ ] Image transformation.
+  - [ ] Image conversion.
+  - [ ] Video Transformation.
+  - [ ] File conversion.
+  - [ ] File compression.
+  - [ ] Live File Streaming.
+  - [ ] PDF Utilities
+  - [ ] And many more.
 
 ---
 
@@ -208,7 +102,7 @@ PPDRIVE is open-source software licensed under the [MIT License](#/LICENSE).
 We ride on the shoulders of giants! We'll just mention a few:
 
 - Dududaa: PPDRIVE is part of our ongoing Dududaa community project. You
-  can [find us on Discord](https://discord.gg/BeVPFS7wkp).
+  can [find us on Discord](https://discord.gg/6nB4xYnxeC).
 - Rust: The systems programming language used to build PPDRIVE.
 - Tokio: For Axum web framework and several other crates that simplify asynchronous Rust.
 - RBatis: RBatis serves as a drive for our modeller crate and record management within PPDRIVE.

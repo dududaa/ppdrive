@@ -9,6 +9,8 @@ PPDRIVE is a self-hosted object storage service built with Rust. It provides an 
 
 - **Upload & Download** — Simple two-step upload flow with signed session tokens. Range-header support for efficient downloads.
 - **Public & Private Buckets** — Public buckets serve files directly. Private buckets require signed URLs for access.
+- **File-Level Permissions** — Fine-grained access control on private bucket files. Grant read, write, or admin permissions to clients or users.
+- **User Authentication** — Email/password login for user accounts. Users can be granted file-level permissions alongside clients.
 - **Resumable Uploads** — Chunk large files with automatic retry. Redis-backed session state preserves progress across interruptions.
 - **MIME Validation** — Buckets can restrict accepted file types with exact or wildcard patterns (e.g., `image/*`).
 - **Client Authentication** — XChaCha20-Poly1305 encrypted client tokens. Keys stored encrypted at rest.
@@ -21,6 +23,7 @@ PPDRIVE is a self-hosted object storage service built with Rust. It provides an 
 - **Media serving** — Serve images and videos with Content-Type detection
 - **Backup storage** — Resumable uploads for large backup files
 - **Development** — Local object storage for testing without cloud dependencies
+- **Multi-user access** — Grant file permissions to different users and clients
 
 ## How It Works
 
@@ -29,6 +32,7 @@ PPDRIVE is a self-hosted object storage service built with Rust. It provides an 
 3. Create a bucket with `ppdrive bucket create --name media --path uploads/media --owner-type client --owner-id <ID>`
 4. Upload files via the HTTP API using the client token
 5. Download files directly (public buckets) or via signed URLs (private buckets)
+6. (Optional) Create users with `ppdrive user create` and grant file permissions
 
 ## Next Steps
 

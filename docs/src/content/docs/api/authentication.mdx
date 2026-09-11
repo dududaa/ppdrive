@@ -1,11 +1,11 @@
 ---
 title: Authentication
-description: How client authentication works in PPDRIVE.
+description: How client and user authentication works in PPDRIVE.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-PPDRIVE uses client tokens for API authentication. Tokens are encrypted, self-contained, and can be rotated.
+PPDRIVE supports two authentication methods: **client tokens** for API operations and **user tokens** for file permission management.
 
 ## How It Works
 
@@ -107,9 +107,16 @@ This:
 | `POST /upload/session/play/{payload}` | Signed token in URL | Upload chunk |
 | `POST /download/sign` | Client header | Sign download URL |
 | `GET /download/{token}` | Signed token in URL | Download file |
+| `POST /buckets/{pid}/permissions` | Client or User header | Grant permission |
+| `DELETE /buckets/{pid}/permissions` | Client or User header | Revoke permission |
+| `GET /buckets/{pid}/permissions` | Client or User header | List permissions |
 
 :::note
 The download endpoint uses the signed token itself as authentication — no client header is needed.
+:::
+
+:::note
+Permission endpoints accept either a client token (`x-ppdrive-client`) or a user token (`Authorization: Bearer <token>`).
 :::
 
 ## Security Properties
@@ -118,3 +125,8 @@ The download endpoint uses the signed token itself as authentication — no clie
 - **Random nonces** — Each token encryption uses a fresh nonce
 - **Rotatable** — Tokens can be rotated without recreating the client
 - **Time-limited** — Upload and download tokens expire after a configurable duration
+
+## See Also
+
+- [User Authentication](/api/user-auth/) — How user login works
+- [File Permissions](/api/permissions/) — Managing file-level access

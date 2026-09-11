@@ -3,7 +3,7 @@ title: CLI Overview
 description: Command-line interface reference for PPDRIVE.
 ---
 
-PPDRIVE provides a CLI tool for managing clients, buckets, and the server.
+PPDRIVE provides a CLI tool for managing clients, buckets, users, and file permissions.
 
 ## Usage
 
@@ -21,6 +21,10 @@ ppdrive [OPTIONS] <COMMAND>
 | `ppdrive client refresh` | Rotate a client's token |
 | `ppdrive client list` | List all clients |
 | `ppdrive bucket create` | Create a new storage bucket |
+| `ppdrive user create` | Create a new user account |
+| `ppdrive asset grant` | Grant file permission |
+| `ppdrive asset revoke` | Revoke file permission |
+| `ppdrive asset list` | List file permissions |
 
 ## Global Options
 
@@ -39,8 +43,14 @@ ppdrive
 │   ├── create --name <NAME>
 │   ├── refresh --id <ID>
 │   └── list
-└── bucket
-    └── create [OPTIONS]
+├── bucket
+│   └── create [OPTIONS]
+├── user
+│   └── create --email <EMAIL> --password <PASSWORD>
+└── asset
+    ├── grant --bucket <PID> --path <PATH> --grantee <ID> --grantee-type <TYPE> --permission <LEVEL>
+    ├── revoke --bucket <PID> --path <PATH> --grantee <ID> --grantee-type <TYPE>
+    └── list --bucket <PID> --path <PATH>
 ```
 
 ## Examples
@@ -59,18 +69,25 @@ ppdrive bucket create \
   --owner-type client \
   --owner-id <CLIENT_ID>
 
-# Create a public bucket with MIME restrictions
-ppdrive bucket create \
-  --name images \
-  --path storage/images \
-  --owner-type client \
-  --owner-id <CLIENT_ID> \
-  --public \
-  --accepts image/png image/jpeg image/webp
+# Create a user
+ppdrive user create --email user@example.com --password securepassword
+
+# Grant read access to a user
+ppdrive asset grant \
+  --bucket <BUCKET_PID> \
+  --path report.pdf \
+  --grantee user@example.com \
+  --grantee-type user \
+  --permission read
+
+# List file permissions
+ppdrive asset list --bucket <BUCKET_PID> --path report.pdf
 ```
 
 ## See Also
 
 - [Client Commands](/cli/client/) — Create and manage API clients
 - [Bucket Commands](/cli/bucket/) — Create and configure storage buckets
+- [User Commands](/cli/user/) — Create and manage user accounts
+- [Asset Commands](/cli/asset/) — Manage file permissions
 - [Serve & Configure](/cli/serve-configure/) — Server and configuration management

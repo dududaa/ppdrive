@@ -375,3 +375,22 @@ Rate limit headers are included in responses:
 - `X-RateLimit-Limit` — Maximum requests per second
 - `X-RateLimit-Remaining` — Requests remaining in the current window
 - `X-RateLimit-Retry-After` — Seconds until the rate limit resets
+
+## Private Bucket Assets
+
+When a file is uploaded to a **private bucket**, it is automatically registered as an asset. The uploader is granted **admin** permission on the file.
+
+This means:
+- The uploader can always access their own files
+- The uploader can grant read/write/admin permissions to other clients or users
+- Permission checks are enforced when signing download URLs
+
+For public buckets, no asset registration occurs — files are accessible to everyone.
+
+See [File Permissions](/api/permissions/) for details on managing file-level access.
+
+## See Also
+
+- [Download Flow](/api/download/) — How to download files
+- [File Permissions](/api/permissions/) — Fine-grained access control
+- [MIME Validation](/api/mime-validation/) — How file types are validated
