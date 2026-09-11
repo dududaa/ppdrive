@@ -21,6 +21,7 @@ pub struct AppConfig {
     pub port: Option<u16>,
     pub root_dir: Option<String>,
     pub message_broker: Option<String>,
+    #[serde(default)]
     pub static_folders: Vec<StaticFolder>,
     /// Max database connections in the pool (default: 10).
     pub db_pool_size: Option<u32>,
