@@ -1,5 +1,39 @@
 # Release Notes
 
+## v0.1.1 — File-Level Privacy & User Auth
+
+### Highlights
+
+- **File-level permissions** — Fine-grained ACLs on private bucket files. Grant read, write, or admin permissions to clients or users.
+- **User authentication** — `POST /auth/login` endpoint for email/password login. Users can manage file permissions alongside clients.
+- **Permission API** — `POST/DELETE/GET /buckets/{pid}/permissions` for granting, revoking, and listing file permissions.
+- **Auto-registration** — Files uploaded to private buckets are automatically registered as assets with admin permissions for the uploader.
+- **Asset CLI** — `ppdrive asset grant/revoke/list` commands for managing file permissions from the terminal.
+- **User CLI** — `ppdrive user create` command for creating user accounts.
+- **AuthExtractor** — Middleware supports both client tokens (`x-ppdrive-client`) and user Bearer tokens (`Authorization: Bearer`).
+
+### Bug Fixes
+
+- Fixed download flow to use proper bucket owner check instead of broken `check_ownership`
+- Fixed `list_permissions` queries to resolve grantees from both clients and users tables
+- Fixed user `create` to include `updated_at` field
+
+### Documentation
+
+- Added File Permissions API reference
+- Added User Authentication API reference
+- Added Asset and User CLI command docs
+- Added "How It Works" section to homepage with upload/download examples
+- Updated Authentication page to cover both client and user auth
+- Updated Download page to document file-level permission checks
+- Updated Upload page to document private bucket asset auto-registration
+
+### Internal
+
+- Made `validator` always enabled in shared crate (no longer feature-gated)
+- Added `hex` dependency for user token signing
+- Added `is_admin` field to users migration
+
 ## v0.1.0 — First Stable Release
 
 ### Highlights
