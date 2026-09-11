@@ -2,7 +2,7 @@
 
 # PPDRIVE
 
-**PPDRIVE** is an open-source Object Storage Service designed to let you deploy a fully functional remote file storage
+**PPDRIVE** is an open-source Object Storage Service designed to let you deploy a fully functional remote file management
 system in seconds. It provides a ready-made solution for uploading, downloading, and managing files, enabling your
 applications to connect and start using storage immediately.
 
