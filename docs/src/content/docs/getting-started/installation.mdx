@@ -5,6 +5,26 @@ description: How to install PPDRIVE on Linux, macOS, Windows, or Docker.
 
 PPDRIVE is a single binary with no runtime dependencies for SQLite mode. Choose your installation method below.
 
+## Install Script
+
+The quickest way to install PPDRIVE. The script detects your platform and architecture automatically.
+
+### Linux / macOS
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
+```
+
+This installs to `$HOME/.local/share/ppdrive` and creates symlinks in `$HOME/.local/bin`.
+
+### Windows (PowerShell)
+
+```sh
+irm https://raw.githubusercontent.com/dududaa/ppdrive/main/install.ps1 | iex
+```
+
+Installs to `%LOCALAPPDATA%\ppdrive` and adds to your user PATH.
+
 ## Pre-built Binaries
 
 Download the latest release from [GitHub Releases](https://github.com/dududaa/ppdrive/releases).
@@ -44,24 +64,6 @@ sudo mv ppdrive server /usr/local/bin/
 ### Windows
 
 Download `ppdrive-windows.tar.gz`, extract it, and add the directory to your PATH.
-
-## Install Script
-
-### Linux / macOS
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/dududaa/ppdrive/main/install.sh | bash
-```
-
-This installs to `$HOME/.local/share/ppdrive` and creates symlinks in `$HOME/.local/bin`.
-
-### Windows (PowerShell)
-
-```sh
-irm https://raw.githubusercontent.com/dududaa/ppdrive/main/install.ps1 | iex
-```
-
-Installs to `%LOCALAPPDATA%\ppdrive` and adds to your user PATH.
 
 ## Docker
 
