@@ -31,6 +31,7 @@ metrics-exporter-prometheus = "0.18"
 tower_governor = { version = "0.8", features = ["axum"] }
 tokio-util = { workspace = true, features = ["io"] }
 mime_guess = { workspace = true }
+hex = { workspace = true }
 
 [dev-dependencies]
 axum-test = "21.0.0"

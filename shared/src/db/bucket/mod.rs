@@ -118,7 +118,7 @@ pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
 /// Fetch a bucket by PID.
 pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
     let query = sql_safe!(
-        "SELECT id, name, path, public, size, accepts FROM buckets WHERE pid = {} LIMIT 1",
+        "SELECT id, name, path, public, size, accepts, owner_id FROM buckets WHERE pid = {} LIMIT 1",
         db.placeholder(1)
     );
 
@@ -133,6 +133,7 @@ pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
         public: row.get("public"),
         size: row.get("size"),
         accepts,
+        owner_id: row.get("owner_id"),
     };
 
     Ok(data)

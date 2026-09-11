@@ -1,5 +1,6 @@
 use clap::{Args, Subcommand};
 use shared::db::bucket::models::CreateBucketData;
+use shared::db::asset::models::PermissionLevel;
 
 #[derive(Subcommand, Debug)]
 pub enum ClientCommand {
@@ -79,4 +80,63 @@ impl CreateBucketArgs {
 #[derive(Subcommand, Debug)]
 pub enum BucketCommand {
     Create(CreateBucketArgs),
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AssetCommand {
+    /// Grant a permission on a file in a private bucket
+    Grant {
+        /// PID of the bucket
+        #[arg(long)]
+        bucket: String,
+        /// Relative path of the file within the bucket
+        #[arg(long)]
+        path: String,
+        /// PID of the client or email of the user to grant access to
+        #[arg(long)]
+        grantee: String,
+        /// Type of grantee: "client" or "user" (default: client)
+        #[arg(long, default_value = "client")]
+        grantee_type: String,
+        /// Permission level: read, write, or admin
+        #[arg(long, value_enum)]
+        permission: PermissionLevel,
+    },
+    /// Revoke a permission on a file in a private bucket
+    Revoke {
+        /// PID of the bucket
+        #[arg(long)]
+        bucket: String,
+        /// Relative path of the file within the bucket
+        #[arg(long)]
+        path: String,
+        /// PID of the client or email of the user to revoke access from
+        #[arg(long)]
+        grantee: String,
+        /// Type of grantee: "client" or "user" (default: client)
+        #[arg(long, default_value = "client")]
+        grantee_type: String,
+    },
+    /// List permissions for files in a private bucket
+    List {
+        /// PID of the bucket
+        #[arg(long)]
+        bucket: String,
+        /// Optional relative path to filter by a specific file
+        #[arg(long)]
+        path: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum UserCommand {
+    /// Create a new user account
+    Create {
+        /// User email address
+        #[arg(long)]
+        email: String,
+        /// User password
+        #[arg(long)]
+        password: String,
+    },
 }

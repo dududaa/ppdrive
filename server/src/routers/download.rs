@@ -12,7 +12,9 @@ use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use shared::AssetOwnerName;
-use shared::db::{bucket, client};
+use shared::db::{asset, bucket, client};
+use shared::asset_owner_id;
+use shared::db::asset::models::PermissionLevel;
 use shared::server::{DownloadInfo, SignDownloadRequest};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
@@ -117,13 +119,6 @@ pub(super) async fn sign_download(
             .with_status_code(StatusCode::BAD_REQUEST));
     }
 
-    let is_owner = shared::check_ownership(AssetOwnerName::Client, bucket_data.id, state.db()).await?;
-
-    if !is_owner {
-        return Err(api_error("access denied for the specified bucket")
-            .with_status_code(StatusCode::FORBIDDEN));
-    }
-
     // Validate the file path is within the bucket
     let cleaned_path = config.path.trim_start_matches('/');
     if cleaned_path.is_empty() {
@@ -147,6 +142,35 @@ pub(super) async fn sign_download(
     if !is_file {
         return Err(api_error("file not found")
             .with_status_code(StatusCode::NOT_FOUND));
+    }
+
+    // Resolve the requesting client's asset_owner ID
+    let owner_id = asset_owner_id(AssetOwnerName::Client, client.id(), state.db()).await?;
+
+    // Check if client is the bucket owner
+    let is_bucket_owner = bucket_data.owner_id == owner_id;
+
+    if !is_bucket_owner {
+        // Check file-level read permission
+        let asset = asset::get_by_bucket_and_path(state.db(), bucket_data.id, cleaned_path).await?;
+        match asset {
+            Some(asset) => {
+                let has_perm = asset::has_permission(
+                    state.db(),
+                    asset.id,
+                    owner_id,
+                    PermissionLevel::Read,
+                ).await?;
+                if !has_perm {
+                    return Err(api_error("access denied for the specified file")
+                        .with_status_code(StatusCode::FORBIDDEN));
+                }
+            }
+            None => {
+                return Err(api_error("file not found")
+                    .with_status_code(StatusCode::NOT_FOUND));
+            }
+        }
     }
 
     let exp = seconds_from_now(config.expires)?;

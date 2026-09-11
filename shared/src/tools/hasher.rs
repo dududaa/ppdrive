@@ -2,12 +2,12 @@
 //!
 //! Supports two hasher backends: HMAC-SHA256 and Blake3 (keyed).
 //! Provides [`Hasher::hash`] for signing payloads and [`Hasher::verify`] /
-//! [`Hasher::verify_upload_info`] / [`Hasher::verify_download_info`] for
-//! verifying and decoding signed tokens.
+//! [`Hasher::verify_upload_info`] / [`Hasher::verify_download_info`] /
+//! [`Hasher::verify_user_info`] for verifying and decoding signed tokens.
 
 use crate::db::{Database, client};
 use crate::hasher::errors::PayloadVerificationError;
-use crate::server::{DownloadInfo, UploadInfo};
+use crate::server::{DownloadInfo, UserInfo, UploadInfo};
 use crate::tools::secrets::AppSecrets;
 use anyhow::anyhow;
 use base64::Engine;
@@ -159,6 +159,45 @@ impl Hasher {
             .as_secs() as i64;
 
         result.client_key = Some(key);
+
+        if now >= result.expires() {
+            return Err(PayloadVerificationError::Expired);
+        }
+
+        Ok(result)
+    }
+
+    /// Verify a signed UserInfo payload, using the app secret as the signing key.
+    pub async fn verify_user_info(
+        &self,
+        signed: &str,
+        _db: &Database,
+        secrets: &AppSecrets,
+    ) -> Result<UserInfo, PayloadVerificationError> {
+        let decode = URL_SAFE.decode(signed)?;
+        let (payload_len, data) = decode
+            .split_at_checked(4)
+            .ok_or(anyhow!("unable to decode payload_len"))?;
+
+        let payload_len = u32::from_be_bytes(
+            payload_len
+                .try_into()
+                .map_err(|_| anyhow!("unable to decode payload length"))?,
+        );
+
+        let (payload, hash) = data
+            .split_at_checked(payload_len as usize)
+            .ok_or(PayloadVerificationError::Error("malformed token".into()))?;
+        let result: UserInfo = serde_json::from_slice(payload)?;
+
+        // User tokens are signed with the app secret (32-byte key, hex-encoded for string use)
+        let key = hex::encode(secrets.secret_key());
+
+        self.verify_payload(&key, payload, hash)?;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| anyhow!("{e}"))?
+            .as_secs() as i64;
 
         if now >= result.expires() {
             return Err(PayloadVerificationError::Expired);

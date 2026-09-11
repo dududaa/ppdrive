@@ -14,4 +14,4 @@ mod utils;
 
 mod tools;
 pub use tools::*;
-pub use utils::{AssetOwnerName, check_ownership, seconds_from_now};
+pub use utils::{AssetOwnerName, asset_owner_id, check_ownership, seconds_from_now};

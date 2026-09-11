@@ -1,8 +1,8 @@
-//! User management — creation and asset-owner registration.
+//! User management — creation, lookup, and asset-owner registration.
 
 use crate::db::Database;
-use crate::{sql_safe};
-use crate::utils::{instance_as_string, AssetOwnerName, make_password};
+use crate::sql_safe;
+use crate::utils::{check_password, instance_as_string, AssetOwnerName, make_password};
 
 /// Create a new user, hash the password with Argon2, and register as an asset owner.
 pub async fn create(email: &str, password: &str, db: &Database) -> anyhow::Result<()> {
@@ -16,12 +16,13 @@ pub async fn create(email: &str, password: &str, db: &Database) -> anyhow::Resul
 
     let placeholders = placeholders.join(",");
     let query =
-        sql_safe!("INSERT INTO users (email, password, created_at) VALUES ({placeholders})");
-    
+        sql_safe!("INSERT INTO users (email, password, created_at, updated_at) VALUES ({placeholders}, {})", db.placeholder(4));
+
     sqlx::query(query)
         .bind(email)
-        .bind(password)
-        .bind(now)
+        .bind(&password)
+        .bind(&now)
+        .bind(&now)
         .execute(&**db)
         .await?;
 
@@ -44,4 +45,37 @@ pub async fn create(email: &str, password: &str, db: &Database) -> anyhow::Resul
         .await?;
 
     Ok(())
+}
+
+/// Resolve a user email to its numeric ID.
+pub async fn get_id(email: &str, db: &Database) -> anyhow::Result<i32> {
+    let query = sql_safe!(
+        "SELECT id FROM users WHERE email = {} LIMIT 1",
+        db.placeholder(1)
+    );
+    let id: i32 = sqlx::query_scalar(query)
+        .bind(email)
+        .fetch_one(&**db)
+        .await?;
+    Ok(id)
+}
+
+/// Find a user by email, returning the hashed password.
+pub async fn find_by_email(email: &str, db: &Database) -> anyhow::Result<(i32, String)> {
+    let query = sql_safe!(
+        "SELECT id, password FROM users WHERE email = {} LIMIT 1",
+        db.placeholder(1)
+    );
+    let row: (i32, String) = sqlx::query_as(query)
+        .bind(email)
+        .fetch_one(&**db)
+        .await?;
+    Ok(row)
+}
+
+/// Verify a user's password against the stored hash.
+pub async fn verify_password(email: &str, password: &str, db: &Database) -> anyhow::Result<i32> {
+    let (id, hashed) = find_by_email(email, db).await?;
+    check_password(password, &hashed)?;
+    Ok(id)
 }

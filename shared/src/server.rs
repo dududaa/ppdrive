@@ -120,6 +120,46 @@ impl Hashable for DownloadInfo {
     }
 }
 
+/// Signed token for user authentication.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UserInfo {
+    pub user_email: String,
+    pub exp: i64,
+}
+
+impl UserInfo {
+    /// Sign this [`UserInfo`] with the given key and hasher, returning a base64url token.
+    pub fn sign(&self, key: &str, hasher: &Hasher) -> anyhow::Result<String> {
+        hasher.hash(key, self)
+    }
+
+    /// Verify a signed user token, returning the decoded [`UserInfo`].
+    pub async fn verify(
+        signed: &str,
+        db: &Database,
+        secrets: &crate::tools::secrets::AppSecrets,
+        hasher: &Hasher,
+    ) -> Result<UserInfo, PayloadVerificationError> {
+        hasher.verify_user_info(signed, db, secrets).await
+    }
+}
+
+impl Hashable for UserInfo {
+    #[allow(clippy::manual_async_fn)]
+    fn key(&self) -> impl Future<Output = anyhow::Result<String>> {
+        async {
+            // User tokens are signed with the app secret, not a per-user key
+            Err(anyhow!(
+                "UserInfo::key() should not be called directly; use verify_user_info instead"
+            ))
+        }
+    }
+
+    fn expires(&self) -> i64 {
+        self.exp
+    }
+}
+
 /// Request body for `POST /download/sign`.
 #[derive(Serialize, Deserialize, Validate)]
 #[serde(deny_unknown_fields)]
@@ -161,6 +201,9 @@ pub struct UploadUrlConfig {
     /// Required when `bucket` is not provided.
     #[validate(length(max = 20))]
     pub accepts: Option<Vec<String>>,
+    /// Whether the uploaded file should be publicly accessible.
+    /// Only effective for files in private buckets. Defaults to false.
+    pub public: Option<bool>,
 }
 
 impl UploadUrlConfig {

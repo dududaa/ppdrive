@@ -47,4 +47,5 @@ pub struct Bucket {
     pub public: bool,
     pub size: Option<i64>,
     pub accepts: Option<Vec<String>>,
+    pub owner_id: i32,
 }
