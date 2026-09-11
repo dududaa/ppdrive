@@ -105,9 +105,9 @@ pub fn instance_as_string() -> anyhow::Result<String> {
 /// Check whether an asset owner entry exists for the given type and numeric ID.
 pub async fn check_ownership(owner_type: AssetOwnerName, owner_id: i32, db: &Database) -> anyhow::Result<bool> {
     let query = sql_safe!("SELECT EXISTS(SELECT 1 FROM asset_owner WHERE name = {} AND owner_id = {})", db.placeholder(1), db.placeholder(2));
-    let exists: bool = sqlx::query_scalar(query).bind(i16::from(owner_type)).bind(owner_id).fetch_one(&**db).await?;
+    let exists: i32 = sqlx::query_scalar(query).bind(i16::from(owner_type)).bind(owner_id).fetch_one(&**db).await?;
 
-    Ok(exists)
+    Ok(exists != 0)
 }
 
 /// Compute a UNIX timestamp `seconds` seconds from now.

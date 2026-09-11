@@ -226,12 +226,12 @@ pub async fn has_permission(
         db.placeholder(3)
     );
 
-    let exists: bool = sqlx::query_scalar(query)
+    let exists: i32 = sqlx::query_scalar(query)
         .bind(asset_id)
         .bind(grantee_owner_id)
         .bind(min_perm)
         .fetch_one(&**db)
         .await?;
 
-    Ok(exists)
+    Ok(exists != 0)
 }
