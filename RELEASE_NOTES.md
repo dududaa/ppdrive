@@ -1,5 +1,15 @@
 # Release Notes
 
+## v0.1.3 — Bug Fixes
+
+### Bug Fixes
+
+- Fixed `ppdrive serve` failing when run outside the project root — server binary now resolves via `shared::root_dir()` instead of CWD-relative `./server`
+- Fixed Postgres startup crash — created `migrations_postgres/` with `BYTEA` (not `BLOB`) and engine-specific migration dispatch
+- Fixed SQLite BOOLEAN decode failures — `public` and `EXISTS` queries now decode as `i32` across all engines
+- Fixed 500 "Unable To Extract Key!" without a proxy — rate limiter now falls back to the direct `SocketAddr` via `into_make_service_with_connect_info`
+- Fixed config parse failure when `static_folders` is omitted — added `#[serde(default)]`
+
 ## v0.1.1 — File-Level Privacy & User Auth
 
 ### Highlights
