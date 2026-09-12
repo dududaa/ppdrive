@@ -7,3 +7,4 @@ ppd_config.toml
 test-assets
 tmp/
 uploads/
+ppdrive_test/

@@ -137,13 +137,19 @@ impl Cli {
 
 
                 if cfg!(debug_assertions) {
-                    Command::new("cargo")
-                        .args(["run", "-p", "server"])
-                        .arg(port.to_string())
-                        .status()?;
+                    let mut cmd = Command::new("cargo");
+                    cmd.args(["run", "-p", "server"]);
+                    if let Some(port) = port {
+                        cmd.arg(port.to_string());
+                    }
+                    cmd.status()?;
                 } else {
                     let server_path = shared::root_dir()?.join("server");
-                    Command::new(&server_path).arg(port.to_string()).status()?;
+                    let mut cmd = Command::new(&server_path);
+                    if let Some(port) = port {
+                        cmd.arg(port.to_string());
+                    }
+                    cmd.status()?;
                 }
             }
 
@@ -171,8 +177,8 @@ impl Cli {
 #[derive(Subcommand, Debug)]
 enum CliCommand {
     Serve {
-        #[arg(long = "port", default_value = "8000")]
-        port: u16,
+        #[arg(long = "port")]
+        port: Option<u16>,
     },
     Configure,
     /// create a new client

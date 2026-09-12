@@ -109,6 +109,8 @@ pub async fn create_app() -> anyhow::Result<(Router, u16)> {
             }),
         );
 
+    let root = shared::root_dir().unwrap_or_default();
+
     let paths = match bucket::get_public_paths(state.db()).await {
         Ok(p) => p,
         Err(e) => {
@@ -118,12 +120,14 @@ pub async fn create_app() -> anyhow::Result<(Router, u16)> {
     };
     
     for path in &paths {
-        app = app.nest_service(path, ServeDir::new(path));
+        // Strip leading '/' to get a relative filesystem path, then resolve against root.
+        let relative = path.trim_start_matches('/');
+        app = app.nest_service(path, ServeDir::new(root.join(relative)));
     }
     
     for folder in state.config().static_folders.clone() {
-        let path = folder.path.unwrap_or(format!("/{}", folder.name));
-        app = app.nest_service(&path, ServeDir::new(folder.name));
+        let mount_path = folder.path.unwrap_or(format!("/{}", folder.name));
+        app = app.nest_service(&mount_path, ServeDir::new(root.join(&folder.name)));
     }
 
     let app = app

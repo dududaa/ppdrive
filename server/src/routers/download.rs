@@ -32,7 +32,7 @@ async fn resolve_file_path(
 ) -> Result<std::path::PathBuf, ResponseError> {
     let bucket = bucket::get(bucket_pid, state.db()).await?;
     let root_dir = state.config().root_dir()?;
-    let bucket_root = root_dir.join(&bucket.path);
+    let bucket_root = root_dir.join(bucket.path.trim_start_matches('/'));
 
     for component in std::path::Path::new(relative_path).components() {
         if matches!(component, std::path::Component::ParentDir) {
@@ -144,7 +144,7 @@ pub(super) async fn sign_download(
 
     // Validate the file exists on disk
     let root_dir = state.config().root_dir()?;
-    let file_path = root_dir.join(&full_path);
+    let file_path = root_dir.join(full_path.trim_start_matches('/'));
     let is_file = tokio::fs::metadata(&file_path).await.map(|m| m.is_file()).unwrap_or(false);
     if !is_file {
         return Err(api_error("file not found")

@@ -27,20 +27,30 @@ pub(super) async fn create_bucket(
     req.validate()
         .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
 
+    // Validate BEFORE trimming: reject absolute paths and parent-dir traversal
+    for component in Path::new(&req.path).components() {
+        match component {
+            std::path::Component::ParentDir => {
+                return Err(
+                    api_error("path contains invalid components: '..' is not allowed")
+                        .with_status_code(StatusCode::BAD_REQUEST),
+                );
+            }
+            std::path::Component::RootDir | std::path::Component::Prefix(_) => {
+                return Err(
+                    api_error("path must be relative (must not start with '/')")
+                        .with_status_code(StatusCode::BAD_REQUEST),
+                );
+            }
+            _ => {}
+        }
+    }
+
     let path = req.path.trim_start_matches('/');
     if path.is_empty() {
         return Err(
             api_error("path must not be empty").with_status_code(StatusCode::BAD_REQUEST),
         );
-    }
-
-    for component in Path::new(path).components() {
-        if matches!(component, std::path::Component::ParentDir) {
-            return Err(
-                api_error("path contains invalid components: '..' is not allowed")
-                    .with_status_code(StatusCode::BAD_REQUEST),
-            );
-        }
     }
 
     let owner_id = client.id();
@@ -58,7 +68,7 @@ pub(super) async fn create_bucket(
     let pid = bucket::create(&data, &state.config().static_folders, state.db()).await?;
 
     let root_dir = state.config().root_dir()?;
-    let bucket_dir = root_dir.join(&data.path);
+    let bucket_dir = root_dir.join(data.path.trim_start_matches('/'));
     if let Err(err) = tokio::fs::create_dir_all(&bucket_dir).await {
         tracing::error!("failed to create bucket directory: {err}");
         if let Err(del_err) = bucket::delete_by_pid(&pid, state.db()).await {

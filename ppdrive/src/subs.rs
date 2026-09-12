@@ -51,14 +51,21 @@ pub struct CreateBucketArgs {
     pub accepts: Option<Vec<String>>,
 }
 
-/// Validate that a bucket path is non-empty and contains no `..` components.
+/// Validate that a bucket path is non-empty, contains no `..` components,
+/// and is not an absolute path.
 fn validate_bucket_path(s: &str) -> Result<String, String> {
     if s.is_empty() {
         return Err("path must not be empty".into());
     }
     for component in std::path::Path::new(s).components() {
-        if matches!(component, std::path::Component::ParentDir) {
-            return Err("path must not contain '..'".into());
+        match component {
+            std::path::Component::ParentDir => {
+                return Err("path must not contain '..'".into());
+            }
+            std::path::Component::RootDir | std::path::Component::Prefix(_) => {
+                return Err("path must be relative (must not start with '/')".into());
+            }
+            _ => {}
         }
     }
     Ok(s.to_string())

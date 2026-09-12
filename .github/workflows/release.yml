@@ -90,7 +90,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          find . -name '*.tar.gz' -type f -exec sha256sum {} + > SHA256SUMS.txt
+          for f in *.tar.gz; do sha256sum "$f"; done > SHA256SUMS.txt
           echo "Checksums:"
           cat SHA256SUMS.txt
 
@@ -110,7 +110,7 @@ jobs:
           body: ${{ steps.notes.outputs.content }}
           files: |
             dist/**/*.tar.gz
-            dist/**/SHA256SUMS.txt
+            dist/SHA256SUMS.txt
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -16,7 +16,7 @@ ppdrive bucket create [OPTIONS]
 | Flag | Required | Default | Description |
 |---|---|---|---|
 | `--name` | Yes | — | Bucket name |
-| `--path` | Yes | — | Filesystem path for stored files |
+| `--path` | Yes | — | Filesystem path for stored files. Relative paths only — absolute paths (leading `/`) are rejected. Paths are normalized with a leading `/` internally. Must not contain `..` |
 | `--owner-type` | Yes | — | Entity type: `user` or `client` |
 | `--owner-id` | Yes | — | ID of the owning entity |
 | `--public` | No | `false` | Make the bucket publicly accessible |
@@ -85,6 +85,14 @@ ppdrive bucket create \
 Bucket created successfully!
 Bucket ID: x9y8z7w6v5u4...
 ```
+
+### Validation Rules
+
+- `--path` must not be empty
+- `--path` must not be absolute (no leading `/`)
+- `--path` must not contain `..` (path traversal)
+- Privacy levels must match: public buckets cannot be nested inside private parents, and private buckets cannot be nested inside public parents
+- The owning client/user must own all parent paths
 
 ## Bucket Properties
 

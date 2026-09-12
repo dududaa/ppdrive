@@ -220,7 +220,7 @@ pub async fn has_permission(
     let min_perm: i16 = min_permission.into();
 
     let query = sql_safe!(
-        "SELECT EXISTS(SELECT 1 FROM file_permissions WHERE asset_id = {} AND grantee_id = {} AND permission >= {})",
+        "SELECT CASE WHEN EXISTS(SELECT 1 FROM file_permissions WHERE asset_id = {} AND grantee_id = {} AND permission >= {}) THEN 1 ELSE 0 END",
         db.placeholder(1),
         db.placeholder(2),
         db.placeholder(3)

@@ -44,7 +44,7 @@ curl -X POST http://localhost:8000/buckets \
   -H "x-ppdrive-client: YOUR_TOKEN" \
   -d '{
     "name": "photos",
-    "path": "/buckets/photos",
+    "path": "buckets/photos",
     "public": false,
     "size": 1024,
     "accepts": ["image/*"]
@@ -59,7 +59,7 @@ curl -X POST http://localhost:8000/buckets \
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `name` | `String` | Yes | — | Human-readable bucket name (1–255 chars) |
-| `path` | `String` | Yes | — | Storage path relative to root directory (must not be empty) |
+| `path` | `String` | Yes | — | Storage path relative to root directory. Paths are normalized with a leading `/`. Must not be empty, must not be absolute (no leading `/`), and must not contain `..` |
 | `public` | `bool` | No | `false` | Whether the bucket is publicly readable |
 | `size` | `i64` | No | `null` | Maximum bucket size in megabytes (`null` = unlimited) |
 | `accepts` | `String[]` | No | `null` | Accepted MIME types (e.g. `["image/*", "application/pdf"]`) |
@@ -80,11 +80,12 @@ The `data` field contains the bucket's public PID — use it for upload/download
 
 - `name` must be 1–255 characters
 - `path` must not be empty
+- `path` must not be absolute (no leading `/`)
 - `path` must not contain `..` (path traversal)
 - `size` must be at least 1 if provided
 - Unknown JSON fields are rejected (requests must not contain extra keys)
 - Bucket path must not conflict with a [static folder](/configuration/config-file/#static-folders)
-- Private buckets cannot be created inside public buckets
+- Privacy levels must match: private buckets cannot be created inside public buckets, and public buckets cannot be created inside private buckets
 - The client must own all parent paths
 
 ### Error Responses
@@ -92,6 +93,7 @@ The `data` field contains the bucket's public PID — use it for upload/download
 | Status | Message | Cause |
 |---|---|---|
 | 400 | `path must not be empty` | Empty path provided |
+| 400 | `path cannot be absolute...` | Absolute path provided (leading `/`) |
 | 400 | `path contains invalid components: '..' is not allowed` | Path traversal attempt |
 | 400 | Validation error | Name too long, path empty, etc. |
 | 401 | `missing client header key` | No auth header |
@@ -99,6 +101,7 @@ The `data` field contains the bucket's public PID — use it for upload/download
 | 403 | `Bucket parent(s) is owned by a different entity...` | Path overlaps another client's bucket |
 | 408 | `Request Timeout` | Server did not receive a complete request within 30 seconds |
 | 409 | `Bucket path '...' conflicts with static folder...` | Path crosses a configured static folder |
+| 409 | `One or all of the bucket parents is private/public...` | Privacy level mismatch with parent bucket |
 
 ## Upload to a Bucket
 

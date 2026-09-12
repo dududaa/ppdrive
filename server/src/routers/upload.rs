@@ -180,16 +180,24 @@ pub(super) async fn play_session(
     let config = info.config.clone();
     let config = config.ok_or(api_error("missing configuration"))?;
     let root_dir = state.config().root_dir()?;
-    let mut target_path = safe_path(&root_dir, &config.path).await
+    let target_path = safe_path(&root_dir, &config.path).await
         .map_err(|e| api_error(e).with_status_code(StatusCode::BAD_REQUEST))?;
 
     if let Some(bucket_id) = &config.bucket {
         let bucket = bucket::get(bucket_id, state.db()).await?;
-        let bucket_root = PathBuf::from(&bucket.path);
-
-        let new_root = root_dir.join(bucket_root);
-        target_path = safe_path(&new_root, &config.path).await
-            .map_err(|e| api_error(e).with_status_code(StatusCode::BAD_REQUEST))?;
+        // config.path is the full storage path (e.g. "media/docs/hello.txt").
+        // Validate the target is within the bucket's directory.
+        let bucket_root = root_dir.join(bucket.path.trim_start_matches('/'));
+        let canonical_bucket = std::fs::canonicalize(&bucket_root)
+            .map_err(|_| api_error("bucket directory not found").with_status_code(StatusCode::BAD_REQUEST))?;
+        let canonical_target = std::fs::canonicalize(&target_path).or_else(|_| {
+            let parent = target_path.parent().unwrap_or(&root_dir);
+            std::fs::canonicalize(parent).map(|p| p.join(target_path.file_name().unwrap_or_default()))
+        }).map_err(|_| api_error("failed to resolve target path").with_status_code(StatusCode::BAD_REQUEST))?;
+        if !canonical_target.starts_with(&canonical_bucket) {
+            return Err(api_error("upload path is not within the specified bucket")
+                .with_status_code(StatusCode::FORBIDDEN));
+        }
     }
 
     let parent_dir = target_path.parent().unwrap_or(&root_dir);
@@ -298,7 +306,7 @@ async fn get_next_session(
         match &config.bucket {
             Some(bucket_id) => {
                 let bucket = bucket::get(bucket_id, state.db()).await?;
-                let bucket_root = PathBuf::from(&bucket.path);
+                let bucket_root = root_dir.join(bucket.path.trim_start_matches('/'));
 
                 // validate bucket size
                 let is_dir = tokio::fs::metadata(&bucket_root).await.map(|m| m.is_dir()).unwrap_or(false);

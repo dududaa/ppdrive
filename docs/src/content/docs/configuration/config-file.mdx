@@ -59,7 +59,7 @@ path = "/static"
 | `client_header_key` | `String` | `x-ppdrive-client` | HTTP header for client authentication |
 | `port` | `u16` | `8000` | Server listen port |
 | `allowed_origins` | `Vec<String>` | `null` (all) | CORS origin whitelist. When `null`, all origins are permitted and a warning is logged at startup |
-| `root_dir` | `String` | `null` (binary dir) | Storage subdirectory |
+| `root_dir` | `String` | `null` (binary dir) | Storage subdirectory. The SQLite database file also resolves against this directory, not the current working directory |
 | `db_pool_size` | `u32` | `10` | Max database connections in pool |
 | `message_broker` | `String` | `null` | Redis URL for resumable uploads |
 | `hasher` | `String` | `HMAC256` | Hash algorithm: `HMAC256` or `Blake3` |

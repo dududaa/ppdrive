@@ -47,10 +47,18 @@ pub async fn create(
         owner_id,
     } = data;
 
+    // Normalize path to always have a leading '/' and no trailing '/'.
+    let path = path.trim_end_matches('/').to_string();
+    let path = if path.starts_with('/') {
+        path
+    } else {
+        format!("/{path}")
+    };
+
     for folder in static_folders {
         let default_path = format!("/{}", folder.name);
         let folder_path = folder.path.as_deref().unwrap_or(&default_path);
-        if paths_cross(path, folder_path) {
+        if paths_cross(&path, folder_path) {
             return Err(anyhow!(
                 "Bucket path '{path}' conflicts with static folder '{}' at '{folder_path}'",
                 folder.name
@@ -60,17 +68,24 @@ pub async fn create(
 
     let owner_id = asset_owner_id(*owner_type, *owner_id, db).await?;
 
-    let valid_parents_owner = validate_parent_ownership(path, owner_id, db).await?;
+    let valid_parents_owner = validate_parent_ownership(&path, owner_id, db).await?;
     if !valid_parents_owner {
         return Err(anyhow!(
             "Bucket parent(s) is owned by a different entity. Please choose a another path."
         ));
     }
 
-    let private_parents = validate_parents_privacy(path, db).await?;
+    let private_parents = validate_parents_privacy(&path, db).await?;
     if !public && !private_parents {
         return Err(anyhow!(
             "One or all of the bucket parents is public. This is not allowed for private buckets."
+        ));
+    }
+
+    let has_private_parents = validate_parent_privacy_reverse(&path, db).await?;
+    if *public && has_private_parents {
+        return Err(anyhow!(
+            "One or all of the bucket parents is private. This is not allowed for public buckets."
         ));
     }
 
@@ -168,20 +183,15 @@ async fn validate_parents_privacy(path: &str, db: &Database) -> anyhow::Result<b
         .flat_map(|p| p.to_str())
         .collect::<Vec<&str>>();
 
-    let mut placeholders = String::new();
-    for idx in 0..parents.len() {
-        let placeholder = db.placeholder(idx as u8 + 1);
-
-        if idx == 0 {
-            placeholders.push_str(&placeholder);
-        } else {
-            placeholders.push_str(" OR ");
-            placeholders.push_str(&placeholder);
-        }
+    let mut conditions = Vec::with_capacity(parents.len());
+    for (idx, _parent) in parents.iter().enumerate() {
+        conditions.push(format!("path = {}", db.placeholder(idx as u8 + 1)));
     }
+    let where_clause = conditions.join(" OR ");
 
-    let query =
-        sql_safe!("SELECT EXISTS(SELECT 1 FROM buckets WHERE path = ({placeholders}) AND public = 1)");
+    let query = sql_safe!(
+        "SELECT CASE WHEN EXISTS(SELECT 1 FROM buckets WHERE ({where_clause}) AND public = 1) THEN 1 ELSE 0 END"
+    );
     let mut qs = sqlx::query_scalar(query);
     for parent in parents {
         qs = qs.bind(parent);
@@ -189,6 +199,33 @@ async fn validate_parents_privacy(path: &str, db: &Database) -> anyhow::Result<b
 
     let exists: i32 = qs.fetch_one(&**db).await?;
     Ok(exists == 0)
+}
+
+/// Check whether any of bucket's parent path is saved as a private bucket. This is to ensure that the rule
+/// **public bucket cannot be created within a private bucket** is not violated.
+async fn validate_parent_privacy_reverse(path: &str, db: &Database) -> anyhow::Result<bool> {
+    let path = PathBuf::from(path);
+    let parents = path
+        .ancestors()
+        .flat_map(|p| p.to_str())
+        .collect::<Vec<&str>>();
+
+    let mut conditions = Vec::with_capacity(parents.len());
+    for (idx, _parent) in parents.iter().enumerate() {
+        conditions.push(format!("path = {}", db.placeholder(idx as u8 + 1)));
+    }
+    let where_clause = conditions.join(" OR ");
+
+    let query = sql_safe!(
+        "SELECT CASE WHEN EXISTS(SELECT 1 FROM buckets WHERE ({where_clause}) AND public = 0) THEN 1 ELSE 0 END"
+    );
+    let mut qs = sqlx::query_scalar(query);
+    for parent in parents {
+        qs = qs.bind(parent);
+    }
+
+    let exists: i32 = qs.fetch_one(&**db).await?;
+    Ok(exists != 0)
 }
 
 /// Validate that user owns all the parents for this bucket
