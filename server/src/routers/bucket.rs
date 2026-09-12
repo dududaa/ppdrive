@@ -61,6 +61,9 @@ pub(super) async fn create_bucket(
     let bucket_dir = root_dir.join(&data.path);
     if let Err(err) = tokio::fs::create_dir_all(&bucket_dir).await {
         tracing::error!("failed to create bucket directory: {err}");
+        if let Err(del_err) = bucket::delete_by_pid(&pid, state.db()).await {
+            tracing::error!("failed to roll back bucket row: {del_err}");
+        }
         return Err(api_error("failed to create bucket directory"));
     }
 

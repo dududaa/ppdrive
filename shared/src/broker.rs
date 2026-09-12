@@ -36,8 +36,14 @@ impl MessageBroker {
     
     /// Insert or update an [`UploadInfo`] with TTL set to its expiration time.
     pub async fn upsert_upload_info(&self, session_id: &str, info: &UploadInfo) -> anyhow::Result<()> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| anyhow!("{e}"))?
+            .as_secs() as i64;
+        let ttl = (info.exp - now).max(0) as u64;
+
         let data = serde_json::to_string(info)?;
-        self.conn().set_ex::<_, String, Value>(session_id, data, info.exp as u64).await.map_err(|e| anyhow!("{e}"))?;
+        self.conn().set_ex::<_, String, Value>(session_id, data, ttl).await.map_err(|e| anyhow!("{e}"))?;
         
         Ok(())
     }

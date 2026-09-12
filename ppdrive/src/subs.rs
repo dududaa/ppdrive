@@ -56,8 +56,10 @@ fn validate_bucket_path(s: &str) -> Result<String, String> {
     if s.is_empty() {
         return Err("path must not be empty".into());
     }
-    if s.contains("..") {
-        return Err("path must not contain '..'".into());
+    for component in std::path::Path::new(s).components() {
+        if matches!(component, std::path::Component::ParentDir) {
+            return Err("path must not contain '..'".into());
+        }
     }
     Ok(s.to_string())
 }

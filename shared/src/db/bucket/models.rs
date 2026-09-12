@@ -49,3 +49,9 @@ pub struct Bucket {
     pub accepts: Option<Vec<String>>,
     pub owner_id: i32,
 }
+
+impl Bucket {
+    pub fn is_public(&self) -> bool {
+        self.public
+    }
+}

@@ -109,7 +109,13 @@ pub async fn create_app() -> anyhow::Result<(Router, u16)> {
             }),
         );
 
-    let paths = bucket::get_public_paths(state.db()).await.unwrap_or_default();
+    let paths = match bucket::get_public_paths(state.db()).await {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!("failed to load public bucket paths: {e}");
+            vec![]
+        }
+    };
     
     for path in &paths {
         app = app.nest_service(path, ServeDir::new(path));

@@ -152,6 +152,13 @@ pub async fn get_all_paths(db: &Database) -> anyhow::Result<Vec<String>> {
     Ok(paths)
 }
 
+/// Delete a bucket by its public PID.
+pub async fn delete_by_pid(pid: &str, db: &Database) -> anyhow::Result<()> {
+    let query = sql_safe!("DELETE FROM buckets WHERE pid = {}", db.placeholder(1));
+    sqlx::query(query).bind(pid).execute(&**db).await?;
+    Ok(())
+}
+
 /// Check whether any of bucket's parent path is not saved as a public bucket. This is to ensure that the rule
 /// **private bucket cannot be created within a public bucket** is not violated.
 async fn validate_parents_privacy(path: &str, db: &Database) -> anyhow::Result<bool> {

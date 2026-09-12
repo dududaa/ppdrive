@@ -41,7 +41,16 @@ impl Cli {
                     println!("Client token refreshed successfully!");
                     println!("Client Token: {}", token);
                 }
-                _ => {}
+                ClientCommand::List => {
+                    let clients = shared::db::client::get_clients(&pool).await?;
+                    if clients.is_empty() {
+                        println!("No clients found.");
+                    } else {
+                        for client in &clients {
+                            println!("PID: {}", client.pid());
+                        }
+                    }
+                }
             },
 
             CliCommand::Bucket { command } => match command {
@@ -142,7 +151,8 @@ impl Cli {
                 let editor = std::env::var("VISUAL")
                     .or_else(|_| std::env::var("EDITOR"))
                     .unwrap_or_else(|_| "nano".to_string());
-                Command::new(&editor).arg("ppd_config.toml").status()?;
+                let config_path = shared::root_dir()?.join("ppd_config.toml");
+                Command::new(&editor).arg(config_path).status()?;
             }
 
             CliCommand::User { command } => match command {

@@ -33,7 +33,7 @@ of APIs for remote file management and storage.
   cli-tool for configuration, client management, plugin management and so on.
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
 - **Speed**: Very fast operation handlers.
-- **Cross Platform**: PPDRIVE can run on Linux, MacOS and Windows. Useful for local development.
+- **Cross Platform**: PPDRIVE can run on Linux, macOS and Windows. Useful for local development.
 - **Lightweight**: We aim to make PPDRIVE as lightweight as possible. The starting point is to make sure you can install
   only what you need and extend it whenever you need more.
 

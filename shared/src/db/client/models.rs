@@ -16,6 +16,14 @@ pub struct Client {
 }
 
 impl Client {
+    pub fn pid(&self) -> &str {
+        &self.pid
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     pub async fn create(db: &Database, args: ClientInsertArgs) -> anyhow::Result<String> {
         let ClientInsertArgs { pid, name, encrypted_key, key_nonce, key_hash } = args;
 

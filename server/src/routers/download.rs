@@ -126,6 +126,13 @@ pub(super) async fn sign_download(
             .with_status_code(StatusCode::BAD_REQUEST));
     }
 
+    for component in std::path::Path::new(cleaned_path).components() {
+        if matches!(component, std::path::Component::ParentDir) {
+            return Err(api_error("path contains invalid components: '..' is not allowed")
+                .with_status_code(StatusCode::BAD_REQUEST));
+        }
+    }
+
     let bucket_path = bucket_data.path.trim_end_matches('/');
     let expected_prefix = format!("{bucket_path}/");
     let full_path = format!("{bucket_path}/{cleaned_path}");

@@ -33,13 +33,13 @@ CREATE TABLE buckets
 (
     id         INTEGER PRIMARY KEY,
     pid        TEXT UNIQUE,
-    name       TEXT    NOT NULL,
-    public     BOOLEAN NOT NULL,
+    name       TEXT     NOT NULL,
+    public     SMALLINT NOT NULL DEFAULT 0,
     size       BIGINT,
     accepts    TEXT,
-    path       TEXT    NOT NULL UNIQUE,
-    created_at TEXT    NOT NULL,
-    owner_id   INTEGER NOT NULL,
+    path       TEXT     NOT NULL UNIQUE,
+    created_at TEXT     NOT NULL,
+    owner_id   INTEGER  NOT NULL,
     FOREIGN KEY (owner_id) REFERENCES asset_owner (id) ON DELETE CASCADE
 );
 CREATE INDEX idx_buckets_asset_owner on buckets (owner_id);
