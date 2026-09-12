@@ -87,6 +87,11 @@ jobs:
         with:
           path: dist
 
+      - name: Flatten artifacts
+        run: |
+          for d in dist/*/; do mv "$d"*.tar.gz dist/ 2>/dev/null || true; done
+          rmdir dist/*/ 2>/dev/null || true
+
       - name: Generate checksums
         run: |
           cd dist
