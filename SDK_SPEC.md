@@ -40,6 +40,31 @@ The SDK does **not** handle:
 - File I/O (the caller provides file data as bytes, streams, or paths)
 - Server deployment or configuration
 
+### Request/Response Format
+
+**Client authentication:** Send the client token in the `x-ppdrive-client` header (configurable on the server via `client_header_key`).
+
+**Response format:** All successful responses return the raw JSON value directly — there is no `{"data": ...}` wrapper.
+
+```
+// createBucket returns:
+"a1b2c3d4e5f6..."
+
+// upload session returns:
+"eyJ0eXAiOiJKV1..."
+
+// listPermissions returns:
+[{"id": 1, "grantee_type": "client", "permission": "read", ...}]
+```
+
+**Error responses:** All errors return `{"error": "message"}`.
+
+```json
+{"error": "missing client header key"}
+```
+
+All request structs use `#[serde(deny_unknown_fields)]` — extra fields in the JSON body will return a 400 error.
+
 ---
 
 ## Client Construction
@@ -57,6 +82,8 @@ const client = new PPDRIVEClient({
 |-----------|------|----------|-------------|
 | `baseUrl` | `string` | Yes | PPDRIVE server URL (no trailing slash) |
 | `clientToken` | `string` | Yes | Client API token for all operations |
+
+The SDK sends the token in the `x-ppdrive-client` header (default). This header name is configurable on the server via the `client_header_key` config field.
 
 ### Static Factory (Optional)
 
@@ -83,7 +110,7 @@ await client.uploadFile("docs/report.pdf", fileBytes);
 // Upload to a bucket
 await client.uploadFile("report.pdf", fileBytes, {
   bucket: "BUCKET_PID",
-  contentType: "application/pdf",
+  content_type: "application/pdf",
   overwrite: true,
 });
 
@@ -91,7 +118,7 @@ await client.uploadFile("report.pdf", fileBytes, {
 await client.uploadFile("large.bin", fileBytes, {
   bucket: "BUCKET_PID",
   resumable: true,
-  onProgress: (sent, total) => console.log(`${sent}/${total}`),
+  on_progress: (sent, total) => console.log(`${sent}/${total}`),
 });
 ```
 
@@ -100,13 +127,13 @@ await client.uploadFile("large.bin", fileBytes, {
 | `path` | `string` | Yes | Destination path (relative to bucket or static dir) |
 | `data` | `bytes` | Yes | File content as bytes, stream, or buffer |
 | `options.bucket` | `string` | No | Bucket PID (omit for static directory upload) |
-| `options.contentType` | `string` | No | MIME type (required if bucket has `accepts` restrictions) |
+| `options.content_type` | `string` | No | MIME type (required if bucket has `accepts` restrictions) |
 | `options.overwrite` | `boolean` | No | Allow overwriting existing file (default: `false`) |
-| `options.createParents` | `boolean` | No | Create parent directories (default: `false`) |
+| `options.create_parents` | `boolean` | No | Create parent directories (default: `false`) |
 | `options.resumable` | `boolean` | No | Enable chunked upload (default: `false`, required for files ≥ 2MB) |
-| `options.chunkSize` | `number` | No | Bytes per chunk for resumable uploads (default: 1MB) |
+| `options.chunk_size` | `number` | No | Bytes per chunk for resumable uploads (default: 1MB, SDK-only) |
 | `options.expires` | `number` | No | Session lifetime in seconds (default: `120`, range: `30–86400`) |
-| `options.onProgress` | `function` | No | Progress callback `(bytesSent, totalBytes) → void` |
+| `options.on_progress` | `function` | No | Progress callback `(bytesSent, totalBytes) → void` |
 
 **Returns:** `void`
 
@@ -127,7 +154,7 @@ await client.uploadFolder("documents/2024/reports");
 | `path` | `string` | Yes | Folder path |
 | `options.bucket` | `string` | No | Bucket PID |
 | `options.overwrite` | `boolean` | No | Allow overwriting (default: `false`) |
-| `options.createParents` | `boolean` | No | Create parent directories (default: `false`) |
+| `options.create_parents` | `boolean` | No | Create parent directories (default: `false`) |
 
 **Returns:** `void`
 
@@ -142,7 +169,7 @@ Generate a signed upload URL without sending file data. Useful for generating up
 ```javascript
 const uploadUrl = await client.signUploadUrl("docs/report.pdf", {
   bucket: "BUCKET_PID",
-  contentType: "application/pdf",
+  content_type: "application/pdf",
   expires: 300,
 });
 // uploadUrl → "http://localhost:8000/upload/session/play/eyJ0eXAiOiJKV1..."
@@ -152,10 +179,10 @@ const uploadUrl = await client.signUploadUrl("docs/report.pdf", {
 |-----------|------|----------|-------------|
 | `path` | `string` | Yes | Destination path (relative to bucket or static dir) |
 | `options.bucket` | `string` | No | Bucket PID (omit for static directory upload) |
-| `options.contentType` | `string` | No | MIME type (required if bucket has `accepts` restrictions) |
-| `options.targetFilesize` | `number` | No | Expected file size in bytes (required for files) |
+| `options.content_type` | `string` | No | MIME type (required if bucket has `accepts` restrictions) |
+| `options.target_filesize` | `number` | No | Expected file size in bytes (required for files) |
 | `options.overwrite` | `boolean` | No | Allow overwriting existing file (default: `false`) |
-| `options.createParents` | `boolean` | No | Create parent directories (default: `false`) |
+| `options.create_parents` | `boolean` | No | Create parent directories (default: `false`) |
 | `options.expires` | `number` | No | Session lifetime in seconds (default: `120`, range: `30–86400`) |
 
 **Returns:** `string` (full signed upload URL)
@@ -228,9 +255,9 @@ const downloadUrl = await client.signDownloadUrl("BUCKET_PID", "report.pdf", {
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `bucketPid` | `string` | Yes | Bucket PID |
+| `bucketPid` | `string` | Yes | Bucket PID (sent as `bucket` in the request body) |
 | `path` | `string` | Yes | File path within the bucket |
-| `options.expires` | `number` | No | Token lifetime in seconds (default: `300`, range: `30–3600`) |
+| `options.expires` | `number` | Yes | Token lifetime in seconds (range: `30–3600`) |
 
 **Returns:** `string` (full signed download URL)
 
@@ -279,7 +306,7 @@ Grant a file-level permission to a client or user.
 await client.grantPermission("BUCKET_PID", {
   path: "report.pdf",
   grantee: "CLIENT_PID",
-  granteeType: "client",
+  grantee_type: "client",
   permission: "read",
 });
 
@@ -287,7 +314,7 @@ await client.grantPermission("BUCKET_PID", {
 await client.grantPermission("BUCKET_PID", {
   path: "report.pdf",
   grantee: "user@example.com",
-  granteeType: "user",
+  grantee_type: "user",
   permission: "admin",
 });
 ```
@@ -297,10 +324,10 @@ await client.grantPermission("BUCKET_PID", {
 | `bucketPid` | `string` | Yes | Bucket PID |
 | `options.path` | `string` | Yes | File path within the bucket |
 | `options.grantee` | `string` | Yes | Client PID or user email |
-| `options.granteeType` | `string` | Yes | `"client"` or `"user"` |
+| `options.grantee_type` | `string` | No | `"client"` (default) or `"user"` |
 | `options.permission` | `string` | Yes | `"read"`, `"write"`, or `"admin"` |
 
-**Returns:** `void`
+**Returns:** `{ granted: boolean }` (always `true` on success)
 
 **HTTP:** `POST /buckets/{bucket_pid}/permissions`
 
@@ -314,7 +341,7 @@ Revoke a previously granted permission.
 await client.revokePermission("BUCKET_PID", {
   path: "report.pdf",
   grantee: "user@example.com",
-  granteeType: "user",
+  grantee_type: "user",
 });
 ```
 
@@ -323,9 +350,9 @@ await client.revokePermission("BUCKET_PID", {
 | `bucketPid` | `string` | Yes | Bucket PID |
 | `options.path` | `string` | Yes | File path within the bucket |
 | `options.grantee` | `string` | Yes | Client PID or user email |
-| `options.granteeType` | `string` | Yes | `"client"` or `"user"` |
+| `options.grantee_type` | `string` | No | `"client"` (default) or `"user"` |
 
-**Returns:** `void`
+**Returns:** `{ granted: boolean }` (always `false` on revoke)
 
 **HTTP:** `DELETE /buckets/{bucket_pid}/permissions`
 
@@ -338,8 +365,8 @@ List all permissions for a file.
 ```javascript
 const permissions = await client.listPermissions("BUCKET_PID", "report.pdf");
 // [
-//   { id: 1, grantee: "CLIENT_PID", granteeType: "client", permission: "admin", ... },
-//   { id: 2, grantee: "user@example.com", granteeType: "user", permission: "read", ... },
+//   { id: 1, grantee_name: "CLIENT_PID", grantee_type: "client", permission: "admin", ... },
+//   { id: 2, grantee_name: "user@example.com", grantee_type: "user", permission: "read", ... },
 // ]
 ```
 
@@ -351,6 +378,29 @@ const permissions = await client.listPermissions("BUCKET_PID", "report.pdf");
 **Returns:** `Permission[]`
 
 **HTTP:** `GET /buckets/{bucket_pid}/permissions?path=...`
+
+---
+
+### Authentication
+
+#### `login(email, password)`
+
+Authenticate a user and receive a bearer token.
+
+```javascript
+const { token, expires_in } = await client.login("user@example.com", "password");
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `email` | `string` | Yes | User email |
+| `password` | `string` | Yes | User password (1–128 chars) |
+
+**Returns:** `{ token: string, expires_in: number }`
+
+**HTTP:** `POST /auth/login`
+
+Use the returned token with the `Authorization: Bearer <token>` header for user-authenticated requests.
 
 ---
 
@@ -366,13 +416,13 @@ interface PPDRIVEClientOptions {
 
 interface UploadOptions {
   bucket?: string;
-  contentType?: string;
+  content_type?: string;
   overwrite?: boolean;
-  createParents?: boolean;
+  create_parents?: boolean;
   resumable?: boolean;
-  chunkSize?: number;     // bytes, default 1MB
-  expires?: number;       // seconds, default 120
-  onProgress?: (bytesSent: number, totalBytes: number) => void;
+  chunk_size?: number;     // bytes, default 1MB (SDK-only, not sent to server)
+  expires?: number;        // seconds, default 120
+  on_progress?: (bytesSent: number, totalBytes: number) => void;
 }
 
 interface DownloadOptions {
@@ -382,15 +432,15 @@ interface DownloadOptions {
 
 interface SignUploadUrlOptions {
   bucket?: string;
-  contentType?: string;
-  targetFilesize?: number;
+  content_type?: string;
+  target_filesize?: number;
   overwrite?: boolean;
-  createParents?: boolean;
+  create_parents?: boolean;
   expires?: number;  // seconds, default 120
 }
 
 interface SignDownloadUrlOptions {
-  expires?: number;  // seconds, default 300
+  expires: number;  // required, 30-3600 seconds
 }
 
 interface CreateBucketOptions {
@@ -404,24 +454,24 @@ interface CreateBucketOptions {
 interface GrantPermissionOptions {
   path: string;
   grantee: string;
-  granteeType: "client" | "user";
+  grantee_type?: "client" | "user";  // default: "client"
   permission: "read" | "write" | "admin";
 }
 
 interface RevokePermissionOptions {
   path: string;
   grantee: string;
-  granteeType: "client" | "user";
+  grantee_type?: "client" | "user";  // default: "client"
 }
 
 interface Permission {
   id: number;
-  assetId: number;
-  granteeId: number;
-  granteeType: "client" | "user";
-  granteeName: string;
+  asset_id: number;
+  grantee_id: number;
+  grantee_type: "client" | "user";
+  grantee_name: string;
   permission: "read" | "write" | "admin";
-  createdAt: string;
+  created_at: string;
 }
 ```
 
@@ -439,7 +489,7 @@ class PPDRIVEError extends Error {
     super(message);
     this.name = "PPDRIVEError";
     this.status = status;   // HTTP status code
-    this.message = message; // Server error message
+    this.message = message; // Server error message (from {"error": "..."})
   }
 }
 ```
