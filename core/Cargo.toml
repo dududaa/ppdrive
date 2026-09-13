@@ -2,6 +2,10 @@
 name = "ppdrive"
 edition.workspace = true
 version.workspace = true
+description.workspace = true
+license.workspace = true
+documentation.workspace = true
+homepage.workspace = true
 
 [dependencies]
 sqlx = { features = ["runtime-tokio", "tls-rustls", "any", "postgres", "sqlite", "mysql", "migrate", "time"], workspace = true }
