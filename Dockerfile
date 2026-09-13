@@ -21,7 +21,7 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/ppdrive /usr/local/bin/ppdrive
 COPY --from=builder /app/target/release/server /usr/local/bin/server
-COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/core/migrations ./migrations
 
 RUN chown -R ppdrive:ppdrive /app
 

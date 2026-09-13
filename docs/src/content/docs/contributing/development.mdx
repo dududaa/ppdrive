@@ -134,6 +134,7 @@ ppdrive/
 │       └── routers/
 ├── core/                # Shared library crate (ppdrive)
 │   ├── Cargo.toml
+│   ├── migrations/      # SQL migrations
 │   └── src/
 │       ├── lib.rs
 │       ├── server.rs
@@ -141,7 +142,6 @@ ppdrive/
 │       ├── user.rs
 │       ├── tools/
 │       └── db/
-├── migrations/          # SQL migrations
 └── docs/                # Documentation site
 ```
 
@@ -182,7 +182,7 @@ The workspace includes VS Code configuration in `.vscode/`:
 
 ### Add a New Database Table
 
-1. Create a migration in `migrations/`
+1. Create a migration in `core/migrations/`
 2. Add models in `core/src/db/`
 3. Add query functions in the appropriate module
 

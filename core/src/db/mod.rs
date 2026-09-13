@@ -60,7 +60,7 @@ impl Database {
         match engine {
             DbEngine::Mysql => run_mysql_migrations(&pool).await?,
             DbEngine::Postgres => run_postgres_migrations(&pool).await?,
-            _ => migrate!("../migrations").run(&pool).await?,
+            _ => migrate!("./migrations").run(&pool).await?,
         };
 
         Ok(Self { pool, engine })
@@ -116,19 +116,19 @@ async fn create_sqlite(url: &str) -> anyhow::Result<()> {
 const MIGRATION_FILES: [(&str, &str); 4] = [
     (
         "20260531175615_create_clients.up.sql",
-        include_str!("../../../migrations/20260531175615_create_clients.up.sql"),
+        include_str!("../../migrations/20260531175615_create_clients.up.sql"),
     ),
     (
         "20260531175615_create_clients.down.sql",
-        include_str!("../../../migrations/20260531175615_create_clients.down.sql"),
+        include_str!("../../migrations/20260531175615_create_clients.down.sql"),
     ),
     (
         "20260911062958_add_file_privacy.up.sql",
-        include_str!("../../../migrations/20260911062958_add_file_privacy.up.sql"),
+        include_str!("../../migrations/20260911062958_add_file_privacy.up.sql"),
     ),
     (
         "20260911062958_add_file_privacy.down.sql",
-        include_str!("../../../migrations/20260911062958_add_file_privacy.down.sql"),
+        include_str!("../../migrations/20260911062958_add_file_privacy.down.sql"),
     ),
 ];
 
