@@ -11,15 +11,15 @@ use axum::body::Body;
 use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use shared::AssetOwnerName;
-use shared::db::{asset, bucket, client};
-use shared::asset_owner_id;
-use shared::db::asset::models::PermissionLevel;
-use shared::server::{DownloadInfo, SignDownloadRequest};
+use ppdrive::AssetOwnerName;
+use ppdrive::db::{asset, bucket, client};
+use ppdrive::asset_owner_id;
+use ppdrive::db::asset::models::PermissionLevel;
+use ppdrive::server::{DownloadInfo, SignDownloadRequest};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 use validator::Validate;
-use shared::seconds_from_now;
+use ppdrive::seconds_from_now;
 
 /// Resolve the file path for a download request.
 ///

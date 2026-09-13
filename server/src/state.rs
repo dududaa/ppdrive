@@ -3,11 +3,11 @@
 //! Holds the database pool, secrets, config, and optional Redis broker,
 //! all behind a cheaply-cloneable wrapper passed to every Axum handler.
 
-use shared::broker::MessageBroker;
-use shared::config::AppConfig;
-use shared::db::{Database, DbPool};
-use shared::hasher::Hasher;
-use shared::secrets::AppSecrets;
+use ppdrive::broker::MessageBroker;
+use ppdrive::config::AppConfig;
+use ppdrive::db::{Database, DbPool};
+use ppdrive::hasher::Hasher;
+use ppdrive::secrets::AppSecrets;
 
 #[derive(Clone)]
 pub struct AppState {

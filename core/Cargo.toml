@@ -1,5 +1,5 @@
 [package]
-name = "shared"
+name = "ppdrive"
 edition.workspace = true
 version.workspace = true
 

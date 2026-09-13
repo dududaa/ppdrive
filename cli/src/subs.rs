@@ -1,6 +1,6 @@
 use clap::{Args, Subcommand};
-use shared::db::bucket::models::CreateBucketData;
-use shared::db::asset::models::PermissionLevel;
+use ppdrive::db::bucket::models::CreateBucketData;
+use ppdrive::db::asset::models::PermissionLevel;
 
 #[derive(Subcommand, Debug)]
 pub enum ClientCommand {
@@ -32,7 +32,7 @@ pub struct CreateBucketArgs {
 
     /// Type of entity that owns the bucket.
     #[arg(long, value_enum)]
-    pub owner_type: shared::AssetOwnerName,
+    pub owner_type: ppdrive::AssetOwnerName,
 
     /// ID of entity that owns the bucket.
     #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]

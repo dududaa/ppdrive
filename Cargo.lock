@@ -2038,9 +2038,64 @@ name = "ppdrive"
 version = "0.1.4"
 dependencies = [
  "anyhow",
+ "argon2",
+ "base64",
+ "blake3",
+ "chacha20poly1305",
  "clap",
- "shared",
+ "dotenvy",
+ "hex",
+ "hmac 0.12.1",
+ "nanoid",
+ "redis",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sha3",
+ "sqlx",
+ "subtle",
+ "time",
  "tokio",
+ "toml",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "ppdrive_cli"
+version = "0.1.4"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ppdrive",
+ "tokio",
+]
+
+[[package]]
+name = "ppdrive_server"
+version = "0.1.4"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-test",
+ "futures-util",
+ "hex",
+ "metrics",
+ "metrics-exporter-prometheus",
+ "mime_guess",
+ "ppdrive",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tower",
+ "tower-http",
+ "tower_governor",
+ "tracing",
+ "tracing-subscriber",
+ "validator",
 ]
 
 [[package]]
@@ -2529,33 +2584,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "server"
-version = "0.1.4"
-dependencies = [
- "anyhow",
- "axum",
- "axum-test",
- "futures-util",
- "hex",
- "metrics",
- "metrics-exporter-prometheus",
- "mime_guess",
- "serde",
- "serde_json",
- "shared",
- "sqlx",
- "time",
- "tokio",
- "tokio-util",
- "tower",
- "tower-http",
- "tower_governor",
- "tracing",
- "tracing-subscriber",
- "validator",
-]
-
-[[package]]
 name = "sha1"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2612,34 +2640,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
-]
-
-[[package]]
-name = "shared"
-version = "0.1.4"
-dependencies = [
- "anyhow",
- "argon2",
- "base64",
- "blake3",
- "chacha20poly1305",
- "clap",
- "dotenvy",
- "hex",
- "hmac 0.12.1",
- "nanoid",
- "redis",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "sha3",
- "sqlx",
- "subtle",
- "time",
- "tokio",
- "toml",
- "tracing",
- "validator",
 ]
 
 [[package]]

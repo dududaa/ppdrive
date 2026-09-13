@@ -13,18 +13,18 @@ use axum::Json;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::StatusCode;
-use shared::server::*;
-use shared::{
+use ppdrive::server::*;
+use ppdrive::{
     db::{asset, bucket, client},
     generate_nano_id,
     root_dir, AssetOwnerName,
 };
-use shared::asset_owner_id;
+use ppdrive::asset_owner_id;
 use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use validator::Validate;
-use shared::seconds_from_now;
+use ppdrive::seconds_from_now;
 
 /// Validate that `user_path` resolves within `root` without path-traversal (`..`).
 /// Returns the joined [`PathBuf`] on success.
@@ -77,7 +77,7 @@ pub(super) async fn create_session(
 
     if let Some(bucket_id) = &config.bucket {
         let bucket = bucket::get(bucket_id, state.db()).await?;
-        let is_owner = shared::check_ownership(AssetOwnerName::Client, bucket.id, state.db()).await?;
+        let is_owner = ppdrive::check_ownership(AssetOwnerName::Client, bucket.id, state.db()).await?;
 
         if !is_owner {
             return Err(api_error("Write access denied for the specified bucket.")
@@ -316,7 +316,7 @@ async fn get_next_session(
                     if let Some(max_size) = &bucket.size {
                         let mut current_size: u64 = 0;
                         let path_str = bucket_root.to_string_lossy().to_string();
-                        shared::get_folder_size(&path_str, &mut current_size).await.unwrap_or(());
+                        ppdrive::get_folder_size(&path_str, &mut current_size).await.unwrap_or(());
                         if current_size + target_filesize > (*max_size as u64) {
                             return Err(anyhow!("Bucket size limit exceeded."));
                         }

@@ -1,12 +1,12 @@
 use crate::subs::{AssetCommand, BucketCommand, ClientCommand, UserCommand};
 use clap::{Parser, Subcommand};
-use shared::db::client::{create_client, regenerate_token};
-use shared::db::{asset, bucket, user};
-use shared::config::AppConfig;
-use shared::db::Database;
-use shared::secrets::AppSecrets;
-use shared::asset_owner_id;
-use shared::AssetOwnerName;
+use ppdrive::db::client::{create_client, regenerate_token};
+use ppdrive::db::{asset, bucket, user};
+use ppdrive::config::AppConfig;
+use ppdrive::db::Database;
+use ppdrive::secrets::AppSecrets;
+use ppdrive::asset_owner_id;
+use ppdrive::AssetOwnerName;
 use std::process::Command;
 
 /// PPDRIVE is a free, open-source object storage service built with Rust for speed, security,
@@ -42,7 +42,7 @@ impl Cli {
                     println!("Client Token: {}", token);
                 }
                 ClientCommand::List => {
-                    let clients = shared::db::client::get_clients(&pool).await?;
+                    let clients = ppdrive::db::client::get_clients(&pool).await?;
                     if clients.is_empty() {
                         println!("No clients found.");
                     } else {
@@ -55,7 +55,7 @@ impl Cli {
 
             CliCommand::Bucket { command } => match command {
                 BucketCommand::Create(args) => {
-                    let owner_id = shared::db::client::get_id(&args.owner_id, &pool).await?;
+                    let owner_id = ppdrive::db::client::get_id(&args.owner_id, &pool).await?;
                     let data = args.clone().into_data(owner_id);
                     let id = bucket::create(&data, &config.static_folders, &pool).await?;
 
@@ -73,7 +73,7 @@ impl Cli {
                             asset_owner_id(AssetOwnerName::User, user_id, &pool).await?
                         }
                         _ => {
-                            let client_id = shared::db::client::get_id(&grantee, &pool).await?;
+                            let client_id = ppdrive::db::client::get_id(&grantee, &pool).await?;
                             asset_owner_id(AssetOwnerName::Client, client_id, &pool).await?
                         }
                     };
@@ -93,7 +93,7 @@ impl Cli {
                             asset_owner_id(AssetOwnerName::User, user_id, &pool).await?
                         }
                         _ => {
-                            let client_id = shared::db::client::get_id(&grantee, &pool).await?;
+                            let client_id = ppdrive::db::client::get_id(&grantee, &pool).await?;
                             asset_owner_id(AssetOwnerName::Client, client_id, &pool).await?
                         }
                     };
@@ -138,13 +138,13 @@ impl Cli {
 
                 if cfg!(debug_assertions) {
                     let mut cmd = Command::new("cargo");
-                    cmd.args(["run", "-p", "server"]);
+                    cmd.args(["run", "-p", "ppdrive_server"]);
                     if let Some(port) = port {
                         cmd.arg(port.to_string());
                     }
                     cmd.status()?;
                 } else {
-                    let server_path = shared::root_dir()?.join("server");
+                    let server_path = ppdrive::root_dir()?.join("server");
                     let mut cmd = Command::new(&server_path);
                     if let Some(port) = port {
                         cmd.arg(port.to_string());
@@ -157,7 +157,7 @@ impl Cli {
                 let editor = std::env::var("VISUAL")
                     .or_else(|_| std::env::var("EDITOR"))
                     .unwrap_or_else(|_| "nano".to_string());
-                let config_path = shared::root_dir()?.join("ppd_config.toml");
+                let config_path = ppdrive::root_dir()?.join("ppd_config.toml");
                 Command::new(&editor).arg(config_path).status()?;
             }
 

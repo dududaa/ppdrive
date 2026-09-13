@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["ppdrive", "server", "shared"]
+members = ["cli", "server", "core"]
 
 [workspace.package]
 edition = "2024"
@@ -24,7 +24,7 @@ chrono = "0.4.44"
 anyhow = "1.0.102"
 dotenvy = "0.15.7"
 nanoid = "0.5.0"
-shared = { path = "./shared" }
+ppdrive = { path = "./core" }
 time = "0.3.53"
 sha3 = "0.12.0"
 sha2 = "0.10.0"

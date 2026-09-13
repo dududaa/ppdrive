@@ -10,17 +10,17 @@ PPDRIVE is organized as a Cargo workspace with three crates.
 ```
 ppdrive/
 ├── Cargo.toml           # Workspace root
-├── ppdrive/             # CLI binary
+├── cli/                 # CLI binary
 ├── server/              # HTTP server binary
-├── shared/              # Shared library
+├── core/                # Shared library (ppdrive crate)
 ├── migrations/          # SQL migrations
 └── docs/                # Documentation site
 ```
 
-## Crate: `ppdrive` (CLI)
+## Crate: `ppdrive_cli` (CLI)
 
 **Type:** Binary
-**Entry:** `ppdrive/src/main.rs`
+**Entry:** `cli/src/main.rs`
 
 The command-line interface built with [Clap](https://docs.rs/clap).
 
@@ -34,9 +34,9 @@ The command-line interface built with [Clap](https://docs.rs/clap).
 ### Key Dependencies
 
 - `clap` — CLI argument parsing
-- `shared` — Database and secrets access
+- `ppdrive` — Database and secrets access
 
-## Crate: `server` (HTTP Server)
+## Crate: `ppdrive_server` (HTTP Server)
 
 **Type:** Library + Binary
 **Entry:** `server/src/main.rs`
@@ -65,10 +65,10 @@ An Axum-based HTTP server.
 - `tokio-util` — Async file streaming
 - `mime_guess` — MIME type detection
 
-## Crate: `shared` (Common Library)
+## Crate: `ppdrive` (Common Library)
 
 **Type:** Library
-**Entry:** `shared/src/lib.rs`
+**Entry:** `core/src/lib.rs`
 
 Shared types, database access, and cryptographic operations.
 
@@ -96,7 +96,7 @@ Shared types, database access, and cryptographic operations.
 |---|---|
 | `server` | `broker`, `server` modules, validator, HMAC, SHA2, SHA3 |
 
-The `server` crate depends on `shared` with `features = ["server"]`. The CLI crate depends on `shared` without this feature (no broker or server types needed).
+The `ppdrive_server` crate depends on `ppdrive` with `features = ["server"]`. The CLI crate depends on `ppdrive` without this feature (no broker or server types needed).
 
 ### Key Dependencies
 
@@ -111,11 +111,11 @@ The `server` crate depends on `shared` with `features = ["server"]`. The CLI cra
 ## Dependency Graph
 
 ```
-ppdrive (CLI)
-  └── shared (no features)
+ppdrive_cli (CLI)
+  └── ppdrive (no features)
 
-server (HTTP)
-  └── shared (features = ["server"])
+ppdrive_server (HTTP)
+  └── ppdrive (features = ["server"])
         ├── broker (Redis)
         └── server (UploadInfo, DownloadInfo)
 ```

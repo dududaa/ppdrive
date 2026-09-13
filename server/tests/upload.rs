@@ -4,9 +4,9 @@ use futures_util::StreamExt;
 mod common;
 
 use crate::common::{TestServerWrapper, upload_config};
-use server::state::AppState;
-use shared::db::client::create_client;
-use shared::root_dir;
+use ppdrive_server::state::AppState;
+use ppdrive::db::client::create_client;
+use ppdrive::root_dir;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncReadExt;
 use tokio_util::io::ReaderStream;

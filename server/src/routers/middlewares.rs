@@ -10,9 +10,9 @@ use crate::state::AppState;
 use axum::extract::{FromRef, FromRequestParts, Path};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use shared::db::client::verify_client;
-use shared::server::{DownloadInfo, UserInfo, UploadInfo};
-use shared::hasher::errors::PayloadVerificationError;
+use ppdrive::db::client::verify_client;
+use ppdrive::server::{DownloadInfo, UserInfo, UploadInfo};
+use ppdrive::hasher::errors::PayloadVerificationError;
 
 /// Axum extractor that authenticates the request via the client API-key header.
 pub struct ClientExtractor(i32);

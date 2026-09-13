@@ -16,7 +16,7 @@ This guide covers setting up a local development environment for contributing to
 
 ```sh
 git clone https://github.com/dududaa/ppdrive.git
-cd ppdrive/core
+cd ppdrive
 ```
 
 ## Build
@@ -33,7 +33,7 @@ cargo build --release
 
 ```sh
 # Using cargo
-cargo run -p server
+cargo run -p ppdrive_server
 
 # Or build first, then run
 cargo build
@@ -45,10 +45,10 @@ The server starts on port 8000 by default.
 ## Run the CLI
 
 ```sh
-cargo run -p ppdrive -- --help
+cargo run -p ppdrive_cli -- --help
 
 # Example: create a client
-cargo run -p ppdrive -- client create --name "Dev Client"
+cargo run -p ppdrive_cli -- client create --name "Dev Client"
 ```
 
 ## Configuration
@@ -64,7 +64,7 @@ hasher = "Blake3"
 Or use the configure command:
 
 ```sh
-cargo run -p ppdrive -- configure
+cargo run -p ppdrive_cli -- configure
 ```
 
 ## Running Tests
@@ -74,8 +74,8 @@ cargo run -p ppdrive -- configure
 cargo test
 
 # Run tests for a specific crate
-cargo test -p shared
-cargo test -p server
+cargo test -p ppdrive
+cargo test -p ppdrive_server
 
 # Run a specific test
 cargo test test_token_validation
@@ -118,13 +118,13 @@ ppdrive/
 ├── Cargo.toml           # Workspace configuration
 ├── ppd_config.toml      # Runtime configuration
 ├── .ppdrive_secret      # Auto-generated secrets (git-ignored)
-├── ppdrive/             # CLI crate
+├── cli/                 # CLI crate (ppdrive_cli)
 │   ├── Cargo.toml
 │   └── src/
 │       ├── main.rs
 │       ├── command.rs
 │       └── subs.rs
-├── server/              # HTTP server crate
+├── server/              # HTTP server crate (ppdrive_server)
 │   ├── Cargo.toml
 │   └── src/
 │       ├── main.rs
@@ -132,7 +132,7 @@ ppdrive/
 │       ├── app.rs
 │       ├── state.rs
 │       └── routers/
-├── shared/              # Shared library crate
+├── core/                # Shared library crate (ppdrive)
 │   ├── Cargo.toml
 │   └── src/
 │       ├── lib.rs
@@ -153,10 +153,10 @@ PPDRIVE uses `tracing` for structured logging:
 
 ```sh
 # Verbose output
-RUST_LOG=trace cargo run -p server
+RUST_LOG=trace cargo run -p ppdrive_server
 
 # Filter to specific modules
-RUST_LOG=server=debug,shared=info cargo run -p server
+RUST_LOG=ppdrive_server=debug,ppdrive=info cargo run -p ppdrive_server
 ```
 
 ### VS Code
@@ -173,17 +173,17 @@ The workspace includes VS Code configuration in `.vscode/`:
 1. Define the handler in `server/src/routers/`
 2. Add the route in `server/src/routers/mod.rs`
 3. Nest the route in `server/src/app.rs`
-4. Add request/response types in `shared/src/server.rs` if needed
+4. Add request/response types in `core/src/server.rs` if needed
 
 ### Add a New CLI Command
 
-1. Define the subcommand in `ppdrive/src/subs.rs`
-2. Add the match arm in `ppdrive/src/command.rs`
+1. Define the subcommand in `cli/src/subs.rs`
+2. Add the match arm in `cli/src/command.rs`
 
 ### Add a New Database Table
 
 1. Create a migration in `migrations/`
-2. Add models in `shared/src/db/`
+2. Add models in `core/src/db/`
 3. Add query functions in the appropriate module
 
 ### Modify the Shared Library

@@ -1,8 +1,8 @@
 use axum::body::Bytes;
 use axum_test::{TestRequest, TestServer, TestServerConfig, Transport};
 use serde::Serialize;
-use server::app::create_app;
-use shared::server::UploadUrlConfig;
+use ppdrive_server::app::create_app;
+use ppdrive::server::UploadUrlConfig;
 
 pub struct TestServerWrapper {
     server: TestServer,

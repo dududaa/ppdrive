@@ -8,9 +8,9 @@ use crate::state::AppState;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
-use shared::db::bucket;
-use shared::db::bucket::models::{CreateBucketData, CreateBucketRequest};
-use shared::AssetOwnerName;
+use ppdrive::db::bucket;
+use ppdrive::db::bucket::models::{CreateBucketData, CreateBucketRequest};
+use ppdrive::AssetOwnerName;
 use std::path::Path;
 use validator::Validate;
 

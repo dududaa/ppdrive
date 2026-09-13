@@ -25,7 +25,7 @@ use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
-use shared::db::bucket;
+use ppdrive::db::bucket;
 use metrics_exporter_prometheus::PrometheusHandle;
 use std::sync::OnceLock;
 
@@ -109,7 +109,7 @@ pub async fn create_app() -> anyhow::Result<(Router, u16)> {
             }),
         );
 
-    let root = shared::root_dir().unwrap_or_default();
+    let root = ppdrive::root_dir().unwrap_or_default();
 
     let paths = match bucket::get_public_paths(state.db()).await {
         Ok(p) => p,

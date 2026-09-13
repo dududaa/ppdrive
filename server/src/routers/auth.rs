@@ -4,9 +4,9 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
-use shared::db::user;
-use shared::server::UserInfo;
-use shared::seconds_from_now;
+use ppdrive::db::user;
+use ppdrive::server::UserInfo;
+use ppdrive::seconds_from_now;
 use validator::Validate;
 
 #[derive(Deserialize, Validate)]

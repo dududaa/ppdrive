@@ -5,10 +5,10 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
-use shared::AssetOwnerName;
-use shared::db::{asset, bucket, client, user};
-use shared::db::asset::models::PermissionLevel;
-use shared::asset_owner_id;
+use ppdrive::AssetOwnerName;
+use ppdrive::db::{asset, bucket, client, user};
+use ppdrive::db::asset::models::PermissionLevel;
+use ppdrive::asset_owner_id;
 use validator::Validate;
 
 #[derive(Deserialize, Validate)]
@@ -57,7 +57,7 @@ async fn resolve_owned_bucket(
     state: &AppState,
     bucket_pid: &str,
     auth: &AuthExtractor,
-) -> Result<shared::db::bucket::models::Bucket, crate::routers::resp::ResponseError> {
+) -> Result<ppdrive::db::bucket::models::Bucket, crate::routers::resp::ResponseError> {
     let bucket_data = bucket::get(bucket_pid, state.db()).await?;
 
     if bucket_data.public {
@@ -199,7 +199,7 @@ pub(crate) async fn list_permissions(
     Path(bucket_pid): Path<String>,
     auth: AuthExtractor,
     axum::extract::Query(query): axum::extract::Query<ListPermissionsQuery>,
-) -> ApiResponse<Vec<shared::db::asset::models::PermissionWithGrantee>> {
+) -> ApiResponse<Vec<ppdrive::db::asset::models::PermissionWithGrantee>> {
     let bucket_data = resolve_owned_bucket(&state, &bucket_pid, &auth).await?;
 
     if let Some(ref path) = query.path {

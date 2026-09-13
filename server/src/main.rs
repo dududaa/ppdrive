@@ -1,4 +1,4 @@
-use server::app::{create_app, install_metrics};
+use ppdrive_server::app::{create_app, install_metrics};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
         loop {
             interval.tick().await;
-            if let Err(err) = shared::cleanup_tmp_files(std::time::Duration::from_secs(7200)).await {
+            if let Err(err) = ppdrive::cleanup_tmp_files(std::time::Duration::from_secs(7200)).await {
                 tracing::error!("tmp cleanup failed: {err}");
             }
         }
