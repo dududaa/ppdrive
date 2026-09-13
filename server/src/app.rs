@@ -111,13 +111,10 @@ pub async fn create_app() -> anyhow::Result<(Router, u16)> {
 
     let root = ppdrive::root_dir().unwrap_or_default();
 
-    let paths = match bucket::get_public_paths(state.db()).await {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::error!("failed to load public bucket paths: {e}");
-            vec![]
-        }
-    };
+    let paths = bucket::get_public_paths(state.db()).await.unwrap_or_else(|e| {
+        tracing::error!("failed to load public bucket paths: {e}");
+        vec![]
+    });
     
     for path in &paths {
         // Strip leading '/' to get a relative filesystem path, then resolve against root.
