@@ -8,6 +8,8 @@ pub mod broker;
 pub mod db;
 #[cfg(feature = "server")]
 pub mod server;
+#[cfg(feature = "server")]
+pub mod state;
 
 mod utils;
 

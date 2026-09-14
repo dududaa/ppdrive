@@ -8,3 +8,4 @@ test-assets
 tmp/
 uploads/
 ppdrive_test/
+.idea/

@@ -4,7 +4,7 @@
 //! static file serving, and shared [`AppState`].
 
 use crate::routers::{MetricsLayer, auth_routes, bucket_routes, download_serve_routes, download_sign_routes, upload_routes};
-use crate::state::AppState;
+use ppdrive::state::AppState;
 use axum::Router;
 use axum::extract::MatchedPath;
 use axum::http::header::{
@@ -55,7 +55,7 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
 /// Returns the [`Router`] and the configured port.
 pub async fn create_app() -> anyhow::Result<(Router, u16)> {
     start_logger()?;
-    let state = AppState::new().await?;
+    let state = AppState::with_broker().await?;
     let origins = state.config().allowed_origins.clone();
 
     let client_header_key = state.config().client_header_key.clone();

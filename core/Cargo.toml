@@ -22,16 +22,17 @@ toml = "1.1.2"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 nanoid.workspace = true
 validator = { workspace = true, features = ["derive"] }
-time.workspace = true
 redis = { workspace = true, features = ["tokio-comp", "aio", "r2d2"] }
 blake3 = "1.8.5"
-clap = {workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive"] }
 argon2 = { workspace = true, features = ["std"] }
 tracing.workspace = true
 subtle = "2.6"
+time.workspace = true
+jsonwebtoken = { version = "11.0.0", optional = true }
 
 [dev-dependencies]
 dotenvy.workspace = true
 
 [features]
-server = ["dep:sha3"]
+server = ["dep:sha3", "dep:jsonwebtoken"]
