@@ -18,9 +18,12 @@ use std::path::PathBuf;
 ///
 /// Exact match for concrete types (e.g. `image/png` matches `image/png`).
 /// Prefix match for wildcards (e.g. `image/*` matches `image/png`).
+/// `*/*` matches everything.
 pub fn mime_matches_accepts(mime: &str, accepts: &[String]) -> bool {
     accepts.iter().any(|a| {
-        if a.ends_with("/*") {
+        if a == "*/*" {
+            true
+        } else if a.ends_with("/*") {
             let prefix = a.trim_end_matches('*');
             mime.starts_with(prefix)
         } else {

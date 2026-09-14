@@ -31,7 +31,7 @@ impl Hasher {
         let payload = serde_json::to_string(message)?;
         let mut hash = match self {
             HMAC256 => hmac256::hash(key, &payload)?,
-            Blake3 => blake3::hash(key, &payload)?,
+            Blake3 => blake3::hash(key, payload.as_bytes())?,
         };
 
         let payload = payload.as_bytes();
@@ -251,27 +251,24 @@ mod hmac256 {
 
 mod blake3 {
     use anyhow::anyhow;
-    use blake3;
 
-    pub fn hash(key: &str, payload: &str) -> anyhow::Result<Vec<u8>> {
-        let hash = blake3::keyed_hash(
-            key.as_bytes()
-                .try_into()
-                .map_err(|_| anyhow!("Key must be a 32-byte long string"))?,
-            payload.as_bytes(),
-        );
+    const CONTEXT: &str = "ppdrive-signing-v1";
 
-        let res = hash.as_bytes().to_vec();
-        Ok(res)
+    /// Derive a 32-byte key from arbitrary key material using Blake3's key derivation.
+    fn derive_key(key_material: &[u8]) -> [u8; 32] {
+        blake3::derive_key(CONTEXT, key_material)
+    }
+
+    pub fn hash(key: &str, payload: &[u8]) -> anyhow::Result<Vec<u8>> {
+        let derived = derive_key(key.as_bytes());
+        let hash = blake3::keyed_hash(&derived, payload);
+        Ok(hash.as_bytes().to_vec())
     }
 
     pub fn verify(key: &str, payload: &[u8], hash_raw: &[u8]) -> anyhow::Result<()> {
         use subtle::ConstantTimeEq;
 
-        let payload_str =
-            std::str::from_utf8(payload).map_err(|e| anyhow!("invalid payload utf8: {e}"))?;
-
-        let hash = hash(key, payload_str)?;
+        let hash = hash(key, payload)?;
         if hash.ct_eq(hash_raw).into() {
             Ok(())
         } else {

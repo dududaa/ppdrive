@@ -384,7 +384,12 @@ async fn get_next_session(
         if let Some(ref bucket_id_str) = config.bucket {
             let bucket_data = bucket::get(bucket_id_str, state.db()).await?;
             if !bucket_data.public {
-                let asset = asset::register(state.db(), bucket_data.id, &config.path).await?;
+                let bucket_prefix = bucket_data.path.trim_start_matches('/').trim_end_matches('/');
+                let asset_path = config.path.trim_start_matches('/')
+                    .strip_prefix(bucket_prefix)
+                    .unwrap_or(&config.path)
+                    .trim_start_matches('/');
+                let asset = asset::register(state.db(), bucket_data.id, asset_path).await?;
                 let client_numeric_id = client::get_id(&info.client_id, state.db()).await?;
                 let owner_id = asset_owner_id(AssetOwnerName::Client, client_numeric_id, state.db()).await?;
                 asset::grant(state.db(), asset.id, owner_id, asset::models::PermissionLevel::Admin).await?;

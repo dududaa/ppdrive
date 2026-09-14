@@ -54,6 +54,18 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
 ///
 /// Returns the [`Router`] and the configured port.
 pub async fn create_app() -> anyhow::Result<(Router, u16)> {
+    create_app_inner(true).await
+}
+
+/// Build the application without the rate-limiting governor layer.
+///
+/// Used by integration tests where `axum_test` does not provide the
+/// `ConnectInfo<SocketAddr>` extension that `SmartIpKeyExtractor` requires.
+pub async fn create_test_app() -> anyhow::Result<(Router, u16)> {
+    create_app_inner(false).await
+}
+
+async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router, u16)> {
     start_logger()?;
     let state = AppState::with_broker().await?;
     let origins = state.config().allowed_origins.clone();
@@ -78,12 +90,16 @@ pub async fn create_app() -> anyhow::Result<(Router, u16)> {
         .allow_methods(Any);
 
     // Per-IP rate limiter: 100 requests/sec with burst of 200
-    let mut builder = GovernorConfigBuilder::default();
-    builder.per_second(100).burst_size(200);
-    let mut builder = builder.key_extractor(SmartIpKeyExtractor);
-    let governor_conf = builder
-        .finish()
-        .ok_or_else(|| anyhow::anyhow!("failed to build rate limiter config"))?;
+    let governor_conf = if enable_rate_limiting {
+        let mut builder = GovernorConfigBuilder::default();
+        builder.per_second(100).burst_size(200);
+        let mut builder = builder.key_extractor(SmartIpKeyExtractor);
+        Some(builder
+            .finish()
+            .ok_or_else(|| anyhow::anyhow!("failed to build rate limiter config"))?)
+    } else {
+        None
+    };
 
     let mut app = Router::new()
         .route("/health", get(|| async { StatusCode::OK }))
@@ -127,15 +143,19 @@ pub async fn create_app() -> anyhow::Result<(Router, u16)> {
         app = app.nest_service(&mount_path, ServeDir::new(root.join(&folder.name)));
     }
 
-    let app = app
+    let mut app = app
         .layer(cors)
         .layer(MetricsLayer)
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(30),
-        ))
-        .layer(GovernorLayer::new(governor_conf))
-        .with_state(state);
+        ));
+
+    if let Some(governor_conf) = governor_conf {
+        app = app.layer(GovernorLayer::new(governor_conf));
+    }
+
+    let app = app.with_state(state);
 
     Ok((app, port))
 }
