@@ -9,3 +9,5 @@ tmp/
 uploads/
 ppdrive_test/
 .idea/
+e2e-*/
+/downloads/

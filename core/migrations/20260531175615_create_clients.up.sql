@@ -11,11 +11,12 @@ CREATE TABLE clients
 (
     id            INTEGER PRIMARY KEY,
     pid           TEXT UNIQUE,
-    encrypted_key TEXT NOT NULL,
-    key_nonce     BYTEA NOT NULL,
-    key_hash      TEXT NOT NULL UNIQUE,
-    name          TEXT NOT NULL,
-    created_at    TEXT NOT NULL
+    encrypted_key TEXT     NOT NULL,
+    key_nonce     BYTEA    NOT NULL,
+    key_hash      TEXT     NOT NULL UNIQUE,
+    name          TEXT     NOT NULL,
+    active        SMALLINT NOT NULL DEFAULT 1,
+    created_at    TEXT     NOT NULL
 );
 
 CREATE TABLE users
@@ -24,7 +25,7 @@ CREATE TABLE users
     email      TEXT UNIQUE NOT NULL,
     password   TEXT        NOT NULL,
     metadata   TEXT,
-    is_admin   SMALLINT     NOT NULL DEFAULT 0,
+    is_admin   SMALLINT    NOT NULL DEFAULT 0,
     created_at TEXT        NOT NULL,
     updated_at TEXT        NOT NULL
 );
@@ -34,7 +35,7 @@ CREATE TABLE buckets
     id         INTEGER PRIMARY KEY,
     pid        TEXT UNIQUE,
     name       TEXT     NOT NULL,
-    public     SMALLINT  NOT NULL DEFAULT 0,
+    public     SMALLINT NOT NULL DEFAULT 0,
     size       BIGINT,
     accepts    TEXT,
     path       TEXT     NOT NULL UNIQUE,

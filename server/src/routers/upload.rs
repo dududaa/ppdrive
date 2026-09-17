@@ -47,10 +47,30 @@ async fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
         let joined = root.join(cleaned);
         let canonical_root = std::fs::canonicalize(&root)?;
 
-        let canonical_joined = std::fs::canonicalize(&joined).or_else(|_| {
-            let parent = joined.parent().unwrap_or(&root);
-            std::fs::canonicalize(parent).map(|p| p.join(joined.file_name().unwrap_or_default()))
-        })?;
+        // Walk up from the target path until we find an existing ancestor to canonicalize.
+        let canonical_joined = {
+            let mut attempt = joined.clone();
+            loop {
+                match std::fs::canonicalize(&attempt) {
+                    Ok(canon) => {
+                        if attempt != joined {
+                            // Re-attach remaining components
+                            let stripped = attempt.strip_prefix(&root).unwrap_or(&attempt);
+                            let remaining = joined.strip_prefix(stripped).unwrap_or(&Path::new(""));
+                            break Ok(canon.join(remaining));
+                        }
+                        break Ok(canon);
+                    }
+                    Err(_) => {
+                        match attempt.parent() {
+                            Some(parent) if parent != attempt => attempt = parent.to_path_buf(),
+                            _ => break std::fs::canonicalize(joined.parent().unwrap_or(&root))
+                                .map(|p| p.join(joined.file_name().unwrap_or_default())),
+                        }
+                    }
+                }
+            }
+        }?;
 
         if !canonical_joined.starts_with(&canonical_root) {
             return Err(anyhow!("path escapes root directory: not allowed"));
@@ -77,7 +97,8 @@ pub(super) async fn create_session(
 
     if let Some(bucket_id) = &config.bucket {
         let bucket = bucket::get(bucket_id, state.db()).await?;
-        let is_owner = ppdrive::check_ownership(AssetOwnerName::Client, bucket.id, state.db()).await?;
+        let owner_id = asset_owner_id(AssetOwnerName::Client, client.id(), state.db()).await?;
+        let is_owner = bucket.owner_id == owner_id;
 
         if !is_owner {
             return Err(api_error("Write access denied for the specified bucket.")
@@ -185,9 +206,19 @@ pub(super) async fn play_session(
 
     if let Some(bucket_id) = &config.bucket {
         let bucket = bucket::get(bucket_id, state.db()).await?;
-        // config.path is the full storage path (e.g. "media/docs/hello.txt").
-        // Validate the target is within the bucket's directory.
         let bucket_root = root_dir.join(bucket.path.trim_start_matches('/'));
+
+        // Create bucket directory if it doesn't exist yet
+        if !bucket_root.exists() {
+            if config.create_parents.unwrap_or_default() {
+                tokio::fs::create_dir_all(&bucket_root).await?;
+            } else {
+                return Err(api_error("bucket directory not found")
+                    .with_status_code(StatusCode::BAD_REQUEST));
+            }
+        }
+
+        // Validate the target path is within the bucket's directory using prefix check
         let canonical_bucket = std::fs::canonicalize(&bucket_root)
             .map_err(|_| api_error("bucket directory not found").with_status_code(StatusCode::BAD_REQUEST))?;
         let canonical_target = std::fs::canonicalize(&target_path).or_else(|_| {

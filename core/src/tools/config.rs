@@ -15,6 +15,8 @@ pub const CONFIG_FILENAME: &str = "ppd_config.toml";
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct AppConfig {
+    #[serde(default)]
+    pub server_name: String,
     pub database_url: String,
     pub client_header_key: String,
     pub allowed_origins: Option<Vec<String>>,
@@ -41,8 +43,13 @@ pub async fn read() -> anyhow::Result<Self> {
             Ok(content) => toml::from_str(&content)
                 .map_err(|e| anyhow::anyhow!("failed to parse {}: {e}", filename.display()))?,
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                tracing::warn!("config file {} not found, using defaults", filename.display());
-                AppConfig::default()
+                let config = AppConfig::default();
+                if let Err(save_err) = config.save().await {
+                    tracing::warn!("failed to create default config file {}: {save_err}", filename.display());
+                } else {
+                    tracing::info!("created default config file {}", filename.display());
+                }
+                config
             }
             Err(err) => {
                 tracing::warn!("failed to read {}: {err}, using defaults", filename.display());
@@ -111,6 +118,7 @@ pub async fn read() -> anyhow::Result<Self> {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
+            server_name: "ppdrive-prod-01".to_string(),
             database_url: "sqlite:data.db".to_string(),
             client_header_key: "x-ppdrive-client".to_string(),
             allowed_origins: None,
