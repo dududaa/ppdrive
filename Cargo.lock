@@ -2148,7 +2148,7 @@ checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
 name = "ppdrive"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "argon2",
@@ -2160,6 +2160,7 @@ dependencies = [
  "hex",
  "hmac 0.12.1",
  "jsonwebtoken",
+ "libc",
  "nanoid",
  "redis",
  "serde",
@@ -2178,7 +2179,7 @@ dependencies = [
 
 [[package]]
 name = "ppdrive_cli"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -2192,7 +2193,7 @@ dependencies = [
 
 [[package]]
 name = "ppdrive_server"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "axum",

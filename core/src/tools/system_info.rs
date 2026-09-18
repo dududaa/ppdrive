@@ -1,4 +1,5 @@
 use sysinfo::{System, Disks, Networks};
+use std::collections::HashSet;
 
 /// System overview information.
 pub struct SystemInfo {
@@ -117,6 +118,129 @@ fn format_bytes_per_sec(bps: u64) -> String {
         format!("{:.1} MB/s", bps as f64 / (1024.0 * 1024.0))
     } else {
         format!("{:.2} GB/s", bps as f64 / (1024.0 * 1024.0 * 1024.0))
+    }
+}
+
+/// Info about a single mounted filesystem.
+pub struct MountedDeviceInfo {
+    pub mount_path: String,
+    pub device: String,
+    pub fs_type: String,
+    pub total: String,
+    pub used: String,
+    pub free: String,
+}
+
+/// Gather info about all real mounted filesystems.
+pub fn mounted_devices() -> Vec<MountedDeviceInfo> {
+    let mounts = parse_proc_mounts();
+    let mut seen = HashSet::new();
+    let mut result = Vec::new();
+
+    for (device, mount_path, fs_type) in mounts {
+        if seen.contains(&mount_path) {
+            continue;
+        }
+        seen.insert(mount_path.clone());
+
+        match statvfs(&mount_path) {
+            Some((total, available)) => {
+                let used = total - available;
+                result.push(MountedDeviceInfo {
+                    mount_path,
+                    device,
+                    fs_type,
+                    total: format_bytes(total),
+                    used: format_bytes(used),
+                    free: format_bytes(available),
+                });
+            }
+            None => {
+                result.push(MountedDeviceInfo {
+                    mount_path,
+                    device,
+                    fs_type,
+                    total: "N/A".into(),
+                    used: "N/A".into(),
+                    free: "N/A".into(),
+                });
+            }
+        }
+    }
+
+    result
+}
+
+/// Parse /proc/mounts returning (device, mount_path, fs_type) for real block devices.
+fn parse_proc_mounts() -> Vec<(String, String, String)> {
+    let Ok(content) = std::fs::read_to_string("/proc/mounts") else {
+        return Vec::new();
+    };
+
+    let virtual_fs: HashSet<&str> = [
+        "proc", "sysfs", "devpts", "tmpfs", "cgroup", "cgroup2",
+        "pstore", "securityfs", "debugfs", "tracefs", "fusectl",
+        "configfs", "hugetlbfs", "mqueue", "autofs", "overlay",
+        "nsfs", "bpf", "rpc_pipefs", "nfsd", "efivarfs",
+    ]
+    .into_iter()
+    .collect();
+
+    content
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 3 {
+                return None;
+            }
+            let device = parts[0].to_string();
+            let mount_path = parts[1].to_string();
+            let fs_type = parts[2].to_string();
+
+            // Only include real block devices (start with /dev/)
+            if !device.starts_with("/dev/") {
+                return None;
+            }
+            if virtual_fs.contains(fs_type.as_str()) {
+                return None;
+            }
+
+            Some((device, mount_path, fs_type))
+        })
+        .collect()
+}
+
+/// Get total size and available space for a mount point using statvfs.
+fn statvfs(path: &str) -> Option<(u64, u64)> {
+    use std::ffi::CString;
+
+    let c_path = CString::new(path).ok()?;
+    let mut buf: libc::statvfs = unsafe { std::mem::zeroed() };
+
+    let ret = unsafe { libc::statvfs(c_path.as_ptr(), &mut buf) };
+    if ret != 0 {
+        return None;
+    }
+
+    let block_size = buf.f_frsize as u64;
+    let total = buf.f_blocks as u64 * block_size;
+    let available = buf.f_bavail as u64 * block_size;
+
+    Some((total, available))
+}
+
+/// Format bytes into human-readable string.
+fn format_bytes(bytes: u64) -> String {
+    if bytes < 1024 {
+        format!("{bytes} B")
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else if bytes < 1024 * 1024 * 1024 {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    } else if bytes < 1024u64 * 1024 * 1024 * 1024 {
+        format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
+    } else {
+        format!("{:.1} TB", bytes as f64 / (1024.0 * 1024.0 * 1024.0 * 1024.0))
     }
 }
 
