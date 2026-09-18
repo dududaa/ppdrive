@@ -1,0 +1,126 @@
+---
+title: Update & Uninstall
+description: Update ppdrive to the latest version or remove it completely.
+---
+
+## Update
+
+Self-update ppdrive to the latest release from GitHub.
+
+```sh
+ppdrive update
+```
+
+### Behavior
+
+1. Checks the current version against the latest GitHub release
+2. Downloads the correct platform tarball (Linux x86_64/arm64, macOS x86_64/arm64)
+3. Creates backups of current binaries before replacing
+4. Replaces `ppdrive` and `server` binaries in the install directory
+5. Updates symlinks in `~/.local/bin` (Unix only)
+
+### Examples
+
+```sh
+# Check for and apply updates
+ppdrive update
+
+# Output:
+# Checking for updates...
+# Current version: v0.1.4
+# Latest version:  v0.1.5
+# Downloading ppdrive-linux.tar.gz...
+# Extracting binaries...
+# Updated ppdrive
+# Updated server
+# Linked ppdrive -> /home/user/.local/share/ppdrive/ppdrive
+# Linked server -> /home/user/.local/share/ppdrive/server
+#
+# Updated successfully from v0.1.4 to v0.1.5!
+# Restart your server if it's running.
+```
+
+### Error Handling
+
+- If the download fails, backups are restored automatically
+- If the current version equals the latest, it exits early with "Already up to date!"
+- If the platform is unsupported, an error is printed
+
+### Supported Platforms
+
+| OS | Architecture | Asset |
+|---|---|---|
+| Linux | x86_64 | `ppdrive-linux.tar.gz` |
+| Linux | aarch64 | `ppdrive-linux-arm64.tar.gz` |
+| macOS | x86_64 | `ppdrive-macos.tar.gz` |
+| macOS | aarch64 | `ppdrive-macos-arm64.tar.gz` |
+
+## Uninstall
+
+Remove ppdrive binaries and optionally remove data files.
+
+```sh
+ppdrive uninstall [--purge]
+```
+
+### Arguments
+
+| Flag | Description |
+|---|---|
+| `--purge` | Remove data files (config, secrets, database) without prompting |
+
+### Behavior
+
+1. Detects the install directory (where the binary lives)
+2. Finds symlinks in `~/.local/bin` (Unix) or `%LOCALAPPDATA%\ppdrive` (Windows)
+3. Prompts whether to remove data files (unless `--purge` is passed)
+4. Removes symlinks, binaries, and optionally data files
+
+### Data Files (removed with `--purge` or when confirmed)
+
+| File | Description |
+|---|---|
+| `ppd_config.toml` | Application configuration |
+| `.ppdrive_secret` | Encryption key and nonce |
+| `data.db` | SQLite database (default path) |
+
+### Examples
+
+```sh
+# Interactive uninstall (prompts about data files)
+ppdrive uninstall
+
+# Remove everything including data
+ppdrive uninstall --purge
+```
+
+### Output
+
+```
+Install directory: /home/user/.local/share/ppdrive
+
+Symlinks found:
+  /home/user/.local/bin/ppdrive -> /home/user/.local/share/ppdrive/ppdrive
+  /home/user/.local/bin/server -> /home/user/.local/share/ppdrive/server
+
+Data files found:
+  /home/user/.local/share/ppdrive/ppd_config.toml
+  /home/user/.local/share/ppdrive/.ppdrive_secret
+  /home/user/.local/share/ppdrive/data.db
+
+Remove data files? [y/N]: y
+Removed /home/user/.local/share/ppdrive/ppd_config.toml
+Removed /home/user/.local/share/ppdrive/.ppdrive_secret
+Removed /home/user/.local/share/ppdrive/data.db
+Removed /home/user/.local/bin/ppdrive
+Removed /home/user/.local/bin/server
+Removed /home/user/.local/share/ppdrive/ppdrive
+Removed /home/user/.local/share/ppdrive/server
+
+Uninstalled ppdrive successfully.
+```
+
+## See Also
+
+- [Installation](/getting-started/installation/) — Install methods
+- [Config File](/configuration/config-file/) — Configuration options

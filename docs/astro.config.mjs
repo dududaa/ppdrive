@@ -46,6 +46,7 @@ export default defineConfig({
 						{ label: 'User Commands', slug: 'cli/user' },
 						{ label: 'Asset Commands', slug: 'cli/asset' },
 						{ label: 'Serve & Configure', slug: 'cli/serve-configure' },
+					{ label: 'Update & Uninstall', slug: 'cli/update-uninstall' },
 					],
 				},
 				{

@@ -17,6 +17,8 @@ ppdrive [OPTIONS] <COMMAND>
 |---|---|
 | `ppdrive serve` | Start the HTTP server |
 | `ppdrive configure` | Open config file in editor |
+| `ppdrive update` | Update to the latest version |
+| `ppdrive uninstall` | Remove ppdrive and optionally data |
 | `ppdrive client create` | Create a new API client |
 | `ppdrive client refresh` | Rotate a client's token |
 | `ppdrive client list` | List all clients |
@@ -39,6 +41,8 @@ ppdrive [OPTIONS] <COMMAND>
 ppdrive
 ├── serve [--port <PORT>]
 ├── configure
+├── update
+├── uninstall [--purge]
 ├── client
 │   ├── create --name <NAME>
 │   ├── refresh --id <ID>
@@ -91,3 +95,4 @@ ppdrive asset list --bucket <BUCKET_PID> --path report.pdf
 - [User Commands](/cli/user/) — Create and manage user accounts
 - [Asset Commands](/cli/asset/) — Manage file permissions
 - [Serve & Configure](/cli/serve-configure/) — Server and configuration management
+- [Update & Uninstall](/cli/update-uninstall/) — Update or remove ppdrive

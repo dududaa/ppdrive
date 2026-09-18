@@ -94,6 +94,28 @@ cargo build --release
 ppdrive --version
 ```
 
+## Updating
+
+Self-update ppdrive to the latest release:
+
+```sh
+ppdrive update
+```
+
+This downloads the correct platform binary, replaces the installed version, and updates symlinks. See [Update & Uninstall](/cli/update-uninstall/) for details.
+
+## Uninstalling
+
+Remove ppdrive binaries and optionally data files:
+
+```sh
+# Remove binaries and symlinks (prompts about data files)
+ppdrive uninstall
+
+# Remove everything including config, secrets, and database
+ppdrive uninstall --purge
+```
+
 ## Next Steps
 
 - [Quick Start](/getting-started/quick-start/) — Get running in 5 minutes

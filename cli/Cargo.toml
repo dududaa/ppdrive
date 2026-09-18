@@ -9,6 +9,10 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["rt"] }
+tokio = { workspace = true, features = ["rt", "fs"] }
 ppdrive.workspace = true
 anyhow.workspace = true
+serde_json.workspace = true
+ureq = "3"
+flate2 = "1"
+tar = "0.4"

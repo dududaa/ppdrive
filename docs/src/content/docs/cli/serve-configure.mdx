@@ -37,7 +37,7 @@ ppdrive serve 3000
 
 ### What Happens on Start
 
-1. Reads `ppd_config.toml` (or uses defaults if missing)
+1. Reads `ppd_config.toml` (or creates it with defaults if missing)
 2. Initializes `.ppdrive_secret` if it doesn't exist
 3. Connects to the database and runs migrations
 4. Optionally connects to Redis (if `message_broker` is configured)

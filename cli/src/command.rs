@@ -1,4 +1,5 @@
 use crate::subs::{AssetCommand, BucketCommand, ClientCommand, UserCommand};
+use crate::{update, uninstall};
 use clap::{Parser, Subcommand};
 use ppdrive::db::client::{create_client, regenerate_token};
 use ppdrive::db::{asset, bucket, user};
@@ -21,6 +22,13 @@ pub struct Cli {
 /// Parse CLI arguments and execute the corresponding subcommand.
 impl Cli {
     pub async fn execute(&self) -> Result<(), anyhow::Error> {
+        // Commands that don't need database or config
+        match &self.command {
+            CliCommand::Update => return update::execute().await,
+            CliCommand::Uninstall { purge } => return uninstall::execute(*purge).await,
+            _ => {}
+        }
+
         let mut config = AppConfig::read().await?;
         let pool = Database::new(&config.database_url, config.db_pool_size.unwrap_or(10)).await?;
         config.validate_static_folders(&pool).await?;
@@ -168,6 +176,9 @@ impl Cli {
                     println!("Email: {email}");
                 }
             },
+
+            // These are handled above before DB init
+            CliCommand::Update | CliCommand::Uninstall { .. } => unreachable!(),
         }
 
         Ok(())
@@ -176,6 +187,14 @@ impl Cli {
 
 #[derive(Subcommand, Debug)]
 enum CliCommand {
+    /// Update ppdrive to the latest version
+    Update,
+    /// Uninstall ppdrive and optionally remove data files
+    Uninstall {
+        /// Remove data files (config, secrets, database) without prompting
+        #[arg(long)]
+        purge: bool,
+    },
     Serve {
         #[arg(long = "port")]
         port: Option<u16>,

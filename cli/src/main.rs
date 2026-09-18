@@ -8,6 +8,8 @@ use clap::Parser;
 
 mod command;
 mod subs;
+mod update;
+mod uninstall;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
