@@ -15,6 +15,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 pub mod asset;
 pub mod bucket;
 pub mod client;
+pub mod stats;
 pub mod user;
 
 pub type DbPool = AnyPool;
