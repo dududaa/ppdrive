@@ -1,6 +1,7 @@
 use clap::{Args, Subcommand};
 use ppdrive::db::bucket::models::CreateBucketData;
 use ppdrive::db::asset::models::PermissionLevel;
+use ppdrive::plugin::PluginType;
 
 #[derive(Subcommand, Debug)]
 pub enum ClientCommand {
@@ -147,5 +148,33 @@ pub enum UserCommand {
         /// User password
         #[arg(long)]
         password: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum PluginCommand {
+    /// Install a plugin from GitHub or a local file
+    Add {
+        /// GitHub id (username/project) or local file path
+        id_or_path: String,
+        /// Plugin type
+        #[arg(long, value_enum)]
+        r#type: PluginType,
+        /// Release version (default: latest)
+        #[arg(long, default_value = "latest")]
+        version: String,
+        /// Treat id_or_path as a local file path
+        #[arg(long)]
+        local: bool,
+        /// Path to Rust source directory (builds with cargo build --release)
+        #[arg(long)]
+        source: Option<String>,
+    },
+    /// List installed plugins
+    List,
+    /// Remove an installed plugin
+    Remove {
+        /// Plugin id (username/project or local name)
+        id: String,
     },
 }

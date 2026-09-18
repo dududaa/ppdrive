@@ -5,6 +5,7 @@
 
 pub mod config;
 pub mod secrets;
+pub mod plugin;
 #[cfg(feature = "server")]
 pub mod system_info;
 

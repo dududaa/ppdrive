@@ -10,6 +10,7 @@ mod command;
 mod subs;
 mod update;
 mod uninstall;
+mod plugin;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {

@@ -3,8 +3,10 @@
 //! Assembles the Axum [`Router`] with CORS, tracing, upload routes,
 //! static file serving, and shared [`AppState`].
 
-use crate::routers::{MetricsLayer, auth_routes, bucket_routes, download_serve_routes, download_sign_routes, upload_routes};
-use ppdrive::state::AppState;
+use crate::routers::{
+    MetricsLayer, auth_routes, bucket_routes, download_serve_routes, download_sign_routes,
+    upload_routes,
+};
 use axum::Router;
 use axum::extract::MatchedPath;
 use axum::http::header::{
@@ -12,7 +14,12 @@ use axum::http::header::{
 };
 use axum::http::{HeaderName, HeaderValue, Request, StatusCode};
 use axum::routing::get;
+use metrics_exporter_prometheus::PrometheusHandle;
+use ppdrive::db::bucket;
+use ppdrive::plugin::loader::PluginRequest;
+use ppdrive::state::AppState;
 use std::str::FromStr;
+use std::sync::OnceLock;
 use std::time::Duration;
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
@@ -25,9 +32,6 @@ use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
-use ppdrive::db::bucket;
-use metrics_exporter_prometheus::PrometheusHandle;
-use std::sync::OnceLock;
 
 /// Convert whitelisted url to axum AllowOrigin. When no url is provided, all origins will be allowed.
 fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
@@ -94,9 +98,11 @@ async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router,
         let mut builder = GovernorConfigBuilder::default();
         builder.per_second(100).burst_size(200);
         let mut builder = builder.key_extractor(SmartIpKeyExtractor);
-        Some(builder
-            .finish()
-            .ok_or_else(|| anyhow::anyhow!("failed to build rate limiter config"))?)
+        Some(
+            builder
+                .finish()
+                .ok_or_else(|| anyhow::anyhow!("failed to build rate limiter config"))?,
+        )
     } else {
         None
     };
@@ -126,21 +132,35 @@ async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router,
         );
 
     let root = ppdrive::root_dir().unwrap_or_default();
+    let paths = bucket::get_public_paths(state.db())
+        .await
+        .unwrap_or_else(|e| {
+            tracing::error!("failed to load public bucket paths: {e}");
+            vec![]
+        });
 
-    let paths = bucket::get_public_paths(state.db()).await.unwrap_or_else(|e| {
-        tracing::error!("failed to load public bucket paths: {e}");
-        vec![]
-    });
-    
     for path in &paths {
         // Strip leading '/' to get a relative filesystem path, then resolve against root.
         let relative = path.trim_start_matches('/');
         app = app.nest_service(path, ServeDir::new(root.join(relative)));
     }
-    
+
     for folder in state.config().static_folders.clone() {
         let mount_path = folder.path.unwrap_or(format!("/{}", folder.name));
         app = app.nest_service(&mount_path, ServeDir::new(root.join(&folder.name)));
+    }
+
+    // Load router plugins
+    match load_router_plugins(state.clone()).await {
+        Ok(plugin_routers) => {
+            for (id, router) in plugin_routers {
+                tracing::info!("loaded router plugin: {id}");
+                app = app.merge(router);
+            }
+        }
+        Err(e) => {
+            tracing::warn!("failed to load plugins: {e}");
+        }
     }
 
     let mut app = app
@@ -165,7 +185,8 @@ fn start_logger() -> anyhow::Result<()> {
     if let Err(err) = tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with(fmt::layer())
-        .try_init() {
+        .try_init()
+    {
         tracing::error!("logger error: {err}");
     }
 
@@ -192,4 +213,70 @@ pub fn install_metrics() -> anyhow::Result<()> {
         .set(handle)
         .map_err(|_| anyhow::anyhow!("metrics already initialized"))?;
     Ok(())
+}
+
+/// Load all installed router plugins and return their Axum routers.
+async fn load_router_plugins(state: AppState) -> anyhow::Result<Vec<(String, Router<AppState>)>> {
+    use ppdrive::plugin::{PluginRegistry, PluginType};
+    use ppdrive::tools::plugin::loader::{LoadedPlugin, PluginResponse};
+
+    let registry = PluginRegistry::load().await?;
+    let libs_dir = PluginRegistry::libs_dir()?;
+
+    let app_config = state.config().clone();
+    let request = PluginRequest::Router {
+        base_path: "dashboard".to_string(), // this should be configured for each plugin
+        state,
+    };
+
+    let mut routers = Vec::new();
+
+    for entry in registry.list() {
+        if entry.plugin_type != PluginType::Router {
+            continue;
+        }
+
+        let lib_path = libs_dir.join(&entry.filename);
+        let lib_id = entry.id.clone();
+
+        if !lib_path.exists() {
+            tracing::warn!(
+                "plugin '{}' library not found at {}, skipping",
+                lib_id,
+                lib_path.display()
+            );
+            continue;
+        }
+
+        let base_path = app_config
+            .plugins
+            .as_ref()
+            .ok_or(anyhow::anyhow!("failed to load plugins config"))?
+            .get(&lib_id)
+            .ok_or(anyhow::anyhow!("failed to load plugin config"))?
+            .get("base_path");
+
+        match LoadedPlugin::load(&lib_path) {
+            Ok(mut plugin) => {
+                if let PluginResponse::Router(router) = plugin.dispatch(&request) {
+                    let router = base_path.map_or(router.clone(), |path| {
+                        let path = if !path.starts_with("/") {
+                            &format!("/{path}")
+                        } else {
+                            path
+                        };
+
+                        Router::new().nest(path, router.clone())
+                    });
+
+                    routers.push((lib_id, router));
+                }
+            }
+            Err(e) => {
+                tracing::warn!("failed to load plugin '{}': {e}", entry.id);
+            }
+        }
+    }
+
+    Ok(routers)
 }
