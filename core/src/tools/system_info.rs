@@ -1,4 +1,4 @@
-use sysinfo::{System, Disks, Networks};
+use sysinfo::{Disks, Networks, System};
 use std::collections::HashSet;
 
 /// System overview information.
@@ -100,7 +100,6 @@ impl NetworkThroughput {
             total_tx += data.total_transmitted();
         }
 
-        // Convert bytes/s to human-readable
         Self {
             ingres: format_bytes_per_sec(total_rx),
             egres: format_bytes_per_sec(total_tx),
@@ -108,7 +107,6 @@ impl NetworkThroughput {
     }
 }
 
-/// Format bytes per second into a human-readable string.
 fn format_bytes_per_sec(bps: u64) -> String {
     if bps < 1024 {
         format!("{bps} B/s")
@@ -132,7 +130,16 @@ pub struct MountedDeviceInfo {
 }
 
 /// Gather info about all real mounted filesystems.
+/// Platform-specific: Linux reads /proc/mounts, macOS uses getmntinfo(),
+/// Windows enumerates drive letters.
 pub fn mounted_devices() -> Vec<MountedDeviceInfo> {
+    mounted_devices_inner()
+}
+
+// ─── Linux ───────────────────────────────────────────────────────────────────
+
+#[cfg(target_os = "linux")]
+fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
     let mounts = parse_proc_mounts();
     let mut seen = HashSet::new();
     let mut result = Vec::new();
@@ -171,7 +178,7 @@ pub fn mounted_devices() -> Vec<MountedDeviceInfo> {
     result
 }
 
-/// Parse /proc/mounts returning (device, mount_path, fs_type) for real block devices.
+#[cfg(target_os = "linux")]
 fn parse_proc_mounts() -> Vec<(String, String, String)> {
     let Ok(content) = std::fs::read_to_string("/proc/mounts") else {
         return Vec::new();
@@ -197,7 +204,6 @@ fn parse_proc_mounts() -> Vec<(String, String, String)> {
             let mount_path = parts[1].to_string();
             let fs_type = parts[2].to_string();
 
-            // Only include real block devices (start with /dev/)
             if !device.starts_with("/dev/") {
                 return None;
             }
@@ -210,7 +216,7 @@ fn parse_proc_mounts() -> Vec<(String, String, String)> {
         .collect()
 }
 
-/// Get total size and available space for a mount point using statvfs.
+#[cfg(target_os = "linux")]
 fn statvfs(path: &str) -> Option<(u64, u64)> {
     use std::ffi::CString;
 
@@ -229,7 +235,224 @@ fn statvfs(path: &str) -> Option<(u64, u64)> {
     Some((total, available))
 }
 
-/// Format bytes into human-readable string.
+// ─── macOS / iOS ─────────────────────────────────────────────────────────────
+
+#[cfg(target_os = "macos")]
+fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
+    use std::ffi::CStr;
+
+    let mut count: libc::c_int = 0;
+    let mut mntp: *mut libc::statfs = std::ptr::null_mut();
+
+    let ret = unsafe { libc::getmntinfo(&mut mntp, libc::MNT_NOWAIT) };
+    if ret == 0 || mntp.is_null() {
+        return Vec::new();
+    }
+    let count = ret;
+
+    let virtual_fs: HashSet<&str> = [
+        "devfs", "fdesc", "nullfs", "specfs", "tun",
+        "autofs", "map", "misfs", "sharefs",
+    ]
+    .into_iter()
+    .collect();
+
+    let mut result = Vec::new();
+    let mounts = unsafe { std::slice::from_raw_parts(mntp, count as usize) };
+
+    for fs in mounts {
+        let device = unsafe { CStr::from_ptr(fs.f_mntfromname.as_ptr()) }
+            .to_string_lossy()
+            .to_string();
+        let mount_path = unsafe { CStr::from_ptr(fs.f_mntonname.as_ptr()) }
+            .to_string_lossy()
+            .to_string();
+        let fs_type = unsafe { CStr::from_ptr(fs.f_fstypename.as_ptr()) }
+            .to_string_lossy()
+            .to_string();
+
+        if !device.starts_with("/dev/disk") {
+            continue;
+        }
+        if virtual_fs.contains(fs_type.as_str()) {
+            continue;
+        }
+
+        let block_size = fs.f_bsize as u64;
+        let total = fs.f_blocks as u64 * block_size;
+        let available = fs.f_bavail as u64 * block_size;
+        let used = total - available;
+
+        result.push(MountedDeviceInfo {
+            mount_path,
+            device,
+            fs_type,
+            total: format_bytes(total),
+            used: format_bytes(used),
+            free: format_bytes(available),
+        });
+    }
+
+    result
+}
+
+// ─── FreeBSD / OpenBSD / NetBSD ──────────────────────────────────────────────
+
+#[cfg(any(target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))]
+fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
+    use std::ffi::CStr;
+
+    let mut count: libc::c_int = 0;
+    let mut mntp: *mut libc::statfs = std::ptr::null_mut();
+
+    let ret = unsafe { libc::getmntinfo(&mut mntp, libc::MNT_NOWAIT) };
+    if ret == 0 || mntp.is_null() {
+        return Vec::new();
+    }
+    let count = ret;
+
+    let mut result = Vec::new();
+    let mounts = unsafe { std::slice::from_raw_parts(mntp, count as usize) };
+
+    for fs in mounts {
+        let device = unsafe { CStr::from_ptr(fs.f_mntfromname.as_ptr()) }
+            .to_string_lossy()
+            .to_string();
+        let mount_path = unsafe { CStr::from_ptr(fs.f_mntonname.as_ptr()) }
+            .to_string_lossy()
+            .to_string();
+        let fs_type = unsafe { CStr::from_ptr(fs.f_fstypename.as_ptr()) }
+            .to_string_lossy()
+            .to_string();
+
+        if !device.starts_with("/dev/") {
+            continue;
+        }
+
+        let block_size = fs.f_bsize as u64;
+        let total = fs.f_blocks as u64 * block_size;
+        let available = fs.f_bavail as u64 * block_size;
+        let used = total - available;
+
+        result.push(MountedDeviceInfo {
+            mount_path,
+            device,
+            fs_type,
+            total: format_bytes(total),
+            used: format_bytes(used),
+            free: format_bytes(available),
+        });
+    }
+
+    result
+}
+
+// ─── Windows ─────────────────────────────────────────────────────────────────
+
+#[cfg(target_os = "windows")]
+fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+
+    let mut result = Vec::new();
+    let drives = unsafe { windows_sys::Win32::Storage::FileSystem::GetLogicalDrives() };
+
+    for i in 0..26 {
+        if drives & (1 << i) == 0 {
+            continue;
+        }
+
+        let letter = (b'A' + i as u8) as char;
+        let root = format!("{letter}:\\");
+        let root_wide: Vec<u16> = OsStr::new(&root)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        // Get volume name and fs type
+        let mut volume_name_buf = [0u16; 256];
+        let mut fs_type_buf = [0u16; 256];
+        let mut serial: u32 = 0;
+        let mut max_comp: u32 = 0;
+        let mut flags: u32 = 0;
+
+        let ok = unsafe {
+            windows_sys::Win32::Storage::FileSystem::GetVolumeInformationW(
+                root_wide.as_ptr(),
+                volume_name_buf.as_mut_ptr(),
+                volume_name_buf.len() as i32,
+                Some(&mut serial),
+                Some(&mut max_comp),
+                Some(&mut flags),
+                fs_type_buf.as_mut_ptr(),
+                fs_type_buf.len() as i32,
+            )
+        };
+
+        if ok == 0 {
+            continue;
+        }
+
+        let device = osstr_from_wide(&volume_name_buf)
+            .to_string_lossy()
+            .to_string();
+        let fs_type = osstr_from_wide(&fs_type_buf)
+            .to_string_lossy()
+            .to_string();
+
+        if fs_type.is_empty() {
+            continue;
+        }
+
+        // Get free space
+        let mut free_bytes: u64 = 0;
+        let mut total_bytes: u64 = 0;
+        let mut avail_bytes: u64 = 0;
+
+        let ok = unsafe {
+            windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW(
+                root_wide.as_ptr(),
+                &mut avail_bytes,
+                &mut total_bytes,
+                Some(&mut free_bytes),
+            )
+        };
+
+        if ok == 0 {
+            continue;
+        }
+
+        let used = total_bytes - avail_bytes;
+
+        result.push(MountedDeviceInfo {
+            mount_path: root,
+            device: if device.is_empty() { format!("{letter}:") } else { device },
+            fs_type,
+            total: format_bytes(total_bytes),
+            used: format_bytes(used),
+            free: format_bytes(avail_bytes),
+        });
+    }
+
+    result
+}
+
+#[cfg(target_os = "windows")]
+fn osstr_from_wide(buf: &[u16]) -> &OsStr {
+    // Find null terminator
+    let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+    OsStr::from_wide(&buf[..len])
+}
+
+// ─── Fallback (unsupported platforms) ────────────────────────────────────────
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows")))]
+fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
+    Vec::new()
+}
+
+// ─── Shared helpers ──────────────────────────────────────────────────────────
+
 fn format_bytes(bytes: u64) -> String {
     if bytes < 1024 {
         format!("{bytes} B")
@@ -244,7 +467,6 @@ fn format_bytes(bytes: u64) -> String {
     }
 }
 
-/// Format seconds into a human-readable uptime string like "47 days, 3 hours, 22 minutes".
 fn format_uptime(secs: u64) -> String {
     let days = secs / 86400;
     let hours = (secs % 86400) / 3600;
