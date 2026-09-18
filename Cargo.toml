@@ -4,7 +4,7 @@ members = ["cli", "server", "core"]
 
 [workspace.package]
 edition = "2024"
-version = "0.1.4"
+version = "0.1.5"
 description = "Self-hosted object storage service built with Rust"
 license = "PolyForm-Noncommercial-1.0.0"
 documentation = "https://ppdrive.dududaa.org"
