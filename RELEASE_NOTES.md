@@ -1,5 +1,32 @@
 # Release Notes
 
+## v0.1.5 — Update & Uninstall Commands
+
+### Features
+
+- **`ppdrive update`** — Self-update from GitHub releases. Detects platform (Linux/macOS, x86_64/arm64), downloads the correct tarball, extracts and replaces binaries with backup/rollback, and updates symlinks in `~/.local/bin`.
+- **`ppdrive uninstall [--purge]`** — Remove ppdrive binaries and symlinks. Prompts about data files (config, secrets, database) unless `--purge` is passed.
+- **Auto-create config** — `ppd_config.toml` is now created with defaults when the file is missing, instead of silently using in-memory defaults.
+
+### Bug Fixes
+
+- Fixed upload session write access check — compares client's `asset_owner_id` with `bucket.owner_id` instead of checking if `bucket.id` exists in `asset_owner` table
+- Fixed bucket upload — creates bucket directory when `create_parents` is true (was failing on `canonicalize`)
+- Fixed `mime_matches_accepts` — `*/*` wildcard now correctly matches all MIME types
+- Fixed `safe_path` — handles non-existent directories by walking up to existing ancestors
+- Fixed asset path registration — strips bucket prefix so permission lookups match relative paths
+
+### Documentation
+
+- Added CLI docs for `update` and `uninstall` commands
+- Updated CLI overview with new commands and command tree
+- Updated installation page with update/uninstall sections
+
+### Internal
+
+- Added `ureq`, `flate2`, `tar` dependencies to CLI crate
+- `update` and `uninstall` commands skip DB/config initialization (no dependencies required)
+
 ## v0.1.4 — Migration Consolidation & Bug Fixes
 
 ### Bug Fixes
