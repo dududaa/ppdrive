@@ -26,25 +26,27 @@ impl Cli {
         match &self.command {
             CliCommand::Update => return update::execute().await,
             CliCommand::Uninstall { purge } => return uninstall::execute(*purge).await,
-            CliCommand::Plugin { command } => match command {
+            CliCommand::Plugin { command } => return match command {
                 PluginCommand::Add {
                     id_or_path,
                     r#type,
                     version,
                     local,
                     source,
+                    build
                 } => {
-                    return plugin::execute_add(
+                    plugin::execute_add(
                         id_or_path,
                         r#type.clone(),
                         version,
                         *local,
                         source.as_deref(),
+                        *build
                     )
-                    .await
+                        .await
                 }
-                PluginCommand::List => return plugin::execute_list().await,
-                PluginCommand::Remove { id } => return plugin::execute_remove(id).await,
+                PluginCommand::List => plugin::execute_list().await,
+                PluginCommand::Remove { id } => plugin::execute_remove(id).await,
             },
             _ => {}
         }

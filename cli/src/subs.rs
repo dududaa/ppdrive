@@ -155,7 +155,7 @@ pub enum UserCommand {
 pub enum PluginCommand {
     /// Install a plugin from GitHub or a local file
     Add {
-        /// GitHub id (username/project) or local file path
+        /// GitHub id (username/project) or local filename
         id_or_path: String,
         /// Plugin type
         #[arg(long, value_enum)]
@@ -163,10 +163,13 @@ pub enum PluginCommand {
         /// Release version (default: latest)
         #[arg(long, default_value = "latest")]
         version: String,
-        /// Treat id_or_path as a local file path
+        /// Locally look for plugin in local path
         #[arg(long)]
         local: bool,
-        /// Path to Rust source directory (builds with cargo build --release)
+        /// Whether to build from source
+        #[arg(long)]
+        build: bool,
+        /// Path to Rust source directory (builds with cargo build --release) or local plugin source
         #[arg(long)]
         source: Option<String>,
     },

@@ -1,10 +1,9 @@
 use crate::plugin::PluginType;
-use crate::state::AppState;
 use anyhow::Context;
 use std::path::Path;
 use std::ptr::null_mut;
 #[cfg(feature = "server")]
-use axum::Router;
+use {axum::Router, crate::state::AppState};
 
 #[repr(C)]
 pub struct PluginBuffer {
