@@ -1,7 +1,6 @@
 use clap::{Args, Subcommand};
 use ppdrive::db::bucket::models::CreateBucketData;
 use ppdrive::db::asset::models::PermissionLevel;
-use ppdrive::plugin::PluginType;
 
 #[derive(Subcommand, Debug)]
 pub enum ClientCommand {
@@ -159,7 +158,6 @@ pub enum PluginCommand {
         id_or_path: String,
         /// Plugin type
         #[arg(long, value_enum)]
-        r#type: PluginType,
         /// Release version (default: latest)
         #[arg(long, default_value = "latest")]
         version: String,

@@ -16,7 +16,6 @@ use axum::http::{HeaderName, HeaderValue, Request, StatusCode};
 use axum::routing::get;
 use metrics_exporter_prometheus::PrometheusHandle;
 use ppdrive::db::bucket;
-use ppdrive::plugin::loader::PluginRequest;
 use ppdrive::state::AppState;
 use std::str::FromStr;
 use std::sync::OnceLock;
@@ -215,27 +214,16 @@ pub fn install_metrics() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Load all installed router plugins and return their Axum routers.
+/// Load all installed plugins that return Axum routers so we can merge the routers to server.
 async fn load_router_plugins(state: AppState) -> anyhow::Result<Vec<(String, Router<AppState>)>> {
-    use ppdrive::plugin::{PluginRegistry, PluginType};
-    use ppdrive::tools::plugin::loader::{LoadedPlugin, PluginResponse};
+    use ppdrive::plugin::PluginRegistry;
+    use ppdrive::tools::plugin::loader::{DispatchResponse, LoadedPlugin};
 
     let registry = PluginRegistry::load().await?;
     let libs_dir = PluginRegistry::libs_dir()?;
-
-    let app_config = state.config().clone();
-    let request = PluginRequest::Router {
-        base_path: "dashboard".to_string(), // this should be configured for each plugin
-        state,
-    };
-
     let mut routers = Vec::new();
 
-    for entry in registry.list() {
-        if entry.plugin_type != PluginType::Router {
-            continue;
-        }
-
+    if let Some(entry) = registry.find("ppdrive_dashboard") {
         let lib_path = libs_dir.join(&entry.filename);
         let lib_id = entry.id.clone();
 
@@ -245,32 +233,12 @@ async fn load_router_plugins(state: AppState) -> anyhow::Result<Vec<(String, Rou
                 lib_id,
                 lib_path.display()
             );
-            continue;
         }
-
-        let base_path = app_config
-            .plugins
-            .as_ref()
-            .ok_or(anyhow::anyhow!("failed to load plugins config"))?
-            .get(&lib_id)
-            .ok_or(anyhow::anyhow!("failed to load plugin config"))?
-            .get("base_path");
 
         match LoadedPlugin::load(&lib_path) {
             Ok(mut plugin) => {
-                if let PluginResponse::Router(router) = plugin.dispatch(&request) {
-                    let router = base_path.map_or(router.clone(), |path| {
-                        let path = if !path.starts_with("/") {
-                            &format!("/{path}")
-                        } else {
-                            path
-                        };
-
-                        Router::new().nest(path, router.clone())
-                    });
-
-                    routers.push((lib_id, router));
-                }
+                let router: &Router<AppState> = plugin.dispatch(state.clone())?;
+                routers.push((lib_id, router.clone()));
             }
             Err(e) => {
                 tracing::warn!("failed to load plugin '{}': {e}", entry.id);
