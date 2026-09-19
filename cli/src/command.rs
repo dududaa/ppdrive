@@ -170,14 +170,20 @@ impl Cli {
                     if let Some(port) = port {
                         cmd.arg(port.to_string());
                     }
-                    cmd.status()?;
+                    let status = cmd.status()?;
+                    if !status.success() {
+                        anyhow::bail!("server exited with status: {status}");
+                    }
                 } else {
                     let server_path = ppdrive::root_dir()?.join("server");
                     let mut cmd = Command::new(&server_path);
                     if let Some(port) = port {
                         cmd.arg(port.to_string());
                     }
-                    cmd.status()?;
+                    let status = cmd.status()?;
+                    if !status.success() {
+                        anyhow::bail!("server exited with status: {status}");
+                    }
                 }
             }
 

@@ -6,7 +6,7 @@ async fn main() -> anyhow::Result<()> {
 
     install_metrics()?;
 
-    let (app, config_port) = create_app().await?;
+    let (app, config_port, _live_plugins) = create_app().await?;
 
     // Spawn background temp file cleanup (every hour, remove files older than 2 hours)
     tokio::spawn(async {

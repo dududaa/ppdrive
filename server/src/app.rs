@@ -53,10 +53,14 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
+/// Type alias for loaded plugin handles that must outlive the server.
+pub type LivePlugins = Vec<ppdrive::tools::plugin::loader::LoadedPlugin<Router<AppState>>>;
+
 /// Build the complete Axum application: router, CORS, tracing, static dirs, state.
 ///
-/// Returns the [`Router`] and the configured port.
-pub async fn create_app() -> anyhow::Result<(Router, u16)> {
+/// Returns the [`Router`], the configured port, and live plugin handles that
+/// **must** be kept alive for the server's entire lifetime.
+pub async fn create_app() -> anyhow::Result<(Router, u16, LivePlugins)> {
     create_app_inner(true).await
 }
 
@@ -64,11 +68,11 @@ pub async fn create_app() -> anyhow::Result<(Router, u16)> {
 ///
 /// Used by integration tests where `axum_test` does not provide the
 /// `ConnectInfo<SocketAddr>` extension that `SmartIpKeyExtractor` requires.
-pub async fn create_test_app() -> anyhow::Result<(Router, u16)> {
+pub async fn create_test_app() -> anyhow::Result<(Router, u16, LivePlugins)> {
     create_app_inner(false).await
 }
 
-async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router, u16)> {
+async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router, u16, LivePlugins)> {
     start_logger()?;
     let state = AppState::with_broker().await?;
     let origins = state.config().allowed_origins.clone();
@@ -149,9 +153,11 @@ async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router,
         app = app.nest_service(&mount_path, ServeDir::new(root.join(&folder.name)));
     }
 
-    // Load router plugins
+    // Load router plugins — keep handles alive so the .so stays loaded
+    let mut live_plugins = Vec::new();
     match load_router_plugins(state.clone()).await {
-        Ok(plugin_routers) => {
+        Ok((plugin_routers, plugins)) => {
+            live_plugins = plugins;
             for (id, router) in plugin_routers {
                 tracing::info!("loaded router plugin: {id}");
                 app = app.merge(router);
@@ -176,7 +182,7 @@ async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router,
 
     let app = app.with_state(state);
 
-    Ok((app, port))
+    Ok((app, port, live_plugins))
 }
 
 /// Initialize the tracing subscriber with an env-filter (defaults to `info`).
@@ -186,7 +192,7 @@ fn start_logger() -> anyhow::Result<()> {
         .with(fmt::layer())
         .try_init()
     {
-        tracing::error!("logger error: {err}");
+        eprintln!("logger error: {err}");
     }
 
     Ok(())
@@ -215,13 +221,24 @@ pub fn install_metrics() -> anyhow::Result<()> {
 }
 
 /// Load all installed plugins that return Axum routers so we can merge the routers to server.
-async fn load_router_plugins(state: AppState) -> anyhow::Result<Vec<(String, Router<AppState>)>> {
+///
+/// Returns both the routers to merge and the live [`LoadedPlugin`] handles.
+/// The handles **must** be kept alive for the entire server lifetime — dropping
+/// them unloads the `.so` library and invalidates all code pointers in the
+/// merged routers.
+async fn load_router_plugins(
+    state: AppState,
+) -> anyhow::Result<(
+    Vec<(String, Router<AppState>)>,
+    Vec<ppdrive::tools::plugin::loader::LoadedPlugin<Router<AppState>>>,
+)> {
     use ppdrive::plugin::PluginRegistry;
-    use ppdrive::tools::plugin::loader::{DispatchResponse, LoadedPlugin};
+    use ppdrive::tools::plugin::loader::LoadedPlugin;
 
     let registry = PluginRegistry::load().await?;
     let libs_dir = PluginRegistry::libs_dir()?;
     let mut routers = Vec::new();
+    let mut plugins = Vec::new();
 
     if let Some(entry) = registry.find("ppdrive_dashboard") {
         let lib_path = libs_dir.join(&entry.filename);
@@ -233,12 +250,14 @@ async fn load_router_plugins(state: AppState) -> anyhow::Result<Vec<(String, Rou
                 lib_id,
                 lib_path.display()
             );
+            return Ok((routers, plugins));
         }
 
         match LoadedPlugin::load(&lib_path) {
             Ok(mut plugin) => {
                 let router: &Router<AppState> = plugin.dispatch(state.clone())?;
                 routers.push((lib_id, router.clone()));
+                plugins.push(plugin);
             }
             Err(e) => {
                 tracing::warn!("failed to load plugin '{}': {e}", entry.id);
@@ -246,5 +265,5 @@ async fn load_router_plugins(state: AppState) -> anyhow::Result<Vec<(String, Rou
         }
     }
 
-    Ok(routers)
+    Ok((routers, plugins))
 }

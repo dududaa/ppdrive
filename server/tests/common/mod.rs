@@ -19,18 +19,19 @@ pub async fn clean_db(db: &Database) -> anyhow::Result<()> {
 
 pub struct TestServerWrapper {
     server: TestServer,
+    _live_plugins: ppdrive_server::app::LivePlugins,
 }
 
 impl TestServerWrapper {
     pub async fn new() -> anyhow::Result<TestServerWrapper> {
-        let (app, _) = create_test_app().await?;
+        let (app, _, _live_plugins) = create_test_app().await?;
         let config = TestServerConfig {
             transport: Some(Transport::HttpRandomPort),
             ..Default::default()
         };
 
         let server = TestServer::new_with_config(app, config);
-        Ok(Self { server })
+        Ok(Self { server, _live_plugins })
     }
 
     pub fn post<B: Serialize>(&self, url: &str, body: &B) -> TestRequest {
