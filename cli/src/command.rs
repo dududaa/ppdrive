@@ -29,7 +29,6 @@ impl Cli {
             CliCommand::Plugin { command } => return match command {
                 PluginCommand::Add {
                     id_or_path,
-                    r#type,
                     version,
                     local,
                     source,
@@ -37,7 +36,6 @@ impl Cli {
                 } => {
                     plugin::execute_add(
                         id_or_path,
-                        r#type.clone(),
                         version,
                         *local,
                         source.as_deref(),

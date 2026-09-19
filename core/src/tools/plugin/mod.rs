@@ -1,5 +1,4 @@
 use crate::root_dir;
-use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -7,30 +6,11 @@ pub mod loader;
 pub const PLUGINS_FILENAME: &str = "plugins.json";
 pub const LIBS_DIR: &str = "libs";
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
-#[serde(rename_all = "lowercase")]
-pub enum PluginType {
-    Router,
-    Cli,
-    Utility,
-}
-
-impl std::fmt::Display for PluginType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PluginType::Router => write!(f, "router"),
-            PluginType::Cli => write!(f, "cli"),
-            PluginType::Utility => write!(f, "utility"),
-        }
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PluginEntry {
     pub id: String,
     pub filename: String,
     pub version: String,
-    pub plugin_type: PluginType,
     pub installed_at: String,
 }
 
@@ -94,6 +74,10 @@ impl PluginRegistry {
         self.plugins.plugins.iter().any(|p| p.id == id)
     }
 
+    pub fn find(&self, id: &str) -> Option<&PluginEntry> {
+        self.plugins.plugins.iter().find(|p| p.id == id)
+    }
+    
     pub fn libs_dir() -> anyhow::Result<PathBuf> {
         Ok(root_dir()?.join(LIBS_DIR))
     }

@@ -1,10 +1,9 @@
 use anyhow::Context;
-use ppdrive::plugin::{PluginEntry, PluginRegistry, PluginType, plugin_lib_name};
+use ppdrive::plugin::{PluginEntry, PluginRegistry, plugin_lib_name};
 use std::path::PathBuf;
 
 pub async fn execute_add(
     id_or_path: &str,
-    plugin_type: PluginType,
     version: &str,
     local: bool,
     source: Option<&str>,
@@ -18,14 +17,13 @@ pub async fn execute_add(
         add_local(
             id_or_path,
             build,
-            &plugin_type,
             source,
             &libs_dir,
             &mut registry,
         )
         .await?;
     } else {
-        add_remote(id_or_path, &plugin_type, version, build, &libs_dir, &mut registry).await?;
+        add_remote(id_or_path, version, build, &libs_dir, &mut registry).await?;
     }
 
     registry.save().await?;
@@ -34,7 +32,6 @@ pub async fn execute_add(
 
 async fn add_remote(
     id: &str,
-    plugin_type: &PluginType,
     version: &str,
     build: bool,
     libs_dir: &std::path::Path,
@@ -126,7 +123,6 @@ async fn add_remote(
             id: id.to_string(),
             filename: lib_name,
             version: release_version.to_string(),
-            plugin_type: plugin_type.clone(),
             installed_at: chrono::Utc::now().to_rfc3339(),
         };
         registry.add(entry);
@@ -162,7 +158,6 @@ async fn add_remote(
             id: id.to_string(),
             filename: expected_asset,
             version: release_version.to_string(),
-            plugin_type: plugin_type.clone(),
             installed_at: chrono::Utc::now().to_rfc3339(),
         };
         registry.add(entry);
@@ -176,7 +171,6 @@ async fn add_remote(
 async fn add_local(
     path: &str,
     build: bool,
-    plugin_type: &PluginType,
     source: Option<&str>,
     libs_dir: &std::path::Path,
     registry: &mut PluginRegistry,
@@ -238,7 +232,6 @@ async fn add_local(
         id,
         filename: lib_name,
         version: "local".to_string(),
-        plugin_type: plugin_type.clone(),
         installed_at: chrono::Utc::now().to_rfc3339(),
     };
     registry.add(entry);
@@ -354,14 +347,14 @@ pub async fn execute_list() -> Result<(), anyhow::Error> {
     }
 
     println!(
-        "{:<40} {:<10} {:<10} {}",
-        "ID", "VERSION", "TYPE", "INSTALLED"
+        "{:<40} {:<10} {}",
+        "ID", "VERSION", "INSTALLED"
     );
     println!("{}", "-".repeat(80));
     for p in plugins {
         println!(
-            "{:<40} {:<10} {:<10} {}",
-            p.id, p.version, p.plugin_type, p.installed_at
+            "{:<40} {:<10} {}",
+            p.id, p.version, p.installed_at
         );
     }
 
