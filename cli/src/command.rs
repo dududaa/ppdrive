@@ -1,5 +1,5 @@
-use crate::subs::{AssetCommand, BucketCommand, ClientCommand, UserCommand};
-use crate::{update, uninstall};
+use crate::subs::{AssetCommand, BucketCommand, ClientCommand, PluginCommand, UserCommand};
+use crate::{plugin, update, uninstall};
 use clap::{Parser, Subcommand};
 use ppdrive::db::client::{create_client, regenerate_token};
 use ppdrive::db::{asset, bucket, user};
@@ -26,6 +26,28 @@ impl Cli {
         match &self.command {
             CliCommand::Update => return update::execute().await,
             CliCommand::Uninstall { purge } => return uninstall::execute(*purge).await,
+            CliCommand::Plugin { command } => return match command {
+                PluginCommand::Add {
+                    id_or_path,
+                    r#type,
+                    version,
+                    local,
+                    source,
+                    build
+                } => {
+                    plugin::execute_add(
+                        id_or_path,
+                        r#type.clone(),
+                        version,
+                        *local,
+                        source.as_deref(),
+                        *build
+                    )
+                        .await
+                }
+                PluginCommand::List => plugin::execute_list().await,
+                PluginCommand::Remove { id } => plugin::execute_remove(id).await,
+            },
             _ => {}
         }
 
@@ -178,7 +200,9 @@ impl Cli {
             },
 
             // These are handled above before DB init
-            CliCommand::Update | CliCommand::Uninstall { .. } => unreachable!(),
+            CliCommand::Update | CliCommand::Uninstall { .. } | CliCommand::Plugin { .. } => {
+                unreachable!()
+            }
         }
 
         Ok(())
@@ -194,6 +218,11 @@ enum CliCommand {
         /// Remove data files (config, secrets, database) without prompting
         #[arg(long)]
         purge: bool,
+    },
+    /// Manage plugins
+    Plugin {
+        #[command(subcommand)]
+        command: PluginCommand,
     },
     Serve {
         #[arg(long = "port")]

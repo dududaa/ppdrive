@@ -2,6 +2,7 @@
 //!
 //! Parses `ppd_config.toml` and provides [`AppConfig`] with sensible defaults.
 
+use std::collections::HashMap;
 use crate::db;
 #[cfg(feature = "server")]
 use crate::hasher::Hasher;
@@ -30,6 +31,8 @@ pub struct AppConfig {
 
     #[cfg(feature = "server")]
     pub hasher: Hasher,
+    
+    pub plugins: Option<HashMap<String, HashMap<String, String>>>
 }
 
 impl AppConfig {
@@ -129,6 +132,7 @@ impl Default for AppConfig {
             db_pool_size: Some(10),
             #[cfg(feature = "server")]
             hasher: Hasher::HMAC256,
+            plugins: None,
         }
     }
 }
