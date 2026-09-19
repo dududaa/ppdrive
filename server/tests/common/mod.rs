@@ -19,7 +19,7 @@ pub async fn clean_db(db: &Database) -> anyhow::Result<()> {
 
 pub struct TestServerWrapper {
     server: TestServer,
-    _live_plugins: ppdrive_server::app::LivePlugins,
+    _live_plugins: ppdrive_server::app::RouterPlugins,
 }
 
 impl TestServerWrapper {

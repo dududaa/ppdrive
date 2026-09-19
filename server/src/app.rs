@@ -31,6 +31,7 @@ use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
+use ppdrive::plugin::loader::LoadedPlugin;
 
 /// Convert whitelisted url to axum AllowOrigin. When no url is provided, all origins will be allowed.
 fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
@@ -54,13 +55,13 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
 }
 
 /// Type alias for loaded plugin handles that must outlive the server.
-pub type LivePlugins = Vec<ppdrive::tools::plugin::loader::LoadedPlugin<Router<AppState>>>;
+pub type RouterPlugins = Vec<LoadedPlugin<Router<AppState>>>;
 
 /// Build the complete Axum application: router, CORS, tracing, static dirs, state.
 ///
 /// Returns the [`Router`], the configured port, and live plugin handles that
 /// **must** be kept alive for the server's entire lifetime.
-pub async fn create_app() -> anyhow::Result<(Router, u16, LivePlugins)> {
+pub async fn create_app() -> anyhow::Result<(Router, u16, RouterPlugins)> {
     create_app_inner(true).await
 }
 
@@ -68,11 +69,11 @@ pub async fn create_app() -> anyhow::Result<(Router, u16, LivePlugins)> {
 ///
 /// Used by integration tests where `axum_test` does not provide the
 /// `ConnectInfo<SocketAddr>` extension that `SmartIpKeyExtractor` requires.
-pub async fn create_test_app() -> anyhow::Result<(Router, u16, LivePlugins)> {
+pub async fn create_test_app() -> anyhow::Result<(Router, u16, RouterPlugins)> {
     create_app_inner(false).await
 }
 
-async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router, u16, LivePlugins)> {
+async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router, u16, RouterPlugins)> {
     start_logger()?;
     let state = AppState::with_broker().await?;
     let origins = state.config().allowed_origins.clone();
@@ -230,10 +231,9 @@ async fn load_router_plugins(
     state: AppState,
 ) -> anyhow::Result<(
     Vec<(String, Router<AppState>)>,
-    Vec<ppdrive::tools::plugin::loader::LoadedPlugin<Router<AppState>>>,
+    Vec<LoadedPlugin<Router<AppState>>>,
 )> {
     use ppdrive::plugin::PluginRegistry;
-    use ppdrive::tools::plugin::loader::LoadedPlugin;
 
     let registry = PluginRegistry::load().await?;
     let libs_dir = PluginRegistry::libs_dir()?;
