@@ -45,6 +45,7 @@ impl Cli {
                 }
                 PluginCommand::List => plugin::execute_list().await,
                 PluginCommand::Remove { id } => plugin::execute_remove(id).await,
+                PluginCommand::Update { id } => plugin::execute_update(id.as_deref()).await,
             },
             _ => {}
         }

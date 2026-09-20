@@ -38,10 +38,23 @@ async fn add_remote(
     registry: &mut PluginRegistry,
 ) -> Result<(), anyhow::Error> {
     if registry.is_installed(id) {
-        println!("Plugin '{id}' is already installed.");
+        println!("Plugin '{id}' is already installed. Use 'ppdrive plugin update {id}' to update.");
         return Ok(());
     }
 
+    let entry = install_remote(id, version, build, libs_dir).await?;
+    registry.add(entry);
+    registry.save().await?;
+    Ok(())
+}
+
+/// Download or build a remote plugin from GitHub. Returns the new `PluginEntry`.
+pub async fn install_remote(
+    id: &str,
+    version: &str,
+    build: bool,
+    libs_dir: &std::path::Path,
+) -> Result<PluginEntry, anyhow::Error> {
     let api_url = if version == "latest" {
         format!("https://api.github.com/repos/{id}/releases/latest")
     } else {
@@ -87,21 +100,17 @@ async fn add_remote(
         // GitHub source archives extract to {project}-{tag}/
         let extracted_dir = temp_dir.join(format!("{plugin_name}-{release_version}"));
         if !extracted_dir.exists() {
-            // Try without the 'v' prefix
-            let alt_dir = temp_dir.join(format!("{plugin_name}-{release_version}"));
-            if !alt_dir.exists() {
-                // List what we got
-                let entries: Vec<String> = std::fs::read_dir(&temp_dir)
-                    .into_iter()
-                    .flatten()
-                    .flatten()
-                    .filter_map(|e| e.file_name().to_str().map(String::from))
-                    .collect();
-                return Err(anyhow::anyhow!(
-                    "extracted source directory not found. Expected '{}'. Contents: {entries:?}",
-                    extracted_dir.display()
-                ));
-            }
+            let entries: Vec<String> = std::fs::read_dir(&temp_dir)
+                .into_iter()
+                .flatten()
+                .flatten()
+                .filter_map(|e| e.file_name().to_str().map(String::from))
+                .collect();
+            let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+            return Err(anyhow::anyhow!(
+                "extracted source directory not found. Expected '{}'. Contents: {entries:?}",
+                extracted_dir.display()
+            ));
         }
 
         println!("Building plugin from source...");
@@ -119,15 +128,14 @@ async fn add_remote(
         // Cleanup temp dir
         let _ = tokio::fs::remove_dir_all(&temp_dir).await;
 
-        let entry = PluginEntry {
+        Ok(PluginEntry {
             id: id.to_string(),
             filename: lib_name,
             version: release_version.to_string(),
             installed_at: chrono::Utc::now().to_rfc3339(),
-        };
-        registry.add(entry);
-
-        println!("Plugin '{id}' v{release_version} built and installed.");
+            source: Some(format!("github:{id}")),
+            build: true,
+        })
     } else {
         // Download pre-built artifact from release assets
         let expected_asset = plugin_lib_name(plugin_name);
@@ -154,18 +162,15 @@ async fn add_remote(
         println!("Downloading {expected_asset}...");
         download_file(download_url, &libs_dir.join(&expected_asset)).await?;
 
-        let entry = PluginEntry {
+        Ok(PluginEntry {
             id: id.to_string(),
             filename: expected_asset,
             version: release_version.to_string(),
             installed_at: chrono::Utc::now().to_rfc3339(),
-        };
-        registry.add(entry);
-
-        println!("Plugin '{id}' v{release_version} installed.");
+            source: Some(format!("github:{id}")),
+            build: false,
+        })
     }
-
-    Ok(())
 }
 
 async fn add_local(
@@ -182,15 +187,15 @@ async fn add_local(
 
     let id = plugin_name.to_string();
     if registry.is_installed(&id) {
-        println!("Plugin '{id}' is already installed.");
+        println!("Plugin '{id}' is already installed. Use 'ppdrive plugin update {id}' to update.");
         return Ok(());
     }
 
-    let src_path = if build {
+    let (src_path, source_ref) = if build {
         let source_dir = source.ok_or(anyhow::anyhow!(
             "Local build 'source' must be provided to build locally."
         ))?;
-        
+
         build_from_source(source_dir).await?;
 
         // Look for the built library in target/release/ of the source dir
@@ -207,13 +212,16 @@ async fn add_local(
             }
             search_dir = dir.parent();
         }
-        lib_path.ok_or_else(|| anyhow::anyhow!(
-            "no built library found for '{plugin_name}' in any target/release directory"
-        ))?
+        (
+            lib_path.ok_or_else(|| anyhow::anyhow!(
+                "no built library found for '{plugin_name}' in any target/release directory"
+            ))?,
+            source_dir.to_string(),
+        )
     } else {
-        PathBuf::from(path)
+        (PathBuf::from(path), path.to_string())
     };
-    
+
     if !src_path.exists() {
         return Err(anyhow::anyhow!("file not found: {}", src_path.display()));
     }
@@ -233,10 +241,142 @@ async fn add_local(
         filename: lib_name,
         version: "local".to_string(),
         installed_at: chrono::Utc::now().to_rfc3339(),
+        source: Some(source_ref),
+        build,
     };
     registry.add(entry);
 
     println!("Plugin installed from local file.");
+    Ok(())
+}
+
+pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
+    let mut registry = PluginRegistry::load().await?;
+    let libs_dir = PluginRegistry::libs_dir()?;
+    tokio::fs::create_dir_all(&libs_dir).await?;
+
+    let ids: Vec<String> = if let Some(id) = id {
+        vec![id.to_string()]
+    } else {
+        registry.list().iter().map(|p| p.id.clone()).collect()
+    };
+
+    if ids.is_empty() {
+        println!("No plugins installed.");
+        return Ok(());
+    }
+
+    let mut updated = 0;
+    let mut skipped = 0;
+    let mut failed = 0;
+
+    for plugin_id in &ids {
+        let entry = match registry.get(plugin_id) {
+            Some(e) => e.clone(),
+            None => {
+                println!("  {plugin_id}: not installed, skipping");
+                skipped += 1;
+                continue;
+            }
+        };
+
+        let source = entry.source.clone();
+        match source.as_deref() {
+            None => {
+                println!("  {plugin_id}: unknown source, use 'ppdrive plugin add' to reinstall");
+                skipped += 1;
+            }
+            Some(src) if src.starts_with("github:") => {
+                let repo = src.strip_prefix("github:").unwrap();
+                println!("Updating {plugin_id} from {repo}...");
+                match install_remote(repo, "latest", entry.build, &libs_dir).await {
+                    Ok(new_entry) => {
+                        // Remove old lib file if filename changed
+                        let old_lib = libs_dir.join(&entry.filename);
+                        if old_lib.exists() && entry.filename != new_entry.filename {
+                            let _ = tokio::fs::remove_file(&old_lib).await;
+                        }
+                        registry.remove(plugin_id);
+                        registry.add(new_entry);
+                        updated += 1;
+                        println!("  {plugin_id}: updated");
+                    }
+                    Err(e) => {
+                        println!("  {plugin_id}: failed to update: {e}");
+                        failed += 1;
+                    }
+                }
+            }
+            Some(src) => {
+                // Local source — re-build or re-copy
+                if entry.build {
+                    println!("Rebuilding {plugin_id} from local source...");
+                    match build_from_source(src).await {
+                        Ok(()) => {
+                            let plugin_name = plugin_id.as_str();
+                            let mut search_dir = Some(std::path::Path::new(src));
+                            let mut lib_path = None;
+                            while let Some(dir) = search_dir {
+                                let target_dir = dir.join("target/release");
+                                if target_dir.exists() {
+                                    if let Ok(found) = find_built_lib(&target_dir, plugin_name) {
+                                        lib_path = Some(found);
+                                        break;
+                                    }
+                                }
+                                search_dir = dir.parent();
+                            }
+                            match lib_path {
+                                Some(lib) => {
+                                    let dest = libs_dir.join(&entry.filename);
+                                    tokio::fs::copy(&lib, &dest).await?;
+                                    registry.remove(plugin_id);
+                                    let updated_entry = PluginEntry {
+                                        version: "local".to_string(),
+                                        installed_at: chrono::Utc::now().to_rfc3339(),
+                                        ..entry
+                                    };
+                                    registry.add(updated_entry);
+                                    updated += 1;
+                                    println!("  {plugin_id}: rebuilt");
+                                }
+                                None => {
+                                    println!("  {plugin_id}: built library not found");
+                                    failed += 1;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("  {plugin_id}: build failed: {e}");
+                            failed += 1;
+                        }
+                    }
+                } else {
+                    // Re-copy from stored path
+                    let p = std::path::Path::new(src);
+                    if p.exists() {
+                        let dest = libs_dir.join(&entry.filename);
+                        tokio::fs::copy(p, &dest).await?;
+                        registry.remove(plugin_id);
+                        let updated_entry = PluginEntry {
+                            version: "local".to_string(),
+                            installed_at: chrono::Utc::now().to_rfc3339(),
+                            ..entry
+                        };
+                        registry.add(updated_entry);
+                        updated += 1;
+                        println!("  {plugin_id}: re-copied from {src}");
+                    } else {
+                        println!("  {plugin_id}: source not found at {src}");
+                        failed += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    registry.save().await?;
+    println!("\nDone. {updated} updated, {skipped} skipped, {failed} failed.");
     Ok(())
 }
 
@@ -347,14 +487,15 @@ pub async fn execute_list() -> Result<(), anyhow::Error> {
     }
 
     println!(
-        "{:<40} {:<10} {}",
-        "ID", "VERSION", "INSTALLED"
+        "{:<30} {:<10} {:<20} {}",
+        "ID", "VERSION", "SOURCE", "INSTALLED"
     );
-    println!("{}", "-".repeat(80));
+    println!("{}", "-".repeat(90));
     for p in plugins {
+        let source = p.source.as_deref().unwrap_or("-");
         println!(
-            "{:<40} {:<10} {}",
-            p.id, p.version, p.installed_at
+            "{:<30} {:<10} {:<20} {}",
+            p.id, p.version, source, p.installed_at
         );
     }
 

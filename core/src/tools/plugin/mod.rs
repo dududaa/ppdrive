@@ -12,6 +12,14 @@ pub struct PluginEntry {
     pub filename: String,
     pub version: String,
     pub installed_at: String,
+    /// Where this plugin was installed from.
+    /// For remote: `"github:owner/repo"`.
+    /// For local: the file path or source directory path.
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Whether the plugin was built from source during install.
+    #[serde(default)]
+    pub build: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

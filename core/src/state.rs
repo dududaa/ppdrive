@@ -1,3 +1,4 @@
+use serde::de::DeserializeOwned;
 use crate::config::AppConfig;
 use crate::db::{Database, DbPool};
 use crate::secrets::AppSecrets;
@@ -70,5 +71,18 @@ impl AppState {
 
     pub fn hasher(&self) -> &Hasher {
         &self.config.hasher
+    }
+
+    pub fn get_plugin_config<T: DeserializeOwned>(&self, plugin_id: &str) -> anyhow::Result<T> {
+        let app_config = self.config().plugins.clone().unwrap_or_default();
+        match app_config.get(plugin_id) {
+            Some(data) => {
+                let value = serde_json::to_value(data)?;
+                let config = serde_json::from_value(value)?;
+                
+                Ok(config)
+            }
+            None => Err(anyhow::anyhow!("plugin config not found")),
+        }
     }
 }

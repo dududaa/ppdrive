@@ -178,4 +178,9 @@ pub enum PluginCommand {
         /// Plugin id (username/project or local name)
         id: String,
     },
+    /// Update an installed plugin (or all plugins if no id given)
+    Update {
+        /// Plugin id to update. Omit to update all.
+        id: Option<String>,
+    },
 }
