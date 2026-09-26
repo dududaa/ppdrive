@@ -29,13 +29,13 @@ impl Cli {
             CliCommand::Plugin { command } => {
                 return match command {
                     PluginCommand::Add {
-                        id_or_path,
+                        id,
                         version,
                         local,
                         source,
                         build,
                     } => {
-                        plugin::execute_add(id_or_path, version, *local, source.as_deref(), *build)
+                        plugin::execute_add(id, version, *local, source.as_deref(), *build)
                             .await
                     }
                     PluginCommand::List => plugin::execute_list().await,

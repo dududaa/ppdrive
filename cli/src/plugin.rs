@@ -1,65 +1,380 @@
 use anyhow::Context;
 use ppdrive::plugin::{PluginEntry, PluginRegistry, plugin_lib_name};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// A parsed remote plugin source.
+enum RemoteSource {
+    /// GitHub repository in `owner/repo` form.
+    GitHub(String),
+    /// Any other cloneable git URL.
+    GitUrl(String),
+}
+
+impl RemoteSource {
+    /// Normalized representation stored in the plugin registry.
+    fn store(&self) -> String {
+        match self {
+            RemoteSource::GitHub(repo) => format!("github:{repo}"),
+            RemoteSource::GitUrl(url) => url.clone(),
+        }
+    }
+}
+
+/// How a stored `source` value should be interpreted.
+enum SourceKind {
+    Local,
+    Remote(RemoteSource),
+}
+
+fn parse_remote_source(source: &str) -> anyhow::Result<RemoteSource> {
+    let s = source.trim().trim_end_matches('/');
+
+    if let Some(rest) = s.strip_prefix("github:") {
+        let rest = rest.trim_start_matches('/');
+        if rest.split('/').count() == 2 {
+            return Ok(RemoteSource::GitHub(rest.to_string()));
+        }
+        anyhow::bail!("invalid GitHub source '{source}': expected 'github:owner/repo'");
+    }
+
+    if let Some(rest) = s
+        .strip_prefix("https://github.com/")
+        .or_else(|| s.strip_prefix("http://github.com/"))
+    {
+        let rest = rest.trim_end_matches(".git").trim_end_matches('/');
+        return Ok(RemoteSource::GitHub(rest.to_string()));
+    }
+
+    if s.contains("://") || s.starts_with("git@") {
+        return Ok(RemoteSource::GitUrl(s.to_string()));
+    }
+
+    if looks_like_github_repo(s) {
+        return Ok(RemoteSource::GitHub(s.to_string()));
+    }
+
+    anyhow::bail!(
+        "could not parse remote source '{source}': expected 'owner/repo', \
+         'github:owner/repo', 'https://github.com/owner/repo', or a git URL"
+    )
+}
+
+/// `owner/repo` shape: exactly two non-empty parts, owner restricted to
+/// characters valid in GitHub account names (so paths like `../router`
+/// or `/abs/path` are not mistaken for repositories).
+fn looks_like_github_repo(s: &str) -> bool {
+    let parts: Vec<&str> = s.split('/').collect();
+    if parts.len() != 2 {
+        return false;
+    }
+    let (owner, repo) = (parts[0], parts[1]);
+    !owner.is_empty()
+        && !repo.is_empty()
+        && !owner.starts_with('.')
+        && owner
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Classify a stored source string as local or remote.
+fn source_kind(source: &str) -> SourceKind {
+    if source.starts_with("github:") {
+        return match parse_remote_source(source) {
+            Ok(remote) => SourceKind::Remote(remote),
+            Err(_) => SourceKind::Local,
+        };
+    }
+    if Path::new(source).exists() {
+        return SourceKind::Local;
+    }
+    if source.contains("://") || source.starts_with("git@") {
+        return match parse_remote_source(source) {
+            Ok(remote) => SourceKind::Remote(remote),
+            Err(_) => SourceKind::Local,
+        };
+    }
+    if looks_like_github_repo(source.trim_end_matches('/')) {
+        return match parse_remote_source(source) {
+            Ok(remote) => SourceKind::Remote(remote),
+            Err(_) => SourceKind::Local,
+        };
+    }
+    SourceKind::Local
+}
 
 pub async fn execute_add(
-    id_or_path: &str,
+    id: &str,
     version: &str,
     local: bool,
     source: Option<&str>,
     build: bool,
 ) -> Result<(), anyhow::Error> {
+    let source = source.ok_or_else(|| {
+        anyhow::anyhow!(
+            "--source is required ({})",
+            if local {
+                if build {
+                    "path to the local Rust source directory"
+                } else {
+                    "path to the local plugin library file"
+                }
+            } else {
+                "remote repository, e.g. github:owner/repo or https://github.com/owner/repo"
+            }
+        )
+    })?;
+
     let mut registry = PluginRegistry::load().await?;
     let libs_dir = PluginRegistry::libs_dir()?;
     tokio::fs::create_dir_all(&libs_dir).await?;
 
-    if local {
-        add_local(id_or_path, build, source, &libs_dir, &mut registry).await?;
-    } else {
-        add_remote(id_or_path, version, build, &libs_dir, &mut registry).await?;
-    }
-
-    registry.save().await?;
-    Ok(())
-}
-
-async fn add_remote(
-    id: &str,
-    version: &str,
-    build: bool,
-    libs_dir: &std::path::Path,
-    registry: &mut PluginRegistry,
-) -> Result<(), anyhow::Error> {
     if registry.is_installed(id) {
         println!("Plugin '{id}' is already installed. Use 'ppdrive plugin update {id}' to update.");
         return Ok(());
     }
 
-    let entry = install_remote(id, version, build, libs_dir).await?;
+    let entry = if local {
+        install_local(id, source, build, &libs_dir).await?
+    } else {
+        install_remote(id, source, version, build, &libs_dir).await?
+    };
+
     registry.add(entry);
     registry.save().await?;
     Ok(())
 }
 
-/// Download or build a remote plugin from GitHub. Returns the new `PluginEntry`.
+/// Download or build a plugin from a remote repository. Returns the new `PluginEntry`.
 pub async fn install_remote(
     id: &str,
+    source: &str,
     version: &str,
     build: bool,
-    libs_dir: &std::path::Path,
+    libs_dir: &Path,
 ) -> Result<PluginEntry, anyhow::Error> {
-    let api_url = if version == "latest" {
-        format!("https://api.github.com/repos/{id}/releases/latest")
+    let remote = parse_remote_source(source)?;
+
+    if build {
+        println!("Downloading {source}...");
+        let downloaded = download_repository(&remote, version).await?;
+
+        build_from_source(downloaded.src_dir.to_str().unwrap_or("."), id).await?;
+        let lib_path = find_built_lib_upwards(&downloaded.src_dir, id)?;
+
+        let lib_name = plugin_lib_name(id);
+        let dest = libs_dir.join(&lib_name);
+        tokio::fs::copy(&lib_path, &dest).await.with_context(|| {
+            format!(
+                "failed to copy {} to {}",
+                lib_path.display(),
+                dest.display()
+            )
+        })?;
+
+        let _ = tokio::fs::remove_dir_all(&downloaded.temp_dir).await;
+
+        Ok(PluginEntry {
+            id: id.to_string(),
+            filename: lib_name,
+            version: downloaded.version,
+            installed_at: chrono::Utc::now().to_rfc3339(),
+            source: Some(remote.store()),
+            build: true,
+        })
     } else {
-        format!("https://api.github.com/repos/{id}/releases/tags/v{version}")
+        let repo = match &remote {
+            RemoteSource::GitHub(repo) => repo.clone(),
+            RemoteSource::GitUrl(_) => anyhow::bail!(
+                "release artifacts can only be downloaded from a GitHub repository; \
+                 pass --build to compile '{source}' from source"
+            ),
+        };
+
+        let (release_version, json) = fetch_github_release(&repo, version).await?;
+        let asset = find_release_asset(&json, id)?;
+
+        let download_url = asset["browser_download_url"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("missing download URL for asset"))?;
+
+        let lib_name = plugin_lib_name(id);
+        println!("Downloading {lib_name}...");
+        download_file(download_url, &libs_dir.join(&lib_name)).await?;
+
+        Ok(PluginEntry {
+            id: id.to_string(),
+            filename: lib_name,
+            version: release_version,
+            installed_at: chrono::Utc::now().to_rfc3339(),
+            source: Some(remote.store()),
+            build: false,
+        })
+    }
+}
+
+/// Install a plugin from a local file or a local source directory.
+async fn install_local(
+    id: &str,
+    source: &str,
+    build: bool,
+    libs_dir: &Path,
+) -> Result<PluginEntry, anyhow::Error> {
+    let src_path = if build {
+        let source_dir = Path::new(source);
+        if !source_dir.is_dir() {
+            anyhow::bail!("source directory not found: {source}");
+        }
+
+        build_from_source(source, id).await?;
+        find_built_lib_upwards(source_dir, id)?
+    } else {
+        let p = PathBuf::from(source);
+        if !p.exists() {
+            anyhow::bail!("file not found: {source}");
+        }
+        p
     };
 
-    println!("Fetching release info for {id}...");
+    let lib_name = plugin_lib_name(id);
+    let dest = libs_dir.join(&lib_name);
+    tokio::fs::copy(&src_path, &dest).await.with_context(|| {
+        format!(
+            "failed to copy {} to {}",
+            src_path.display(),
+            dest.display()
+        )
+    })?;
+
+    Ok(PluginEntry {
+        id: id.to_string(),
+        filename: lib_name,
+        version: "local".to_string(),
+        installed_at: chrono::Utc::now().to_rfc3339(),
+        source: Some(source.to_string()),
+        build,
+    })
+}
+
+struct DownloadedSource {
+    /// Temp directory that owns the extracted source; removed by the caller.
+    temp_dir: PathBuf,
+    /// Extracted repository root.
+    src_dir: PathBuf,
+    /// Release version (GitHub) or `"source"` (git URL).
+    version: String,
+}
+
+/// Download a repository: GitHub releases are fetched as source tarballs,
+/// other sources are cloned with `git`.
+async fn download_repository(remote: &RemoteSource, version: &str) -> Result<DownloadedSource, anyhow::Error> {
+    let temp_dir = ppdrive::root_dir()?.join("tmp_plugin_build");
+    if temp_dir.exists() {
+        tokio::fs::remove_dir_all(&temp_dir)
+            .await
+            .context("failed to clean previous build directory")?;
+    }
+    tokio::fs::create_dir_all(&temp_dir).await?;
+
+    match remote {
+        RemoteSource::GitHub(repo) => {
+            let (release_version, _) = fetch_github_release(repo, version).await?;
+            let url =
+                format!("https://github.com/{repo}/archive/refs/tags/v{release_version}.tar.gz");
+
+            let tarball = temp_dir.join("source.tar.gz");
+            download_file(&url, &tarball).await?;
+            extract_tarball(&tarball, &temp_dir)?;
+            let _ = tokio::fs::remove_file(&tarball);
+
+            let src_dir = find_extracted_dir(&temp_dir).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "could not locate extracted source in {}",
+                    temp_dir.display()
+                )
+            })?;
+
+            Ok(DownloadedSource {
+                temp_dir,
+                src_dir,
+                version: release_version,
+            })
+        }
+        RemoteSource::GitUrl(url) => {
+            let src_dir = temp_dir.join("repo");
+            git_clone(url, &src_dir, version).await?;
+
+            Ok(DownloadedSource {
+                temp_dir,
+                src_dir,
+                version: "source".to_string(),
+            })
+        }
+    }
+}
+
+/// Clone a repository, honouring an explicit `version` ref when given.
+async fn git_clone(url: &str, dest: &Path, version: &str) -> Result<(), anyhow::Error> {
+    let mut branches: Vec<String> = Vec::new();
+    if version != "latest" {
+        if version.starts_with('v') {
+            branches.push(version.to_string());
+        } else {
+            branches.push(format!("v{version}"));
+            branches.push(version.to_string());
+        }
+    }
+    branches.push(String::new()); // default branch
+
+    let url = url.to_string();
+    let dest = dest.to_path_buf();
+    let output = tokio::task::spawn_blocking(move || {
+        let mut last_err = String::new();
+        for branch in &branches {
+            if dest.exists() {
+                let _ = std::fs::remove_dir_all(&dest);
+            }
+            let mut cmd = std::process::Command::new("git");
+            cmd.args(["clone", "--depth", "1"]);
+            if !branch.is_empty() {
+                cmd.args(["--branch", branch]);
+            }
+            cmd.arg(&url).arg(&dest);
+
+            match cmd.output() {
+                Ok(out) if out.status.success() => return Ok(()),
+                Ok(out) => {
+                    last_err = String::from_utf8_lossy(&out.stderr).into_owned();
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!("failed to run `git` — is git installed?: {e}"));
+                }
+            }
+        }
+        Err(anyhow::anyhow!("git clone failed:\n{last_err}"))
+    })
+    .await
+    .context("failed to spawn git clone task")?;
+
+    output
+}
+
+/// Fetch release info from the GitHub API. Returns `(release_version, json)`.
+async fn fetch_github_release(
+    repo: &str,
+    version: &str,
+) -> Result<(String, serde_json::Value), anyhow::Error> {
+    let api_url = if version == "latest" {
+        format!("https://api.github.com/repos/{repo}/releases/latest")
+    } else {
+        format!("https://api.github.com/repos/{repo}/releases/tags/v{version}")
+    };
+
+    println!("Fetching release info for {repo}...");
 
     let body: String = ureq::get(&api_url)
         .header("User-Agent", "ppdrive-plugin-manager")
         .call()
-        .with_context(|| format!("failed to fetch release info for {id}"))?
+        .with_context(|| format!("failed to fetch release info for {repo}"))?
         .body_mut()
         .read_to_string()
         .context("failed to read GitHub API response")?;
@@ -70,182 +385,39 @@ pub async fn install_remote(
     let tag_name = json["tag_name"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("missing tag_name in release response"))?;
-    let release_version = tag_name.trim_start_matches('v');
 
-    let plugin_name = id.split('/').last().unwrap_or(id);
-
-    if build {
-        // Download source tarball from GitHub
-        let source_url =
-            format!("https://github.com/{id}/archive/refs/tags/v{release_version}.tar.gz");
-
-        let temp_dir = ppdrive::root_dir()?.join("tmp_plugin_build");
-        tokio::fs::create_dir_all(&temp_dir).await?;
-
-        println!("Downloading source for v{release_version}...");
-        let tarball = temp_dir.join("source.tar.gz");
-        download_file(&source_url, &tarball).await?;
-
-        println!("Extracting source...");
-        extract_tarball(&tarball, &temp_dir)?;
-
-        // GitHub source archives extract to {project}-{tag}/
-        let extracted_dir = temp_dir.join(format!("{plugin_name}-{release_version}"));
-        if !extracted_dir.exists() {
-            let entries: Vec<String> = std::fs::read_dir(&temp_dir)
-                .into_iter()
-                .flatten()
-                .flatten()
-                .filter_map(|e| e.file_name().to_str().map(String::from))
-                .collect();
-            let _ = tokio::fs::remove_dir_all(&temp_dir).await;
-            return Err(anyhow::anyhow!(
-                "extracted source directory not found. Expected '{}'. Contents: {entries:?}",
-                extracted_dir.display()
-            ));
-        }
-
-        println!("Building plugin from source...");
-        build_from_source(extracted_dir.to_str().unwrap_or(".")).await?;
-
-        let target_dir = extracted_dir.join("target/release");
-        let lib_path = find_built_lib(&target_dir, plugin_name)?;
-
-        let lib_name = plugin_lib_name(plugin_name);
-        let dest = libs_dir.join(&lib_name);
-        tokio::fs::copy(&lib_path, &dest).await.with_context(|| {
-            format!(
-                "failed to copy {} to {}",
-                lib_path.display(),
-                dest.display()
-            )
-        })?;
-
-        // Cleanup temp dir
-        let _ = tokio::fs::remove_dir_all(&temp_dir).await;
-
-        Ok(PluginEntry {
-            id: id.to_string(),
-            filename: lib_name,
-            version: release_version.to_string(),
-            installed_at: chrono::Utc::now().to_rfc3339(),
-            source: Some(format!("github:{id}")),
-            build: true,
-        })
-    } else {
-        // Download pre-built artifact from release assets
-        let expected_asset = plugin_lib_name(plugin_name);
-
-        let assets = json["assets"]
-            .as_array()
-            .ok_or_else(|| anyhow::anyhow!("no assets found in release"))?;
-
-        let asset = assets
-            .iter()
-            .find(|a| a["name"].as_str() == Some(&expected_asset))
-            .ok_or_else(|| {
-                let available: Vec<&str> =
-                    assets.iter().filter_map(|a| a["name"].as_str()).collect();
-                anyhow::anyhow!(
-                    "no matching asset '{expected_asset}' in release. Available: {available:?}"
-                )
-            })?;
-
-        let download_url = asset["browser_download_url"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("missing download URL for asset"))?;
-
-        println!("Downloading {expected_asset}...");
-        download_file(download_url, &libs_dir.join(&expected_asset)).await?;
-
-        Ok(PluginEntry {
-            id: id.to_string(),
-            filename: expected_asset,
-            version: release_version.to_string(),
-            installed_at: chrono::Utc::now().to_rfc3339(),
-            source: Some(format!("github:{id}")),
-            build: false,
-        })
-    }
+    Ok((tag_name.trim_start_matches('v').to_string(), json))
 }
 
-async fn add_local(
-    path: &str,
-    build: bool,
-    source: Option<&str>,
-    libs_dir: &std::path::Path,
-    registry: &mut PluginRegistry,
-) -> anyhow::Result<()> {
-    let plugin_name = std::path::Path::new(path)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or(path);
+/// Find a release asset whose base name matches `id`.
+fn find_release_asset<'a>(
+    json: &'a serde_json::Value,
+    id: &str,
+) -> Result<&'a serde_json::Value, anyhow::Error> {
+    let assets = json["assets"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("no assets found in release"))?;
 
-    let id = plugin_name.to_string();
-    if registry.is_installed(&id) {
-        println!("Plugin '{id}' is already installed. Use 'ppdrive plugin update {id}' to update.");
-        return Ok(());
-    }
+    let expected = plugin_lib_name(id);
+    let ext = expected.rsplit('.').next().unwrap_or("so");
+    let prefix = format!("{id}-");
+    let suffix = format!(".{ext}");
 
-    let (src_path, source_ref) = if build {
-        let source_dir = source.ok_or(anyhow::anyhow!(
-            "Local build 'source' must be provided to build locally."
-        ))?;
-
-        build_from_source(source_dir).await?;
-
-        // Look for the built library in target/release/ of the source dir
-        // or any parent directory (workspace root may have target/ at a higher level)
-        let mut search_dir = Some(std::path::Path::new(source_dir));
-        let mut lib_path = None;
-        while let Some(dir) = search_dir {
-            let target_dir = dir.join("target/release");
-            if target_dir.exists() {
-                if let Ok(found) = find_built_lib(&target_dir, plugin_name) {
-                    lib_path = Some(found);
-                    break;
-                }
-            }
-            search_dir = dir.parent();
-        }
-        (
-            lib_path.ok_or_else(|| {
-                anyhow::anyhow!(
-                    "no built library found for '{plugin_name}' in any target/release directory"
-                )
-            })?,
-            source_dir.to_string(),
-        )
-    } else {
-        (PathBuf::from(path), path.to_string())
-    };
-
-    if !src_path.exists() {
-        return Err(anyhow::anyhow!("file not found: {}", src_path.display()));
-    }
-
-    let lib_name = plugin_lib_name(plugin_name);
-    let dest = libs_dir.join(&lib_name);
-    tokio::fs::copy(&src_path, &dest).await.with_context(|| {
-        format!(
-            "failed to copy {} to {}",
-            src_path.display(),
-            dest.display()
-        )
-    })?;
-
-    let entry = PluginEntry {
-        id,
-        filename: lib_name,
-        version: "local".to_string(),
-        installed_at: chrono::Utc::now().to_rfc3339(),
-        source: Some(source_ref),
-        build,
-    };
-    registry.add(entry);
-
-    println!("Plugin installed from local file.");
-    Ok(())
+    assets
+        .iter()
+        .find(|a| a["name"].as_str() == Some(expected.as_str()))
+        .or_else(|| {
+            assets.iter().find(|a| {
+                let name = a["name"].as_str().unwrap_or("");
+                name.starts_with(&prefix) && name.ends_with(&suffix)
+            })
+        })
+        .ok_or_else(|| {
+            let available: Vec<&str> = assets.iter().filter_map(|a| a["name"].as_str()).collect();
+            anyhow::anyhow!(
+                "no release asset based on '{id}' (expected '{expected}'). Available: {available:?}"
+            )
+        })
 }
 
 pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
@@ -279,15 +451,17 @@ pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
         };
 
         let source = entry.source.clone();
-        match source.as_deref() {
-            None => {
-                println!("  {plugin_id}: unknown source, use 'ppdrive plugin add' to reinstall");
-                skipped += 1;
-            }
-            Some(src) if src.starts_with("github:") => {
-                let repo = src.strip_prefix("github:").unwrap();
-                println!("Updating {plugin_id} from {repo}...");
-                match install_remote(repo, "latest", entry.build, &libs_dir).await {
+        let Some(src) = source.as_deref() else {
+            println!("  {plugin_id}: unknown source, use 'ppdrive plugin add' to reinstall");
+            skipped += 1;
+            continue;
+        };
+
+        match source_kind(src) {
+            SourceKind::Remote(remote) => {
+                let remote = remote.store();
+                println!("Updating {plugin_id} from {remote}...");
+                match install_remote(plugin_id, &remote, "latest", entry.build, &libs_dir).await {
                     Ok(new_entry) => {
                         // Remove old lib file if filename changed
                         let old_lib = libs_dir.join(&entry.filename);
@@ -305,45 +479,29 @@ pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
                     }
                 }
             }
-            Some(src) => {
-                // Local source — re-build or re-copy
+            SourceKind::Local => {
                 if entry.build {
-                    println!("Rebuilding {plugin_id} from local source...");
-                    match build_from_source(src).await {
-                        Ok(()) => {
-                            let plugin_name = plugin_id.as_str();
-                            let mut search_dir = Some(std::path::Path::new(src));
-                            let mut lib_path = None;
-                            while let Some(dir) = search_dir {
-                                let target_dir = dir.join("target/release");
-                                if target_dir.exists() {
-                                    if let Ok(found) = find_built_lib(&target_dir, plugin_name) {
-                                        lib_path = Some(found);
-                                        break;
-                                    }
-                                }
-                                search_dir = dir.parent();
+                    println!("Rebuilding {plugin_id} from {src}...");
+                    match build_from_source(src, plugin_id).await {
+                        Ok(()) => match find_built_lib_upwards(Path::new(src), plugin_id) {
+                            Ok(lib) => {
+                                let dest = libs_dir.join(&entry.filename);
+                                tokio::fs::copy(&lib, &dest).await?;
+                                registry.remove(plugin_id);
+                                let updated_entry = PluginEntry {
+                                    version: "local".to_string(),
+                                    installed_at: chrono::Utc::now().to_rfc3339(),
+                                    ..entry
+                                };
+                                registry.add(updated_entry);
+                                updated += 1;
+                                println!("  {plugin_id}: rebuilt");
                             }
-                            match lib_path {
-                                Some(lib) => {
-                                    let dest = libs_dir.join(&entry.filename);
-                                    tokio::fs::copy(&lib, &dest).await?;
-                                    registry.remove(plugin_id);
-                                    let updated_entry = PluginEntry {
-                                        version: "local".to_string(),
-                                        installed_at: chrono::Utc::now().to_rfc3339(),
-                                        ..entry
-                                    };
-                                    registry.add(updated_entry);
-                                    updated += 1;
-                                    println!("  {plugin_id}: rebuilt");
-                                }
-                                None => {
-                                    println!("  {plugin_id}: built library not found");
-                                    failed += 1;
-                                }
+                            Err(e) => {
+                                println!("  {plugin_id}: {e}");
+                                failed += 1;
                             }
-                        }
+                        },
                         Err(e) => {
                             println!("  {plugin_id}: build failed: {e}");
                             failed += 1;
@@ -351,7 +509,7 @@ pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
                     }
                 } else {
                     // Re-copy from stored path
-                    let p = std::path::Path::new(src);
+                    let p = Path::new(src);
                     if p.exists() {
                         let dest = libs_dir.join(&entry.filename);
                         tokio::fs::copy(p, &dest).await?;
@@ -378,13 +536,16 @@ pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-async fn build_from_source(source_dir: &str) -> Result<(), anyhow::Error> {
-    println!("Building plugin from source...");
+/// `cargo build --release --lib --package {package}` in `source_dir`.
+async fn build_from_source(source_dir: &str, package: &str) -> Result<(), anyhow::Error> {
+    println!("Building package '{package}'...");
 
     let source_dir = source_dir.to_string();
+    let package_label = package.to_string();
+    let package = package.to_string();
     let output = tokio::task::spawn_blocking(move || {
         std::process::Command::new("cargo")
-            .args(["build", "--release", "--lib"])
+            .args(["build", "--release", "--lib", "--package", &package])
             .current_dir(&source_dir)
             .output()
     })
@@ -397,11 +558,31 @@ async fn build_from_source(source_dir: &str) -> Result<(), anyhow::Error> {
         return Err(anyhow::anyhow!("cargo build failed:\n{stderr}"));
     }
 
-    println!("cargo build --release --lib finished.");
+    println!("cargo build --release --lib --package {package_label} finished.");
     Ok(())
 }
 
-fn find_built_lib(target_dir: &std::path::Path, name: &str) -> Result<PathBuf, anyhow::Error> {
+/// Locate the built library, walking up from `from` in case the workspace
+/// `target/` directory sits above the package directory.
+fn find_built_lib_upwards(from: &Path, name: &str) -> Result<PathBuf, anyhow::Error> {
+    let mut dir = Some(from);
+    while let Some(d) = dir {
+        let target_dir = d.join("target/release");
+        if target_dir.exists()
+            && let Ok(found) = find_built_lib(&target_dir, name)
+        {
+            return Ok(found);
+        }
+        dir = d.parent();
+    }
+
+    Err(anyhow::anyhow!(
+        "no built library found for '{name}' in any target/release directory above {}",
+        from.display()
+    ))
+}
+
+fn find_built_lib(target_dir: &Path, name: &str) -> Result<PathBuf, anyhow::Error> {
     let os = std::env::consts::OS;
     let ext = match os {
         "linux" => "so",
@@ -437,6 +618,21 @@ fn find_built_lib(target_dir: &std::path::Path, name: &str) -> Result<PathBuf, a
         "no built library found in {} matching '{name}'",
         target_dir.display()
     ))
+}
+
+/// The GitHub source archive extracts into a single directory; return it.
+fn find_extracted_dir(temp_dir: &Path) -> Option<PathBuf> {
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(temp_dir)
+        .ok()?
+        .flatten()
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .map(|e| e.path())
+        .collect();
+
+    match dirs.len() {
+        1 => dirs.pop(),
+        _ => None,
+    }
 }
 
 async fn download_file(url: &str, dest: &std::path::Path) -> Result<(), anyhow::Error> {
@@ -485,14 +681,14 @@ pub async fn execute_list() -> Result<(), anyhow::Error> {
     }
 
     println!(
-        "{:<30} {:<10} {:<20} {}",
+        "{:<30} {:<10} {:<40} {}",
         "ID", "VERSION", "SOURCE", "INSTALLED"
     );
-    println!("{}", "-".repeat(90));
+    println!("{}", "-".repeat(110));
     for p in plugins {
         let source = p.source.as_deref().unwrap_or("-");
         println!(
-            "{:<30} {:<10} {:<20} {}",
+            "{:<30} {:<10} {:<40} {}",
             p.id, p.version, source, p.installed_at
         );
     }

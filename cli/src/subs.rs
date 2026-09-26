@@ -152,22 +152,21 @@ pub enum UserCommand {
 
 #[derive(Subcommand, Debug)]
 pub enum PluginCommand {
-    /// Install a plugin from GitHub or a local file
+    /// Install a plugin
     Add {
-        /// GitHub id (username/project) or local filename
-        id_or_path: String,
-        /// Plugin type
-        #[arg(long, value_enum)]
+        /// Plugin id: cargo package name when building, and base name for release artifacts
+        id: String,
         /// Release version (default: latest)
         #[arg(long, default_value = "latest")]
         version: String,
-        /// Locally look for plugin in local path
+        /// Install from a local file or local source directory instead of a remote repository
         #[arg(long)]
         local: bool,
-        /// Whether to build from source
+        /// Build from source with `cargo build --release --lib --package <id>`
         #[arg(long)]
         build: bool,
-        /// Path to Rust source directory (builds with cargo build --release) or local plugin source
+        /// Where to install from: local library file / Rust source directory (with --local),
+        /// or remote repository (e.g. github:owner/repo, owner/repo, or a git URL)
         #[arg(long)]
         source: Option<String>,
     },
@@ -175,7 +174,7 @@ pub enum PluginCommand {
     List,
     /// Remove an installed plugin
     Remove {
-        /// Plugin id (username/project or local name)
+        /// Plugin id
         id: String,
     },
     /// Update an installed plugin (or all plugins if no id given)
