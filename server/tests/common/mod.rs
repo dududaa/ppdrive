@@ -23,7 +23,7 @@ pub async fn clean_db(db: &Database) -> anyhow::Result<()> {
 
 pub struct TestServerWrapper {
     server: TestServer,
-    _live_plugins: ppdrive_server::app::RouterPlugins,
+    _dynamic_router: ppdrive_server::app::DynamicRouter,
 }
 
 impl TestServerWrapper {
@@ -37,7 +37,7 @@ impl TestServerWrapper {
         let server = TestServer::new_with_config(app, config);
         Ok(Self {
             server,
-            _live_plugins,
+            _dynamic_router: _live_plugins,
         })
     }
 

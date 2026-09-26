@@ -1,7 +1,52 @@
 use anyhow::{Context, anyhow};
+use libloading::Library;
 use std::ffi::c_void;
 use std::path::Path;
 use std::ptr::null_mut;
+
+#[repr(C)]
+#[derive(Clone)]
+/// A raw pointer to the dispatched response.
+/// The [PluginDispatcher] **must** stay alive for as long as we want the (dispatched response)[DispatchResponse] 
+/// to stay.
+pub struct PluginDispatcher<T> {
+    ptr: *mut T,
+}
+
+impl<T> PluginDispatcher<T> {
+    pub fn new() -> Self {
+        Self { ptr: null_mut() }
+    }
+
+    pub fn dispatch<A>(&mut self, lib: &LoadedPlugin, args: A) -> anyhow::Result<&T> {
+        let input = Box::into_raw(Box::new(args));
+
+        unsafe {
+            let resp = (lib.dispatch_fn)(input as *mut c_void);
+            if resp.is_null() {
+                return Err(anyhow!("plugin call returned null"));
+            }
+
+            match *Box::from_raw(resp) {
+                DispatchResponse::Ok(ptr) => {
+                    self.ptr = ptr as *mut T;
+                    Ok(&*self.ptr)
+                }
+                DispatchResponse::Error(msg) => Err(anyhow!(msg)),
+            }
+        }
+    }
+}
+
+impl<T> Drop for PluginDispatcher<T> {
+    fn drop(&mut self) {
+        unsafe {
+            if !self.ptr.is_null() {
+                let _ = Box::from_raw(self.ptr);
+            }
+        }
+    }
+}
 
 #[repr(C)]
 pub enum DispatchResponse {
@@ -9,18 +54,18 @@ pub enum DispatchResponse {
     Error(String),
 }
 
-pub struct LoadedPlugin<R> {
-    _lib: libloading::Library,
+pub struct LoadedPlugin {
+    id: String,
+    _lib: Library,
     dispatch_fn: unsafe extern "C" fn(*mut c_void) -> *mut DispatchResponse,
-    resp_ptr: *mut R,
 }
 
-unsafe impl<R> Send for LoadedPlugin<R> {}
-unsafe impl<R> Sync for LoadedPlugin<R> {}
+unsafe impl Send for LoadedPlugin {}
+unsafe impl Sync for LoadedPlugin {}
 
-impl<R> LoadedPlugin<R> {
-    pub fn load(path: &Path) -> anyhow::Result<Self> {
-        let lib = unsafe { libloading::Library::new(path) }
+impl LoadedPlugin {
+    pub fn load(path: &Path, id: String) -> anyhow::Result<Self> {
+        let lib = unsafe { Library::new(path) }
             .with_context(|| format!("failed to load plugin from {}", path.display()))?;
 
         let dispatch_fn = unsafe {
@@ -33,36 +78,11 @@ impl<R> LoadedPlugin<R> {
         Ok(Self {
             _lib: lib,
             dispatch_fn,
-            resp_ptr: null_mut(),
+            id
         })
     }
-
-    pub fn dispatch<A>(&mut self, args: A) -> anyhow::Result<&R> {
-        let input = Box::into_raw(Box::new(args));
-
-        unsafe {
-            let resp = (self.dispatch_fn)(input as *mut c_void);
-            if resp.is_null() {
-                return Err(anyhow!("plugin call returned null"));
-            }
-
-            match *Box::from_raw(resp) {
-                DispatchResponse::Ok(ptr) => {
-                    self.resp_ptr = ptr as *mut R;
-                    Ok(&*self.resp_ptr)
-                }
-                DispatchResponse::Error(msg) => Err(anyhow!(msg)),
-            }
-        }
-    }
-}
-
-impl<R> Drop for LoadedPlugin<R> {
-    fn drop(&mut self) {
-        unsafe {
-            if !self.resp_ptr.is_null() {
-                let _ = Box::from_raw(self.resp_ptr);
-            }
-        }
+    
+    pub fn id(&self) -> &str {
+        &self.id
     }
 }

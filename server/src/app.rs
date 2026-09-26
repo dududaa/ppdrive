@@ -16,7 +16,8 @@ use axum::http::{HeaderName, HeaderValue, Request, StatusCode};
 use axum::routing::get;
 use metrics_exporter_prometheus::PrometheusHandle;
 use ppdrive::db::bucket;
-use ppdrive::plugin::loader::LoadedPlugin;
+use ppdrive::plugin::PluginRegistry;
+use ppdrive::plugin::loader::{LoadedPlugin, PluginDispatcher};
 use ppdrive::state::AppState;
 use std::str::FromStr;
 use std::sync::OnceLock;
@@ -32,6 +33,47 @@ use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
+
+/// Type alias for loaded plugin handles that must outlive the server.
+// pub type LivePlugins = Vec<LoadedPlugin>;
+struct LivePlugins {
+    plugins: Vec<LoadedPlugin>,
+}
+
+impl LivePlugins {
+    async fn get() -> &'static Self {
+        let registry = PluginRegistry::load()
+            .await
+            .expect("unable to load plugin registry");
+
+        LIVE_PLUGINS.get_or_init(|| {
+            let libs_dir =
+                PluginRegistry::libs_dir().expect("unable to load plugin library directory");
+            let plugins = registry
+                .list()
+                .into_iter()
+                .flat_map(|entry| {
+                    let plugin =
+                        LoadedPlugin::load(&libs_dir.join(&entry.filename), entry.id.clone());
+
+                    if let Err(err) = &plugin {
+                        tracing::warn!("failed to load plugin '{}': {err}", entry.full_id());
+                    }
+
+                    plugin.ok()
+                })
+                .collect::<Vec<_>>();
+
+            Self { plugins }
+        })
+    }
+
+    pub fn find(&self, id: &str) -> Option<&LoadedPlugin> {
+        self.plugins.iter().find(|entry| entry.id() == id)
+    }
+}
+
+static LIVE_PLUGINS: OnceLock<LivePlugins> = OnceLock::new();
 
 /// Convert whitelisted url to axum AllowOrigin. When no url is provided, all origins will be allowed.
 fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
@@ -54,14 +96,11 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
-/// Type alias for loaded plugin handles that must outlive the server.
-pub type RouterPlugins = Vec<LoadedPlugin<Router<AppState>>>;
-
 /// Build the complete Axum application: router, CORS, tracing, static dirs, state.
 ///
 /// Returns the [`Router`], the configured port, and live plugin handles that
 /// **must** be kept alive for the server's entire lifetime.
-pub async fn create_app() -> anyhow::Result<(Router, u16, RouterPlugins)> {
+pub async fn create_app() -> anyhow::Result<(Router, u16, DynamicRouter)> {
     create_app_inner(true).await
 }
 
@@ -69,13 +108,13 @@ pub async fn create_app() -> anyhow::Result<(Router, u16, RouterPlugins)> {
 ///
 /// Used by integration tests where `axum_test` does not provide the
 /// `ConnectInfo<SocketAddr>` extension that `SmartIpKeyExtractor` requires.
-pub async fn create_test_app() -> anyhow::Result<(Router, u16, RouterPlugins)> {
+pub async fn create_test_app() -> anyhow::Result<(Router, u16, DynamicRouter)> {
     create_app_inner(false).await
 }
 
 async fn create_app_inner(
     enable_rate_limiting: bool,
-) -> anyhow::Result<(Router, u16, RouterPlugins)> {
+) -> anyhow::Result<(Router, u16, DynamicRouter)> {
     start_logger()?;
     let state = AppState::with_broker().await?;
     let origins = state.config().allowed_origins.clone();
@@ -156,19 +195,13 @@ async fn create_app_inner(
         app = app.nest_service(&mount_path, ServeDir::new(root.join(&folder.name)));
     }
 
+    let plugins = LivePlugins::get().await;
+    let mut dispatcher = PluginDispatcher::<Router<AppState>>::new();
+
     // Load router plugins — keep handles alive so the .so stays loaded
-    let mut live_plugins = Vec::new();
-    match load_router_plugins(state.clone()).await {
-        Ok((plugin_routers, plugins)) => {
-            live_plugins = plugins;
-            for (id, router) in plugin_routers {
-                tracing::info!("loaded router plugin: {id}");
-                app = app.merge(router);
-            }
-        }
-        Err(e) => {
-            tracing::warn!("failed to load plugins: {e}");
-        }
+    if let Some(plugin) = plugins.find("dashboard") {
+        let dispatched = dispatcher.dispatch(plugin, state.clone())?;
+        app = app.merge(dispatched.clone());
     }
 
     let mut app = app
@@ -184,8 +217,7 @@ async fn create_app_inner(
     }
 
     let app = app.with_state(state);
-
-    Ok((app, port, live_plugins))
+    Ok((app, port, dispatcher))
 }
 
 /// Initialize the tracing subscriber with an env-filter (defaults to `info`).
@@ -223,49 +255,5 @@ pub fn install_metrics() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Load all installed plugins that return Axum routers so we can merge the routers to server.
-///
-/// Returns both the routers to merge and the live [`LoadedPlugin`] handles.
-/// The handles **must** be kept alive for the entire server lifetime — dropping
-/// them unloads the `.so` library and invalidates all code pointers in the
-/// merged routers.
-async fn load_router_plugins(
-    state: AppState,
-) -> anyhow::Result<(
-    Vec<(String, Router<AppState>)>,
-    Vec<LoadedPlugin<Router<AppState>>>,
-)> {
-    use ppdrive::plugin::PluginRegistry;
 
-    let registry = PluginRegistry::load().await?;
-    let libs_dir = PluginRegistry::libs_dir()?;
-    let mut routers = Vec::new();
-    let mut plugins = Vec::new();
-
-    if let Some(entry) = registry.find("ppdrive_dashboard") {
-        let lib_path = libs_dir.join(&entry.filename);
-        let lib_id = entry.id.clone();
-
-        if !lib_path.exists() {
-            tracing::warn!(
-                "plugin '{}' library not found at {}, skipping",
-                lib_id,
-                lib_path.display()
-            );
-            return Ok((routers, plugins));
-        }
-
-        match LoadedPlugin::load(&lib_path) {
-            Ok(mut plugin) => {
-                let router: &Router<AppState> = plugin.dispatch(state.clone())?;
-                routers.push((lib_id, router.clone()));
-                plugins.push(plugin);
-            }
-            Err(e) => {
-                tracing::warn!("failed to load plugin '{}': {e}", entry.id);
-            }
-        }
-    }
-
-    Ok((routers, plugins))
-}
+pub type DynamicRouter = PluginDispatcher<Router<AppState>>;
