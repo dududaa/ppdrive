@@ -1,8 +1,8 @@
 //! Bucket database models.
 
+use crate::AssetOwnerName;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use crate::AssetOwnerName;
 use validator::Validate;
 
 /// Data required to create a new bucket.

@@ -1,9 +1,9 @@
-use serde::de::DeserializeOwned;
+use crate::broker::MessageBroker;
 use crate::config::AppConfig;
 use crate::db::{Database, DbPool};
-use crate::secrets::AppSecrets;
-use crate::broker::MessageBroker;
 use crate::hasher::Hasher;
+use crate::secrets::AppSecrets;
+use serde::de::DeserializeOwned;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -79,7 +79,7 @@ impl AppState {
             Some(data) => {
                 let value = serde_json::to_value(data)?;
                 let config = serde_json::from_value(value)?;
-                
+
                 Ok(config)
             }
             None => Err(anyhow::anyhow!("plugin config not found")),

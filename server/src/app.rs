@@ -16,6 +16,7 @@ use axum::http::{HeaderName, HeaderValue, Request, StatusCode};
 use axum::routing::get;
 use metrics_exporter_prometheus::PrometheusHandle;
 use ppdrive::db::bucket;
+use ppdrive::plugin::loader::LoadedPlugin;
 use ppdrive::state::AppState;
 use std::str::FromStr;
 use std::sync::OnceLock;
@@ -31,7 +32,6 @@ use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
-use ppdrive::plugin::loader::LoadedPlugin;
 
 /// Convert whitelisted url to axum AllowOrigin. When no url is provided, all origins will be allowed.
 fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
@@ -73,7 +73,9 @@ pub async fn create_test_app() -> anyhow::Result<(Router, u16, RouterPlugins)> {
     create_app_inner(false).await
 }
 
-async fn create_app_inner(enable_rate_limiting: bool) -> anyhow::Result<(Router, u16, RouterPlugins)> {
+async fn create_app_inner(
+    enable_rate_limiting: bool,
+) -> anyhow::Result<(Router, u16, RouterPlugins)> {
     start_logger()?;
     let state = AppState::with_broker().await?;
     let origins = state.config().allowed_origins.clone();

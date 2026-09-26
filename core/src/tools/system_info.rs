@@ -1,5 +1,5 @@
-use sysinfo::{Disks, Networks, System};
 use std::collections::HashSet;
+use sysinfo::{Disks, Networks, System};
 
 /// System overview information.
 pub struct SystemInfo {
@@ -29,7 +29,9 @@ impl SystemInfo {
         let uptime_secs = System::uptime();
         let uptime = format_uptime(uptime_secs);
 
-        let cpu = sys.cpus().first()
+        let cpu = sys
+            .cpus()
+            .first()
             .map(|c| c.brand().to_string())
             .unwrap_or_else(|| "unknown".to_string());
         let cpu_cores = sys.cpus().len() as u16;
@@ -185,10 +187,27 @@ fn parse_proc_mounts() -> Vec<(String, String, String)> {
     };
 
     let virtual_fs: HashSet<&str> = [
-        "proc", "sysfs", "devpts", "tmpfs", "cgroup", "cgroup2",
-        "pstore", "securityfs", "debugfs", "tracefs", "fusectl",
-        "configfs", "hugetlbfs", "mqueue", "autofs", "overlay",
-        "nsfs", "bpf", "rpc_pipefs", "nfsd", "efivarfs",
+        "proc",
+        "sysfs",
+        "devpts",
+        "tmpfs",
+        "cgroup",
+        "cgroup2",
+        "pstore",
+        "securityfs",
+        "debugfs",
+        "tracefs",
+        "fusectl",
+        "configfs",
+        "hugetlbfs",
+        "mqueue",
+        "autofs",
+        "overlay",
+        "nsfs",
+        "bpf",
+        "rpc_pipefs",
+        "nfsd",
+        "efivarfs",
     ]
     .into_iter()
     .collect();
@@ -251,8 +270,7 @@ fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
     let count = ret;
 
     let virtual_fs: HashSet<&str> = [
-        "devfs", "fdesc", "nullfs", "specfs", "tun",
-        "autofs", "map", "misfs", "sharefs",
+        "devfs", "fdesc", "nullfs", "specfs", "tun", "autofs", "map", "misfs", "sharefs",
     ]
     .into_iter()
     .collect();
@@ -396,9 +414,7 @@ fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
         let device = osstr_from_wide(&volume_name_buf)
             .to_string_lossy()
             .to_string();
-        let fs_type = osstr_from_wide(&fs_type_buf)
-            .to_string_lossy()
-            .to_string();
+        let fs_type = osstr_from_wide(&fs_type_buf).to_string_lossy().to_string();
 
         if fs_type.is_empty() {
             continue;
@@ -426,7 +442,11 @@ fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
 
         result.push(MountedDeviceInfo {
             mount_path: root,
-            device: if device.is_empty() { format!("{letter}:") } else { device },
+            device: if device.is_empty() {
+                format!("{letter}:")
+            } else {
+                device
+            },
             fs_type,
             total: format_bytes(total_bytes),
             used: format_bytes(used),
@@ -446,7 +466,14 @@ fn osstr_from_wide(buf: &[u16]) -> &OsStr {
 
 // ─── Fallback (unsupported platforms) ────────────────────────────────────────
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows")))]
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "windows"
+)))]
 fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
     Vec::new()
 }
@@ -463,7 +490,10 @@ fn format_bytes(bytes: u64) -> String {
     } else if bytes < 1024u64 * 1024 * 1024 * 1024 {
         format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
     } else {
-        format!("{:.1} TB", bytes as f64 / (1024.0 * 1024.0 * 1024.0 * 1024.0))
+        format!(
+            "{:.1} TB",
+            bytes as f64 / (1024.0 * 1024.0 * 1024.0 * 1024.0)
+        )
     }
 }
 
@@ -480,7 +510,10 @@ fn format_uptime(secs: u64) -> String {
         parts.push(format!("{hours} hour{}", if hours == 1 { "" } else { "s" }));
     }
     if minutes > 0 || parts.is_empty() {
-        parts.push(format!("{minutes} minute{}", if minutes == 1 { "" } else { "s" }));
+        parts.push(format!(
+            "{minutes} minute{}",
+            if minutes == 1 { "" } else { "s" }
+        ));
     }
     parts.join(", ")
 }

@@ -14,14 +14,7 @@ pub async fn execute_add(
     tokio::fs::create_dir_all(&libs_dir).await?;
 
     if local {
-        add_local(
-            id_or_path,
-            build,
-            source,
-            &libs_dir,
-            &mut registry,
-        )
-        .await?;
+        add_local(id_or_path, build, source, &libs_dir, &mut registry).await?;
     } else {
         add_remote(id_or_path, version, build, &libs_dir, &mut registry).await?;
     }
@@ -83,9 +76,8 @@ pub async fn install_remote(
 
     if build {
         // Download source tarball from GitHub
-        let source_url = format!(
-            "https://github.com/{id}/archive/refs/tags/v{release_version}.tar.gz"
-        );
+        let source_url =
+            format!("https://github.com/{id}/archive/refs/tags/v{release_version}.tar.gz");
 
         let temp_dir = ppdrive::root_dir()?.join("tmp_plugin_build");
         tokio::fs::create_dir_all(&temp_dir).await?;
@@ -122,7 +114,11 @@ pub async fn install_remote(
         let lib_name = plugin_lib_name(plugin_name);
         let dest = libs_dir.join(&lib_name);
         tokio::fs::copy(&lib_path, &dest).await.with_context(|| {
-            format!("failed to copy {} to {}", lib_path.display(), dest.display())
+            format!(
+                "failed to copy {} to {}",
+                lib_path.display(),
+                dest.display()
+            )
         })?;
 
         // Cleanup temp dir
@@ -213,9 +209,11 @@ async fn add_local(
             search_dir = dir.parent();
         }
         (
-            lib_path.ok_or_else(|| anyhow::anyhow!(
-                "no built library found for '{plugin_name}' in any target/release directory"
-            ))?,
+            lib_path.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "no built library found for '{plugin_name}' in any target/release directory"
+                )
+            })?,
             source_dir.to_string(),
         )
     } else {

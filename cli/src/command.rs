@@ -1,13 +1,13 @@
 use crate::subs::{AssetCommand, BucketCommand, ClientCommand, PluginCommand, UserCommand};
-use crate::{plugin, update, uninstall};
+use crate::{plugin, uninstall, update};
 use clap::{Parser, Subcommand};
-use ppdrive::db::client::{create_client, regenerate_token};
-use ppdrive::db::{asset, bucket, user};
+use ppdrive::AssetOwnerName;
+use ppdrive::asset_owner_id;
 use ppdrive::config::AppConfig;
 use ppdrive::db::Database;
+use ppdrive::db::client::{create_client, regenerate_token};
+use ppdrive::db::{asset, bucket, user};
 use ppdrive::secrets::AppSecrets;
-use ppdrive::asset_owner_id;
-use ppdrive::AssetOwnerName;
 use std::process::Command;
 
 /// PPDRIVE is a free, open-source object storage service built with Rust for speed, security,
@@ -26,27 +26,23 @@ impl Cli {
         match &self.command {
             CliCommand::Update => return update::execute().await,
             CliCommand::Uninstall { purge } => return uninstall::execute(*purge).await,
-            CliCommand::Plugin { command } => return match command {
-                PluginCommand::Add {
-                    id_or_path,
-                    version,
-                    local,
-                    source,
-                    build
-                } => {
-                    plugin::execute_add(
+            CliCommand::Plugin { command } => {
+                return match command {
+                    PluginCommand::Add {
                         id_or_path,
                         version,
-                        *local,
-                        source.as_deref(),
-                        *build
-                    )
-                        .await
-                }
-                PluginCommand::List => plugin::execute_list().await,
-                PluginCommand::Remove { id } => plugin::execute_remove(id).await,
-                PluginCommand::Update { id } => plugin::execute_update(id.as_deref()).await,
-            },
+                        local,
+                        source,
+                        build,
+                    } => {
+                        plugin::execute_add(id_or_path, version, *local, source.as_deref(), *build)
+                            .await
+                    }
+                    PluginCommand::List => plugin::execute_list().await,
+                    PluginCommand::Remove { id } => plugin::execute_remove(id).await,
+                    PluginCommand::Update { id } => plugin::execute_update(id.as_deref()).await,
+                };
+            }
             _ => {}
         }
 
@@ -94,7 +90,13 @@ impl Cli {
             },
 
             CliCommand::Asset { command } => match command {
-                AssetCommand::Grant { bucket, path, grantee, grantee_type, permission } => {
+                AssetCommand::Grant {
+                    bucket,
+                    path,
+                    grantee,
+                    grantee_type,
+                    permission,
+                } => {
                     let bucket_data = bucket::get(&bucket, &pool).await?;
                     let grantee_owner_id = match grantee_type.as_str() {
                         "user" => {
@@ -108,13 +110,23 @@ impl Cli {
                     };
 
                     let cleaned_path = path.trim_start_matches('/');
-                    let asset = asset::get_by_bucket_and_path(&pool, bucket_data.id, cleaned_path).await?
-                        .ok_or_else(|| anyhow::anyhow!("file not found. Upload the file first to register it."))?;
+                    let asset = asset::get_by_bucket_and_path(&pool, bucket_data.id, cleaned_path)
+                        .await?
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("file not found. Upload the file first to register it.")
+                        })?;
 
                     asset::grant(&pool, asset.id, grantee_owner_id, *permission).await?;
-                    println!("Permission '{permission}' granted to {grantee_type} '{grantee}' on '{cleaned_path}'");
+                    println!(
+                        "Permission '{permission}' granted to {grantee_type} '{grantee}' on '{cleaned_path}'"
+                    );
                 }
-                AssetCommand::Revoke { bucket, path, grantee, grantee_type } => {
+                AssetCommand::Revoke {
+                    bucket,
+                    path,
+                    grantee,
+                    grantee_type,
+                } => {
                     let bucket_data = bucket::get(&bucket, &pool).await?;
                     let grantee_owner_id = match grantee_type.as_str() {
                         "user" => {
@@ -128,18 +140,23 @@ impl Cli {
                     };
 
                     let cleaned_path = path.trim_start_matches('/');
-                    let asset = asset::get_by_bucket_and_path(&pool, bucket_data.id, cleaned_path).await?
+                    let asset = asset::get_by_bucket_and_path(&pool, bucket_data.id, cleaned_path)
+                        .await?
                         .ok_or_else(|| anyhow::anyhow!("file not found"))?;
 
                     asset::revoke(&pool, asset.id, grantee_owner_id).await?;
-                    println!("Permission revoked for {grantee_type} '{grantee}' on '{cleaned_path}'");
+                    println!(
+                        "Permission revoked for {grantee_type} '{grantee}' on '{cleaned_path}'"
+                    );
                 }
                 AssetCommand::List { bucket, path } => {
                     let bucket_data = bucket::get(&bucket, &pool).await?;
 
                     if let Some(path) = path {
                         let cleaned_path = path.trim_start_matches('/');
-                        let asset = asset::get_by_bucket_and_path(&pool, bucket_data.id, cleaned_path).await?;
+                        let asset =
+                            asset::get_by_bucket_and_path(&pool, bucket_data.id, cleaned_path)
+                                .await?;
                         match asset {
                             Some(asset) => {
                                 let permissions = asset::list_permissions(&pool, asset.id).await?;
@@ -148,7 +165,10 @@ impl Cli {
                                 } else {
                                     println!("Permissions for '{cleaned_path}':");
                                     for perm in &permissions {
-                                        println!("  {} ({}) -> {}", perm.grantee_name, perm.grantee_type, perm.permission);
+                                        println!(
+                                            "  {} ({}) -> {}",
+                                            perm.grantee_name, perm.grantee_type, perm.permission
+                                        );
                                     }
                                 }
                             }
@@ -157,14 +177,15 @@ impl Cli {
                             }
                         }
                     } else {
-                        println!("Listing all permissions for bucket '{}' is not yet supported via CLI. Use the API instead.", bucket);
+                        println!(
+                            "Listing all permissions for bucket '{}' is not yet supported via CLI. Use the API instead.",
+                            bucket
+                        );
                     }
                 }
             },
 
             CliCommand::Serve { port } => {
-
-
                 if cfg!(debug_assertions) {
                     let mut cmd = Command::new("cargo");
                     cmd.args(["run", "-p", "ppdrive_server"]);

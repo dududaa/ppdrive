@@ -4,13 +4,13 @@
 //! via a SHA-256 hash to avoid decrypting every row.
 
 use crate::db::Database;
+use crate::sql_safe;
 use crate::tools::secrets::AppSecrets;
 use anyhow::anyhow;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::aead::common::Generate;
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 use models::{Client, ClientInsertArgs};
-use crate::sql_safe;
 
 pub(crate) mod models;
 
@@ -25,7 +25,11 @@ fn encrypt_key(secrets: &AppSecrets, plaintext: &str) -> anyhow::Result<(String,
 }
 
 /// Decrypt an encrypted key using ChaCha20Poly1305 with the app secret.
-pub fn decrypt_key(secrets: &AppSecrets, encrypted_hex: &str, nonce_bytes: &[u8]) -> anyhow::Result<String> {
+pub fn decrypt_key(
+    secrets: &AppSecrets,
+    encrypted_hex: &str,
+    nonce_bytes: &[u8],
+) -> anyhow::Result<String> {
     let key = Key::try_from(secrets.secret_key())?;
     let cipher = XChaCha20Poly1305::new(&key);
     let nonce = XNonce::try_from(nonce_bytes)?;
@@ -36,7 +40,7 @@ pub fn decrypt_key(secrets: &AppSecrets, encrypted_hex: &str, nonce_bytes: &[u8]
 
 /// Generate a SHA-256 hash of a key for database lookups.
 fn hash_key(key: &str) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let hash = Sha256::digest(key.as_bytes());
 
     hex::encode(hash)
@@ -136,14 +140,21 @@ pub async fn get_clients(db: &Database) -> anyhow::Result<Vec<Client>> {
 
 /// Resolve a public client PID to its numeric ID.
 pub async fn get_id(pid: &str, db: &Database) -> anyhow::Result<i32> {
-    let query = sql_safe!("SELECT id FROM clients WHERE pid = {} LIMIT 1", db.placeholder(1));
+    let query = sql_safe!(
+        "SELECT id FROM clients WHERE pid = {} LIMIT 1",
+        db.placeholder(1)
+    );
     let id = sqlx::query_scalar(query).bind(pid).fetch_one(&**db).await?;
-    
+
     Ok(id)
 }
 
 /// Retrieve the client's PID and decrypted key for signing purposes.
-pub async fn get_claims_data(db: &Database, id: &i32, secrets: &AppSecrets) -> anyhow::Result<(String, String)> {
+pub async fn get_claims_data(
+    db: &Database,
+    id: &i32,
+    secrets: &AppSecrets,
+) -> anyhow::Result<(String, String)> {
     Client::get_claims_data(db, id, secrets).await
 }
 
@@ -153,7 +164,10 @@ pub async fn get_key(db: &Database, pid: &str, secrets: &AppSecrets) -> anyhow::
 }
 
 pub async fn get_description_keys(db: &Database, pid: &str) -> anyhow::Result<(String, Vec<u8>)> {
-    let query = sql_safe!("SELECT encrypted_key, key_nonce FROM clients WHERE pid = {} LIMIT 1", db.placeholder(1));
+    let query = sql_safe!(
+        "SELECT encrypted_key, key_nonce FROM clients WHERE pid = {} LIMIT 1",
+        db.placeholder(1)
+    );
     let row: (String, Vec<u8>) = sqlx::query_as(query)
         .bind(pid)
         .fetch_one(&**db)
@@ -187,8 +201,8 @@ impl From<(String, String)> for ClientDetails {
 
 #[cfg(test)]
 mod tests {
-    use crate::db::client::{create_client, verify_client};
     use crate::db::Database;
+    use crate::db::client::{create_client, verify_client};
     use crate::tools::secrets::AppSecrets;
     use std::env;
 

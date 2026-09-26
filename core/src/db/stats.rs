@@ -14,7 +14,10 @@ pub async fn count_users_after(db: &Database, since: &str) -> anyhow::Result<i64
         "SELECT COUNT(*) FROM users WHERE created_at >= {}",
         db.placeholder(1)
     );
-    let count: i64 = sqlx::query_scalar(query).bind(since).fetch_one(&**db).await?;
+    let count: i64 = sqlx::query_scalar(query)
+        .bind(since)
+        .fetch_one(&**db)
+        .await?;
     Ok(count)
 }
 

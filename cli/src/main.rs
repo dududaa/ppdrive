@@ -7,10 +7,10 @@ use crate::command::Cli;
 use clap::Parser;
 
 mod command;
-mod subs;
-mod update;
-mod uninstall;
 mod plugin;
+mod subs;
+mod uninstall;
+mod update;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {

@@ -1,14 +1,14 @@
 use crate::routers::middlewares::AuthExtractor;
-use crate::routers::resp::{api_error, api_response, ApiResponse};
-use ppdrive::state::AppState;
+use crate::routers::resp::{ApiResponse, api_error, api_response};
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use serde::{Deserialize, Serialize};
 use ppdrive::AssetOwnerName;
-use ppdrive::db::{asset, bucket, client, user};
-use ppdrive::db::asset::models::PermissionLevel;
 use ppdrive::asset_owner_id;
+use ppdrive::db::asset::models::PermissionLevel;
+use ppdrive::db::{asset, bucket, client, user};
+use ppdrive::state::AppState;
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Deserialize, Validate)]
@@ -61,8 +61,10 @@ async fn resolve_owned_bucket(
     let bucket_data = bucket::get(bucket_pid, state.db()).await?;
 
     if bucket_data.public {
-        return Err(api_error("permissions are only applicable to private buckets")
-            .with_status_code(StatusCode::BAD_REQUEST));
+        return Err(
+            api_error("permissions are only applicable to private buckets")
+                .with_status_code(StatusCode::BAD_REQUEST),
+        );
     }
 
     let owner_id = match auth {
@@ -121,18 +123,22 @@ pub(crate) async fn grant_permission(
     let bucket_data = resolve_owned_bucket(&state, &bucket_pid, &auth).await?;
     let grantee_owner_id = resolve_grantee(&state, &req.grantee, grantee_type).await?;
 
-    let permission: PermissionLevel = req.permission.parse()
+    let permission: PermissionLevel = req
+        .permission
+        .parse()
         .map_err(|e| api_error(e).with_status_code(StatusCode::BAD_REQUEST))?;
 
     let cleaned_path = req.path.trim_start_matches('/');
     if cleaned_path.is_empty() {
-        return Err(api_error("path must not be empty")
-            .with_status_code(StatusCode::BAD_REQUEST));
+        return Err(api_error("path must not be empty").with_status_code(StatusCode::BAD_REQUEST));
     }
 
-    let asset = asset::get_by_bucket_and_path(state.db(), bucket_data.id, cleaned_path).await?
-        .ok_or_else(|| api_error("file not found. Upload the file first to register it.")
-            .with_status_code(StatusCode::NOT_FOUND))?;
+    let asset = asset::get_by_bucket_and_path(state.db(), bucket_data.id, cleaned_path)
+        .await?
+        .ok_or_else(|| {
+            api_error("file not found. Upload the file first to register it.")
+                .with_status_code(StatusCode::NOT_FOUND)
+        })?;
 
     asset::grant(state.db(), asset.id, grantee_owner_id, permission).await?;
 
@@ -168,13 +174,12 @@ pub(crate) async fn revoke_permission(
 
     let cleaned_path = req.path.trim_start_matches('/');
     if cleaned_path.is_empty() {
-        return Err(api_error("path must not be empty")
-            .with_status_code(StatusCode::BAD_REQUEST));
+        return Err(api_error("path must not be empty").with_status_code(StatusCode::BAD_REQUEST));
     }
 
-    let asset = asset::get_by_bucket_and_path(state.db(), bucket_data.id, cleaned_path).await?
-        .ok_or_else(|| api_error("file not found")
-            .with_status_code(StatusCode::NOT_FOUND))?;
+    let asset = asset::get_by_bucket_and_path(state.db(), bucket_data.id, cleaned_path)
+        .await?
+        .ok_or_else(|| api_error("file not found").with_status_code(StatusCode::NOT_FOUND))?;
 
     asset::revoke(state.db(), asset.id, grantee_owner_id).await?;
 
@@ -210,12 +215,11 @@ pub(crate) async fn list_permissions(
                 let permissions = asset::list_permissions(state.db(), asset.id).await?;
                 api_response(permissions)
             }
-            None => {
-                api_response(vec![])
-            }
+            None => api_response(vec![]),
         }
     } else {
-        let permissions = asset::list_all_permissions_for_bucket(state.db(), bucket_data.id).await?;
+        let permissions =
+            asset::list_all_permissions_for_bucket(state.db(), bucket_data.id).await?;
         api_response(permissions)
     }
 }

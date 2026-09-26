@@ -85,7 +85,7 @@ impl PluginRegistry {
     pub fn find(&self, id: &str) -> Option<&PluginEntry> {
         self.plugins.plugins.iter().find(|p| p.id == id)
     }
-    
+
     pub fn libs_dir() -> anyhow::Result<PathBuf> {
         Ok(root_dir()?.join(LIBS_DIR))
     }

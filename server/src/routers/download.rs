@@ -4,22 +4,22 @@
 //! `GET /download/{token}` serves the file with Range-header support.
 
 use crate::routers::middlewares::{ClientExtractor, DownloadMiddleware};
-use crate::routers::resp::{api_error, api_response, ApiResponse, ResponseError};
-use ppdrive::state::AppState;
+use crate::routers::resp::{ApiResponse, ResponseError, api_error, api_response};
 use axum::Json;
 use axum::body::Body;
 use axum::extract::State;
-use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use ppdrive::AssetOwnerName;
-use ppdrive::db::{asset, bucket, client};
 use ppdrive::asset_owner_id;
 use ppdrive::db::asset::models::PermissionLevel;
+use ppdrive::db::{asset, bucket, client};
+use ppdrive::seconds_from_now;
 use ppdrive::server::{DownloadInfo, SignDownloadRequest};
+use ppdrive::state::AppState;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 use validator::Validate;
-use ppdrive::seconds_from_now;
 
 /// Resolve the file path for a download request.
 ///
@@ -36,8 +36,10 @@ async fn resolve_file_path(
 
     for component in std::path::Path::new(relative_path).components() {
         if matches!(component, std::path::Component::ParentDir) {
-            return Err(api_error("path contains invalid components: '..' is not allowed")
-                .with_status_code(StatusCode::BAD_REQUEST));
+            return Err(
+                api_error("path contains invalid components: '..' is not allowed")
+                    .with_status_code(StatusCode::BAD_REQUEST),
+            );
         }
     }
 
@@ -63,8 +65,7 @@ async fn resolve_file_path(
     .map_err(|e| api_error(format!("failed to resolve path: {e}")))?;
 
     if !is_file {
-        return Err(api_error("file not found")
-            .with_status_code(StatusCode::NOT_FOUND));
+        return Err(api_error("file not found").with_status_code(StatusCode::NOT_FOUND));
     }
 
     Ok(canonical_file)
@@ -115,21 +116,24 @@ pub(super) async fn sign_download(
     let bucket_data = bucket::get(&config.bucket, state.db()).await?;
 
     if bucket_data.public {
-        return Err(api_error("signed downloads are only available for private buckets")
-            .with_status_code(StatusCode::BAD_REQUEST));
+        return Err(
+            api_error("signed downloads are only available for private buckets")
+                .with_status_code(StatusCode::BAD_REQUEST),
+        );
     }
 
     // Validate the file path is within the bucket
     let cleaned_path = config.path.trim_start_matches('/');
     if cleaned_path.is_empty() {
-        return Err(api_error("path must not be empty")
-            .with_status_code(StatusCode::BAD_REQUEST));
+        return Err(api_error("path must not be empty").with_status_code(StatusCode::BAD_REQUEST));
     }
 
     for component in std::path::Path::new(cleaned_path).components() {
         if matches!(component, std::path::Component::ParentDir) {
-            return Err(api_error("path contains invalid components: '..' is not allowed")
-                .with_status_code(StatusCode::BAD_REQUEST));
+            return Err(
+                api_error("path contains invalid components: '..' is not allowed")
+                    .with_status_code(StatusCode::BAD_REQUEST),
+            );
         }
     }
 
@@ -145,10 +149,12 @@ pub(super) async fn sign_download(
     // Validate the file exists on disk
     let root_dir = state.config().root_dir()?;
     let file_path = root_dir.join(full_path.trim_start_matches('/'));
-    let is_file = tokio::fs::metadata(&file_path).await.map(|m| m.is_file()).unwrap_or(false);
+    let is_file = tokio::fs::metadata(&file_path)
+        .await
+        .map(|m| m.is_file())
+        .unwrap_or(false);
     if !is_file {
-        return Err(api_error("file not found")
-            .with_status_code(StatusCode::NOT_FOUND));
+        return Err(api_error("file not found").with_status_code(StatusCode::NOT_FOUND));
     }
 
     // Resolve the requesting client's asset_owner ID
@@ -162,20 +168,16 @@ pub(super) async fn sign_download(
         let asset = asset::get_by_bucket_and_path(state.db(), bucket_data.id, cleaned_path).await?;
         match asset {
             Some(asset) => {
-                let has_perm = asset::has_permission(
-                    state.db(),
-                    asset.id,
-                    owner_id,
-                    PermissionLevel::Read,
-                ).await?;
+                let has_perm =
+                    asset::has_permission(state.db(), asset.id, owner_id, PermissionLevel::Read)
+                        .await?;
                 if !has_perm {
                     return Err(api_error("access denied for the specified file")
                         .with_status_code(StatusCode::FORBIDDEN));
                 }
             }
             None => {
-                return Err(api_error("file not found")
-                    .with_status_code(StatusCode::NOT_FOUND));
+                return Err(api_error("file not found").with_status_code(StatusCode::NOT_FOUND));
             }
         }
     }
@@ -217,12 +219,10 @@ pub(super) async fn serve_download(
     let mut response_headers = HeaderMap::new();
     response_headers.insert(
         header::CONTENT_TYPE,
-        HeaderValue::from_str(&mime).unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+        HeaderValue::from_str(&mime)
+            .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );
-    response_headers.insert(
-        header::ACCEPT_RANGES,
-        HeaderValue::from_static("bytes"),
-    );
+    response_headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
 
     // Handle Range request
     if let Some(range_header) = headers.get(header::RANGE) {
@@ -240,9 +240,11 @@ pub(super) async fn serve_download(
                 response_headers.insert(header::CONTENT_RANGE, val);
             }
 
-            let mut file = tokio::fs::File::open(&file_path).await
+            let mut file = tokio::fs::File::open(&file_path)
+                .await
                 .map_err(|e| api_error(format!("failed to open file: {e}")))?;
-            file.seek(std::io::SeekFrom::Start(start)).await
+            file.seek(std::io::SeekFrom::Start(start))
+                .await
                 .map_err(|e| api_error(format!("failed to seek file: {e}")))?;
 
             let limited = file.take(content_length);
@@ -252,8 +254,9 @@ pub(super) async fn serve_download(
             return Ok((StatusCode::PARTIAL_CONTENT, response_headers, body).into_response());
         }
 
-        return Err(api_error("Range not satisfiable")
-            .with_status_code(StatusCode::RANGE_NOT_SATISFIABLE));
+        return Err(
+            api_error("Range not satisfiable").with_status_code(StatusCode::RANGE_NOT_SATISFIABLE)
+        );
     }
 
     // Full file response
@@ -261,7 +264,8 @@ pub(super) async fn serve_download(
         response_headers.insert(header::CONTENT_LENGTH, val);
     }
 
-    let file = tokio::fs::File::open(&file_path).await
+    let file = tokio::fs::File::open(&file_path)
+        .await
         .map_err(|e| api_error(format!("failed to open file: {e}")))?;
 
     let stream = ReaderStream::new(file);

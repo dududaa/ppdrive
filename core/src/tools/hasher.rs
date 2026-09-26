@@ -7,7 +7,7 @@
 
 use crate::db::{Database, client};
 use crate::hasher::errors::PayloadVerificationError;
-use crate::server::{DownloadInfo, UserInfo, UploadInfo};
+use crate::server::{DownloadInfo, UploadInfo, UserInfo};
 use crate::tools::secrets::AppSecrets;
 use anyhow::anyhow;
 use base64::Engine;

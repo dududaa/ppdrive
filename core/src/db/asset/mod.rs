@@ -1,8 +1,8 @@
+use crate::AssetOwnerName;
 use crate::db::Database;
 use crate::generate_nano_id;
 use crate::sql_safe;
 use crate::utils::instance_as_string;
-use crate::AssetOwnerName;
 use models::{Asset, PermissionLevel, PermissionWithGrantee};
 
 pub mod models;
@@ -116,7 +116,10 @@ pub async fn revoke(db: &Database, asset_id: i32, grantee_owner_id: i32) -> anyh
 }
 
 /// List all permissions for an asset, resolving grantee name from either clients or users.
-pub async fn list_permissions(db: &Database, asset_id: i32) -> anyhow::Result<Vec<PermissionWithGrantee>> {
+pub async fn list_permissions(
+    db: &Database,
+    asset_id: i32,
+) -> anyhow::Result<Vec<PermissionWithGrantee>> {
     let query = sql_safe!(
         "SELECT fp.id, fp.asset_id, fp.grantee_id, ao.name AS grantee_type,
                 COALESCE(c.name, u.email) AS grantee_name,
@@ -140,30 +143,35 @@ pub async fn list_permissions(db: &Database, asset_id: i32) -> anyhow::Result<Ve
 
     let permissions = rows
         .into_iter()
-        .map(|(id, asset_id, grantee_id, grantee_type, grantee_name, perm, created_at)| {
-            let level = PermissionLevel::from(perm);
-            let grantee_type = if grantee_type == i16::from(AssetOwnerName::User) {
-                "user".to_string()
-            } else {
-                "client".to_string()
-            };
-            PermissionWithGrantee {
-                id,
-                asset_id,
-                grantee_id,
-                grantee_type,
-                grantee_name,
-                permission: level.to_string(),
-                created_at,
-            }
-        })
+        .map(
+            |(id, asset_id, grantee_id, grantee_type, grantee_name, perm, created_at)| {
+                let level = PermissionLevel::from(perm);
+                let grantee_type = if grantee_type == i16::from(AssetOwnerName::User) {
+                    "user".to_string()
+                } else {
+                    "client".to_string()
+                };
+                PermissionWithGrantee {
+                    id,
+                    asset_id,
+                    grantee_id,
+                    grantee_type,
+                    grantee_name,
+                    permission: level.to_string(),
+                    created_at,
+                }
+            },
+        )
         .collect();
 
     Ok(permissions)
 }
 
 /// List all permissions for all assets in a bucket.
-pub async fn list_all_permissions_for_bucket(db: &Database, bucket_id: i32) -> anyhow::Result<Vec<PermissionWithGrantee>> {
+pub async fn list_all_permissions_for_bucket(
+    db: &Database,
+    bucket_id: i32,
+) -> anyhow::Result<Vec<PermissionWithGrantee>> {
     let query = sql_safe!(
         "SELECT fp.id, fp.asset_id, fp.grantee_id, ao.name AS grantee_type,
                 COALESCE(c.name, u.email) AS grantee_name,
@@ -188,23 +196,25 @@ pub async fn list_all_permissions_for_bucket(db: &Database, bucket_id: i32) -> a
 
     let permissions = rows
         .into_iter()
-        .map(|(id, asset_id, grantee_id, grantee_type, grantee_name, perm, created_at)| {
-            let level = PermissionLevel::from(perm);
-            let grantee_type = if grantee_type == i16::from(AssetOwnerName::User) {
-                "user".to_string()
-            } else {
-                "client".to_string()
-            };
-            PermissionWithGrantee {
-                id,
-                asset_id,
-                grantee_id,
-                grantee_type,
-                grantee_name,
-                permission: level.to_string(),
-                created_at,
-            }
-        })
+        .map(
+            |(id, asset_id, grantee_id, grantee_type, grantee_name, perm, created_at)| {
+                let level = PermissionLevel::from(perm);
+                let grantee_type = if grantee_type == i16::from(AssetOwnerName::User) {
+                    "user".to_string()
+                } else {
+                    "client".to_string()
+                };
+                PermissionWithGrantee {
+                    id,
+                    asset_id,
+                    grantee_id,
+                    grantee_type,
+                    grantee_name,
+                    permission: level.to_string(),
+                    created_at,
+                }
+            },
+        )
         .collect();
 
     Ok(permissions)

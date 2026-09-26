@@ -1,12 +1,12 @@
-use crate::routers::resp::{api_error, api_response, ApiResponse};
-use ppdrive::state::AppState;
+use crate::routers::resp::{ApiResponse, api_error, api_response};
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
-use serde::{Deserialize, Serialize};
 use ppdrive::db::user;
-use ppdrive::server::UserInfo;
 use ppdrive::seconds_from_now;
+use ppdrive::server::UserInfo;
+use ppdrive::state::AppState;
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Deserialize, Validate)]
@@ -38,8 +38,7 @@ pub(crate) async fn login(
 
     let user_id = user::verify_password(&req.email, &req.password, state.db())
         .await
-        .map_err(|_| api_error("invalid credentials")
-            .with_status_code(StatusCode::UNAUTHORIZED))?;
+        .map_err(|_| api_error("invalid credentials").with_status_code(StatusCode::UNAUTHORIZED))?;
 
     let expires_in = 3600; // 1 hour
     let exp = seconds_from_now(expires_in)?;
@@ -55,8 +54,5 @@ pub(crate) async fn login(
 
     tracing::info!(user_id = user_id, "user logged in");
 
-    api_response(LoginResponse {
-        token,
-        expires_in,
-    })
+    api_response(LoginResponse { token, expires_in })
 }

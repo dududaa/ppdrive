@@ -1,6 +1,6 @@
 use clap::{Args, Subcommand};
-use ppdrive::db::bucket::models::CreateBucketData;
 use ppdrive::db::asset::models::PermissionLevel;
+use ppdrive::db::bucket::models::CreateBucketData;
 
 #[derive(Subcommand, Debug)]
 pub enum ClientCommand {

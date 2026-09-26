@@ -6,13 +6,13 @@
 //! [`DownloadMiddleware`] verifies the signed download token.
 
 use crate::routers::resp::{ResponseError, api_error};
-use ppdrive::state::AppState;
 use axum::extract::{FromRef, FromRequestParts, Path};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use ppdrive::db::client::verify_client;
-use ppdrive::server::{DownloadInfo, UserInfo, UploadInfo};
 use ppdrive::hasher::errors::PayloadVerificationError;
+use ppdrive::server::{DownloadInfo, UploadInfo, UserInfo};
+use ppdrive::state::AppState;
 
 /// Axum extractor that authenticates the request via the client API-key header.
 pub struct ClientExtractor(i32);
@@ -37,16 +37,15 @@ where
             api_error("missing client header key").with_status_code(StatusCode::UNAUTHORIZED),
         )?;
 
-        let client_token = header
-            .to_str()
-            .map_err(|_| api_error("invalid client token").with_status_code(StatusCode::BAD_REQUEST))?;
+        let client_token = header.to_str().map_err(|_| {
+            api_error("invalid client token").with_status_code(StatusCode::BAD_REQUEST)
+        })?;
 
         let client_id = verify_client(state.db(), state.secrets(), client_token)
             .await
             .map_err(|e| {
                 tracing::error!("client verification failed: {e}");
-                api_error("client verification failed")
-                    .with_status_code(StatusCode::UNAUTHORIZED)
+                api_error("client verification failed").with_status_code(StatusCode::UNAUTHORIZED)
             })?;
 
         Ok(Self(client_id))
@@ -77,10 +76,14 @@ where
 
         let token = auth_header
             .to_str()
-            .map_err(|_| api_error("invalid authorization header").with_status_code(StatusCode::BAD_REQUEST))?
+            .map_err(|_| {
+                api_error("invalid authorization header").with_status_code(StatusCode::BAD_REQUEST)
+            })?
             .strip_prefix("Bearer ")
-            .ok_or_else(|| api_error("invalid authorization format, expected 'Bearer <token>'")
-                .with_status_code(StatusCode::UNAUTHORIZED))?;
+            .ok_or_else(|| {
+                api_error("invalid authorization format, expected 'Bearer <token>'")
+                    .with_status_code(StatusCode::UNAUTHORIZED)
+            })?;
 
         let info = UserInfo::verify(token, state.db(), state.secrets(), state.hasher())
             .await
@@ -152,19 +155,20 @@ where
             match UserInfo::verify(token, state.db(), state.secrets(), state.hasher()).await {
                 Ok(info) => return Ok(AuthExtractor::User(UserExtractor(info))),
                 Err(PayloadVerificationError::Expired) => {
-                    return Err(api_error("token expired")
-                        .with_status_code(StatusCode::UNAUTHORIZED));
+                    return Err(
+                        api_error("token expired").with_status_code(StatusCode::UNAUTHORIZED)
+                    );
                 }
                 Err(PayloadVerificationError::Error(err)) => {
                     tracing::error!("user verification failed: {err}");
-                    return Err(api_error("invalid token")
-                        .with_status_code(StatusCode::UNAUTHORIZED));
+                    return Err(
+                        api_error("invalid token").with_status_code(StatusCode::UNAUTHORIZED)
+                    );
                 }
             }
         }
 
-        Err(api_error("authentication required")
-            .with_status_code(StatusCode::UNAUTHORIZED))
+        Err(api_error("authentication required").with_status_code(StatusCode::UNAUTHORIZED))
     }
 }
 

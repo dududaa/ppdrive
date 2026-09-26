@@ -1,8 +1,8 @@
 //! Client database model and insert helpers.
 
 use crate::db::Database;
-use crate::utils::{AssetOwnerName, instance_as_string};
 use crate::tools::secrets::AppSecrets;
+use crate::utils::{AssetOwnerName, instance_as_string};
 use crate::{generate_nano_id, sql_safe};
 use serde::Serialize;
 use sqlx::FromRow;
@@ -25,7 +25,13 @@ impl Client {
     }
 
     pub async fn create(db: &Database, args: ClientInsertArgs) -> anyhow::Result<String> {
-        let ClientInsertArgs { pid, name, encrypted_key, key_nonce, key_hash } = args;
+        let ClientInsertArgs {
+            pid,
+            name,
+            encrypted_key,
+            key_nonce,
+            key_hash,
+        } = args;
 
         let now = instance_as_string()?;
         let mut placeholders = Vec::with_capacity(6);
@@ -69,16 +75,18 @@ impl Client {
         Ok(pid)
     }
 
-    pub async fn get_claims_data(db: &Database, id: &i32, secrets: &AppSecrets) -> anyhow::Result<(String, String)> {
+    pub async fn get_claims_data(
+        db: &Database,
+        id: &i32,
+        secrets: &AppSecrets,
+    ) -> anyhow::Result<(String, String)> {
         let query = sql_safe!(
             "SELECT pid, encrypted_key, key_nonce FROM clients WHERE id = {} LIMIT 1",
             db.placeholder(1)
         );
 
-        let row: (String, String, Vec<u8>) = sqlx::query_as(query)
-            .bind(id)
-            .fetch_one(&**db)
-            .await?;
+        let row: (String, String, Vec<u8>) =
+            sqlx::query_as(query).bind(id).fetch_one(&**db).await?;
 
         let plaintext_key = super::decrypt_key(secrets, &row.1, &row.2)?;
         Ok((row.0, plaintext_key))
@@ -103,7 +111,11 @@ impl Client {
     }
 
     /// Retrieve and decrypt the client's plaintext key.
-    pub async fn get_key_encrypted(db: &Database, pid: &str, secrets: &AppSecrets) -> anyhow::Result<String> {
+    pub async fn get_key_encrypted(
+        db: &Database,
+        pid: &str,
+        secrets: &AppSecrets,
+    ) -> anyhow::Result<String> {
         let query = sql_safe!(
             "SELECT encrypted_key, key_nonce FROM clients WHERE pid = {} LIMIT 1",
             db.placeholder(1)
@@ -119,7 +131,10 @@ impl Client {
             "SELECT id FROM clients WHERE key_hash = {} LIMIT 1",
             db.placeholder(1)
         );
-        let id = sqlx::query_scalar(query).bind(key_hash).fetch_one(&**db).await?;
+        let id = sqlx::query_scalar(query)
+            .bind(key_hash)
+            .fetch_one(&**db)
+            .await?;
         Ok(id)
     }
 

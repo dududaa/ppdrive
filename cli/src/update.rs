@@ -34,7 +34,8 @@ pub async fn execute() -> Result<(), anyhow::Error> {
 
     println!("Extracting binaries...");
 
-    let extracted = extract_tarball(&tarball_path, &temp_dir).context("failed to extract tarball")?;
+    let extracted =
+        extract_tarball(&tarball_path, &temp_dir).context("failed to extract tarball")?;
 
     // Create backups before replacing
     let mut backups: Vec<(PathBuf, PathBuf)> = Vec::new();
@@ -82,9 +83,7 @@ pub async fn execute() -> Result<(), anyhow::Error> {
     if updated.is_empty() {
         println!("No binaries were updated. The release may not include this platform.");
     } else {
-        println!(
-            "\nUpdated successfully from v{current_version} to v{latest_version}!"
-        );
+        println!("\nUpdated successfully from v{current_version} to v{latest_version}!");
         println!("Restart your server if it's running.");
     }
 
@@ -131,9 +130,7 @@ async fn download_release(
 ) -> Result<PathBuf, anyhow::Error> {
     tokio::fs::create_dir_all(temp_dir).await?;
 
-    let url = format!(
-        "https://github.com/{REPO}/releases/download/v{version}/{asset_name}"
-    );
+    let url = format!("https://github.com/{REPO}/releases/download/v{version}/{asset_name}");
 
     let mut resp = ureq::get(&url)
         .header("User-Agent", "ppdrive-updater")

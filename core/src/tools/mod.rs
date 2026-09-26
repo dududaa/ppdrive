@@ -4,8 +4,8 @@
 //! and cryptographic hashing.
 
 pub mod config;
-pub mod secrets;
 pub mod plugin;
+pub mod secrets;
 #[cfg(feature = "server")]
 pub mod system_info;
 
@@ -107,7 +107,11 @@ pub fn generate_nano_id(size: usize) -> String {
 /// within `max_age`. Returns the number of files removed.
 pub async fn cleanup_tmp_files(max_age: std::time::Duration) -> anyhow::Result<usize> {
     let tmp_dir = root_dir()?.join("tmp");
-    if !tokio::fs::metadata(&tmp_dir).await.map(|m| m.is_dir()).unwrap_or(false) {
+    if !tokio::fs::metadata(&tmp_dir)
+        .await
+        .map(|m| m.is_dir())
+        .unwrap_or(false)
+    {
         return Ok(0);
     }
 
@@ -118,13 +122,14 @@ pub async fn cleanup_tmp_files(max_age: std::time::Duration) -> anyhow::Result<u
     while let Ok(Some(entry)) = entries.next_entry().await {
         if let Ok(metadata) = entry.metadata().await
             && let Ok(modified) = metadata.modified()
-                && now.duration_since(modified).unwrap_or_default() > max_age {
-                    if let Err(err) = tokio::fs::remove_file(entry.path()).await {
-                        tracing::warn!("failed to remove stale tmp file {:?}: {err}", entry.path());
-                    } else {
-                        removed += 1;
-                    }
-                }
+            && now.duration_since(modified).unwrap_or_default() > max_age
+        {
+            if let Err(err) = tokio::fs::remove_file(entry.path()).await {
+                tracing::warn!("failed to remove stale tmp file {:?}: {err}", entry.path());
+            } else {
+                removed += 1;
+            }
+        }
     }
 
     if removed > 0 {
@@ -133,5 +138,3 @@ pub async fn cleanup_tmp_files(max_age: std::time::Duration) -> anyhow::Result<u
 
     Ok(removed)
 }
-
-

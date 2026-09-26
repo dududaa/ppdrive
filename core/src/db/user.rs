@@ -2,7 +2,7 @@
 
 use crate::db::Database;
 use crate::sql_safe;
-use crate::utils::{check_password, instance_as_string, AssetOwnerName, make_password};
+use crate::utils::{AssetOwnerName, check_password, instance_as_string, make_password};
 
 /// Create a new user, hash the password with Argon2, and register as an asset owner.
 pub async fn create(email: &str, password: &str, db: &Database) -> anyhow::Result<()> {
@@ -15,8 +15,10 @@ pub async fn create(email: &str, password: &str, db: &Database) -> anyhow::Resul
     }
 
     let placeholders = placeholders.join(",");
-    let query =
-        sql_safe!("INSERT INTO users (email, password, created_at, updated_at) VALUES ({placeholders}, {})", db.placeholder(4));
+    let query = sql_safe!(
+        "INSERT INTO users (email, password, created_at, updated_at) VALUES ({placeholders}, {})",
+        db.placeholder(4)
+    );
 
     sqlx::query(query)
         .bind(email)
@@ -66,10 +68,7 @@ pub async fn find_by_email(email: &str, db: &Database) -> anyhow::Result<(i32, S
         "SELECT id, password FROM users WHERE email = {} LIMIT 1",
         db.placeholder(1)
     );
-    let row: (i32, String) = sqlx::query_as(query)
-        .bind(email)
-        .fetch_one(&**db)
-        .await?;
+    let row: (i32, String) = sqlx::query_as(query).bind(email).fetch_one(&**db).await?;
     Ok(row)
 }
 

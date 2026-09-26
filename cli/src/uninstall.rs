@@ -77,7 +77,9 @@ pub async fn execute(purge: bool) -> Result<(), anyhow::Error> {
         }
         if let Ok(path) = std::env::var("PATH") {
             if !path.split(':').any(|p| p == bin_dir) {
-                println!("Note: {bin_dir} is in your PATH but no longer contains ppdrive binaries.");
+                println!(
+                    "Note: {bin_dir} is in your PATH but no longer contains ppdrive binaries."
+                );
             }
         }
     }

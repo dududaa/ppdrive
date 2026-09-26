@@ -6,8 +6,8 @@
 pub mod models;
 
 use crate::db::Database;
-use crate::utils::{asset_owner_id, instance_as_string};
 use crate::tools::config::StaticFolder;
+use crate::utils::{asset_owner_id, instance_as_string};
 use crate::{generate_nano_id, paths_cross, sql_safe};
 use anyhow::anyhow;
 use models::{Bucket, CreateBucketData};
@@ -254,9 +254,7 @@ async fn validate_parent_ownership(
         }
     }
 
-    let query = sql_safe!(
-        "SELECT DISTINCT owner_id FROM buckets WHERE path IN ({placeholders})",
-    );
+    let query = sql_safe!("SELECT DISTINCT owner_id FROM buckets WHERE path IN ({placeholders})",);
     let mut qs = sqlx::query_scalar(query);
     for parent in parents {
         qs = qs.bind(parent);

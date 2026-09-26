@@ -3,14 +3,14 @@
 //! `POST /buckets` creates a new bucket owned by the authenticated client.
 
 use crate::routers::middlewares::ClientExtractor;
-use crate::routers::resp::{api_error, api_response, ApiResponse};
-use ppdrive::state::AppState;
+use crate::routers::resp::{ApiResponse, api_error, api_response};
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
+use ppdrive::AssetOwnerName;
 use ppdrive::db::bucket;
 use ppdrive::db::bucket::models::{CreateBucketData, CreateBucketRequest};
-use ppdrive::AssetOwnerName;
+use ppdrive::state::AppState;
 use std::path::Path;
 use validator::Validate;
 
@@ -37,10 +37,8 @@ pub(super) async fn create_bucket(
                 );
             }
             std::path::Component::RootDir | std::path::Component::Prefix(_) => {
-                return Err(
-                    api_error("path must be relative (must not start with '/')")
-                        .with_status_code(StatusCode::BAD_REQUEST),
-                );
+                return Err(api_error("path must be relative (must not start with '/')")
+                    .with_status_code(StatusCode::BAD_REQUEST));
             }
             _ => {}
         }
@@ -48,9 +46,7 @@ pub(super) async fn create_bucket(
 
     let path = req.path.trim_start_matches('/');
     if path.is_empty() {
-        return Err(
-            api_error("path must not be empty").with_status_code(StatusCode::BAD_REQUEST),
-        );
+        return Err(api_error("path must not be empty").with_status_code(StatusCode::BAD_REQUEST));
     }
 
     let owner_id = client.id();

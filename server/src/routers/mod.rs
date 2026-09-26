@@ -5,8 +5,8 @@
 mod auth;
 mod bucket;
 mod download;
-mod middlewares;
 mod metrics;
+mod middlewares;
 mod permissions;
 mod resp;
 mod upload;
@@ -14,13 +14,13 @@ mod upload;
 use self::auth::*;
 use self::bucket::*;
 use self::download::*;
+pub(crate) use self::metrics::MetricsLayer;
 use self::permissions::*;
 use self::upload::*;
-pub(crate) use self::metrics::MetricsLayer;
-use ppdrive::state::AppState;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
+use ppdrive::state::AppState;
 use tower::limit::ConcurrencyLimitLayer;
 
 const DEFAULT_BODY_LIMIT: usize = 2 * 1024 * 1024; // 2MB max upload

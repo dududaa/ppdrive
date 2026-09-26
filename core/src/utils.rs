@@ -3,16 +3,16 @@
 //! Provides the [`AssetOwnerName`] enum, [`sql_safe!`] macro for engine-agnostic
 //! placeholder interpolation, and ownership-checking queries.
 
-use std::time::{SystemTime, UNIX_EPOCH};
 /// Utilities used by database queries
 // use crate::sql_safe;
 use crate::db::Database;
-use clap::ValueEnum;
-use time::OffsetDateTime;
+use anyhow::anyhow;
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use anyhow::anyhow;
+use clap::ValueEnum;
+use std::time::{SystemTime, UNIX_EPOCH};
+use time::OffsetDateTime;
 
 #[macro_export]
 macro_rules! sql_safe {
@@ -35,7 +35,7 @@ pub async fn asset_owner_id(
         db.placeholder(1),
         db.placeholder(2)
     );
-    
+
     let id = sqlx::query_scalar(query)
         .bind(i16::from(owner_name))
         .bind(owner_id)
@@ -103,9 +103,21 @@ pub fn instance_as_string() -> anyhow::Result<String> {
 }
 
 /// Check whether an asset owner entry exists for the given type and numeric ID.
-pub async fn check_ownership(owner_type: AssetOwnerName, owner_id: i32, db: &Database) -> anyhow::Result<bool> {
-    let query = sql_safe!("SELECT CASE WHEN EXISTS(SELECT 1 FROM asset_owner WHERE name = {} AND owner_id = {}) THEN 1 ELSE 0 END", db.placeholder(1), db.placeholder(2));
-    let exists: i32 = sqlx::query_scalar(query).bind(i16::from(owner_type)).bind(owner_id).fetch_one(&**db).await?;
+pub async fn check_ownership(
+    owner_type: AssetOwnerName,
+    owner_id: i32,
+    db: &Database,
+) -> anyhow::Result<bool> {
+    let query = sql_safe!(
+        "SELECT CASE WHEN EXISTS(SELECT 1 FROM asset_owner WHERE name = {} AND owner_id = {}) THEN 1 ELSE 0 END",
+        db.placeholder(1),
+        db.placeholder(2)
+    );
+    let exists: i32 = sqlx::query_scalar(query)
+        .bind(i16::from(owner_type))
+        .bind(owner_id)
+        .fetch_one(&**db)
+        .await?;
 
     Ok(exists != 0)
 }

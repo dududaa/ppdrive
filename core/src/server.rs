@@ -6,10 +6,10 @@
 
 use crate::db::Database;
 use crate::hasher::{Hashable, Hasher, errors::PayloadVerificationError};
+use crate::utils;
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-use crate::utils;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct UploadInfo {
@@ -228,11 +228,11 @@ pub enum AssetType {
 #[cfg(test)]
 mod tests {
     use crate::config::AppConfig;
-    use crate::utils::seconds_from_now;
     use crate::db::{Database, client};
     use crate::hasher::Hasher;
     use crate::secrets::AppSecrets;
     use crate::server::{UploadInfo, UploadUrlConfig};
+    use crate::utils::seconds_from_now;
     use std::sync::Arc;
     use tokio::sync::{Mutex, OnceCell};
 

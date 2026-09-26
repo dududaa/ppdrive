@@ -13,7 +13,8 @@ async fn main() -> anyhow::Result<()> {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
         loop {
             interval.tick().await;
-            if let Err(err) = ppdrive::cleanup_tmp_files(std::time::Duration::from_secs(7200)).await {
+            if let Err(err) = ppdrive::cleanup_tmp_files(std::time::Duration::from_secs(7200)).await
+            {
                 tracing::error!("tmp cleanup failed: {err}");
             }
         }
@@ -55,9 +56,12 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("shutdown signal received, draining connections...");
     };
 
-    axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>())
-        .with_graceful_shutdown(shutdown)
-        .await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown)
+    .await?;
 
     Ok(())
 }

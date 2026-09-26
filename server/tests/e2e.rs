@@ -5,9 +5,9 @@ use axum::http::StatusCode;
 use ppdrive::db::client::create_client;
 use ppdrive::db::user;
 use ppdrive::root_dir;
-use ppdrive::server::{UploadUrlConfig, AssetType};
+use ppdrive::server::{AssetType, UploadUrlConfig};
 use ppdrive::state::AppState;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncReadExt;
 
@@ -381,9 +381,7 @@ async fn test_download_full_flow() -> anyhow::Result<()> {
     assert!(!download_token.is_empty());
 
     // 4. Download the file
-    let resp = server
-        .get(&format!("/download/{download_token}"))
-        .await;
+    let resp = server.get(&format!("/download/{download_token}")).await;
     resp.assert_status_ok();
     let downloaded = resp.into_bytes();
     assert_eq!(downloaded.len(), original_size);
@@ -504,7 +502,10 @@ async fn test_login_valid_credentials() -> anyhow::Result<()> {
 
     let data: Value = resp.json();
     assert!(data["token"].is_string(), "response should contain a token");
-    assert!(data["expires_in"].is_number(), "response should contain expires_in");
+    assert!(
+        data["expires_in"].is_number(),
+        "response should contain expires_in"
+    );
     assert_eq!(data["expires_in"].as_i64().unwrap(), 3600);
     Ok(())
 }
@@ -626,22 +627,29 @@ async fn test_grant_and_revoke_permission_flow() -> anyhow::Result<()> {
     let download_token: String = resp.json();
 
     // 6. Client B downloads the file
-    let resp = server
-        .get(&format!("/download/{download_token}"))
-        .await;
+    let resp = server.get(&format!("/download/{download_token}")).await;
     resp.assert_status_ok();
     let downloaded = resp.into_bytes();
     assert_eq!(downloaded.len(), file_data.len());
 
     // 7. Client A lists permissions
     let resp = server
-        .get(&format!("/buckets/{bucket_pid}/permissions?path=secret.jpg"))
+        .get(&format!(
+            "/buckets/{bucket_pid}/permissions?path=secret.jpg"
+        ))
         .add_header(&header_key, &token_a)
         .await;
     resp.assert_status_ok();
     let perms: Vec<Value> = resp.json();
-    assert!(perms.len() >= 1, "expected at least 1 permission, got {}", perms.len());
-    assert!(perms.iter().any(|p| p["permission"] == "read"), "expected a read permission");
+    assert!(
+        perms.len() >= 1,
+        "expected at least 1 permission, got {}",
+        perms.len()
+    );
+    assert!(
+        perms.iter().any(|p| p["permission"] == "read"),
+        "expected a read permission"
+    );
 
     // 8. Client A revokes permission
     let revoke_body = json!({
@@ -913,10 +921,20 @@ async fn test_cli_client_create_and_list() -> anyhow::Result<()> {
         .output()
         .await?;
 
-    assert!(output.status.success(), "client create should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "client create should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8(output.stdout)?;
-    assert!(stdout.contains("Client ID:"), "output should contain Client ID");
-    assert!(stdout.contains("Client Token:"), "output should contain Client Token");
+    assert!(
+        stdout.contains("Client ID:"),
+        "output should contain Client ID"
+    );
+    assert!(
+        stdout.contains("Client Token:"),
+        "output should contain Client Token"
+    );
 
     // List clients
     let output = tokio::process::Command::new(&ppdrive_bin)
@@ -939,11 +957,22 @@ async fn test_cli_user_create() -> anyhow::Result<()> {
     }
 
     let output = tokio::process::Command::new(&ppdrive_bin)
-        .args(["user", "create", "--email", "cli-test@example.com", "--password", "Pass123!"])
+        .args([
+            "user",
+            "create",
+            "--email",
+            "cli-test@example.com",
+            "--password",
+            "Pass123!",
+        ])
         .output()
         .await?;
 
-    assert!(output.status.success(), "user create should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "user create should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8(output.stdout)?;
     assert!(stdout.contains("User created successfully!"));
     assert!(stdout.contains("cli-test@example.com"));
@@ -964,24 +993,34 @@ async fn test_cli_bucket_create() -> anyhow::Result<()> {
         .output()
         .await?;
     let stdout = String::from_utf8(output.stdout)?;
-    let client_pid = stdout.lines()
+    let client_pid = stdout
+        .lines()
         .find_map(|line| line.strip_prefix("PID: ").map(|s| s.trim().to_string()))
         .expect("should have at least one client");
 
     // Create bucket
     let output = tokio::process::Command::new(&ppdrive_bin)
         .args([
-            "bucket", "create",
-            "--name", "CLI Test Bucket",
-            "--path", "cli-test-bucket",
-            "--owner-type", "client",
-            "--owner-id", &client_pid,
+            "bucket",
+            "create",
+            "--name",
+            "CLI Test Bucket",
+            "--path",
+            "cli-test-bucket",
+            "--owner-type",
+            "client",
+            "--owner-id",
+            &client_pid,
             "--public",
         ])
         .output()
         .await?;
 
-    assert!(output.status.success(), "bucket create should succeed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "bucket create should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8(output.stdout)?;
     assert!(stdout.contains("Bucket created successfully!"));
     assert!(stdout.contains("Bucket ID:"));
@@ -999,11 +1038,16 @@ async fn test_cli_bucket_path_validation() -> anyhow::Result<()> {
     // Try absolute path
     let output = tokio::process::Command::new(&ppdrive_bin)
         .args([
-            "bucket", "create",
-            "--name", "Bad Bucket",
-            "--path", "/etc/passwd",
-            "--owner-type", "client",
-            "--owner-id", "1",
+            "bucket",
+            "create",
+            "--name",
+            "Bad Bucket",
+            "--path",
+            "/etc/passwd",
+            "--owner-type",
+            "client",
+            "--owner-id",
+            "1",
             "--public",
         ])
         .output()
@@ -1019,11 +1063,16 @@ async fn test_cli_bucket_path_validation() -> anyhow::Result<()> {
     // Try path with ..
     let output = tokio::process::Command::new(&ppdrive_bin)
         .args([
-            "bucket", "create",
-            "--name", "Bad Bucket",
-            "--path", "../escape",
-            "--owner-type", "client",
-            "--owner-id", "1",
+            "bucket",
+            "create",
+            "--name",
+            "Bad Bucket",
+            "--path",
+            "../escape",
+            "--owner-type",
+            "client",
+            "--owner-id",
+            "1",
             "--public",
         ])
         .output()

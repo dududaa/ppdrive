@@ -2,10 +2,10 @@
 //!
 //! Parses `ppd_config.toml` and provides [`AppConfig`] with sensible defaults.
 
-use std::collections::HashMap;
 use crate::db;
 #[cfg(feature = "server")]
 use crate::hasher::Hasher;
+use std::collections::HashMap;
 
 use crate::paths_cross;
 use crate::root_dir;
@@ -31,16 +31,16 @@ pub struct AppConfig {
 
     #[cfg(feature = "server")]
     pub hasher: Hasher,
-    
-    pub plugins: Option<HashMap<String, HashMap<String, String>>>
+
+    pub plugins: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 impl AppConfig {
-/// Load the application configuration from `ppd_config.toml`.
-///
-/// Falls back to [`AppConfig::default`] if the file is missing or unreadable,
-/// logging a warning in either case.
-pub async fn read() -> anyhow::Result<Self> {
+    /// Load the application configuration from `ppd_config.toml`.
+    ///
+    /// Falls back to [`AppConfig::default`] if the file is missing or unreadable,
+    /// logging a warning in either case.
+    pub async fn read() -> anyhow::Result<Self> {
         let filename = config_filename()?;
         let config = match tokio::fs::read_to_string(&filename).await {
             Ok(content) => toml::from_str(&content)
@@ -48,14 +48,20 @@ pub async fn read() -> anyhow::Result<Self> {
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                 let config = AppConfig::default();
                 if let Err(save_err) = config.save().await {
-                    tracing::warn!("failed to create default config file {}: {save_err}", filename.display());
+                    tracing::warn!(
+                        "failed to create default config file {}: {save_err}",
+                        filename.display()
+                    );
                 } else {
                     tracing::info!("created default config file {}", filename.display());
                 }
                 config
             }
             Err(err) => {
-                tracing::warn!("failed to read {}: {err}, using defaults", filename.display());
+                tracing::warn!(
+                    "failed to read {}: {err}, using defaults",
+                    filename.display()
+                );
                 AppConfig::default()
             }
         };
@@ -82,10 +88,7 @@ pub async fn read() -> anyhow::Result<Self> {
 
     /// Remove any static folder whose path crosses an existing bucket path,
     /// log the details, and save the updated configuration.
-    pub async fn validate_static_folders(
-        &mut self,
-        db: &db::Database,
-    ) -> anyhow::Result<()> {
+    pub async fn validate_static_folders(&mut self, db: &db::Database) -> anyhow::Result<()> {
         let bucket_paths = db::bucket::get_all_paths(db).await?;
         let mut removed = Vec::new();
 

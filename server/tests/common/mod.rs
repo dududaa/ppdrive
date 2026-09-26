@@ -1,19 +1,23 @@
 use axum::body::Bytes;
 use axum_test::{TestRequest, TestServer, TestServerConfig, Transport};
-use serde::Serialize;
-use ppdrive_server::app::create_test_app;
+use ppdrive::db::Database;
 use ppdrive::db::client::create_client;
 use ppdrive::state::AppState;
-use ppdrive::db::Database;
+use ppdrive_server::app::create_test_app;
+use serde::Serialize;
 
 /// Clean all data from the test database to prevent test pollution.
 pub async fn clean_db(db: &Database) -> anyhow::Result<()> {
-    sqlx::query("DELETE FROM file_permissions").execute(&**db).await?;
+    sqlx::query("DELETE FROM file_permissions")
+        .execute(&**db)
+        .await?;
     sqlx::query("DELETE FROM assets").execute(&**db).await?;
     sqlx::query("DELETE FROM buckets").execute(&**db).await?;
     sqlx::query("DELETE FROM clients").execute(&**db).await?;
     sqlx::query("DELETE FROM users").execute(&**db).await?;
-    sqlx::query("DELETE FROM asset_owner").execute(&**db).await?;
+    sqlx::query("DELETE FROM asset_owner")
+        .execute(&**db)
+        .await?;
     Ok(())
 }
 
@@ -31,7 +35,10 @@ impl TestServerWrapper {
         };
 
         let server = TestServer::new_with_config(app, config);
-        Ok(Self { server, _live_plugins })
+        Ok(Self {
+            server,
+            _live_plugins,
+        })
     }
 
     pub fn post<B: Serialize>(&self, url: &str, body: &B) -> TestRequest {

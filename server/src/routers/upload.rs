@@ -6,25 +6,25 @@
 
 use crate::routers::DEFAULT_BODY_LIMIT;
 use crate::routers::middlewares::{ClientExtractor, UploadMiddleware};
-use crate::routers::resp::{api_error, api_response, ApiResponse};
-use ppdrive::state::AppState;
+use crate::routers::resp::{ApiResponse, api_error, api_response};
 use anyhow::anyhow;
 use axum::Json;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::StatusCode;
-use ppdrive::server::*;
-use ppdrive::{
-    db::{asset, bucket, client},
-    generate_nano_id,
-    root_dir, AssetOwnerName,
-};
 use ppdrive::asset_owner_id;
+use ppdrive::seconds_from_now;
+use ppdrive::server::*;
+use ppdrive::state::AppState;
+use ppdrive::{
+    AssetOwnerName,
+    db::{asset, bucket, client},
+    generate_nano_id, root_dir,
+};
 use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use validator::Validate;
-use ppdrive::seconds_from_now;
 
 /// Validate that `user_path` resolves within `root` without path-traversal (`..`).
 /// Returns the joined [`PathBuf`] on success.
@@ -61,13 +61,13 @@ async fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
                         }
                         break Ok(canon);
                     }
-                    Err(_) => {
-                        match attempt.parent() {
-                            Some(parent) if parent != attempt => attempt = parent.to_path_buf(),
-                            _ => break std::fs::canonicalize(joined.parent().unwrap_or(&root))
-                                .map(|p| p.join(joined.file_name().unwrap_or_default())),
+                    Err(_) => match attempt.parent() {
+                        Some(parent) if parent != attempt => attempt = parent.to_path_buf(),
+                        _ => {
+                            break std::fs::canonicalize(joined.parent().unwrap_or(&root))
+                                .map(|p| p.join(joined.file_name().unwrap_or_default()));
                         }
-                    }
+                    },
                 }
             }
         }?;
@@ -107,26 +107,28 @@ pub(super) async fn create_session(
 
         // Validate MIME type against bucket accepts
         if let Some(ref accepts) = bucket.accepts
-            && !accepts.is_empty() {
-                let content_type = config.content_type.as_ref().ok_or(
-                    api_error("content_type is required for buckets with MIME restrictions")
-                        .with_status_code(StatusCode::BAD_REQUEST),
-                )?;
+            && !accepts.is_empty()
+        {
+            let content_type = config.content_type.as_ref().ok_or(
+                api_error("content_type is required for buckets with MIME restrictions")
+                    .with_status_code(StatusCode::BAD_REQUEST),
+            )?;
 
-                if !bucket::mime_matches_accepts(content_type, accepts) {
-                    let list = accepts.join(", ");
-                    return Err(api_error(format!(
-                        "content_type '{content_type}' is not accepted by this bucket. Accepted: {list}"
-                    ))
-                    .with_status_code(StatusCode::BAD_REQUEST));
-                }
+            if !bucket::mime_matches_accepts(content_type, accepts) {
+                let list = accepts.join(", ");
+                return Err(api_error(format!(
+                    "content_type '{content_type}' is not accepted by this bucket. Accepted: {list}"
+                ))
+                .with_status_code(StatusCode::BAD_REQUEST));
             }
+        }
     } else {
         if let AssetType::File = config.asset_type
-            && config.accepts.as_ref().is_none_or(|a| a.is_empty()) {
-                return Err(api_error("accepts is required when bucket is not provided")
-                    .with_status_code(StatusCode::BAD_REQUEST));
-            }
+            && config.accepts.as_ref().is_none_or(|a| a.is_empty())
+        {
+            return Err(api_error("accepts is required when bucket is not provided")
+                .with_status_code(StatusCode::BAD_REQUEST));
+        }
     }
 
     let resumable = config.resumable.unwrap_or_default();
@@ -194,14 +196,17 @@ pub(super) async fn play_session(
     // Limit resumable upload chunk count to prevent abuse
     const MAX_CHUNKS: u16 = 10000;
     if info.chunk_index >= MAX_CHUNKS {
-        return Err(api_error(format!("upload exceeded maximum chunk limit of {MAX_CHUNKS}"))
-            .with_status_code(StatusCode::PAYLOAD_TOO_LARGE));
+        return Err(api_error(format!(
+            "upload exceeded maximum chunk limit of {MAX_CHUNKS}"
+        ))
+        .with_status_code(StatusCode::PAYLOAD_TOO_LARGE));
     }
 
     let config = info.config.clone();
     let config = config.ok_or(api_error("missing configuration"))?;
     let root_dir = state.config().root_dir()?;
-    let target_path = safe_path(&root_dir, &config.path).await
+    let target_path = safe_path(&root_dir, &config.path)
+        .await
         .map_err(|e| api_error(e).with_status_code(StatusCode::BAD_REQUEST))?;
 
     if let Some(bucket_id) = &config.bucket {
@@ -219,12 +224,18 @@ pub(super) async fn play_session(
         }
 
         // Validate the target path is within the bucket's directory using prefix check
-        let canonical_bucket = std::fs::canonicalize(&bucket_root)
-            .map_err(|_| api_error("bucket directory not found").with_status_code(StatusCode::BAD_REQUEST))?;
-        let canonical_target = std::fs::canonicalize(&target_path).or_else(|_| {
-            let parent = target_path.parent().unwrap_or(&root_dir);
-            std::fs::canonicalize(parent).map(|p| p.join(target_path.file_name().unwrap_or_default()))
-        }).map_err(|_| api_error("failed to resolve target path").with_status_code(StatusCode::BAD_REQUEST))?;
+        let canonical_bucket = std::fs::canonicalize(&bucket_root).map_err(|_| {
+            api_error("bucket directory not found").with_status_code(StatusCode::BAD_REQUEST)
+        })?;
+        let canonical_target = std::fs::canonicalize(&target_path)
+            .or_else(|_| {
+                let parent = target_path.parent().unwrap_or(&root_dir);
+                std::fs::canonicalize(parent)
+                    .map(|p| p.join(target_path.file_name().unwrap_or_default()))
+            })
+            .map_err(|_| {
+                api_error("failed to resolve target path").with_status_code(StatusCode::BAD_REQUEST)
+            })?;
         if !canonical_target.starts_with(&canonical_bucket) {
             return Err(api_error("upload path is not within the specified bucket")
                 .with_status_code(StatusCode::FORBIDDEN));
@@ -232,14 +243,19 @@ pub(super) async fn play_session(
     }
 
     let parent_dir = target_path.parent().unwrap_or(&root_dir);
-    let target_exists = tokio::fs::metadata(&target_path).await.map(|m| m.is_file()).unwrap_or(false);
+    let target_exists = tokio::fs::metadata(&target_path)
+        .await
+        .map(|m| m.is_file())
+        .unwrap_or(false);
     if target_exists && !config.overwrite.unwrap_or_default() {
         return Err(api_error("Asset already exists").with_status_code(StatusCode::CONFLICT));
     }
 
-    let parent_exists = tokio::fs::metadata(parent_dir).await.map(|m| m.is_dir()).unwrap_or(false);
-    if parent_dir != root_dir && !parent_exists && !config.create_parents.unwrap_or_default()
-    {
+    let parent_exists = tokio::fs::metadata(parent_dir)
+        .await
+        .map(|m| m.is_dir())
+        .unwrap_or(false);
+    if parent_dir != root_dir && !parent_exists && !config.create_parents.unwrap_or_default() {
         return Err(
             api_error("Parent directory does not exist").with_status_code(StatusCode::NOT_FOUND)
         );
@@ -294,7 +310,10 @@ async fn get_next_session(
     let tmp_dir = root_dir()?.join("tmp");
     let root_dir = state.config().root_dir()?;
 
-    let tmp_exists = tokio::fs::metadata(&tmp_dir).await.map(|m| m.is_dir()).unwrap_or(false);
+    let tmp_exists = tokio::fs::metadata(&tmp_dir)
+        .await
+        .map(|m| m.is_dir())
+        .unwrap_or(false);
     if !tmp_exists {
         tokio::fs::create_dir(&tmp_dir).await?;
     }
@@ -340,14 +359,19 @@ async fn get_next_session(
                 let bucket_root = root_dir.join(bucket.path.trim_start_matches('/'));
 
                 // validate bucket size
-                let is_dir = tokio::fs::metadata(&bucket_root).await.map(|m| m.is_dir()).unwrap_or(false);
+                let is_dir = tokio::fs::metadata(&bucket_root)
+                    .await
+                    .map(|m| m.is_dir())
+                    .unwrap_or(false);
                 if !is_dir {
                     tokio::fs::create_dir_all(&bucket_root).await?
                 } else {
                     if let Some(max_size) = &bucket.size {
                         let mut current_size: u64 = 0;
                         let path_str = bucket_root.to_string_lossy().to_string();
-                        ppdrive::get_folder_size(&path_str, &mut current_size).await.unwrap_or(());
+                        ppdrive::get_folder_size(&path_str, &mut current_size)
+                            .await
+                            .unwrap_or(());
                         if current_size + target_filesize > (*max_size as u64) {
                             return Err(anyhow!("Bucket size limit exceeded."));
                         }
@@ -356,48 +380,57 @@ async fn get_next_session(
 
                 // Validate MIME type against bucket accepts
                 if let Some(ref accepts) = bucket.accepts
-                    && !accepts.is_empty() {
-                        let inferred_mime = mime_guess::from_path(target_path)
-                            .first_or_octet_stream()
-                            .to_string();
+                    && !accepts.is_empty()
+                {
+                    let inferred_mime = mime_guess::from_path(target_path)
+                        .first_or_octet_stream()
+                        .to_string();
 
-                        if !bucket::mime_matches_accepts(&inferred_mime, accepts) {
-                            // Clean up temp file on validation failure
-                            let _ = tokio::fs::remove_file(&tmp_path).await;
-                            let list = accepts.join(", ");
-                            return Err(anyhow!(
-                                "file type '{inferred_mime}' is not accepted by this bucket. Accepted: {list}"
-                            ));
-                        }
-
-                        // Also verify against client-declared content_type if provided
-                        if let Some(ref declared) = config.content_type
-                            && !bucket::mime_matches_accepts(declared, std::slice::from_ref(&inferred_mime)) {
-                                let _ = tokio::fs::remove_file(&tmp_path).await;
-                                return Err(anyhow!(
-                                    "file MIME type '{inferred_mime}' does not match declared content_type '{declared}'"
-                                ));
-                            }
+                    if !bucket::mime_matches_accepts(&inferred_mime, accepts) {
+                        // Clean up temp file on validation failure
+                        let _ = tokio::fs::remove_file(&tmp_path).await;
+                        let list = accepts.join(", ");
+                        return Err(anyhow!(
+                            "file type '{inferred_mime}' is not accepted by this bucket. Accepted: {list}"
+                        ));
                     }
+
+                    // Also verify against client-declared content_type if provided
+                    if let Some(ref declared) = config.content_type
+                        && !bucket::mime_matches_accepts(
+                            declared,
+                            std::slice::from_ref(&inferred_mime),
+                        )
+                    {
+                        let _ = tokio::fs::remove_file(&tmp_path).await;
+                        return Err(anyhow!(
+                            "file MIME type '{inferred_mime}' does not match declared content_type '{declared}'"
+                        ));
+                    }
+                }
             }
             None => {
                 if let Some(ref accepts) = config.accepts
-                    && !accepts.is_empty() {
-                        let inferred_mime = mime_guess::from_path(target_path)
-                            .first_or_octet_stream()
-                            .to_string();
+                    && !accepts.is_empty()
+                {
+                    let inferred_mime = mime_guess::from_path(target_path)
+                        .first_or_octet_stream()
+                        .to_string();
 
-                        if !bucket::mime_matches_accepts(&inferred_mime, accepts) {
-                            let _ = tokio::fs::remove_file(&tmp_path).await;
-                            let list = accepts.join(", ");
-                            return Err(anyhow!(
-                                "file type '{inferred_mime}' is not accepted. Accepted: {list}"
-                            ));
-                        }
+                    if !bucket::mime_matches_accepts(&inferred_mime, accepts) {
+                        let _ = tokio::fs::remove_file(&tmp_path).await;
+                        let list = accepts.join(", ");
+                        return Err(anyhow!(
+                            "file type '{inferred_mime}' is not accepted. Accepted: {list}"
+                        ));
                     }
+                }
 
                 if parent_dir != root_dir {
-                    let parent_exists = tokio::fs::metadata(parent_dir).await.map(|m| m.is_dir()).unwrap_or(false);
+                    let parent_exists = tokio::fs::metadata(parent_dir)
+                        .await
+                        .map(|m| m.is_dir())
+                        .unwrap_or(false);
                     if !parent_exists {
                         tokio::fs::create_dir_all(&parent_dir).await?;
                     }
@@ -415,15 +448,27 @@ async fn get_next_session(
         if let Some(ref bucket_id_str) = config.bucket {
             let bucket_data = bucket::get(bucket_id_str, state.db()).await?;
             if !bucket_data.public {
-                let bucket_prefix = bucket_data.path.trim_start_matches('/').trim_end_matches('/');
-                let asset_path = config.path.trim_start_matches('/')
+                let bucket_prefix = bucket_data
+                    .path
+                    .trim_start_matches('/')
+                    .trim_end_matches('/');
+                let asset_path = config
+                    .path
+                    .trim_start_matches('/')
                     .strip_prefix(bucket_prefix)
                     .unwrap_or(&config.path)
                     .trim_start_matches('/');
                 let asset = asset::register(state.db(), bucket_data.id, asset_path).await?;
                 let client_numeric_id = client::get_id(&info.client_id, state.db()).await?;
-                let owner_id = asset_owner_id(AssetOwnerName::Client, client_numeric_id, state.db()).await?;
-                asset::grant(state.db(), asset.id, owner_id, asset::models::PermissionLevel::Admin).await?;
+                let owner_id =
+                    asset_owner_id(AssetOwnerName::Client, client_numeric_id, state.db()).await?;
+                asset::grant(
+                    state.db(),
+                    asset.id,
+                    owner_id,
+                    asset::models::PermissionLevel::Admin,
+                )
+                .await?;
             }
         }
 

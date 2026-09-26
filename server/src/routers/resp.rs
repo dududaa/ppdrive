@@ -3,12 +3,12 @@
 //! [`ApiResponse<T>`] is the handler return type; [`ResponseError`] converts
 //! internal errors into safe, non-leaking HTTP responses.
 
-use std::fmt::Display;
-use std::io::Error;
-use axum::http::StatusCode;
 use axum::Json;
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
+use std::fmt::Display;
+use std::io::Error;
 use tokio::io;
 
 /// Standard handler return type: either a success payload or a [`ResponseError`].
@@ -95,8 +95,9 @@ impl From<io::Error> for ResponseError {
 impl From<sqlx::Error> for ResponseError {
     fn from(err: sqlx::Error) -> Self {
         match err {
-            sqlx::Error::RowNotFound => api_error("resource not found")
-                .with_status_code(StatusCode::NOT_FOUND),
+            sqlx::Error::RowNotFound => {
+                api_error("resource not found").with_status_code(StatusCode::NOT_FOUND)
+            }
             _ => {
                 tracing::error!("database error: {err}");
                 api_error("internal server error")

@@ -4,12 +4,12 @@
 //! containing the ChaCha20 encryption key and nonce. On Unix the
 //! file is created with mode `0600`. Secret memory is zeroed on drop.
 
+use anyhow::anyhow;
+use chacha20poly1305::aead::common::Generate;
+use chacha20poly1305::{Key, XNonce};
 use std::io::SeekFrom;
 use std::path::PathBuf;
-use chacha20poly1305::{Key, XNonce};
-use anyhow::anyhow;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
-use chacha20poly1305::aead::common::Generate;
 
 pub const SECRETS_FILENAME: &str = ".ppdrive_secret";
 
@@ -23,10 +23,14 @@ impl Drop for AppSecrets {
     fn drop(&mut self) {
         // Zero out secret material on drop to minimize exposure in freed memory
         for byte in self.secret_key.iter_mut() {
-            unsafe { std::ptr::write_volatile(byte, 0); }
+            unsafe {
+                std::ptr::write_volatile(byte, 0);
+            }
         }
         for byte in self.secret_nonce.iter_mut() {
-            unsafe { std::ptr::write_volatile(byte, 0); }
+            unsafe {
+                std::ptr::write_volatile(byte, 0);
+            }
         }
     }
 }
@@ -105,7 +109,10 @@ async fn generate_secret_file() -> anyhow::Result<()> {
 /// for app initialization.
 async fn init_secrets() -> anyhow::Result<()> {
     let path = secret_filename()?;
-    let exists = tokio::fs::metadata(&path).await.map(|m| m.is_file()).unwrap_or(false);
+    let exists = tokio::fs::metadata(&path)
+        .await
+        .map(|m| m.is_file())
+        .unwrap_or(false);
     if !exists {
         generate_secret_file().await.map_err(|err| anyhow!(err))?;
     }
