@@ -1,5 +1,5 @@
 use anyhow::Context;
-use ppdrive::plugin::{PluginEntry, PluginRegistry, plugin_lib_name};
+use ppdrive::plugin::{PluginEntry, PluginRegistry, plugin_full_id, plugin_lib_name, plugin_short_id};
 use std::path::{Path, PathBuf};
 
 /// A parsed remote plugin source.
@@ -109,6 +109,9 @@ pub async fn execute_add(
     source: Option<&str>,
     build: bool,
 ) -> Result<(), anyhow::Error> {
+    // The full id is `ppdrive_{id}`; the short id is what we store and echo.
+    let id = plugin_short_id(id);
+
     let source = source.ok_or_else(|| {
         anyhow::anyhow!(
             "--source is required ({})",
@@ -145,6 +148,9 @@ pub async fn execute_add(
 }
 
 /// Download or build a plugin from a remote repository. Returns the new `PluginEntry`.
+///
+/// `id` may be short (`dashboard`) or full (`ppdrive_dashboard`); the full id
+/// drives package/artifact naming while the entry stores the short id.
 pub async fn install_remote(
     id: &str,
     source: &str,
@@ -153,15 +159,17 @@ pub async fn install_remote(
     libs_dir: &Path,
 ) -> Result<PluginEntry, anyhow::Error> {
     let remote = parse_remote_source(source)?;
+    let short_id = plugin_short_id(id);
+    let full_id = plugin_full_id(id);
 
     if build {
         println!("Downloading {source}...");
         let downloaded = download_repository(&remote, version).await?;
 
-        build_from_source(downloaded.src_dir.to_str().unwrap_or("."), id).await?;
-        let lib_path = find_built_lib_upwards(&downloaded.src_dir, id)?;
+        build_from_source(downloaded.src_dir.to_str().unwrap_or("."), &full_id).await?;
+        let lib_path = find_built_lib_upwards(&downloaded.src_dir, &full_id)?;
 
-        let lib_name = plugin_lib_name(id);
+        let lib_name = plugin_lib_name(&full_id);
         let dest = libs_dir.join(&lib_name);
         tokio::fs::copy(&lib_path, &dest).await.with_context(|| {
             format!(
@@ -174,7 +182,7 @@ pub async fn install_remote(
         let _ = tokio::fs::remove_dir_all(&downloaded.temp_dir).await;
 
         Ok(PluginEntry {
-            id: id.to_string(),
+            id: short_id.to_string(),
             filename: lib_name,
             version: downloaded.version,
             installed_at: chrono::Utc::now().to_rfc3339(),
@@ -191,18 +199,18 @@ pub async fn install_remote(
         };
 
         let (release_version, json) = fetch_github_release(&repo, version).await?;
-        let asset = find_release_asset(&json, id)?;
+        let asset = find_release_asset(&json, &full_id)?;
 
         let download_url = asset["browser_download_url"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("missing download URL for asset"))?;
 
-        let lib_name = plugin_lib_name(id);
+        let lib_name = plugin_lib_name(&full_id);
         println!("Downloading {lib_name}...");
         download_file(download_url, &libs_dir.join(&lib_name)).await?;
 
         Ok(PluginEntry {
-            id: id.to_string(),
+            id: short_id.to_string(),
             filename: lib_name,
             version: release_version,
             installed_at: chrono::Utc::now().to_rfc3339(),
@@ -219,14 +227,17 @@ async fn install_local(
     build: bool,
     libs_dir: &Path,
 ) -> Result<PluginEntry, anyhow::Error> {
+    let short_id = plugin_short_id(id);
+    let full_id = plugin_full_id(id);
+
     let src_path = if build {
         let source_dir = Path::new(source);
         if !source_dir.is_dir() {
             anyhow::bail!("source directory not found: {source}");
         }
 
-        build_from_source(source, id).await?;
-        find_built_lib_upwards(source_dir, id)?
+        build_from_source(source, &full_id).await?;
+        find_built_lib_upwards(source_dir, &full_id)?
     } else {
         let p = PathBuf::from(source);
         if !p.exists() {
@@ -235,7 +246,7 @@ async fn install_local(
         p
     };
 
-    let lib_name = plugin_lib_name(id);
+    let lib_name = plugin_lib_name(&full_id);
     let dest = libs_dir.join(&lib_name);
     tokio::fs::copy(&src_path, &dest).await.with_context(|| {
         format!(
@@ -246,7 +257,7 @@ async fn install_local(
     })?;
 
     Ok(PluginEntry {
-        id: id.to_string(),
+        id: short_id.to_string(),
         filename: lib_name,
         version: "local".to_string(),
         installed_at: chrono::Utc::now().to_rfc3339(),
@@ -426,7 +437,7 @@ pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
     tokio::fs::create_dir_all(&libs_dir).await?;
 
     let ids: Vec<String> = if let Some(id) = id {
-        vec![id.to_string()]
+        vec![plugin_short_id(id).to_string()]
     } else {
         registry.list().iter().map(|p| p.id.clone()).collect()
     };
@@ -481,9 +492,10 @@ pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
             }
             SourceKind::Local => {
                 if entry.build {
+                    let full_id = plugin_full_id(plugin_id);
                     println!("Rebuilding {plugin_id} from {src}...");
-                    match build_from_source(src, plugin_id).await {
-                        Ok(()) => match find_built_lib_upwards(Path::new(src), plugin_id) {
+                    match build_from_source(src, &full_id).await {
+                        Ok(()) => match find_built_lib_upwards(Path::new(src), &full_id) {
                             Ok(lib) => {
                                 let dest = libs_dir.join(&entry.filename);
                                 tokio::fs::copy(&lib, &dest).await?;
@@ -689,7 +701,10 @@ pub async fn execute_list() -> Result<(), anyhow::Error> {
         let source = p.source.as_deref().unwrap_or("-");
         println!(
             "{:<30} {:<10} {:<40} {}",
-            p.id, p.version, source, p.installed_at
+            p.full_id(),
+            p.version,
+            source,
+            p.installed_at
         );
     }
 

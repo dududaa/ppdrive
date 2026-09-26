@@ -154,7 +154,7 @@ pub enum UserCommand {
 pub enum PluginCommand {
     /// Install a plugin
     Add {
-        /// Plugin id: cargo package name when building, and base name for release artifacts
+        /// Plugin id; the `ppdrive_` prefix is implied (e.g. `dashboard` installs `ppdrive_dashboard`)
         id: String,
         /// Release version (default: latest)
         #[arg(long, default_value = "latest")]
@@ -162,7 +162,7 @@ pub enum PluginCommand {
         /// Install from a local file or local source directory instead of a remote repository
         #[arg(long)]
         local: bool,
-        /// Build from source with `cargo build --release --lib --package <id>`
+        /// Build from source with `cargo build --release --lib --package ppdrive_<id>`
         #[arg(long)]
         build: bool,
         /// Where to install from: local library file / Rust source directory (with --local),
@@ -174,12 +174,12 @@ pub enum PluginCommand {
     List,
     /// Remove an installed plugin
     Remove {
-        /// Plugin id
+        /// Plugin id (the `ppdrive_` prefix is optional)
         id: String,
     },
     /// Update an installed plugin (or all plugins if no id given)
     Update {
-        /// Plugin id to update. Omit to update all.
+        /// Plugin id to update (the `ppdrive_` prefix is optional). Omit to update all.
         id: Option<String>,
     },
 }
