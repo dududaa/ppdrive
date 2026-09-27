@@ -91,9 +91,51 @@ pub(super) async fn create_session(
     client: ClientExtractor,
     Json(config): Json<UploadUrlConfig>,
 ) -> ApiResponse<String> {
+    let mut config = config;
     config
         .validate()
         .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
+
+    if let Some(compression) = config.image_compression.clone() {
+        if !matches!(config.asset_type, AssetType::File) {
+            return Err(api_error("image_compression only applies to file uploads")
+                .with_status_code(StatusCode::BAD_REQUEST));
+        }
+
+        let content_type = config.content_type.as_deref().ok_or(
+            api_error("content_type is required when image_compression is set")
+                .with_status_code(StatusCode::BAD_REQUEST),
+        )?;
+        if !content_type.starts_with("image/") {
+            return Err(api_error(format!(
+                "image_compression requires content_type to be an image/* type, got '{content_type}'"
+            ))
+            .with_status_code(StatusCode::BAD_REQUEST));
+        }
+
+        if crate::app::find_plugin("image_compression").await.is_none() {
+            return Err(api_error("image_compression plugin is not installed")
+                .with_status_code(StatusCode::BAD_REQUEST));
+        }
+
+        // Store the output format: rewrite the path extension and content_type
+        // so the overwrite check, accepts validation and asset registration all
+        // refer to the file that will actually be written.
+        let output_mime = compression.format.mime().to_string();
+        if let Some(accepts) = &config.accepts
+            && !accepts.is_empty()
+            && !bucket::mime_matches_accepts(&output_mime, accepts)
+        {
+            let list = accepts.join(", ");
+            return Err(api_error(format!(
+                "compressed output type '{output_mime}' is not accepted. Accepted: {list}"
+            ))
+            .with_status_code(StatusCode::BAD_REQUEST));
+        }
+
+        config.path = compression.rewrite_path(&config.path);
+        config.content_type = Some(output_mime);
+    }
 
     if let Some(bucket_id) = &config.bucket {
         let bucket = bucket::get(bucket_id, state.db()).await?;
@@ -438,44 +480,156 @@ async fn get_next_session(
             }
         }
 
-        tokio::fs::rename(tmp_path, target_path).await?;
-        if let Some(id) = session_id {
-            let broker = state.broker()?;
-            broker.remove_upload_info(&id).await?;
-        }
+        let compression = config.image_compression.clone();
+        let background = compression
+            .as_ref()
+            .map(|c| resolve_background(c.background, state.config().image_compression_background))
+            .unwrap_or(false);
 
-        // Register asset and grant admin permission for private bucket files
-        if let Some(ref bucket_id_str) = config.bucket {
-            let bucket_data = bucket::get(bucket_id_str, state.db()).await?;
-            if !bucket_data.public {
-                let bucket_prefix = bucket_data
-                    .path
-                    .trim_start_matches('/')
-                    .trim_end_matches('/');
-                let asset_path = config
-                    .path
-                    .trim_start_matches('/')
-                    .strip_prefix(bucket_prefix)
-                    .unwrap_or(&config.path)
-                    .trim_start_matches('/');
-                let asset = asset::register(state.db(), bucket_data.id, asset_path).await?;
-                let client_numeric_id = client::get_id(&info.client_id, state.db()).await?;
-                let owner_id =
-                    asset_owner_id(AssetOwnerName::Client, client_numeric_id, state.db()).await?;
-                asset::grant(
-                    state.db(),
-                    asset.id,
-                    owner_id,
-                    asset::models::PermissionLevel::Admin,
-                )
-                .await?;
+        if background {
+            // All bytes are in and validations passed; drop the session now
+            // and finalize (compress → rename → register) off the request.
+            if let Some(id) = session_id {
+                let broker = state.broker()?;
+                broker.remove_upload_info(&id).await?;
             }
-        }
 
-        tracing::info!(path = %config.path, client_id = %info.client_id, "upload completed");
+            let state = state.clone();
+            let config = config.clone();
+            let client_id = info.client_id.clone();
+            let tmp_path = tmp_path.clone();
+            let target_path = target_path.clone();
+            tokio::spawn(async move {
+                finalize_in_background(state, config, client_id, tmp_path, target_path, compression)
+                    .await;
+            });
+        } else {
+            if let Some(compression) = &compression {
+                compress_uploaded_file(&tmp_path, compression).await?;
+            }
+
+            tokio::fs::rename(&tmp_path, target_path).await?;
+            if let Some(id) = session_id {
+                let broker = state.broker()?;
+                broker.remove_upload_info(&id).await?;
+            }
+
+            register_asset(state, &config, &info.client_id).await?;
+            tracing::info!(path = %config.path, client_id = %info.client_id, "upload completed");
+        }
     }
 
     Ok(next_token)
+}
+
+/// Compress the completed upload in place via the `image_compression` plugin.
+///
+/// The full assembled file is read from `path` (safe for resumable uploads:
+/// only runs once every chunk is received), compressed on the blocking pool,
+/// and written back to `path`.
+async fn compress_uploaded_file(
+    path: &Path,
+    options: &ImageCompressionConfig,
+) -> anyhow::Result<()> {
+    let plugin = crate::app::find_plugin("image_compression")
+        .await
+        .ok_or_else(|| anyhow!("image_compression plugin is not installed"))?;
+
+    let input = tokio::fs::read(path).await?;
+    let options_json = serde_json::to_value(options)?;
+    let dest = path.to_path_buf();
+
+    tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+        let mut dispatcher = ppdrive::plugin::loader::PluginDispatcher::<Vec<u8>>::new();
+        let compressed = dispatcher
+            .dispatch(plugin, (input.as_slice(), &options_json))
+            .map_err(|err| anyhow!("image compression failed: {err}"))?;
+        std::fs::write(&dest, compressed)
+            .map_err(|err| anyhow!("failed to write compressed file: {err}"))?;
+        Ok(())
+    })
+    .await??;
+
+    tracing::info!(
+        path = %path.display(),
+        format = ?options.format,
+        quality = options.quality,
+        "image compressed"
+    );
+    Ok(())
+}
+
+/// Finalize an upload after the success response has been sent.
+/// Failures are logged only (and the temp file cleaned up) — the client
+/// can no longer learn about them.
+async fn finalize_in_background(
+    state: AppState,
+    config: UploadUrlConfig,
+    client_id: String,
+    tmp_path: PathBuf,
+    target_path: PathBuf,
+    compression: Option<ImageCompressionConfig>,
+) {
+    let result = async {
+        if let Some(compression) = &compression {
+            compress_uploaded_file(&tmp_path, compression).await?;
+        }
+        tokio::fs::rename(&tmp_path, &target_path).await?;
+        register_asset(&state, &config, &client_id).await?;
+        anyhow::Ok(())
+    }
+    .await;
+
+    match result {
+        Ok(()) => tracing::info!(
+            path = %config.path,
+            client_id = %client_id,
+            "upload completed (background)"
+        ),
+        Err(err) => {
+            tracing::error!(path = %config.path, "background upload finalization failed: {err:#}");
+            let _ = tokio::fs::remove_file(&tmp_path).await;
+        }
+    }
+}
+
+/// Register the asset and grant admin permission for private bucket files.
+async fn register_asset(
+    state: &AppState,
+    config: &UploadUrlConfig,
+    client_id: &str,
+) -> anyhow::Result<()> {
+    let Some(bucket_id_str) = &config.bucket else {
+        return Ok(());
+    };
+
+    let bucket_data = bucket::get(bucket_id_str, state.db()).await?;
+    if bucket_data.public {
+        return Ok(());
+    }
+
+    let bucket_prefix = bucket_data
+        .path
+        .trim_start_matches('/')
+        .trim_end_matches('/');
+    let asset_path = config
+        .path
+        .trim_start_matches('/')
+        .strip_prefix(bucket_prefix)
+        .unwrap_or(&config.path)
+        .trim_start_matches('/');
+    let asset = asset::register(state.db(), bucket_data.id, asset_path).await?;
+    let client_numeric_id = client::get_id(client_id, state.db()).await?;
+    let owner_id =
+        asset_owner_id(AssetOwnerName::Client, client_numeric_id, state.db()).await?;
+    asset::grant(
+        state.db(),
+        asset.id,
+        owner_id,
+        asset::models::PermissionLevel::Admin,
+    )
+    .await?;
+    Ok(())
 }
 
 /// Append `data` to a temporary file and report whether the target size is reached.

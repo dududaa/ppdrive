@@ -33,6 +33,12 @@ pub struct AppConfig {
     pub hasher: Hasher,
 
     pub plugins: Option<HashMap<String, HashMap<String, String>>>,
+
+    /// Default for whether image compression runs after the upload response
+    /// (`true`) or inline before it (`false`). Per-upload
+    /// `image_compression.background` overrides this.
+    #[serde(default)]
+    pub image_compression_background: Option<bool>,
 }
 
 impl AppConfig {
@@ -136,6 +142,7 @@ impl Default for AppConfig {
             #[cfg(feature = "server")]
             hasher: Hasher::HMAC256,
             plugins: None,
+            image_compression_background: None,
         }
     }
 }
@@ -149,4 +156,33 @@ pub struct StaticFolder {
 fn config_filename() -> anyhow::Result<PathBuf> {
     let path = root_dir()?.join(CONFIG_FILENAME);
     Ok(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_image_compression_background() {
+        let toml_content = r#"
+database_url = "sqlite:data.db"
+client_header_key = "x-ppdrive-client"
+hasher = "HMAC256"
+image_compression_background = true
+"#;
+        let config: AppConfig = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.image_compression_background, Some(true));
+    }
+
+    #[test]
+    fn image_compression_background_defaults_to_none() {
+        let toml_content = r#"
+database_url = "sqlite:data.db"
+client_header_key = "x-ppdrive-client"
+hasher = "HMAC256"
+"#;
+        let config: AppConfig = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.image_compression_background, None);
+        assert_eq!(AppConfig::default().image_compression_background, None);
+    }
 }

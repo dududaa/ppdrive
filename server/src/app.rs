@@ -34,14 +34,18 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
 
-/// Type alias for loaded plugin handles that must outlive the server.
-// pub type LivePlugins = Vec<LoadedPlugin>;
+/// Holds the plugin libraries loaded from the registry. The handles must
+/// live for the entire server lifetime — dropping one unloads its `.so`.
 struct LivePlugins {
     plugins: Vec<LoadedPlugin>,
 }
 
 impl LivePlugins {
     async fn get() -> &'static Self {
+        if let Some(loaded) = LIVE_PLUGINS.get() {
+            return loaded;
+        }
+
         let registry = PluginRegistry::load()
             .await
             .expect("unable to load plugin registry");
@@ -74,6 +78,12 @@ impl LivePlugins {
 }
 
 static LIVE_PLUGINS: OnceLock<LivePlugins> = OnceLock::new();
+
+/// Look up an installed, loaded plugin by short id (e.g. `image_compression`).
+/// Returns `None` when the plugin is not registered or failed to load.
+pub(crate) async fn find_plugin(id: &str) -> Option<&'static LoadedPlugin> {
+    LivePlugins::get().await.find(id)
+}
 
 /// Convert whitelisted url to axum AllowOrigin. When no url is provided, all origins will be allowed.
 fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {

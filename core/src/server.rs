@@ -9,6 +9,7 @@ use crate::hasher::{Hashable, Hasher, errors::PayloadVerificationError};
 use crate::utils;
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -204,6 +205,10 @@ pub struct UploadUrlConfig {
     /// Whether the uploaded file should be publicly accessible.
     /// Only effective for files in private buckets. Defaults to false.
     pub public: Option<bool>,
+    /// Post-upload image compression. Requires the `image_compression`
+    /// plugin and an `image/*` `content_type`.
+    #[validate(nested)]
+    pub image_compression: Option<ImageCompressionConfig>,
 }
 
 impl UploadUrlConfig {
@@ -216,6 +221,93 @@ impl UploadUrlConfig {
             ..Default::default()
         }
     }
+}
+
+/// Output format for post-upload image compression.
+///
+/// Variant names and serde representation match
+/// `image_compression::ImageFormat` so the JSON serialized here
+/// deserializes into the plugin's `CompressionOptions`.
+#[derive(Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ImageFormat {
+    #[default]
+    Jpeg,
+    Png,
+    WebP,
+    Avif,
+}
+
+impl ImageFormat {
+    /// File extension used when this format is written to storage.
+    pub fn extension(&self) -> &'static str {
+        match self {
+            ImageFormat::Jpeg => "jpg",
+            ImageFormat::Png => "png",
+            ImageFormat::WebP => "webp",
+            ImageFormat::Avif => "avif",
+        }
+    }
+
+    /// MIME type of this format.
+    pub fn mime(&self) -> &'static str {
+        match self {
+            ImageFormat::Jpeg => "image/jpeg",
+            ImageFormat::Png => "image/png",
+            ImageFormat::WebP => "image/webp",
+            ImageFormat::Avif => "image/avif",
+        }
+    }
+}
+
+/// Client-provided options for compressing the file after upload,
+/// applied by the `image_compression` plugin.
+#[derive(Serialize, Deserialize, Validate, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields, default)]
+pub struct ImageCompressionConfig {
+    /// Output format. Default: [`ImageFormat::Jpeg`].
+    pub format: ImageFormat,
+    /// Quality on a 0–100 scale (values above 100 are rejected here;
+    /// the plugin clamps at 100). Default: 80.
+    #[validate(range(min = 0, max = 100))]
+    pub quality: u8,
+    /// Target width in pixels; `None` keeps the source width. Must be ≥ 1.
+    #[validate(range(min = 1))]
+    pub width: Option<u32>,
+    /// Target height in pixels; `None` keeps the source height. Must be ≥ 1.
+    #[validate(range(min = 1))]
+    pub height: Option<u32>,
+    /// Compress after responding (`true`) or before (`false`, inline default).
+    /// Falls back to `image_compression_background` in `ppd_config.toml`.
+    pub background: Option<bool>,
+}
+
+impl Default for ImageCompressionConfig {
+    fn default() -> Self {
+        ImageCompressionConfig {
+            format: ImageFormat::Jpeg,
+            quality: 80,
+            width: None,
+            height: None,
+            background: None,
+        }
+    }
+}
+
+impl ImageCompressionConfig {
+    /// Rewrite `path`'s extension to match the output format
+    /// (e.g. `images/photo.png` → `images/photo.webp`).
+    pub fn rewrite_path(&self, path: &str) -> String {
+        Path::new(path)
+            .with_extension(self.format.extension())
+            .to_string_lossy()
+            .into_owned()
+    }
+}
+
+/// Resolve whether compression runs in the background:
+/// client option → global config → inline (`false`).
+pub fn resolve_background(client: Option<bool>, global: Option<bool>) -> bool {
+    client.or(global).unwrap_or(false)
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -295,5 +387,125 @@ mod tests {
 
         run_sign_info_test(config.clone()).await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod image_compression_tests {
+    use super::*;
+    use validator::Validate;
+
+    #[test]
+    fn image_compression_applies_defaults() {
+        let json = r#"{
+            "asset_type": "File",
+            "expires": 120,
+            "path": "images/a.png",
+            "image_compression": { "format": "WebP", "width": 800 }
+        }"#;
+        let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
+        let ic = config.image_compression.unwrap();
+        assert_eq!(ic.format, ImageFormat::WebP);
+        assert_eq!(ic.quality, 80);
+        assert_eq!(ic.width, Some(800));
+        assert_eq!(ic.height, None);
+        assert_eq!(ic.background, None);
+    }
+
+    #[test]
+    fn image_compression_missing_field_parses_to_none() {
+        let json = r#"{ "asset_type": "File", "expires": 120, "path": "images/a.png" }"#;
+        let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
+        assert!(config.image_compression.is_none());
+    }
+
+    #[test]
+    fn image_compression_serializes_all_dispatch_fields() {
+        let config = ImageCompressionConfig {
+            format: ImageFormat::Avif,
+            quality: 60,
+            width: Some(100),
+            height: None,
+            background: Some(true),
+        };
+        let value = serde_json::to_value(&config).unwrap();
+        for key in ["format", "quality", "width", "height", "background"] {
+            assert!(value.get(key).is_some(), "missing field '{key}'");
+        }
+        assert_eq!(value["format"], "Avif");
+        assert_eq!(value["quality"], 60);
+    }
+
+    #[test]
+    fn image_compression_rejects_unknown_fields() {
+        let json = r#"{
+            "format": "Jpeg", "quality": 80, "width": null,
+            "height": null, "background": null, "fuzzy": true
+        }"#;
+        assert!(serde_json::from_str::<ImageCompressionConfig>(json).is_err());
+    }
+
+    #[test]
+    fn image_compression_validation_rules() {
+        let mut config = UploadUrlConfig::test();
+
+        config.image_compression = Some(ImageCompressionConfig {
+            quality: 101,
+            ..Default::default()
+        });
+        assert!(config.validate().is_err(), "quality 101 must be rejected");
+
+        config.image_compression = Some(ImageCompressionConfig {
+            width: Some(0),
+            ..Default::default()
+        });
+        assert!(config.validate().is_err(), "width 0 must be rejected");
+
+        config.image_compression = Some(ImageCompressionConfig {
+            quality: 100,
+            width: Some(1),
+            height: Some(1),
+            ..Default::default()
+        });
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn resolve_background_precedence() {
+        assert!(!resolve_background(None, None), "default is inline");
+        assert!(resolve_background(None, Some(true)));
+        assert!(
+            !resolve_background(Some(false), Some(true)),
+            "client option overrides global"
+        );
+        assert!(resolve_background(Some(true), Some(false)));
+        assert!(resolve_background(Some(true), None));
+    }
+
+    #[test]
+    fn rewrite_path_uses_output_extension() {
+        let webp = ImageCompressionConfig {
+            format: ImageFormat::WebP,
+            ..Default::default()
+        };
+        assert_eq!(webp.rewrite_path("images/photo.png"), "images/photo.webp");
+        assert_eq!(webp.rewrite_path("photo"), "photo.webp");
+        assert_eq!(webp.rewrite_path("a.b/photo.jpg"), "a.b/photo.webp");
+
+        let avif = ImageCompressionConfig {
+            format: ImageFormat::Avif,
+            ..Default::default()
+        };
+        assert_eq!(avif.rewrite_path("photo.jpg"), "photo.avif");
+    }
+
+    #[test]
+    fn format_extension_and_mime() {
+        assert_eq!(ImageFormat::Jpeg.extension(), "jpg");
+        assert_eq!(ImageFormat::Jpeg.mime(), "image/jpeg");
+        assert_eq!(ImageFormat::Png.mime(), "image/png");
+        assert_eq!(ImageFormat::WebP.extension(), "webp");
+        assert_eq!(ImageFormat::Avif.extension(), "avif");
+        assert_eq!(ImageFormat::Avif.mime(), "image/avif");
     }
 }

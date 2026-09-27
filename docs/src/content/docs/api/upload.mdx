@@ -75,6 +75,7 @@ curl -X POST http://localhost:8000/upload/session \
 | `bucket` | `String` | No | Bucket PID to upload into |
 | `content_type` | `String` | If bucket has accepts | MIME type of the file |
 | `accepts` | `String[]` | If no bucket | MIME types accepted for this upload (max 20 items, e.g. `["image/*"]`) |
+| `image_compression` | `Object` | No | Compress the image after upload — see [Image Compression](#image-compression) |
 
 ### Response
 
@@ -98,6 +99,8 @@ The `data` field contains a signed base64url token.
 - If bucket has `accepts` restrictions, `content_type` is required
 - If `bucket` is not provided, `accepts` is required
 - If `accepts` is provided without a bucket, uploaded file MIME is validated against it
+- `image_compression` requires `content_type` to be an `image/*` type and the `image_compression` plugin to be installed
+- `image_compression.quality` must be 0–100; `width`/`height` must be ≥ 1 when given
 - Maximum 10,000 chunks per resumable upload
 
 ## Step 2: Upload File Data
@@ -350,6 +353,47 @@ curl -X POST http://localhost:8000/upload/session \
 
 The uploaded file's MIME type (inferred from the file extension) is validated against the `accepts` list. No bucket ownership check is performed, but the upload will be rejected if the path doesn't start with a configured static directory.
 
+## Image Compression
+
+Provide `image_compression` in the session config to compress the file once the upload completes. Requires the `image_compression` plugin to be installed and an `image/*` `content_type`.
+
+```json
+{
+  "asset_type": "File",
+  "path": "uploads/photos/avatar.png",
+  "target_filesize": 524288,
+  "expires": 120,
+  "content_type": "image/png",
+  "accepts": ["image/*"],
+  "image_compression": {
+    "format": "WebP",
+    "quality": 80,
+    "width": 1600,
+    "height": null,
+    "background": false
+  }
+}
+```
+
+### Options
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `format` | `Jpeg` \| `Png` \| `WebP` \| `Avif` | `Jpeg` | Output format |
+| `quality` | `u8` (0–100) | `80` | Compression quality |
+| `width` | `u32` | `null` | Target width in pixels (≥ 1); `null` keeps the source width |
+| `height` | `u32` | `null` | Target height in pixels (≥ 1); `null` keeps the source height |
+| `background` | `bool` | `null` (see below) | Compress after responding (`true`) or inline (`false`) |
+
+### Path rewriting
+
+When the option is set, the server rewrites the target path's extension (and `content_type`) to match the requested `format` **at session creation** — e.g. `avatar.png` with `format: "WebP"` is stored as `avatar.webp` with `content_type: "image/webp"`. Overwrite checks, `accepts` validation and asset registration all use the rewritten path, so `accepts` must admit the *output* type.
+
+### Inline vs background
+
+- **Inline (default)** — compression runs before the final rename; the upload response returns only once the file exists at its target path. Compression failures fail the upload (`500`).
+- **Background** — set `image_compression.background: true` per upload, or `image_compression_background = true` in `ppd_config.toml` (the per-upload option wins). The response is sent immediately after all bytes are received and validated; compression, rename and registration then run in a background task. Failures are logged server-side only — the client has already received a success response, and the file may briefly be missing at the target path.
+
 ## Error Responses
 
 | Status | Message | Cause |
@@ -358,6 +402,11 @@ The uploaded file's MIME type (inferred from the file extension) is validated ag
 | 400 | `content_type is required...` | Bucket has MIME restrictions but no content_type provided |
 | 400 | `content_type '...' is not accepted...` | Declared MIME doesn't match bucket accepts |
 | 400 | `file type '...' is not accepted` | File MIME doesn't match accepts list (no bucket) |
+| 400 | `content_type is required when image_compression is set` | `image_compression` without a declared content_type |
+| 400 | `image_compression requires content_type to be an image/* type...` | Declared content_type is not an image |
+| 400 | `image_compression plugin is not installed` | `image_compression` requested but the plugin is missing or failed to load |
+| 400 | `image_compression only applies to file uploads` | `image_compression` on a `Folder` session |
+| 400 | `compressed output type '...' is not accepted` | Output format isn't in the `accepts` list (no bucket) |
 | 400 | `upload exceeded maximum chunk limit of 10000` | Resumable upload exceeded 10,000 chunks |
 | 403 | `Write access denied...` | Client doesn't own the bucket |
 | 408 | `Request Timeout` | Server did not receive a complete request within 30 seconds |
