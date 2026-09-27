@@ -52,10 +52,6 @@ impl TestServerWrapper {
         self.server.post(url).bytes(body)
     }
 
-    pub fn patch_bytes(&self, url: &str, body: Bytes) -> TestRequest {
-        self.server.patch(url).bytes(body)
-    }
-
     pub fn get(&self, url: &str) -> TestRequest {
         self.server.get(url)
     }

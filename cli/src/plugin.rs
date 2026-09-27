@@ -1,5 +1,7 @@
 use anyhow::Context;
-use ppdrive::plugin::{PluginEntry, PluginRegistry, plugin_full_id, plugin_lib_name, plugin_short_id};
+use ppdrive::plugin::{
+    PluginEntry, PluginRegistry, plugin_full_id, plugin_lib_name, plugin_short_id,
+};
 use std::path::{Path, PathBuf};
 
 /// A parsed remote plugin source.
@@ -277,7 +279,10 @@ struct DownloadedSource {
 
 /// Download a repository: GitHub releases are fetched as source tarballs,
 /// other sources are cloned with `git`.
-async fn download_repository(remote: &RemoteSource, version: &str) -> Result<DownloadedSource, anyhow::Error> {
+async fn download_repository(
+    remote: &RemoteSource,
+    version: &str,
+) -> Result<DownloadedSource, anyhow::Error> {
     let temp_dir = ppdrive::root_dir()?.join("tmp_plugin_build");
     if temp_dir.exists() {
         tokio::fs::remove_dir_all(&temp_dir)
@@ -295,7 +300,7 @@ async fn download_repository(remote: &RemoteSource, version: &str) -> Result<Dow
             let tarball = temp_dir.join("source.tar.gz");
             download_file(&url, &tarball).await?;
             extract_tarball(&tarball, &temp_dir)?;
-            let _ = tokio::fs::remove_file(&tarball);
+            let _ = tokio::fs::remove_file(&tarball).await;
 
             let src_dir = find_extracted_dir(&temp_dir).ok_or_else(|| {
                 anyhow::anyhow!(
@@ -338,7 +343,8 @@ async fn git_clone(url: &str, dest: &Path, version: &str) -> Result<(), anyhow::
 
     let url = url.to_string();
     let dest = dest.to_path_buf();
-    let output = tokio::task::spawn_blocking(move || {
+
+    tokio::task::spawn_blocking(move || {
         let mut last_err = String::new();
         for branch in &branches {
             if dest.exists() {
@@ -357,16 +363,16 @@ async fn git_clone(url: &str, dest: &Path, version: &str) -> Result<(), anyhow::
                     last_err = String::from_utf8_lossy(&out.stderr).into_owned();
                 }
                 Err(e) => {
-                    return Err(anyhow::anyhow!("failed to run `git` — is git installed?: {e}"));
+                    return Err(anyhow::anyhow!(
+                        "failed to run `git` — is git installed?: {e}"
+                    ));
                 }
             }
         }
         Err(anyhow::anyhow!("git clone failed:\n{last_err}"))
     })
     .await
-    .context("failed to spawn git clone task")?;
-
-    output
+    .context("failed to spawn git clone task")?
 }
 
 /// Fetch release info from the GitHub API. Returns `(release_version, json)`.
@@ -618,10 +624,11 @@ fn find_built_lib(target_dir: &Path, name: &str) -> Result<PathBuf, anyhow::Erro
     // Search for any cdylib file matching the extension
     if let Ok(entries) = std::fs::read_dir(target_dir) {
         for entry in entries.flatten() {
-            if let Some(entry_name) = entry.file_name().to_str() {
-                if entry_name.ends_with(&format!(".{ext}")) && entry_name.starts_with("lib") {
-                    return Ok(entry.path());
-                }
+            if let Some(entry_name) = entry.file_name().to_str()
+                && entry_name.ends_with(&format!(".{ext}"))
+                && entry_name.starts_with("lib")
+            {
+                return Ok(entry.path());
             }
         }
     }
@@ -692,10 +699,7 @@ pub async fn execute_list() -> Result<(), anyhow::Error> {
         return Ok(());
     }
 
-    println!(
-        "{:<30} {:<10} {:<40} {}",
-        "ID", "VERSION", "SOURCE", "INSTALLED"
-    );
+    println!("{:<30} {:<10} {:<40} INSTALLED", "ID", "VERSION", "SOURCE");
     println!("{}", "-".repeat(110));
     for p in plugins {
         let source = p.source.as_deref().unwrap_or("-");

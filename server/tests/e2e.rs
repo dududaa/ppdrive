@@ -788,7 +788,7 @@ async fn test_grant_and_revoke_permission_flow() -> anyhow::Result<()> {
     resp.assert_status_ok();
     let perms: Vec<Value> = resp.json();
     assert!(
-        perms.len() >= 1,
+        !perms.is_empty(),
         "expected at least 1 permission, got {}",
         perms.len()
     );

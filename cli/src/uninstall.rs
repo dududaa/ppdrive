@@ -17,7 +17,7 @@ pub async fn execute(purge: bool) -> Result<(), anyhow::Error> {
     }
 
     // Data files to optionally remove
-    let data_files = vec![
+    let data_files = [
         install_dir.join("ppd_config.toml"),
         install_dir.join(".ppdrive_secret"),
         install_dir.join("data.db"),
@@ -75,12 +75,10 @@ pub async fn execute(purge: bool) -> Result<(), anyhow::Error> {
         if !std::path::Path::new(&bin_dir).exists() {
             return Ok(());
         }
-        if let Ok(path) = std::env::var("PATH") {
-            if !path.split(':').any(|p| p == bin_dir) {
-                println!(
-                    "Note: {bin_dir} is in your PATH but no longer contains ppdrive binaries."
-                );
-            }
+        if let Ok(path) = std::env::var("PATH")
+            && !path.split(':').any(|p| p == bin_dir)
+        {
+            println!("Note: {bin_dir} is in your PATH but no longer contains ppdrive binaries.");
         }
     }
 
@@ -113,14 +111,12 @@ fn find_symlinks(symlink_dir: &Path, _install_dir: &Path) -> Vec<(PathBuf, PathB
         #[cfg(unix)]
         {
             let link = symlink_dir.join(name);
-            if let Ok(meta) = std::fs::symlink_metadata(&link) {
-                if meta.file_type().is_symlink() {
-                    if let Ok(target) = std::fs::read_link(&link) {
-                        if target.exists() {
-                            result.push((link, target));
-                        }
-                    }
-                }
+            if let Ok(meta) = std::fs::symlink_metadata(&link)
+                && meta.file_type().is_symlink()
+                && let Ok(target) = std::fs::read_link(&link)
+                && target.exists()
+            {
+                result.push((link, target));
             }
         }
     }

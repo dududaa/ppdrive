@@ -55,7 +55,7 @@ impl LivePlugins {
                 PluginRegistry::libs_dir().expect("unable to load plugin library directory");
             let plugins = registry
                 .list()
-                .into_iter()
+                .iter()
                 .flat_map(|entry| {
                     let plugin =
                         LoadedPlugin::load(&libs_dir.join(&entry.filename), entry.id.clone());
@@ -264,6 +264,5 @@ pub fn install_metrics() -> anyhow::Result<()> {
         .map_err(|_| anyhow::anyhow!("metrics already initialized"))?;
     Ok(())
 }
-
 
 pub type DynamicRouter = PluginDispatcher<Router<AppState>>;

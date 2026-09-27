@@ -47,15 +47,9 @@ impl PluginEntry {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PluginsFile {
     pub plugins: Vec<PluginEntry>,
-}
-
-impl Default for PluginsFile {
-    fn default() -> Self {
-        Self { plugins: vec![] }
-    }
 }
 
 pub struct PluginRegistry {
@@ -97,7 +91,11 @@ impl PluginRegistry {
     }
 
     pub fn remove(&mut self, id: &str) -> Option<PluginEntry> {
-        let idx = self.plugins.plugins.iter().position(|p| same_id(&p.id, id))?;
+        let idx = self
+            .plugins
+            .plugins
+            .iter()
+            .position(|p| same_id(&p.id, id))?;
         Some(self.plugins.plugins.remove(idx))
     }
 

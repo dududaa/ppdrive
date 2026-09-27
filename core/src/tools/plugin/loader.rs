@@ -7,10 +7,16 @@ use std::ptr::null_mut;
 #[repr(C)]
 #[derive(Clone)]
 /// A raw pointer to the dispatched response.
-/// The [PluginDispatcher] **must** stay alive for as long as we want the (dispatched response)[DispatchResponse] 
+/// The [PluginDispatcher] **must** stay alive for as long as we want the (dispatched response)[DispatchResponse]
 /// to stay.
 pub struct PluginDispatcher<T> {
     ptr: *mut T,
+}
+
+impl<T> Default for PluginDispatcher<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T> PluginDispatcher<T> {
@@ -78,10 +84,10 @@ impl LoadedPlugin {
         Ok(Self {
             _lib: lib,
             dispatch_fn,
-            id
+            id,
         })
     }
-    
+
     pub fn id(&self) -> &str {
         &self.id
     }

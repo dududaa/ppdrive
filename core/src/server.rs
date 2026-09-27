@@ -446,10 +446,7 @@ impl ImageTransformationConfig {
                 }
                 TransformOperation::Blur { sigma } => {
                     if !sigma.is_finite() || *sigma <= 0.0 {
-                        return Err(format!(
-                            "{}: sigma must be finite and > 0",
-                            at("blur")
-                        ));
+                        return Err(format!("{}: sigma must be finite and > 0", at("blur")));
                     }
                 }
                 TransformOperation::Sharpen { amount } => {
@@ -459,7 +456,10 @@ impl ImageTransformationConfig {
                 }
                 TransformOperation::Scale { width, height } => {
                     if *width == 0 || *height == 0 {
-                        return Err(format!("{}: width and height must be non-zero", at("scale")));
+                        return Err(format!(
+                            "{}: width and height must be non-zero",
+                            at("scale")
+                        ));
                     }
                 }
                 TransformOperation::Grayscale => {}
@@ -469,7 +469,9 @@ impl ImageTransformationConfig {
         if let Some(filters) = &self.custom_filters
             && filters.contains('\0')
         {
-            return Err("image_transformation custom_filters must not contain NUL bytes".to_string());
+            return Err(
+                "image_transformation custom_filters must not contain NUL bytes".to_string(),
+            );
         }
 
         Ok(())
@@ -749,7 +751,13 @@ mod image_transformation_tests {
             background: Some(true),
         };
         let value = serde_json::to_value(&config).unwrap();
-        for key in ["operations", "custom_filters", "format", "quality", "background"] {
+        for key in [
+            "operations",
+            "custom_filters",
+            "format",
+            "quality",
+            "background",
+        ] {
             assert!(value.get(key).is_some(), "missing field '{key}'");
         }
         assert_eq!(value["operations"][0]["rotate"]["degrees"], 180);
@@ -808,57 +816,68 @@ mod image_transformation_tests {
 
         assert!(ok(vec![TransformOperation::Grayscale]).is_ok());
         assert!(ok(vec![TransformOperation::Rotate { degrees: 270 }]).is_ok());
-        assert!(ok(vec![TransformOperation::Flip {
-            horizontal: false,
-            vertical: true
-        }])
-        .is_ok());
+        assert!(
+            ok(vec![TransformOperation::Flip {
+                horizontal: false,
+                vertical: true
+            }])
+            .is_ok()
+        );
         assert!(ok(vec![]).is_ok());
 
         assert!(ok(vec![TransformOperation::Rotate { degrees: 45 }]).is_err());
-        assert!(ok(vec![TransformOperation::Flip {
-            horizontal: false,
-            vertical: false
-        }])
-        .is_err());
-        assert!(ok(vec![TransformOperation::Crop {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 10
-        }])
-        .is_err());
-        assert!(ok(vec![TransformOperation::Scale {
-            width: 10,
-            height: 0
-        }])
-        .is_err());
+        assert!(
+            ok(vec![TransformOperation::Flip {
+                horizontal: false,
+                vertical: false
+            }])
+            .is_err()
+        );
+        assert!(
+            ok(vec![TransformOperation::Crop {
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 10
+            }])
+            .is_err()
+        );
+        assert!(
+            ok(vec![TransformOperation::Scale {
+                width: 10,
+                height: 0
+            }])
+            .is_err()
+        );
         assert!(ok(vec![TransformOperation::Blur { sigma: 0.0 }]).is_err());
         assert!(ok(vec![TransformOperation::Blur { sigma: -1.0 }]).is_err());
-        assert!(ok(vec![TransformOperation::Sharpen {
-            amount: f32::NAN
-        }])
-        .is_err());
-        assert!(ok(vec![TransformOperation::Adjust {
-            brightness: 2.0,
-            contrast: 0.0,
-            saturation: 1.0
-        }])
-        .is_err());
-        assert!(ok(vec![TransformOperation::Adjust {
-            brightness: 0.0,
-            contrast: 0.0,
-            saturation: -0.5
-        }])
-        .is_err());
-        assert!(ok(vec![TransformOperation::Pad {
-            left: 1,
-            top: 1,
-            right: 1,
-            bottom: 1,
-            color: String::new()
-        }])
-        .is_err());
+        assert!(ok(vec![TransformOperation::Sharpen { amount: f32::NAN }]).is_err());
+        assert!(
+            ok(vec![TransformOperation::Adjust {
+                brightness: 2.0,
+                contrast: 0.0,
+                saturation: 1.0
+            }])
+            .is_err()
+        );
+        assert!(
+            ok(vec![TransformOperation::Adjust {
+                brightness: 0.0,
+                contrast: 0.0,
+                saturation: -0.5
+            }])
+            .is_err()
+        );
+        assert!(
+            ok(vec![TransformOperation::Pad {
+                left: 1,
+                top: 1,
+                right: 1,
+                bottom: 1,
+                color: String::new()
+            }])
+            .is_err()
+        );
 
         let with_filters = ImageTransformationConfig {
             custom_filters: Some("null\0src".to_string()),

@@ -34,10 +34,7 @@ impl Cli {
                         local,
                         source,
                         build,
-                    } => {
-                        plugin::execute_add(id, version, *local, source.as_deref(), *build)
-                            .await
-                    }
+                    } => plugin::execute_add(id, version, *local, source.as_deref(), *build).await,
                     PluginCommand::List => plugin::execute_list().await,
                     PluginCommand::Remove { id } => plugin::execute_remove(id).await,
                     PluginCommand::Update { id } => plugin::execute_update(id.as_deref()).await,
@@ -97,14 +94,14 @@ impl Cli {
                     grantee_type,
                     permission,
                 } => {
-                    let bucket_data = bucket::get(&bucket, &pool).await?;
+                    let bucket_data = bucket::get(bucket, &pool).await?;
                     let grantee_owner_id = match grantee_type.as_str() {
                         "user" => {
-                            let user_id = user::get_id(&grantee, &pool).await?;
+                            let user_id = user::get_id(grantee, &pool).await?;
                             asset_owner_id(AssetOwnerName::User, user_id, &pool).await?
                         }
                         _ => {
-                            let client_id = ppdrive::db::client::get_id(&grantee, &pool).await?;
+                            let client_id = ppdrive::db::client::get_id(grantee, &pool).await?;
                             asset_owner_id(AssetOwnerName::Client, client_id, &pool).await?
                         }
                     };
@@ -127,14 +124,14 @@ impl Cli {
                     grantee,
                     grantee_type,
                 } => {
-                    let bucket_data = bucket::get(&bucket, &pool).await?;
+                    let bucket_data = bucket::get(bucket, &pool).await?;
                     let grantee_owner_id = match grantee_type.as_str() {
                         "user" => {
-                            let user_id = user::get_id(&grantee, &pool).await?;
+                            let user_id = user::get_id(grantee, &pool).await?;
                             asset_owner_id(AssetOwnerName::User, user_id, &pool).await?
                         }
                         _ => {
-                            let client_id = ppdrive::db::client::get_id(&grantee, &pool).await?;
+                            let client_id = ppdrive::db::client::get_id(grantee, &pool).await?;
                             asset_owner_id(AssetOwnerName::Client, client_id, &pool).await?
                         }
                     };
@@ -150,7 +147,7 @@ impl Cli {
                     );
                 }
                 AssetCommand::List { bucket, path } => {
-                    let bucket_data = bucket::get(&bucket, &pool).await?;
+                    let bucket_data = bucket::get(bucket, &pool).await?;
 
                     if let Some(path) = path {
                         let cleaned_path = path.trim_start_matches('/');

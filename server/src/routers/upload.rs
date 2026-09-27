@@ -56,7 +56,7 @@ async fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
                         if attempt != joined {
                             // Re-attach remaining components
                             let stripped = attempt.strip_prefix(&root).unwrap_or(&attempt);
-                            let remaining = joined.strip_prefix(stripped).unwrap_or(&Path::new(""));
+                            let remaining = joined.strip_prefix(stripped).unwrap_or(Path::new(""));
                             break Ok(canon.join(remaining));
                         }
                         break Ok(canon);
@@ -477,15 +477,14 @@ async fn get_next_session(
         let background = transformation
             .as_ref()
             .map(|t| {
-                resolve_background(
-                    t.background,
-                    state.config().image_transformation_background,
-                )
+                resolve_background(t.background, state.config().image_transformation_background)
             })
             .unwrap_or(false)
             || compression
                 .as_ref()
-                .map(|c| resolve_background(c.background, state.config().image_compression_background))
+                .map(|c| {
+                    resolve_background(c.background, state.config().image_compression_background)
+                })
                 .unwrap_or(false);
 
         if background {
@@ -690,8 +689,7 @@ async fn register_asset(
         .trim_start_matches('/');
     let asset = asset::register(state.db(), bucket_data.id, asset_path).await?;
     let client_numeric_id = client::get_id(client_id, state.db()).await?;
-    let owner_id =
-        asset_owner_id(AssetOwnerName::Client, client_numeric_id, state.db()).await?;
+    let owner_id = asset_owner_id(AssetOwnerName::Client, client_numeric_id, state.db()).await?;
     asset::grant(
         state.db(),
         asset.id,
