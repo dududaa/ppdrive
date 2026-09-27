@@ -9,8 +9,27 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check
+        run: cargo check --workspace --tests
+
+      - name: Clippy
+        run: cargo clippy --workspace --tests -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
   build:
     name: Build and Package
+    needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -104,7 +123,7 @@ jobs:
         id: notes
         run: |
           echo "content<<EOF" >> $GITHUB_OUTPUT
-          cat RELEASE_NOTES.md >> $GITHUB_OUTPUT
+          cat "release-notes/${GITHUB_REF_NAME}.md" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
