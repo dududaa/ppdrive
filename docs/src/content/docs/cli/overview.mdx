@@ -19,6 +19,10 @@ ppdrive [OPTIONS] <COMMAND>
 | `ppdrive configure` | Open config file in editor |
 | `ppdrive update` | Update to the latest version |
 | `ppdrive uninstall` | Remove ppdrive and optionally data |
+| `ppdrive plugin add` | Install a plugin |
+| `ppdrive plugin list` | List installed plugins |
+| `ppdrive plugin remove` | Remove an installed plugin |
+| `ppdrive plugin update` | Update installed plugins |
 | `ppdrive client create` | Create a new API client |
 | `ppdrive client refresh` | Rotate a client's token |
 | `ppdrive client list` | List all clients |
@@ -43,6 +47,11 @@ ppdrive
 ├── configure
 ├── update
 ├── uninstall [--purge]
+├── plugin
+│   ├── add <ID> --source <SOURCE> [--version <VERSION>] [--local] [--build]
+│   ├── list
+│   ├── remove <ID>
+│   └── update [<ID>]
 ├── client
 │   ├── create --name <NAME>
 │   ├── refresh --id <ID>
@@ -95,4 +104,5 @@ ppdrive asset list --bucket <BUCKET_PID> --path report.pdf
 - [User Commands](/cli/user/) — Create and manage user accounts
 - [Asset Commands](/cli/asset/) — Manage file permissions
 - [Serve & Configure](/cli/serve-configure/) — Server and configuration management
+- [Plugin Commands](/cli/plugin/) — Install and manage plugins
 - [Update & Uninstall](/cli/update-uninstall/) — Update or remove ppdrive

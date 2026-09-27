@@ -31,6 +31,8 @@ of APIs for remote file management and storage.
   users can access to assets. 
 - **Ease of Use**: If you're already familiar with sending HTTP requests, using PPDRIVE feels natural. We also provide a
   cli-tool for configuration, client management, plugin management and so on.
+- **Plugins**: Extend the server with dynamically loaded plugins — the dashboard UI, image compression and image
+  transformation all ship as plugins and install with a single CLI command (`ppdrive plugin add`).
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
 - **Speed**: Very fast operation handlers.
 - **Cross Platform**: PPDRIVE can run on Linux, macOS and Windows. Useful for local development.
@@ -48,12 +50,12 @@ Please see the [Documentation Website](https://ppdrive.dududaa.org).
 - [x] Resumable Upload.
 - [ ] Client SDKs (Node.js, Python, Go, Kotlin, Rust, or any language — see [SDK_SPEC.md](SDK_SPEC.md))
 - Extensions
-  - [ ] Dashboard UI
-  - [ ] Image transformation.
+  - [x] Dashboard UI
+  - [x] Image transformation.
   - [ ] Image conversion.
   - [ ] Video Transformation.
   - [ ] File conversion.
-  - [ ] File compression.
+  - [x] File compression.
   - [ ] Live File Streaming.
   - [ ] PDF Utilities
   - [ ] And many more.

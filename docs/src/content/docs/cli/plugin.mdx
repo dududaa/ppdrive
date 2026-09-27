@@ -1,0 +1,107 @@
+---
+title: Plugin Commands
+description: Install, update and remove PPDRIVE plugins.
+---
+
+Plugins extend the server with dynamically loaded native libraries — the dashboard UI, image compression and image transformation ship as plugins. Plugin commands work without a database or config file.
+
+## Install a Plugin
+
+```sh
+ppdrive plugin add <ID> --source <SOURCE> [OPTIONS]
+```
+
+### Arguments
+
+| Flag | Required | Description |
+|---|---|---|
+| `<ID>` | Yes | Plugin id. The `ppdrive_` prefix is implied: `dashboard` installs `ppdrive_dashboard` |
+| `--source` | Yes | Where to install from — see [Sources](#sources) |
+| `--version` | No | Release version to install (default: `latest`) |
+| `--local` | No | Install from a local library file or local Rust source directory |
+| `--build` | No | Build from source with `cargo build --release --lib --package ppdrive_<id>` |
+
+### Sources
+
+| Mode | `--source` value | What happens |
+|---|---|---|
+| Remote, default | `github:owner/repo`, `owner/repo` or `https://github.com/owner/repo` | Downloads the release asset `ppdrive_<id>-<os>-<arch>.<ext>` from the repository's GitHub releases |
+| Remote + `--build` | Same as above | Downloads the source archive for the release tag and compiles it with cargo |
+| Remote git URL | A `.git` URL | Requires `--build` — clones and compiles the repository |
+| Local library (`--local`) | Path to a `.so` / `.dylib` / `.dll` file | Copies the library into `libs/` |
+| Local source (`--local --build`) | Path to a Rust source directory | Compiles with cargo and copies the built library |
+
+### Example
+
+```sh
+# Install from a remote repository, building the plugin from source
+ppdrive plugin add image_compression --source github:owner/image-compression --build
+
+# Install a prebuilt local library
+ppdrive plugin add dashboard --source ./libppdrive_dashboard.so --local
+
+# Build and install from a local source directory
+ppdrive plugin add dashboard --source ~/src/dashboard/router --local --build
+```
+
+:::note
+Restart the server (`ppdrive serve`) after installing or updating a plugin — plugins are loaded at startup.
+:::
+
+## List Installed Plugins
+
+```sh
+ppdrive plugin list
+```
+
+### Output
+
+```
+ID                            VERSION    SOURCE                                  INSTALLED
+---------------------------------------------------------------------------------------
+ppdrive_dashboard             local      github:owner/dashboard                  2026-09-26T10:41:12Z
+```
+
+The `SOURCE` recorded at install time is where `ppdrive plugin update` re-fetches from.
+
+## Remove a Plugin
+
+```sh
+ppdrive plugin remove <ID>
+```
+
+`<ID>` may be short (`dashboard`) or full (`ppdrive_dashboard`). The registry entry and the library file under `libs/` are deleted. Restart the server to stop serving it.
+
+## Update Plugins
+
+```sh
+ppdrive plugin update [<ID>]
+```
+
+| Argument | Description |
+|---|---|
+| `<ID>` | Plugin to update (prefix optional). Omit to update **all** installed plugins |
+
+Update re-fetches from the plugin's recorded source: remote plugins are re-installed from the **latest** release (compiled when the plugin was installed with `--build`, downloaded as a release asset otherwise); local plugins are rebuilt from their recorded source directory, or re-copied from the recorded library path.
+
+### Example
+
+```sh
+# Update one plugin
+ppdrive plugin update image_compression
+
+# Update everything
+ppdrive plugin update
+```
+
+## How It Works
+
+- The registry lives at `plugins.json` in the PPDRIVE root directory (next to the binaries); library files live in `libs/`.
+- Entries store the **short id** (`dashboard`); the full id (`ppdrive_dashboard`) is the cargo package name and the artifact base name (`ppdrive_dashboard-linux-x86_64.so`).
+- The server loads every registered plugin at startup and keeps the libraries loaded for the process lifetime.
+
+## See Also
+
+- [CLI Overview](/cli/overview/) — All commands at a glance
+- [Config File](/configuration/config-file/) — Global upload-processing options
+- [Upload Flow](/api/upload/) — `image_compression` and `image_transformation` session options
