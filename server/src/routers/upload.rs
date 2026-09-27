@@ -530,27 +530,31 @@ async fn get_next_session(
 }
 
 /// Shared preconditions for the image processing options: file uploads only,
-/// a declared `image/*` `content_type`, and the `image_transformation` /
-/// `image_compression` plugin (`id`) installed.
-async fn check_image_plugin(id: &str, config: &UploadUrlConfig) -> Result<(), ResponseError> {
+/// a declared `image/*` `content_type`, and the matching plugin installed.
+///
+/// `option` is the upload config field (snake_case, e.g. `image_compression`);
+/// the plugin id follows the hyphen convention (`image-compression`).
+async fn check_image_plugin(option: &str, config: &UploadUrlConfig) -> Result<(), ResponseError> {
+    let plugin_id = option.replace('_', "-");
+
     if !matches!(config.asset_type, AssetType::File) {
-        return Err(api_error(format!("{id} only applies to file uploads"))
+        return Err(api_error(format!("{option} only applies to file uploads"))
             .with_status_code(StatusCode::BAD_REQUEST));
     }
 
     let content_type = config.content_type.as_deref().ok_or(
-        api_error(format!("content_type is required when {id} is set"))
+        api_error(format!("content_type is required when {option} is set"))
             .with_status_code(StatusCode::BAD_REQUEST),
     )?;
     if !content_type.starts_with("image/") {
         return Err(api_error(format!(
-            "{id} requires content_type to be an image/* type, got '{content_type}'"
+            "{option} requires content_type to be an image/* type, got '{content_type}'"
         ))
         .with_status_code(StatusCode::BAD_REQUEST));
     }
 
-    if crate::app::find_plugin(id).await.is_none() {
-        return Err(api_error(format!("{id} plugin is not installed"))
+    if crate::app::find_plugin(&plugin_id).await.is_none() {
+        return Err(api_error(format!("{plugin_id} plugin is not installed"))
             .with_status_code(StatusCode::BAD_REQUEST));
     }
 
@@ -587,10 +591,10 @@ async fn apply_post_processing(
     compression: Option<&ImageCompressionConfig>,
 ) -> anyhow::Result<()> {
     if let Some(transformation) = transformation {
-        apply_media_plugin("image_transformation", path, transformation).await?;
+        apply_media_plugin("image-transformation", path, transformation).await?;
     }
     if let Some(compression) = compression {
-        apply_media_plugin("image_compression", path, compression).await?;
+        apply_media_plugin("image-compression", path, compression).await?;
     }
     Ok(())
 }

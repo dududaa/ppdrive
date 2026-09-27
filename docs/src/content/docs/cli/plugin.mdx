@@ -15,17 +15,17 @@ ppdrive plugin add <ID> --source <SOURCE> [OPTIONS]
 
 | Flag | Required | Description |
 |---|---|---|
-| `<ID>` | Yes | Plugin id. The `ppdrive_` prefix is implied: `dashboard` installs `ppdrive_dashboard` |
+| `<ID>` | Yes | Plugin id. The `ppdrive-` prefix is implied: `dashboard` installs `ppdrive-dashboard` |
 | `--source` | Yes | Where to install from — see [Sources](#sources) |
 | `--version` | No | Release version to install (default: `latest`) |
 | `--local` | No | Install from a local library file or local Rust source directory |
-| `--build` | No | Build from source with `cargo build --release --lib --package ppdrive_<id>` |
+| `--build` | No | Build from source with `cargo build --release --lib --package ppdrive-<id>` |
 
 ### Sources
 
 | Mode | `--source` value | What happens |
 |---|---|---|
-| Remote, default | `github:owner/repo`, `owner/repo` or `https://github.com/owner/repo` | Downloads the release asset `ppdrive_<id>-<os>-<arch>.<ext>` from the repository's GitHub releases |
+| Remote, default | `github:owner/repo`, `owner/repo` or `https://github.com/owner/repo` | Downloads the release asset `ppdrive-<id>-<os>-<arch>.<ext>` from the repository's GitHub releases |
 | Remote + `--build` | Same as above | Downloads the source archive for the release tag and compiles it with cargo |
 | Remote git URL | A `.git` URL | Requires `--build` — clones and compiles the repository |
 | Local library (`--local`) | Path to a `.so` / `.dylib` / `.dll` file | Copies the library into `libs/` |
@@ -38,7 +38,7 @@ ppdrive plugin add <ID> --source <SOURCE> [OPTIONS]
 ppdrive plugin add image_compression --source github:owner/image-compression --build
 
 # Install a prebuilt local library
-ppdrive plugin add dashboard --source ./libppdrive_dashboard.so --local
+ppdrive plugin add dashboard --source ./ppdrive-dashboard-linux-x86_64.so --local
 
 # Build and install from a local source directory
 ppdrive plugin add dashboard --source ~/src/dashboard/router --local --build
@@ -59,7 +59,7 @@ ppdrive plugin list
 ```
 ID                            VERSION    SOURCE                                  INSTALLED
 ---------------------------------------------------------------------------------------
-ppdrive_dashboard             local      github:owner/dashboard                  2026-09-26T10:41:12Z
+ppdrive-dashboard             local      github:owner/dashboard                  2026-09-26T10:41:12Z
 ```
 
 The `SOURCE` recorded at install time is where `ppdrive plugin update` re-fetches from.
@@ -70,7 +70,7 @@ The `SOURCE` recorded at install time is where `ppdrive plugin update` re-fetche
 ppdrive plugin remove <ID>
 ```
 
-`<ID>` may be short (`dashboard`) or full (`ppdrive_dashboard`). The registry entry and the library file under `libs/` are deleted. Restart the server to stop serving it.
+`<ID>` may be short (`dashboard`) or full (`ppdrive-dashboard`). The registry entry and the library file under `libs/` are deleted. Restart the server to stop serving it.
 
 ## Update Plugins
 
@@ -97,7 +97,7 @@ ppdrive plugin update
 ## How It Works
 
 - The registry lives at `plugins.json` in the PPDRIVE root directory (next to the binaries); library files live in `libs/`.
-- Entries store the **short id** (`dashboard`); the full id (`ppdrive_dashboard`) is the cargo package name and the artifact base name (`ppdrive_dashboard-linux-x86_64.so`).
+- Ids are hyphenated throughout: the stored short id (`dashboard`), the full id (`ppdrive-dashboard`), the cargo package name (`ppdrive-dashboard`) and the artifact base name (`ppdrive-dashboard-linux-x86_64.so`). The legacy `ppdrive_`/`_` forms are still accepted on input and normalized.
 - The server loads every registered plugin at startup and keeps the libraries loaded for the process lifetime.
 
 ## See Also

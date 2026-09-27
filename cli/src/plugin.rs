@@ -111,7 +111,8 @@ pub async fn execute_add(
     source: Option<&str>,
     build: bool,
 ) -> Result<(), anyhow::Error> {
-    // The full id is `ppdrive_{id}`; the short id is what we store and echo.
+    // The full id is `ppdrive-{id}`; the registry canonicalizes and stores
+    // the short id (`-` separators) on add.
     let id = plugin_short_id(id);
 
     let source = source.ok_or_else(|| {
@@ -417,16 +418,29 @@ fn find_release_asset<'a>(
 
     let expected = plugin_lib_name(id);
     let ext = expected.rsplit('.').next().unwrap_or("so");
-    let prefix = format!("{id}-");
     let suffix = format!(".{ext}");
+    // Compare with `_` normalized to `-` so assets published under the
+    // legacy underscore convention (`ppdrive_image_compression-...`) still match.
+    let norm = |s: &str| s.replace('_', "-");
+    let expected_norm = norm(&expected);
+    let prefix_norm = norm(&format!("{id}-"));
 
     assets
         .iter()
         .find(|a| a["name"].as_str() == Some(expected.as_str()))
         .or_else(|| {
             assets.iter().find(|a| {
-                let name = a["name"].as_str().unwrap_or("");
-                name.starts_with(&prefix) && name.ends_with(&suffix)
+                a["name"]
+                    .as_str()
+                    .is_some_and(|name| norm(name) == expected_norm)
+            })
+        })
+        .or_else(|| {
+            assets.iter().find(|a| {
+                a["name"].as_str().is_some_and(|name| {
+                    let name = norm(name);
+                    name.starts_with(&prefix_norm) && name.ends_with(&suffix)
+                })
             })
         })
         .ok_or_else(|| {
@@ -608,34 +622,61 @@ fn find_built_lib(target_dir: &Path, name: &str) -> Result<PathBuf, anyhow::Erro
         "windows" => "dll",
         _ => "so",
     };
+    let suffix = format!(".{ext}");
 
-    // Check common output names
+    // Common output names in both separator styles: cargo writes cdylib
+    // file names with `-` converted to `_`.
+    let underscored = name.replace('-', "_");
     let candidates = [
         target_dir.join(format!("lib{name}.{ext}")),
         target_dir.join(format!("{name}.{ext}")),
+        target_dir.join(format!("lib{underscored}.{ext}")),
+        target_dir.join(format!("{underscored}.{ext}")),
     ];
-
     for candidate in &candidates {
         if candidate.exists() {
             return Ok(candidate.clone());
         }
     }
 
-    // Search for any cdylib file matching the extension
+    // Match by normalized file stem against the full id (`ppdrive-dashboard`)
+    // or the short id (`image-compression`), accepting either separator.
+    let norm = |s: &str| s.replace('_', "-");
+    let wanted = [norm(name), norm(plugin_short_id(name))];
+
+    let mut libs: Vec<PathBuf> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(target_dir) {
         for entry in entries.flatten() {
-            if let Some(entry_name) = entry.file_name().to_str()
-                && entry_name.ends_with(&format!(".{ext}"))
-                && entry_name.starts_with("lib")
-            {
+            let file_name = entry.file_name();
+            let Some(file_name) = file_name.to_str() else {
+                continue;
+            };
+            if !file_name.ends_with(suffix.as_str()) {
+                continue;
+            }
+            let stem = &file_name[..file_name.len() - suffix.len()];
+            let stem = stem.strip_prefix("lib").unwrap_or(stem);
+            if wanted.iter().any(|w| norm(stem) == *w) {
                 return Ok(entry.path());
+            }
+            if file_name.starts_with("lib") {
+                libs.push(entry.path());
             }
         }
     }
 
+    // A single cdylib in the directory is unambiguous (plugin lib target
+    // names may differ from the package name).
+    if libs.len() == 1 {
+        return Ok(libs.remove(0));
+    }
+
     Err(anyhow::anyhow!(
-        "no built library found in {} matching '{name}'",
-        target_dir.display()
+        "no built library found in {} matching '{name}' (found: {:?})",
+        target_dir.display(),
+        libs.iter()
+            .map(|p| p.file_name().unwrap_or_default().to_string_lossy())
+            .collect::<Vec<_>>()
     ))
 }
 

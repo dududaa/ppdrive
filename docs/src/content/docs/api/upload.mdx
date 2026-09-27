@@ -469,12 +469,12 @@ When `format` is set, the server rewrites the target path's extension (and `cont
 | 400 | `file type '...' is not accepted` | File MIME doesn't match accepts list (no bucket) |
 | 400 | `content_type is required when image_compression is set` | `image_compression` without a declared content_type |
 | 400 | `image_compression requires content_type to be an image/* type...` | Declared content_type is not an image |
-| 400 | `image_compression plugin is not installed` | `image_compression` requested but the plugin is missing or failed to load |
+| 400 | `image-compression plugin is not installed` | `image_compression` requested but the plugin is missing or failed to load |
 | 400 | `image_compression only applies to file uploads` | `image_compression` on a `Folder` session |
 | 400 | `compressed output type '...' is not accepted` | Output format isn't in the `accepts` list (no bucket) |
 | 400 | `content_type is required when image_transformation is set` | `image_transformation` without a declared content_type |
 | 400 | `image_transformation requires content_type to be an image/* type...` | Declared content_type is not an image |
-| 400 | `image_transformation plugin is not installed` | `image_transformation` requested but the plugin is missing or failed to load |
+| 400 | `image-transformation plugin is not installed` | `image_transformation` requested but the plugin is missing or failed to load |
 | 400 | `image_transformation only applies to file uploads` | `image_transformation` on a `Folder` session |
 | 400 | `image_transformation operation #N (...): ...` | Invalid operation arguments (rotate degrees, flip direction, ranges, NUL in `custom_filters`) |
 | 400 | `transformed output type '...' is not accepted` | Output format isn't in the `accepts` list (no bucket) |

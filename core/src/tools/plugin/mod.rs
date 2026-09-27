@@ -6,26 +6,38 @@ pub mod loader;
 pub const PLUGINS_FILENAME: &str = "plugins.json";
 pub const LIBS_DIR: &str = "libs";
 /// Prefix prepended to the short id to form the full plugin id.
-pub const PLUGIN_ID_PREFIX: &str = "ppdrive_";
+pub const PLUGIN_ID_PREFIX: &str = "ppdrive-";
+/// Previous prefix convention; still accepted on input and in stored registries.
+pub const LEGACY_PLUGIN_ID_PREFIX: &str = "ppdrive_";
 
-/// The short id as accepted on input: any `ppdrive_` prefix is stripped.
+/// The short id as accepted on input: any `ppdrive-`/`ppdrive_` prefix is
+/// stripped. Use [`normalize_plugin_id`] when a canonical id is needed.
 pub fn plugin_short_id(id: &str) -> &str {
-    id.strip_prefix(PLUGIN_ID_PREFIX).unwrap_or(id)
+    id.strip_prefix(PLUGIN_ID_PREFIX)
+        .or_else(|| id.strip_prefix(LEGACY_PLUGIN_ID_PREFIX))
+        .unwrap_or(id)
 }
 
-/// The full plugin id: short id with the `ppdrive_` prefix.
+/// Canonicalize a plugin id: strip either prefix convention and normalize
+/// `_` separators to `-` (e.g. `ppdrive_image_compression` →
+/// `image-compression`). All ids are stored and compared in this form.
+pub fn normalize_plugin_id(id: &str) -> String {
+    plugin_short_id(id).replace('_', "-")
+}
+
+/// The full plugin id: short id with the `ppdrive-` prefix.
 ///
 /// This is the cargo package name, the release artifact base name, and the
 /// id the server looks up in the registry. Stored entries keep the short id;
 /// the full id is rebuilt wherever it is needed.
 pub fn plugin_full_id(id: &str) -> String {
-    format!("{PLUGIN_ID_PREFIX}{}", plugin_short_id(id))
+    format!("{PLUGIN_ID_PREFIX}{}", normalize_plugin_id(id))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PluginEntry {
-    /// Short id without the `ppdrive_` prefix (e.g. `dashboard`).
-    /// Use [`PluginEntry::full_id`] to get `ppdrive_dashboard`.
+    /// Short id without the `ppdrive-` prefix (e.g. `dashboard`).
+    /// Use [`PluginEntry::full_id`] to get `ppdrive-dashboard`.
     pub id: String,
     pub filename: String,
     pub version: String,
@@ -68,10 +80,10 @@ impl PluginRegistry {
         } else {
             PluginsFile::default()
         };
-        // Entries used to store the full id; keep everything short on disk.
+        // Migrate to the current convention: short id, `-` separators
+        // (entries used to store the full `ppdrive_` id).
         for p in &mut plugins.plugins {
-            let short = plugin_short_id(&p.id).to_string();
-            p.id = short;
+            p.id = normalize_plugin_id(&p.id);
         }
         Ok(Self { file_path, plugins })
     }
@@ -86,7 +98,7 @@ impl PluginRegistry {
     }
 
     pub fn add(&mut self, mut entry: PluginEntry) {
-        entry.id = plugin_short_id(&entry.id).to_string();
+        entry.id = normalize_plugin_id(&entry.id);
         self.plugins.plugins.push(entry);
     }
 
@@ -120,10 +132,10 @@ impl PluginRegistry {
     }
 }
 
-/// Match a stored id against a query, regardless of whether either side
-/// carries the `ppdrive_` prefix.
+/// Match a stored id against a query, regardless of prefix convention
+/// (`ppdrive-`/`ppdrive_`) or separator style (`-`/`_`).
 fn same_id(stored: &str, query: &str) -> bool {
-    plugin_short_id(stored) == plugin_short_id(query)
+    normalize_plugin_id(stored) == normalize_plugin_id(query)
 }
 
 pub fn plugin_lib_name(name: &str) -> String {
@@ -140,4 +152,103 @@ pub fn plugin_lib_name(name: &str) -> String {
 
 pub fn plugin_lib_path(name: &str) -> anyhow::Result<PathBuf> {
     Ok(PluginRegistry::libs_dir()?.join(plugin_lib_name(name)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn short_id_strips_both_prefix_conventions() {
+        assert_eq!(plugin_short_id("ppdrive-dashboard"), "dashboard");
+        assert_eq!(plugin_short_id("ppdrive_dashboard"), "dashboard");
+        assert_eq!(plugin_short_id("dashboard"), "dashboard");
+    }
+
+    #[test]
+    fn normalize_enforces_hyphen_convention() {
+        assert_eq!(
+            normalize_plugin_id("ppdrive_image_compression"),
+            "image-compression"
+        );
+        assert_eq!(
+            normalize_plugin_id("image_compression"),
+            "image-compression"
+        );
+        assert_eq!(
+            normalize_plugin_id("image-compression"),
+            "image-compression"
+        );
+        assert_eq!(
+            normalize_plugin_id("ppdrive-image-compression"),
+            "image-compression"
+        );
+    }
+
+    #[test]
+    fn full_id_is_hyphenated_from_any_input_form() {
+        assert_eq!(plugin_full_id("dashboard"), "ppdrive-dashboard");
+        assert_eq!(plugin_full_id("ppdrive_dashboard"), "ppdrive-dashboard");
+        assert_eq!(
+            plugin_full_id("image_compression"),
+            "ppdrive-image-compression"
+        );
+        assert_eq!(
+            plugin_full_id(&plugin_full_id("image_compression")),
+            "ppdrive-image-compression",
+            "full id must be idempotent"
+        );
+    }
+
+    #[test]
+    fn same_id_matches_across_conventions() {
+        assert!(same_id("image_compression", "image-compression"));
+        assert!(same_id("ppdrive_image_compression", "image-compression"));
+        assert!(same_id("ppdrive-dashboard", "dashboard"));
+        assert!(!same_id("image-compression", "image-transformation"));
+    }
+
+    #[test]
+    fn lib_name_follows_hyphen_convention() {
+        let os = std::env::consts::OS;
+        let arch = std::env::consts::ARCH;
+        let ext = if os == "windows" {
+            "dll"
+        } else if os == "macos" {
+            "dylib"
+        } else {
+            "so"
+        };
+        assert_eq!(
+            plugin_lib_name(&plugin_full_id("image_compression")),
+            format!("ppdrive-image-compression-{os}-{arch}.{ext}")
+        );
+    }
+
+    #[test]
+    fn registry_migrates_legacy_ids_on_add_and_load_match() {
+        let mut registry = PluginRegistry {
+            file_path: PathBuf::from("unused-test-path"),
+            plugins: PluginsFile::default(),
+        };
+
+        registry.add(PluginEntry {
+            id: "ppdrive_image_compression".to_string(),
+            filename: "ppdrive_image_compression-linux-x86_64.so".to_string(),
+            version: "local".to_string(),
+            installed_at: "now".to_string(),
+            source: None,
+            build: false,
+        });
+
+        assert_eq!(registry.list()[0].id, "image-compression");
+        assert!(registry.is_installed("image_compression"));
+        assert!(registry.is_installed("ppdrive-image-compression"));
+        assert_eq!(registry.list()[0].full_id(), "ppdrive-image-compression");
+        // Stored filename is preserved so already-installed libraries keep loading.
+        assert_eq!(
+            registry.list()[0].filename,
+            "ppdrive_image_compression-linux-x86_64.so"
+        );
+    }
 }
