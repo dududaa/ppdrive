@@ -1,0 +1,4 @@
+# The e2e suite shares a single database and fixed resource names;
+# tests must not run concurrently or they wipe each other's state.
+[env]
+RUST_TEST_THREADS = "1"
