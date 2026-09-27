@@ -268,6 +268,91 @@ async fn test_image_compression_plugin_not_installed() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn test_image_transformation_requires_image_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("application/pdf".to_string());
+    config.image_transformation = Some(ppdrive::server::ImageTransformationConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_image_transformation_requires_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.target_filesize = Some(1024);
+    config.content_type = None;
+    config.image_transformation = Some(ppdrive::server::ImageTransformationConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    Ok(())
+}
+
+/// Operation arguments are validated before the plugin lookup, so an
+/// invalid rotation is rejected even where the plugin isn't installed.
+#[tokio::test]
+async fn test_image_transformation_rejects_invalid_operation() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("image/jpeg".to_string());
+    config.image_transformation = Some(ppdrive::server::ImageTransformationConfig {
+        operations: vec![ppdrive::server::TransformOperation::Rotate { degrees: 45 }],
+        ..Default::default()
+    });
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    Ok(())
+}
+
+/// The e2e environment runs from the workspace root, which has no
+/// `plugins.json` — so a valid image-transformation request must be rejected
+/// because the plugin is not installed.
+#[tokio::test]
+async fn test_image_transformation_plugin_not_installed() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/transform.jpg".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("image/jpeg".to_string());
+    config.image_transformation = Some(ppdrive::server::ImageTransformationConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    Ok(())
+}
+
+#[tokio::test]
 async fn test_upload_to_named_bucket() -> anyhow::Result<()> {
     let (_, token, header_key) = setup_test_client().await?;
     let server = TestServerWrapper::new().await?;

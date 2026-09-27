@@ -39,6 +39,12 @@ pub struct AppConfig {
     /// `image_compression.background` overrides this.
     #[serde(default)]
     pub image_compression_background: Option<bool>,
+
+    /// Default for whether image transformation runs after the upload
+    /// response (`true`) or inline before it (`false`). Per-upload
+    /// `image_transformation.background` overrides this.
+    #[serde(default)]
+    pub image_transformation_background: Option<bool>,
 }
 
 impl AppConfig {
@@ -143,6 +149,7 @@ impl Default for AppConfig {
             hasher: Hasher::HMAC256,
             plugins: None,
             image_compression_background: None,
+            image_transformation_background: None,
         }
     }
 }
@@ -169,9 +176,11 @@ database_url = "sqlite:data.db"
 client_header_key = "x-ppdrive-client"
 hasher = "HMAC256"
 image_compression_background = true
+image_transformation_background = true
 "#;
         let config: AppConfig = toml::from_str(toml_content).unwrap();
         assert_eq!(config.image_compression_background, Some(true));
+        assert_eq!(config.image_transformation_background, Some(true));
     }
 
     #[test]
@@ -183,6 +192,8 @@ hasher = "HMAC256"
 "#;
         let config: AppConfig = toml::from_str(toml_content).unwrap();
         assert_eq!(config.image_compression_background, None);
+        assert_eq!(config.image_transformation_background, None);
         assert_eq!(AppConfig::default().image_compression_background, None);
+        assert_eq!(AppConfig::default().image_transformation_background, None);
     }
 }

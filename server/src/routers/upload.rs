@@ -6,7 +6,7 @@
 
 use crate::routers::DEFAULT_BODY_LIMIT;
 use crate::routers::middlewares::{ClientExtractor, UploadMiddleware};
-use crate::routers::resp::{ApiResponse, api_error, api_response};
+use crate::routers::resp::{ApiResponse, ResponseError, api_error, api_response};
 use anyhow::anyhow;
 use axum::Json;
 use axum::body::Bytes;
@@ -96,43 +96,32 @@ pub(super) async fn create_session(
         .validate()
         .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
 
+    // Transformation first, compression second: when both specify an output
+    // format, compression runs last at completion so its rewrite wins.
+    if let Some(transformation) = config.image_transformation.clone() {
+        transformation
+            .validate_operations()
+            .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
+        check_image_plugin("image_transformation", &config).await?;
+
+        // Rewrite only when an output format is requested; `None` keeps the
+        // input format (and the existing extension/content_type).
+        if let Some(format) = transformation.format {
+            let output_mime = format.mime().to_string();
+            check_output_accepts(&config, &output_mime, "transformed")?;
+            config.path = format.rewrite_path(&config.path);
+            config.content_type = Some(output_mime);
+        }
+    }
+
     if let Some(compression) = config.image_compression.clone() {
-        if !matches!(config.asset_type, AssetType::File) {
-            return Err(api_error("image_compression only applies to file uploads")
-                .with_status_code(StatusCode::BAD_REQUEST));
-        }
-
-        let content_type = config.content_type.as_deref().ok_or(
-            api_error("content_type is required when image_compression is set")
-                .with_status_code(StatusCode::BAD_REQUEST),
-        )?;
-        if !content_type.starts_with("image/") {
-            return Err(api_error(format!(
-                "image_compression requires content_type to be an image/* type, got '{content_type}'"
-            ))
-            .with_status_code(StatusCode::BAD_REQUEST));
-        }
-
-        if crate::app::find_plugin("image_compression").await.is_none() {
-            return Err(api_error("image_compression plugin is not installed")
-                .with_status_code(StatusCode::BAD_REQUEST));
-        }
+        check_image_plugin("image_compression", &config).await?;
 
         // Store the output format: rewrite the path extension and content_type
         // so the overwrite check, accepts validation and asset registration all
         // refer to the file that will actually be written.
         let output_mime = compression.format.mime().to_string();
-        if let Some(accepts) = &config.accepts
-            && !accepts.is_empty()
-            && !bucket::mime_matches_accepts(&output_mime, accepts)
-        {
-            let list = accepts.join(", ");
-            return Err(api_error(format!(
-                "compressed output type '{output_mime}' is not accepted. Accepted: {list}"
-            ))
-            .with_status_code(StatusCode::BAD_REQUEST));
-        }
-
+        check_output_accepts(&config, &output_mime, "compressed")?;
         config.path = compression.rewrite_path(&config.path);
         config.content_type = Some(output_mime);
     }
@@ -480,15 +469,28 @@ async fn get_next_session(
             }
         }
 
+        let transformation = config.image_transformation.clone();
         let compression = config.image_compression.clone();
-        let background = compression
+        // One flag for the whole post-processing chain: if either option asks
+        // for background handling, transform → compress → rename → register
+        // all run after the response (order matters for output formats).
+        let background = transformation
             .as_ref()
-            .map(|c| resolve_background(c.background, state.config().image_compression_background))
-            .unwrap_or(false);
+            .map(|t| {
+                resolve_background(
+                    t.background,
+                    state.config().image_transformation_background,
+                )
+            })
+            .unwrap_or(false)
+            || compression
+                .as_ref()
+                .map(|c| resolve_background(c.background, state.config().image_compression_background))
+                .unwrap_or(false);
 
         if background {
             // All bytes are in and validations passed; drop the session now
-            // and finalize (compress → rename → register) off the request.
+            // and finalize (transform → compress → rename → register) off the request.
             if let Some(id) = session_id {
                 let broker = state.broker()?;
                 broker.remove_upload_info(&id).await?;
@@ -500,13 +502,19 @@ async fn get_next_session(
             let tmp_path = tmp_path.clone();
             let target_path = target_path.clone();
             tokio::spawn(async move {
-                finalize_in_background(state, config, client_id, tmp_path, target_path, compression)
-                    .await;
+                finalize_in_background(
+                    state,
+                    config,
+                    client_id,
+                    tmp_path,
+                    target_path,
+                    transformation,
+                    compression,
+                )
+                .await;
             });
         } else {
-            if let Some(compression) = &compression {
-                compress_uploaded_file(&tmp_path, compression).await?;
-            }
+            apply_post_processing(&tmp_path, transformation.as_ref(), compression.as_ref()).await?;
 
             tokio::fs::rename(&tmp_path, target_path).await?;
             if let Some(id) = session_id {
@@ -522,40 +530,103 @@ async fn get_next_session(
     Ok(next_token)
 }
 
-/// Compress the completed upload in place via the `image_compression` plugin.
+/// Shared preconditions for the image processing options: file uploads only,
+/// a declared `image/*` `content_type`, and the `image_transformation` /
+/// `image_compression` plugin (`id`) installed.
+async fn check_image_plugin(id: &str, config: &UploadUrlConfig) -> Result<(), ResponseError> {
+    if !matches!(config.asset_type, AssetType::File) {
+        return Err(api_error(format!("{id} only applies to file uploads"))
+            .with_status_code(StatusCode::BAD_REQUEST));
+    }
+
+    let content_type = config.content_type.as_deref().ok_or(
+        api_error(format!("content_type is required when {id} is set"))
+            .with_status_code(StatusCode::BAD_REQUEST),
+    )?;
+    if !content_type.starts_with("image/") {
+        return Err(api_error(format!(
+            "{id} requires content_type to be an image/* type, got '{content_type}'"
+        ))
+        .with_status_code(StatusCode::BAD_REQUEST));
+    }
+
+    if crate::app::find_plugin(id).await.is_none() {
+        return Err(api_error(format!("{id} plugin is not installed"))
+            .with_status_code(StatusCode::BAD_REQUEST));
+    }
+
+    Ok(())
+}
+
+/// Reject the session when a rewritten output type is outside the upload's
+/// own `accepts` list. Bucket accepts are checked separately against the
+/// rewritten `content_type`. `label` describes the rewrite ("compressed",
+/// "transformed").
+fn check_output_accepts(
+    config: &UploadUrlConfig,
+    output_mime: &str,
+    label: &str,
+) -> Result<(), ResponseError> {
+    if let Some(accepts) = &config.accepts
+        && !accepts.is_empty()
+        && !bucket::mime_matches_accepts(output_mime, accepts)
+    {
+        let list = accepts.join(", ");
+        return Err(api_error(format!(
+            "{label} output type '{output_mime}' is not accepted. Accepted: {list}"
+        ))
+        .with_status_code(StatusCode::BAD_REQUEST));
+    }
+    Ok(())
+}
+
+/// Apply the configured post-processing — transformation first, then
+/// compression — to the completed upload in place.
+async fn apply_post_processing(
+    path: &Path,
+    transformation: Option<&ImageTransformationConfig>,
+    compression: Option<&ImageCompressionConfig>,
+) -> anyhow::Result<()> {
+    if let Some(transformation) = transformation {
+        apply_media_plugin("image_transformation", path, transformation).await?;
+    }
+    if let Some(compression) = compression {
+        apply_media_plugin("image_compression", path, compression).await?;
+    }
+    Ok(())
+}
+
+/// Run a media plugin over the completed upload in place.
 ///
 /// The full assembled file is read from `path` (safe for resumable uploads:
-/// only runs once every chunk is received), compressed on the blocking pool,
+/// only runs once every chunk is received), processed on the blocking pool,
 /// and written back to `path`.
-async fn compress_uploaded_file(
+async fn apply_media_plugin(
+    plugin_id: &str,
     path: &Path,
-    options: &ImageCompressionConfig,
+    options: &impl serde::Serialize,
 ) -> anyhow::Result<()> {
-    let plugin = crate::app::find_plugin("image_compression")
+    let plugin = crate::app::find_plugin(plugin_id)
         .await
-        .ok_or_else(|| anyhow!("image_compression plugin is not installed"))?;
+        .ok_or_else(|| anyhow!("{plugin_id} plugin is not installed"))?;
 
     let input = tokio::fs::read(path).await?;
     let options_json = serde_json::to_value(options)?;
     let dest = path.to_path_buf();
+    let plugin_id_owned = plugin_id.to_string();
 
     tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
         let mut dispatcher = ppdrive::plugin::loader::PluginDispatcher::<Vec<u8>>::new();
-        let compressed = dispatcher
+        let output = dispatcher
             .dispatch(plugin, (input.as_slice(), &options_json))
-            .map_err(|err| anyhow!("image compression failed: {err}"))?;
-        std::fs::write(&dest, compressed)
-            .map_err(|err| anyhow!("failed to write compressed file: {err}"))?;
+            .map_err(|err| anyhow!("{plugin_id_owned} failed: {err}"))?;
+        std::fs::write(&dest, output)
+            .map_err(|err| anyhow!("failed to write processed file: {err}"))?;
         Ok(())
     })
     .await??;
 
-    tracing::info!(
-        path = %path.display(),
-        format = ?options.format,
-        quality = options.quality,
-        "image compressed"
-    );
+    tracing::info!(plugin = plugin_id, path = %path.display(), "upload post-processed");
     Ok(())
 }
 
@@ -568,12 +639,11 @@ async fn finalize_in_background(
     client_id: String,
     tmp_path: PathBuf,
     target_path: PathBuf,
+    transformation: Option<ImageTransformationConfig>,
     compression: Option<ImageCompressionConfig>,
 ) {
     let result = async {
-        if let Some(compression) = &compression {
-            compress_uploaded_file(&tmp_path, compression).await?;
-        }
+        apply_post_processing(&tmp_path, transformation.as_ref(), compression.as_ref()).await?;
         tokio::fs::rename(&tmp_path, &target_path).await?;
         register_asset(&state, &config, &client_id).await?;
         anyhow::Ok(())

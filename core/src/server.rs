@@ -209,6 +209,11 @@ pub struct UploadUrlConfig {
     /// plugin and an `image/*` `content_type`.
     #[validate(nested)]
     pub image_compression: Option<ImageCompressionConfig>,
+    /// Post-upload image transformation (applied before compression).
+    /// Requires the `image_transformation` plugin and an `image/*`
+    /// `content_type`.
+    #[validate(nested)]
+    pub image_transformation: Option<ImageTransformationConfig>,
 }
 
 impl UploadUrlConfig {
@@ -257,6 +262,15 @@ impl ImageFormat {
             ImageFormat::Avif => "image/avif",
         }
     }
+
+    /// Rewrite `path`'s extension to this format
+    /// (e.g. `images/photo.png` → `images/photo.webp`).
+    pub fn rewrite_path(&self, path: &str) -> String {
+        Path::new(path)
+            .with_extension(self.extension())
+            .to_string_lossy()
+            .into_owned()
+    }
 }
 
 /// Client-provided options for compressing the file after upload,
@@ -297,10 +311,7 @@ impl ImageCompressionConfig {
     /// Rewrite `path`'s extension to match the output format
     /// (e.g. `images/photo.png` → `images/photo.webp`).
     pub fn rewrite_path(&self, path: &str) -> String {
-        Path::new(path)
-            .with_extension(self.format.extension())
-            .to_string_lossy()
-            .into_owned()
+        self.format.rewrite_path(path)
     }
 }
 
@@ -308,6 +319,161 @@ impl ImageCompressionConfig {
 /// client option → global config → inline (`false`).
 pub fn resolve_background(client: Option<bool>, global: Option<bool>) -> bool {
     client.or(global).unwrap_or(false)
+}
+
+/// A single typed transformation applied by the `image_transformation`
+/// plugin. Operations run in the order given.
+///
+/// Variant names, snake_case tags and field names match
+/// `image_transformation::TransformOperation`, so the JSON serialized
+/// here deserializes into the plugin's `TransformOptions`.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum TransformOperation {
+    /// Extract a rectangle; bounds are validated against the source image.
+    Crop {
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    },
+    /// Rotate by 90, 180 or 270 degrees.
+    Rotate { degrees: u16 },
+    /// Mirror the image; at least one of `horizontal`/`vertical` must be true.
+    Flip { horizontal: bool, vertical: bool },
+    /// Add a border painted in `color` (FFmpeg color name or `#RRGGBB`).
+    Pad {
+        left: u32,
+        top: u32,
+        right: u32,
+        bottom: u32,
+        color: String,
+    },
+    /// Desaturate to gray.
+    Grayscale,
+    /// Color adjustment; ranges are validated before upload.
+    Adjust {
+        brightness: f32,
+        contrast: f32,
+        saturation: f32,
+    },
+    /// Gaussian blur; `sigma` must be finite and > 0.
+    Blur { sigma: f32 },
+    /// Unsharp masking; `amount` must be finite (the plugin clamps it).
+    Sharpen { amount: f32 },
+    /// Exact resize; dimensions must be non-zero.
+    Scale { width: u32, height: u32 },
+}
+
+/// Client-provided options for transforming the file after upload,
+/// applied by the `image_transformation` plugin before compression.
+#[derive(Serialize, Deserialize, Validate, Default, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields, default)]
+pub struct ImageTransformationConfig {
+    /// Typed operations, applied in order.
+    pub operations: Vec<TransformOperation>,
+    /// Raw FFmpeg filter string appended after the typed operations.
+    pub custom_filters: Option<String>,
+    /// Output format; `None` keeps the input format (no path rewrite).
+    pub format: Option<ImageFormat>,
+    /// Encoder quality 0–100; `None` means 80.
+    #[validate(range(min = 0, max = 100))]
+    pub quality: Option<u8>,
+    /// Process after responding (`true`) or inline (`false`, default).
+    /// Falls back to `image_transformation_background` in `ppd_config.toml`.
+    pub background: Option<bool>,
+}
+
+impl ImageTransformationConfig {
+    /// Validate operation arguments that don't depend on the source image.
+    /// Returns a client-facing error message on the first violation.
+    pub fn validate_operations(&self) -> Result<(), String> {
+        for (i, op) in self.operations.iter().enumerate() {
+            let at = |what: &str| format!("image_transformation operation #{i} ({what})");
+            match op {
+                TransformOperation::Crop { width, height, .. } => {
+                    if *width == 0 || *height == 0 {
+                        return Err(format!("{}: width and height must be non-zero", at("crop")));
+                    }
+                }
+                TransformOperation::Rotate { degrees } => {
+                    if !matches!(degrees, 90 | 180 | 270) {
+                        return Err(format!(
+                            "{}: degrees must be 90, 180 or 270, got {degrees}",
+                            at("rotate")
+                        ));
+                    }
+                }
+                TransformOperation::Flip {
+                    horizontal,
+                    vertical,
+                } => {
+                    if !horizontal && !vertical {
+                        return Err(format!(
+                            "{}: at least one of horizontal/vertical must be true",
+                            at("flip")
+                        ));
+                    }
+                }
+                TransformOperation::Pad { color, .. } => {
+                    if color.is_empty() {
+                        return Err(format!("{}: color must not be empty", at("pad")));
+                    }
+                }
+                TransformOperation::Adjust {
+                    brightness,
+                    contrast,
+                    saturation,
+                } => {
+                    if !brightness.is_finite() || !(-1.0..=1.0).contains(brightness) {
+                        return Err(format!(
+                            "{}: brightness must be finite and within -1..=1",
+                            at("adjust")
+                        ));
+                    }
+                    if !contrast.is_finite() || !(-1000.0..=1000.0).contains(contrast) {
+                        return Err(format!(
+                            "{}: contrast must be finite and within -1000..=1000",
+                            at("adjust")
+                        ));
+                    }
+                    if !saturation.is_finite() || !(0.0..=3.0).contains(saturation) {
+                        return Err(format!(
+                            "{}: saturation must be finite and within 0..=3",
+                            at("adjust")
+                        ));
+                    }
+                }
+                TransformOperation::Blur { sigma } => {
+                    if !sigma.is_finite() || *sigma <= 0.0 {
+                        return Err(format!(
+                            "{}: sigma must be finite and > 0",
+                            at("blur")
+                        ));
+                    }
+                }
+                TransformOperation::Sharpen { amount } => {
+                    if !amount.is_finite() {
+                        return Err(format!("{}: amount must be finite", at("sharpen")));
+                    }
+                }
+                TransformOperation::Scale { width, height } => {
+                    if *width == 0 || *height == 0 {
+                        return Err(format!("{}: width and height must be non-zero", at("scale")));
+                    }
+                }
+                TransformOperation::Grayscale => {}
+            }
+        }
+
+        if let Some(filters) = &self.custom_filters
+            && filters.contains('\0')
+        {
+            return Err("image_transformation custom_filters must not contain NUL bytes".to_string());
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -507,5 +673,213 @@ mod image_compression_tests {
         assert_eq!(ImageFormat::WebP.extension(), "webp");
         assert_eq!(ImageFormat::Avif.extension(), "avif");
         assert_eq!(ImageFormat::Avif.mime(), "image/avif");
+    }
+}
+
+#[cfg(test)]
+mod image_transformation_tests {
+    use super::*;
+    use validator::Validate;
+
+    #[test]
+    fn image_transformation_parses_snake_case_operations() {
+        let json = r#"{
+            "asset_type": "File",
+            "expires": 120,
+            "path": "images/a.png",
+            "image_transformation": {
+                "operations": [
+                    { "crop": { "x": 0, "y": 0, "width": 100, "height": 50 } },
+                    { "rotate": { "degrees": 90 } },
+                    { "flip": { "horizontal": true, "vertical": false } },
+                    { "pad": { "left": 2, "top": 2, "right": 2, "bottom": 2, "color": "black" } },
+                    "grayscale",
+                    { "adjust": { "brightness": 0.1, "contrast": 1.5, "saturation": 1.2 } },
+                    { "blur": { "sigma": 2.5 } },
+                    { "sharpen": { "amount": 1.0 } },
+                    { "scale": { "width": 800, "height": 600 } }
+                ],
+                "format": "WebP",
+                "quality": 75
+            }
+        }"#;
+        let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
+        let it = config.image_transformation.unwrap();
+        assert_eq!(it.operations.len(), 9);
+        assert_eq!(
+            it.operations[0],
+            TransformOperation::Crop {
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 50
+            }
+        );
+        assert_eq!(it.operations[1], TransformOperation::Rotate { degrees: 90 });
+        assert_eq!(it.operations[4], TransformOperation::Grayscale);
+        assert_eq!(it.format, Some(ImageFormat::WebP));
+        assert_eq!(it.quality, Some(75));
+        assert!(it.custom_filters.is_none());
+        assert!(it.background.is_none());
+    }
+
+    #[test]
+    fn image_transformation_applies_defaults() {
+        let json = r#"{ "asset_type": "File", "expires": 120, "path": "a.png",
+            "image_transformation": { "operations": [] } }"#;
+        let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
+        let it = config.image_transformation.unwrap();
+        assert!(it.operations.is_empty());
+        assert!(it.format.is_none());
+        assert_eq!(it.quality, None);
+
+        // Missing field entirely parses to None.
+        let json = r#"{ "asset_type": "File", "expires": 120, "path": "a.png" }"#;
+        let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
+        assert!(config.image_transformation.is_none());
+    }
+
+    #[test]
+    fn image_transformation_serializes_all_dispatch_fields() {
+        let config = ImageTransformationConfig {
+            operations: vec![TransformOperation::Rotate { degrees: 180 }],
+            custom_filters: Some("eq=brightness=0.1".to_string()),
+            format: Some(ImageFormat::Avif),
+            quality: Some(60),
+            background: Some(true),
+        };
+        let value = serde_json::to_value(&config).unwrap();
+        for key in ["operations", "custom_filters", "format", "quality", "background"] {
+            assert!(value.get(key).is_some(), "missing field '{key}'");
+        }
+        assert_eq!(value["operations"][0]["rotate"]["degrees"], 180);
+        assert_eq!(value["format"], "Avif");
+        assert_eq!(value["quality"], 60);
+    }
+
+    #[test]
+    fn image_transformation_rejects_unknown_fields() {
+        assert!(
+            serde_json::from_str::<ImageTransformationConfig>(
+                r#"{ "operations": [], "wobble": true }"#
+            )
+            .is_err(),
+            "unknown config field must be rejected"
+        );
+        assert!(
+            serde_json::from_str::<Vec<TransformOperation>>(
+                r#"[{ "blur": { "sigma": 1.0, "radius": 3 } }]"#
+            )
+            .is_err(),
+            "unknown operation field must be rejected"
+        );
+        assert!(
+            serde_json::from_str::<Vec<TransformOperation>>(r#"[{ "wobble": {} }]"#).is_err(),
+            "unknown operation variant must be rejected"
+        );
+    }
+
+    #[test]
+    fn image_transformation_validation_rules() {
+        let mut config = UploadUrlConfig::test();
+
+        config.image_transformation = Some(ImageTransformationConfig {
+            quality: Some(101),
+            ..Default::default()
+        });
+        assert!(config.validate().is_err(), "quality 101 must be rejected");
+
+        config.image_transformation = Some(ImageTransformationConfig {
+            quality: Some(100),
+            ..Default::default()
+        });
+        assert!(config.validate().is_ok(), "quality 100 must be accepted");
+    }
+
+    #[test]
+    fn image_transformation_operation_validation() {
+        let ok = |operations: Vec<TransformOperation>| {
+            ImageTransformationConfig {
+                operations,
+                ..Default::default()
+            }
+            .validate_operations()
+        };
+
+        assert!(ok(vec![TransformOperation::Grayscale]).is_ok());
+        assert!(ok(vec![TransformOperation::Rotate { degrees: 270 }]).is_ok());
+        assert!(ok(vec![TransformOperation::Flip {
+            horizontal: false,
+            vertical: true
+        }])
+        .is_ok());
+        assert!(ok(vec![]).is_ok());
+
+        assert!(ok(vec![TransformOperation::Rotate { degrees: 45 }]).is_err());
+        assert!(ok(vec![TransformOperation::Flip {
+            horizontal: false,
+            vertical: false
+        }])
+        .is_err());
+        assert!(ok(vec![TransformOperation::Crop {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 10
+        }])
+        .is_err());
+        assert!(ok(vec![TransformOperation::Scale {
+            width: 10,
+            height: 0
+        }])
+        .is_err());
+        assert!(ok(vec![TransformOperation::Blur { sigma: 0.0 }]).is_err());
+        assert!(ok(vec![TransformOperation::Blur { sigma: -1.0 }]).is_err());
+        assert!(ok(vec![TransformOperation::Sharpen {
+            amount: f32::NAN
+        }])
+        .is_err());
+        assert!(ok(vec![TransformOperation::Adjust {
+            brightness: 2.0,
+            contrast: 0.0,
+            saturation: 1.0
+        }])
+        .is_err());
+        assert!(ok(vec![TransformOperation::Adjust {
+            brightness: 0.0,
+            contrast: 0.0,
+            saturation: -0.5
+        }])
+        .is_err());
+        assert!(ok(vec![TransformOperation::Pad {
+            left: 1,
+            top: 1,
+            right: 1,
+            bottom: 1,
+            color: String::new()
+        }])
+        .is_err());
+
+        let with_filters = ImageTransformationConfig {
+            custom_filters: Some("null\0src".to_string()),
+            ..Default::default()
+        };
+        assert!(with_filters.validate_operations().is_err());
+    }
+
+    #[test]
+    fn image_transformation_rewrites_path_only_with_format() {
+        let with_format = ImageTransformationConfig {
+            format: Some(ImageFormat::WebP),
+            ..Default::default()
+        };
+        assert_eq!(with_format.format, Some(ImageFormat::WebP));
+        assert_eq!(
+            with_format.format.unwrap().rewrite_path("images/photo.png"),
+            "images/photo.webp"
+        );
+
+        let no_format = ImageTransformationConfig::default();
+        assert!(no_format.format.is_none(), "no format means no rewrite");
     }
 }

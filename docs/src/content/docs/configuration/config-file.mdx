@@ -46,6 +46,11 @@ hasher = "Blake3"
 # The per-upload image_compression.background option overrides this
 # image_compression_background = true
 
+# Whether image transformation runs after the upload response (optional, default: false)
+# false = transform inline before the upload completes
+# The per-upload image_transformation.background option overrides this
+# image_transformation_background = true
+
 # Static file directories to serve (optional)
 # Files are served at /{name} by default, or at a custom path
 [[static_folders]]
@@ -69,6 +74,7 @@ path = "/static"
 | `message_broker` | `String` | `null` | Redis URL for resumable uploads |
 | `hasher` | `String` | `HMAC256` | Hash algorithm: `HMAC256` or `Blake3` |
 | `image_compression_background` | `bool` | `false` | Whether image compression runs after the upload response instead of inline. The per-upload `image_compression.background` option overrides this |
+| `image_transformation_background` | `bool` | `false` | Whether image transformation runs after the upload response instead of inline. The per-upload `image_transformation.background` option overrides this. If either processing option requests background, the whole transform → compress chain runs after the response |
 | `static_folders` | `Array` | `[]` | Directories to serve as static files |
 
 ## Static Folders

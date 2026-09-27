@@ -76,6 +76,7 @@ curl -X POST http://localhost:8000/upload/session \
 | `content_type` | `String` | If bucket has accepts | MIME type of the file |
 | `accepts` | `String[]` | If no bucket | MIME types accepted for this upload (max 20 items, e.g. `["image/*"]`) |
 | `image_compression` | `Object` | No | Compress the image after upload — see [Image Compression](#image-compression) |
+| `image_transformation` | `Object` | No | Transform the image after upload, before compression — see [Image Transformation](#image-transformation) |
 
 ### Response
 
@@ -101,6 +102,8 @@ The `data` field contains a signed base64url token.
 - If `accepts` is provided without a bucket, uploaded file MIME is validated against it
 - `image_compression` requires `content_type` to be an `image/*` type and the `image_compression` plugin to be installed
 - `image_compression.quality` must be 0–100; `width`/`height` must be ≥ 1 when given
+- `image_transformation` requires `content_type` to be an `image/*` type and the `image_transformation` plugin to be installed
+- `image_transformation.quality` must be 0–100; operation arguments are validated at session creation (see [Image Transformation](#image-transformation))
 - Maximum 10,000 chunks per resumable upload
 
 ## Step 2: Upload File Data
@@ -394,6 +397,68 @@ When the option is set, the server rewrites the target path's extension (and `co
 - **Inline (default)** — compression runs before the final rename; the upload response returns only once the file exists at its target path. Compression failures fail the upload (`500`).
 - **Background** — set `image_compression.background: true` per upload, or `image_compression_background = true` in `ppd_config.toml` (the per-upload option wins). The response is sent immediately after all bytes are received and validated; compression, rename and registration then run in a background task. Failures are logged server-side only — the client has already received a success response, and the file may briefly be missing at the target path.
 
+## Image Transformation
+
+Provide `image_transformation` in the session config to transform the file once the upload completes. When both options are set, transformation runs first and compression second, so compression's output format wins. Requires the `image_transformation` plugin to be installed and an `image/*` `content_type`.
+
+```json
+{
+  "asset_type": "File",
+  "path": "uploads/photos/avatar.png",
+  "target_filesize": 524288,
+  "expires": 120,
+  "content_type": "image/png",
+  "accepts": ["image/*"],
+  "image_transformation": {
+    "operations": [
+      { "crop": { "x": 0, "y": 0, "width": 800, "height": 600 } },
+      { "rotate": { "degrees": 90 } },
+      { "adjust": { "brightness": 0.1, "contrast": 1.5, "saturation": 1.2 } },
+      "grayscale"
+    ],
+    "custom_filters": null,
+    "format": "WebP",
+    "quality": 80,
+    "background": false
+  }
+}
+```
+
+### Options
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `operations` | `Object[]` | `[]` | Typed operations applied in order — see below |
+| `custom_filters` | `String` | `null` | Raw FFmpeg filter string appended after `operations` (must not contain NUL bytes) |
+| `format` | `Jpeg` \| `Png` \| `WebP` \| `Avif` | `null` | Output format; `null` keeps the input format (no path rewrite) |
+| `quality` | `u8` (0–100) | `null` (plugin default 80) | Encoder quality |
+| `background` | `bool` | `null` (see below) | Transform after responding (`true`) or inline (`false`) |
+
+### Operations
+
+Each entry is tagged with its operation name; operations run in the order given.
+
+| Operation | Fields | Description |
+|---|---|---|
+| `crop` | `x`, `y`, `width`, `height` (`u32`) | Extract a rectangle; bounds are checked against the source image, size must be non-zero |
+| `rotate` | `degrees` (`u16`) | Rotate by 90, 180 or 270 |
+| `flip` | `horizontal`, `vertical` (`bool`) | Mirror; at least one must be `true` |
+| `pad` | `left`, `top`, `right`, `bottom` (`u32`), `color` (`String`) | Add a border; `color` is an FFmpeg color name or `#RRGGBB` |
+| `grayscale` | — | Desaturate to gray |
+| `adjust` | `brightness` (-1..=1), `contrast` (-1000..=1000), `saturation` (0..=3) (`f32`) | Color adjustment; values must be finite |
+| `blur` | `sigma` (`f32`, must be > 0) | Gaussian blur |
+| `sharpen` | `amount` (`f32`, must be finite) | Unsharp masking |
+| `scale` | `width`, `height` (`u32`) | Exact resize; dimensions must be non-zero |
+
+### Path rewriting
+
+When `format` is set, the server rewrites the target path's extension (and `content_type`) to match it **at session creation** — exactly like compression (see above). With `format: null` nothing is rewritten and the output keeps the input format. When both options are set, the compression rewrite wins because compression runs last.
+
+### Inline vs background
+
+- **Inline (default)** — transformation runs before the final rename; the upload response returns only once the file exists at its target path. Transformation failures fail the upload (`500`).
+- **Background** — set `image_transformation.background: true` per upload, or `image_transformation_background = true` in `ppd_config.toml` (the per-upload option wins). If either option requests background handling, the whole chain (transform → compress → rename → register) runs after the response; failures are logged server-side only, as described above.
+
 ## Error Responses
 
 | Status | Message | Cause |
@@ -407,6 +472,12 @@ When the option is set, the server rewrites the target path's extension (and `co
 | 400 | `image_compression plugin is not installed` | `image_compression` requested but the plugin is missing or failed to load |
 | 400 | `image_compression only applies to file uploads` | `image_compression` on a `Folder` session |
 | 400 | `compressed output type '...' is not accepted` | Output format isn't in the `accepts` list (no bucket) |
+| 400 | `content_type is required when image_transformation is set` | `image_transformation` without a declared content_type |
+| 400 | `image_transformation requires content_type to be an image/* type...` | Declared content_type is not an image |
+| 400 | `image_transformation plugin is not installed` | `image_transformation` requested but the plugin is missing or failed to load |
+| 400 | `image_transformation only applies to file uploads` | `image_transformation` on a `Folder` session |
+| 400 | `image_transformation operation #N (...): ...` | Invalid operation arguments (rotate degrees, flip direction, ranges, NUL in `custom_filters`) |
+| 400 | `transformed output type '...' is not accepted` | Output format isn't in the `accepts` list (no bucket) |
 | 400 | `upload exceeded maximum chunk limit of 10000` | Resumable upload exceeded 10,000 chunks |
 | 403 | `Write access denied...` | Client doesn't own the bucket |
 | 408 | `Request Timeout` | Server did not receive a complete request within 30 seconds |
