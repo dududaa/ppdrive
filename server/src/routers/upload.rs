@@ -98,11 +98,14 @@ pub(super) async fn create_session(
 
     // Transformation first, compression second: when both specify an output
     // format, compression runs last at completion so its rewrite wins.
+    // The audio options follow the same rule — effects before conversion —
+    // and can never combine with the image options: each requires its own
+    // `content_type` family, so a session validates for at most one of them.
     if let Some(transformation) = config.image_transformation.clone() {
         transformation
             .validate_operations()
             .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
-        check_image_plugin("image_transformation", &config).await?;
+        check_media_plugin("image_transformation", &config).await?;
 
         // Rewrite only when an output format is requested; `None` keeps the
         // input format (and the existing extension/content_type).
@@ -114,13 +117,38 @@ pub(super) async fn create_session(
     }
 
     if let Some(compression) = config.image_compression.clone() {
-        check_image_plugin("image_compression", &config).await?;
+        check_media_plugin("image_compression", &config).await?;
 
         // Store the output format: rewrite the path extension and content_type
         // so the overwrite check, MIME validation and asset registration all
         // refer to the file that will actually be written.
         let output_mime = compression.format.mime().to_string();
         config.path = compression.rewrite_path(&config.path);
+        config.content_type = Some(output_mime);
+    }
+
+    if let Some(effects) = config.audio_effects.clone() {
+        effects
+            .validate_operations()
+            .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
+        check_media_plugin("audio_effects", &config).await?;
+
+        // The plugin always re-encodes — an omitted format writes WAV —
+        // so the path/content_type are rewritten to the output format
+        // either way (a later audio_conversion rewrite wins).
+        let output_mime = effects.output_format().mime().to_string();
+        config.path = effects.rewrite_path(&config.path);
+        config.content_type = Some(output_mime);
+    }
+
+    if let Some(conversion) = config.audio_conversion.clone() {
+        check_media_plugin("audio_conversion", &config).await?;
+
+        // Store the output format: rewrite the path extension and content_type
+        // so the overwrite check, MIME validation and asset registration all
+        // refer to the file that will actually be written.
+        let output_mime = conversion.format.mime().to_string();
+        config.path = conversion.rewrite_path(&config.path);
         config.content_type = Some(output_mime);
     }
 
@@ -469,27 +497,20 @@ async fn get_next_session(
             }
         }
 
-        let transformation = config.image_transformation.clone();
-        let compression = config.image_compression.clone();
-        // One flag for the whole post-processing chain: if either option asks
-        // for background handling, transform → compress → rename → register
-        // all run after the response (order matters for output formats).
-        let background = transformation
-            .as_ref()
-            .map(|t| {
-                resolve_background(t.background, state.config().image_transformation_background)
-            })
-            .unwrap_or(false)
-            || compression
-                .as_ref()
-                .map(|c| {
-                    resolve_background(c.background, state.config().image_compression_background)
-                })
-                .unwrap_or(false);
+        let post = PostProcessing {
+            image_transformation: config.image_transformation.clone(),
+            image_compression: config.image_compression.clone(),
+            audio_effects: config.audio_effects.clone(),
+            audio_conversion: config.audio_conversion.clone(),
+        };
+        // One flag for the whole post-processing chain: if any option asks
+        // for background handling, processing → rename → register all run
+        // after the response (order matters for output formats).
+        let background = post.background(state.config());
 
         if background {
             // All bytes are in and validations passed; drop the session now
-            // and finalize (transform → compress → rename → register) off the request.
+            // and finalize (process → rename → register) off the request.
             if let Some(id) = session_id {
                 let broker = state.broker()?;
                 broker.remove_upload_info(&id).await?;
@@ -501,19 +522,10 @@ async fn get_next_session(
             let tmp_path = tmp_path.clone();
             let target_path = target_path.clone();
             tokio::spawn(async move {
-                finalize_in_background(
-                    state,
-                    config,
-                    client_id,
-                    tmp_path,
-                    target_path,
-                    transformation,
-                    compression,
-                )
-                .await;
+                finalize_in_background(state, config, client_id, tmp_path, target_path, post).await;
             });
         } else {
-            apply_post_processing(&tmp_path, transformation.as_ref(), compression.as_ref()).await?;
+            post.apply(&tmp_path).await?;
 
             tokio::fs::rename(&tmp_path, target_path).await?;
             if let Some(id) = session_id {
@@ -529,13 +541,74 @@ async fn get_next_session(
     Ok(next_token)
 }
 
-/// Shared preconditions for the image processing options: file uploads only,
-/// a declared `image/*` `content_type`, and the matching plugin installed.
+/// The post-processing options configured for one upload session, applied
+/// in place to the completed file.
+///
+/// At most one media family is ever populated: the session-creation checks
+/// require either an `image/*` or an `audio/*` `content_type`, never both.
+#[derive(Clone, Default)]
+struct PostProcessing {
+    image_transformation: Option<ImageTransformationConfig>,
+    image_compression: Option<ImageCompressionConfig>,
+    audio_effects: Option<AudioEffectsConfig>,
+    audio_conversion: Option<AudioConversionConfig>,
+}
+
+impl PostProcessing {
+    /// Whether the chain runs after the response: any option's
+    /// `background` (client) or its global `ppd_config.toml` default
+    /// asks for it.
+    fn background(&self, global: &ppdrive::config::AppConfig) -> bool {
+        self.image_transformation
+            .as_ref()
+            .map(|t| resolve_background(t.background, global.image_transformation_background))
+            .unwrap_or(false)
+            || self
+                .image_compression
+                .as_ref()
+                .map(|c| resolve_background(c.background, global.image_compression_background))
+                .unwrap_or(false)
+            || self
+                .audio_effects
+                .as_ref()
+                .map(|e| resolve_background(e.background, global.audio_effects_background))
+                .unwrap_or(false)
+            || self
+                .audio_conversion
+                .as_ref()
+                .map(|c| resolve_background(c.background, global.audio_conversion_background))
+                .unwrap_or(false)
+    }
+
+    /// Apply the configured post-processing to `path` in place, each
+    /// family in chain order: image transform → compress, audio
+    /// effects → conversion.
+    async fn apply(&self, path: &Path) -> anyhow::Result<()> {
+        if let Some(transformation) = &self.image_transformation {
+            apply_media_plugin("image-transformation", path, transformation).await?;
+        }
+        if let Some(compression) = &self.image_compression {
+            apply_media_plugin("image-compression", path, compression).await?;
+        }
+        if let Some(effects) = &self.audio_effects {
+            apply_media_plugin("audio-effects", path, effects).await?;
+        }
+        if let Some(conversion) = &self.audio_conversion {
+            apply_media_plugin("audio-conversion", path, conversion).await?;
+        }
+        Ok(())
+    }
+}
+
+/// Shared preconditions for the media processing options: file uploads only,
+/// a declared `<media>/*` `content_type`, and the matching plugin installed.
 ///
 /// `option` is the upload config field (snake_case, e.g. `image_compression`);
-/// the plugin id follows the hyphen convention (`image-compression`).
-async fn check_image_plugin(option: &str, config: &UploadUrlConfig) -> Result<(), ResponseError> {
+/// the media prefix (`image`, `audio`) and the plugin id
+/// (`image-compression`) follow from it.
+async fn check_media_plugin(option: &str, config: &UploadUrlConfig) -> Result<(), ResponseError> {
     let plugin_id = option.replace('_', "-");
+    let media = option.split('_').next().unwrap_or_default();
 
     if !matches!(config.asset_type, AssetType::File) {
         return Err(api_error(format!("{option} only applies to file uploads"))
@@ -546,34 +619,17 @@ async fn check_image_plugin(option: &str, config: &UploadUrlConfig) -> Result<()
         api_error(format!("content_type is required when {option} is set"))
             .with_status_code(StatusCode::BAD_REQUEST),
     )?;
-    if !content_type.starts_with("image/") {
+    if !content_type.starts_with(&format!("{media}/")) {
         return Err(api_error(format!(
-            "{option} requires content_type to be an image/* type, got '{content_type}'"
+            "{option} requires content_type to be an {media}/* type, got '{content_type}'"
         ))
         .with_status_code(StatusCode::BAD_REQUEST));
     }
 
-    if crate::app::find_plugin(&plugin_id).await.is_none() {
-        return Err(api_error(format!("{plugin_id} plugin is not installed"))
-            .with_status_code(StatusCode::BAD_REQUEST));
+    if let Err(message) = crate::app::require_plugin(&plugin_id).await {
+        return Err(api_error(message).with_status_code(StatusCode::BAD_REQUEST));
     }
 
-    Ok(())
-}
-
-/// Apply the configured post-processing — transformation first, then
-/// compression — to the completed upload in place.
-async fn apply_post_processing(
-    path: &Path,
-    transformation: Option<&ImageTransformationConfig>,
-    compression: Option<&ImageCompressionConfig>,
-) -> anyhow::Result<()> {
-    if let Some(transformation) = transformation {
-        apply_media_plugin("image-transformation", path, transformation).await?;
-    }
-    if let Some(compression) = compression {
-        apply_media_plugin("image-compression", path, compression).await?;
-    }
     Ok(())
 }
 
@@ -587,28 +643,37 @@ async fn apply_media_plugin(
     path: &Path,
     options: &impl serde::Serialize,
 ) -> anyhow::Result<()> {
-    let plugin = crate::app::find_plugin(plugin_id)
-        .await
-        .ok_or_else(|| anyhow!("{plugin_id} plugin is not installed"))?;
-
     let input = tokio::fs::read(path).await?;
+    let output = run_media_plugin(plugin_id, input, options).await?;
+    tokio::fs::write(path, output).await?;
+
+    tracing::info!(plugin = plugin_id, path = %path.display(), "upload post-processed");
+    Ok(())
+}
+
+/// Look up a media plugin and run it over `input` bytes on the blocking pool,
+/// returning the processed bytes.
+///
+/// Shared by upload post-processing and on-the-fly download transformation.
+pub(crate) async fn run_media_plugin(
+    plugin_id: &str,
+    input: Vec<u8>,
+    options: &impl serde::Serialize,
+) -> anyhow::Result<Vec<u8>> {
+    let plugin = crate::app::require_plugin(plugin_id)
+        .await
+        .map_err(anyhow::Error::msg)?;
     let options_json = serde_json::to_value(options)?;
-    let dest = path.to_path_buf();
     let plugin_id_owned = plugin_id.to_string();
 
-    tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+    tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<u8>> {
         let mut dispatcher = ppdrive::plugin::loader::PluginDispatcher::<Vec<u8>>::new();
         let output = dispatcher
             .dispatch(plugin, (input.as_slice(), &options_json))
             .map_err(|err| anyhow!("{plugin_id_owned} failed: {err}"))?;
-        std::fs::write(&dest, output)
-            .map_err(|err| anyhow!("failed to write processed file: {err}"))?;
-        Ok(())
+        Ok(output.clone())
     })
-    .await??;
-
-    tracing::info!(plugin = plugin_id, path = %path.display(), "upload post-processed");
-    Ok(())
+    .await?
 }
 
 /// Finalize an upload after the success response has been sent.
@@ -620,11 +685,10 @@ async fn finalize_in_background(
     client_id: String,
     tmp_path: PathBuf,
     target_path: PathBuf,
-    transformation: Option<ImageTransformationConfig>,
-    compression: Option<ImageCompressionConfig>,
+    post: PostProcessing,
 ) {
     let result = async {
-        apply_post_processing(&tmp_path, transformation.as_ref(), compression.as_ref()).await?;
+        post.apply(&tmp_path).await?;
         tokio::fs::rename(&tmp_path, &target_path).await?;
         register_asset(&state, &config, &client_id).await?;
         anyhow::Ok(())

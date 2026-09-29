@@ -191,6 +191,7 @@ pub async fn install_remote(
             installed_at: chrono::Utc::now().to_rfc3339(),
             source: Some(remote.store()),
             build: true,
+            active: true,
         })
     } else {
         let repo = match &remote {
@@ -219,6 +220,7 @@ pub async fn install_remote(
             installed_at: chrono::Utc::now().to_rfc3339(),
             source: Some(remote.store()),
             build: false,
+            active: true,
         })
     }
 }
@@ -266,6 +268,7 @@ async fn install_local(
         installed_at: chrono::Utc::now().to_rfc3339(),
         source: Some(source.to_string()),
         build,
+        active: true,
     })
 }
 
@@ -493,12 +496,14 @@ pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
                 let remote = remote.store();
                 println!("Updating {plugin_id} from {remote}...");
                 match install_remote(plugin_id, &remote, "latest", entry.build, &libs_dir).await {
-                    Ok(new_entry) => {
+                    Ok(mut new_entry) => {
                         // Remove old lib file if filename changed
                         let old_lib = libs_dir.join(&entry.filename);
                         if old_lib.exists() && entry.filename != new_entry.filename {
                             let _ = tokio::fs::remove_file(&old_lib).await;
                         }
+                        // Updating must not flip the activation state.
+                        new_entry.active = entry.active;
                         registry.remove(plugin_id);
                         registry.add(new_entry);
                         updated += 1;
@@ -740,15 +745,19 @@ pub async fn execute_list() -> Result<(), anyhow::Error> {
         return Ok(());
     }
 
-    println!("{:<30} {:<10} {:<40} INSTALLED", "ID", "VERSION", "SOURCE");
-    println!("{}", "-".repeat(110));
+    println!(
+        "{:<30} {:<10} {:<40} {:<8} INSTALLED",
+        "ID", "VERSION", "SOURCE", "ACTIVE"
+    );
+    println!("{}", "-".repeat(119));
     for p in plugins {
         let source = p.source.as_deref().unwrap_or("-");
         println!(
-            "{:<30} {:<10} {:<40} {}",
+            "{:<30} {:<10} {:<40} {:<8} {}",
             p.full_id(),
             p.version,
             source,
+            if p.active { "yes" } else { "no" },
             p.installed_at
         );
     }
@@ -774,4 +783,38 @@ pub async fn execute_remove(id: &str) -> Result<(), anyhow::Error> {
     registry.save().await?;
     println!("Plugin '{id}' removed.");
     Ok(())
+}
+
+/// Persist the `active` flag for an installed plugin.
+async fn set_plugin_active(id: &str, active: bool) -> Result<(), anyhow::Error> {
+    let mut registry = PluginRegistry::load().await?;
+
+    let Some(entry) = registry.get(id) else {
+        return Err(anyhow::anyhow!("plugin '{id}' is not installed"));
+    };
+    let current = entry.active;
+
+    if current == active {
+        let state = if active { "active" } else { "inactive" };
+        println!("Plugin '{id}' is already {state}.");
+        return Ok(());
+    }
+
+    // Guaranteed `Some`: the id was found above.
+    let _ = registry.set_active(id, active);
+    registry.save().await?;
+
+    let action = if active { "activated" } else { "deactivated" };
+    println!("Plugin '{id}' {action}. Restart the server to apply the change.");
+    Ok(())
+}
+
+/// Activate an installed plugin so the server loads it on next start.
+pub async fn execute_activate(id: &str) -> Result<(), anyhow::Error> {
+    set_plugin_active(id, true).await
+}
+
+/// Deactivate an installed plugin so the server skips it on next start.
+pub async fn execute_deactivate(id: &str) -> Result<(), anyhow::Error> {
+    set_plugin_active(id, false).await
 }

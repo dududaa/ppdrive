@@ -45,6 +45,29 @@ pub struct AppConfig {
     /// `image_transformation.background` overrides this.
     #[serde(default)]
     pub image_transformation_background: Option<bool>,
+
+    /// Default for whether audio conversion runs after the upload response
+    /// (`true`) or inline before it (`false`). Per-upload
+    /// `audio_conversion.background` overrides this.
+    #[serde(default)]
+    pub audio_conversion_background: Option<bool>,
+
+    /// Default for whether audio effects run after the upload response
+    /// (`true`) or inline before it (`false`). Per-upload
+    /// `audio_effects.background` overrides this.
+    #[serde(default)]
+    pub audio_effects_background: Option<bool>,
+
+    /// TTL in seconds for transformed-download cache entries stored in the
+    /// message broker. `0` disables server-side caching entirely.
+    /// Requires `message_broker` to be configured. Defaults to 86400 (24h).
+    #[serde(default)]
+    pub transform_cache_ttl_secs: Option<u64>,
+
+    /// HTTP `Cache-Control: max-age` in seconds for transformed-download
+    /// responses. Defaults to 3600 (1h).
+    #[serde(default)]
+    pub transform_cache_max_age_secs: Option<u64>,
 }
 
 impl AppConfig {
@@ -150,6 +173,10 @@ impl Default for AppConfig {
             plugins: None,
             image_compression_background: None,
             image_transformation_background: None,
+            audio_conversion_background: None,
+            audio_effects_background: None,
+            transform_cache_ttl_secs: None,
+            transform_cache_max_age_secs: None,
         }
     }
 }
@@ -177,10 +204,14 @@ client_header_key = "x-ppdrive-client"
 hasher = "HMAC256"
 image_compression_background = true
 image_transformation_background = true
+audio_conversion_background = true
+audio_effects_background = true
 "#;
         let config: AppConfig = toml::from_str(toml_content).unwrap();
         assert_eq!(config.image_compression_background, Some(true));
         assert_eq!(config.image_transformation_background, Some(true));
+        assert_eq!(config.audio_conversion_background, Some(true));
+        assert_eq!(config.audio_effects_background, Some(true));
     }
 
     #[test]
@@ -195,5 +226,36 @@ hasher = "HMAC256"
         assert_eq!(config.image_transformation_background, None);
         assert_eq!(AppConfig::default().image_compression_background, None);
         assert_eq!(AppConfig::default().image_transformation_background, None);
+        assert_eq!(config.audio_conversion_background, None);
+        assert_eq!(config.audio_effects_background, None);
+        assert_eq!(AppConfig::default().audio_conversion_background, None);
+        assert_eq!(AppConfig::default().audio_effects_background, None);
+    }
+
+    #[test]
+    fn parses_transform_cache_settings() {
+        let with_values = r#"
+database_url = "sqlite:data.db"
+client_header_key = "x-ppdrive-client"
+hasher = "HMAC256"
+transform_cache_ttl_secs = 300
+transform_cache_max_age_secs = 60
+"#;
+        let config: AppConfig = toml::from_str(with_values).unwrap();
+        assert_eq!(config.transform_cache_ttl_secs, Some(300));
+        assert_eq!(config.transform_cache_max_age_secs, Some(60));
+
+        // Absent fields fall back to None (callers apply defaults), and 0 is
+        // preserved so it can disable the cache.
+        let disabled = r#"
+database_url = "sqlite:data.db"
+client_header_key = "x-ppdrive-client"
+hasher = "HMAC256"
+transform_cache_ttl_secs = 0
+"#;
+        let config: AppConfig = toml::from_str(disabled).unwrap();
+        assert_eq!(config.transform_cache_ttl_secs, Some(0));
+        assert_eq!(config.transform_cache_max_age_secs, None);
+        assert_eq!(AppConfig::default().transform_cache_ttl_secs, None);
     }
 }

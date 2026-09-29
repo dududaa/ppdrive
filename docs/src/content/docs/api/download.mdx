@@ -31,6 +31,39 @@ curl http://localhost:8000/storage/images/photo.jpg
 
 The server auto-detects the `Content-Type` from the file extension.
 
+### Transformations on Direct Downloads
+
+Append an `image_transformation` query parameter (URL-encoded JSON, the same [configuration shape](/api/upload/#image-transformation) as uploads) to receive an on-the-fly rendition instead of the original file:
+
+<Tabs>
+<TabItem label="JavaScript">
+
+```js
+const config = { operations: [{ rotate: { degrees: 90 } }], format: "WebP" };
+const query = encodeURIComponent(JSON.stringify(config));
+
+const res = await fetch(
+  `http://localhost:8000/storage/images/photo.jpg?image_transformation=${query}`,
+);
+const blob = await res.blob();
+```
+
+</TabItem>
+<TabItem label="curl">
+
+```sh
+curl -G http://localhost:8000/storage/images/photo.jpg \
+  --data-urlencode 'image_transformation={"operations":["grayscale"]}' \
+  --output gray.jpg
+```
+
+</TabItem>
+</Tabs>
+
+- The `image_transformation` plugin must be installed, and the source file must be an image (`image/*`).
+- `custom_filters` is rejected with `400` on this unauthenticated surface — use typed `operations` only.
+- Only `GET` requests carrying the parameter are transformed; every other request passes through to the original file unchanged.
+
 ## Private Buckets
 
 Private buckets require a signed download URL. This is a two-step process.
@@ -84,6 +117,9 @@ curl -X POST http://localhost:8000/download/sign \
 | `path` | `String` | Yes | File path relative to the bucket |
 | `bucket` | `String` | Yes | Bucket PID |
 | `expires` | `i64` | Yes | Token lifetime in seconds (30–3600) |
+| `image_transformation` | `Object` | No | Serve an on-the-fly rendition when the token is used — see [Image Transformation](#image-transformation) |
+
+When `image_transformation` is included, the server validates it **at sign time** (before the bucket lookup): operation arguments, the `image/*` source requirement, and plugin availability. The configuration is embedded in the signed token, so every download with that token serves the rendition.
 
 #### Response
 
@@ -178,6 +214,24 @@ Accept-Ranges: bytes
 | 206 | Partial content (valid Range) |
 | 416 | Range not satisfiable |
 
+## Image Transformation
+
+Both download surfaces can apply the `image_transformation` plugin on the fly (requires the plugin to be installed). See [Image Transformation](/api/upload/#image-transformation) for the full options and operations reference.
+
+- **Signed downloads** — pass `image_transformation` in the [sign request](#step-1-sign-the-download); it is validated at sign time and embedded in the token.
+- **Direct downloads** — append `?image_transformation=<url-encoded JSON>` as shown [above](#transformations-on-direct-downloads).
+
+A transformed response is always a full `200` — the `Range` header does not apply to a re-encoded rendition and is ignored.
+
+### Caching
+
+Transformed downloads are cacheable at two levels:
+
+- **HTTP revalidation** — every transformed response carries an `ETag` derived from the source file (path, size and modification time) and the requested configuration. Send it back with `If-None-Match` to receive `304 Not Modified` without running the plugin.
+- **Server-side cache** — when `message_broker` is configured, rendered renditions are stored in Redis under the same key. The TTL is `transform_cache_ttl_secs` (default `86400`; `0` disables server-side caching). Without a reachable broker the cache is simply skipped — downloads never fail because of caching.
+
+`Cache-Control: max-age` defaults to `transform_cache_max_age_secs` (default `3600`); for signed downloads it is capped at the token's remaining lifetime.
+
 ## Sign Validation
 
 When signing a download URL, the server validates:
@@ -253,6 +307,11 @@ curl "http://localhost:8000/download/$TOKEN" --output report.pdf
 | Status | Message | Cause |
 |---|---|---|
 | 400 | `path contains invalid components: '..' is not allowed` | Path traversal attempt (contains `..`) |
+| 400 | `image_transformation operation #N (...): ...` | Invalid transformation operation arguments |
+| 400 | `image_transformation requires an image/* file, got '...'` | Transformation source is not an image |
+| 400 | `image-transformation plugin is not installed` | Transformation requested but the plugin is missing or failed to load |
+| 400 | `custom_filters is not allowed for direct downloads` | Raw FFmpeg filter string on the public query surface |
+| 400 | `invalid image_transformation: ...` | Malformed transformation JSON in the query string |
 | 401 | `download token expired` | Token has passed its expiration |
 | 401 | `...` (verification error) | Token is invalid or tampered |
 | 403 | `path escapes storage root` | Canonicalized path escapes storage |

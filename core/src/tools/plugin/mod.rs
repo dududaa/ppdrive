@@ -34,6 +34,12 @@ pub fn plugin_full_id(id: &str) -> String {
     format!("{PLUGIN_ID_PREFIX}{}", normalize_plugin_id(id))
 }
 
+/// Registry entries created before the `active` field existed, and fresh
+/// installs, are loaded by the server.
+fn default_active() -> bool {
+    true
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PluginEntry {
     /// Short id without the `ppdrive-` prefix (e.g. `dashboard`).
@@ -50,6 +56,11 @@ pub struct PluginEntry {
     /// Whether the plugin was built from source during install.
     #[serde(default)]
     pub build: bool,
+    /// Whether the server loads this plugin at startup. Deactivated plugins
+    /// stay installed but are skipped; default `true` so registries written
+    /// before this field existed keep working.
+    #[serde(default = "default_active")]
+    pub active: bool,
 }
 
 impl PluginEntry {
@@ -109,6 +120,19 @@ impl PluginRegistry {
             .iter()
             .position(|p| same_id(&p.id, id))?;
         Some(self.plugins.plugins.remove(idx))
+    }
+
+    /// Set the `active` flag on an installed plugin; returns `None` when no
+    /// plugin matches `id`. The change only takes effect once the server
+    /// reloads the registry (restart).
+    pub fn set_active(&mut self, id: &str, active: bool) -> Option<&PluginEntry> {
+        let entry = self
+            .plugins
+            .plugins
+            .iter_mut()
+            .find(|p| same_id(&p.id, id))?;
+        entry.active = active;
+        Some(entry)
     }
 
     pub fn get(&self, id: &str) -> Option<&PluginEntry> {
@@ -239,6 +263,7 @@ mod tests {
             installed_at: "now".to_string(),
             source: None,
             build: false,
+            active: true,
         });
 
         assert_eq!(registry.list()[0].id, "image-compression");
@@ -249,6 +274,67 @@ mod tests {
         assert_eq!(
             registry.list()[0].filename,
             "ppdrive_image_compression-linux-x86_64.so"
+        );
+    }
+
+    #[test]
+    fn missing_active_field_defaults_to_true() {
+        let entry: PluginEntry = serde_json::from_str(
+            r#"{
+                "id": "dashboard",
+                "filename": "ppdrive-dashboard-linux-x86_64.so",
+                "version": "1.0.0",
+                "installed_at": "2026-01-01T00:00:00Z"
+            }"#,
+        )
+        .expect("legacy entry without active field should deserialize");
+        assert!(entry.active, "entries written before active existed load");
+    }
+
+    #[test]
+    fn explicit_false_survives_serde_roundtrip() {
+        let entry = PluginEntry {
+            id: "dashboard".to_string(),
+            filename: "ppdrive-dashboard-linux-x86_64.so".to_string(),
+            version: "1.0.0".to_string(),
+            installed_at: "2026-01-01T00:00:00Z".to_string(),
+            source: None,
+            build: false,
+            active: false,
+        };
+        let json = serde_json::to_string(&entry).expect("serialize");
+        let parsed: PluginEntry = serde_json::from_str(&json).expect("deserialize");
+        assert!(!parsed.active, "deactivated state must roundtrip");
+    }
+
+    #[test]
+    fn set_active_flips_flag_and_missing_returns_none() {
+        let mut registry = PluginRegistry {
+            file_path: PathBuf::from("unused-test-path"),
+            plugins: PluginsFile::default(),
+        };
+        registry.add(PluginEntry {
+            id: "dashboard".to_string(),
+            filename: "ppdrive-dashboard-linux-x86_64.so".to_string(),
+            version: "1.0.0".to_string(),
+            installed_at: "now".to_string(),
+            source: None,
+            build: false,
+            active: true,
+        });
+
+        let entry = registry
+            .set_active("ppdrive_dashboard", false)
+            .expect("installed plugin should be found across id conventions");
+        assert!(!entry.active);
+        assert!(!registry.get("dashboard").unwrap().active);
+
+        registry.set_active("dashboard", true).expect("reactivate");
+        assert!(registry.get("dashboard").unwrap().active);
+
+        assert!(
+            registry.set_active("does-not-exist", false).is_none(),
+            "unknown ids must not silently create entries"
         );
     }
 }

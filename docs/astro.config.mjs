@@ -1,9 +1,34 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const satteriWasmStub = fileURLToPath(new URL('./satteri-wasi-stub.mjs', import.meta.url));
+
+/**
+ * Latest ppdrive release shown in the topbar (e.g. `v0.2.1`).
+ * `PPDRIVE_VERSION` wins (CI override); otherwise the highest `v*` git
+ * tag; `dev` on shallow clones or when git is unavailable.
+ * @returns {string}
+ */
+function resolveVersion() {
+	const fromEnv = process.env.PPDRIVE_VERSION;
+	if (fromEnv) return fromEnv;
+	try {
+		const tags = execFileSync('git', ['tag', '--sort=-v:refname', '--list', 'v*'], {
+			cwd: fileURLToPath(new URL('..', import.meta.url)),
+			encoding: 'utf8',
+		});
+		const latest = tags.split('\n').find((tag) => tag.length > 0);
+		if (latest) return latest;
+	} catch {
+		// fall through to the dev fallback
+	}
+	return 'dev';
+}
+
+const version = resolveVersion();
 
 // https://astro.build/config
 export default defineConfig({
@@ -12,10 +37,16 @@ export default defineConfig({
 		resolve: {
 			alias: [{ find: '@bruits/satteri-wasm32-wasi', replacement: satteriWasmStub }],
 		},
+		define: {
+			__PPDRIVE_VERSION__: JSON.stringify(version),
+		},
 	},
 	integrations: [
 		starlight({
 			title: 'PPDRIVE',
+			components: {
+				SiteTitle: './src/components/SiteTitle.astro',
+			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/dududaa/ppdrive' },
 				{ icon: 'discord', label: 'Discord', href: 'https://discord.gg/6nB4xYnxeC' },

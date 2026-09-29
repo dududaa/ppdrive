@@ -4,7 +4,7 @@
 
 mod auth;
 mod bucket;
-mod download;
+pub(crate) mod download;
 mod metrics;
 mod middlewares;
 mod permissions;

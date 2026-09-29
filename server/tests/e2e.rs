@@ -2,7 +2,10 @@ mod common;
 
 use axum::body::Bytes;
 use axum::http::StatusCode;
-use ppdrive::db::client::create_client;
+use ppdrive::AssetOwnerName;
+use ppdrive::db::bucket;
+use ppdrive::db::bucket::models::CreateBucketData;
+use ppdrive::db::client::{create_client, get_id};
 use ppdrive::db::user;
 use ppdrive::root_dir;
 use ppdrive::server::{AssetType, UploadUrlConfig};
@@ -353,6 +356,201 @@ async fn test_image_transformation_plugin_not_installed() -> anyhow::Result<()> 
 }
 
 #[tokio::test]
+async fn test_audio_conversion_requires_audio_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("application/pdf".to_string());
+    config.audio_conversion = Some(ppdrive::server::AudioConversionConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("requires content_type to be an audio/* type")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_audio_conversion_requires_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.target_filesize = Some(1024);
+    config.content_type = None;
+    config.audio_conversion = Some(ppdrive::server::AudioConversionConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("content_type is required when audio_conversion is set")
+    );
+    Ok(())
+}
+
+/// The e2e environment runs from the workspace root, which has no
+/// `plugins.json` — so a valid audio-conversion request must be rejected
+/// because the plugin is not installed.
+#[tokio::test]
+async fn test_audio_conversion_plugin_not_installed() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/convert.wav".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("audio/wav".to_string());
+    config.audio_conversion = Some(ppdrive::server::AudioConversionConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("audio-conversion plugin is not installed")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_audio_effects_requires_audio_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("application/pdf".to_string());
+    config.audio_effects = Some(ppdrive::server::AudioEffectsConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("requires content_type to be an audio/* type")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_audio_effects_requires_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.target_filesize = Some(1024);
+    config.content_type = None;
+    config.audio_effects = Some(ppdrive::server::AudioEffectsConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("content_type is required when audio_effects is set")
+    );
+    Ok(())
+}
+
+/// Operation arguments are validated before the plugin lookup, so an
+/// invalid speed factor is rejected even where the plugin isn't installed.
+#[tokio::test]
+async fn test_audio_effects_rejects_invalid_operation() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("audio/mpeg".to_string());
+    config.audio_effects = Some(ppdrive::server::AudioEffectsConfig {
+        operations: vec![ppdrive::server::AudioEffectOperation::Speed { factor: 0.0 }],
+        ..Default::default()
+    });
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("audio_effects operation #0 (speed)")
+    );
+    Ok(())
+}
+
+/// The e2e environment runs from the workspace root, which has no
+/// `plugins.json` — so a valid audio-effects request must be rejected
+/// because the plugin is not installed.
+#[tokio::test]
+async fn test_audio_effects_plugin_not_installed() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/effects.mp3".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("audio/mpeg".to_string());
+    config.audio_effects = Some(ppdrive::server::AudioEffectsConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("audio-effects plugin is not installed")
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn test_upload_to_named_bucket() -> anyhow::Result<()> {
     let (_, token, header_key) = setup_test_client().await?;
     let server = TestServerWrapper::new().await?;
@@ -609,6 +807,322 @@ async fn test_download_with_range_header() -> anyhow::Result<()> {
     let range_data = resp.into_bytes();
     assert_eq!(range_data.len(), 100);
     assert_eq!(range_data[..], file_data[..100]);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Image transformation on downloads
+// ---------------------------------------------------------------------------
+
+/// Percent-encode a JSON value for use as a query-string value.
+fn encode_query_json(value: &Value) -> String {
+    let raw = value.to_string();
+    let mut out = String::with_capacity(raw.len());
+    for byte in raw.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char);
+            }
+            other => out.push_str(&format!("%{other:02X}")),
+        }
+    }
+    out
+}
+
+/// Register a public bucket backed by `e2e-transform-mount/` (gitignored),
+/// drop an image and a text fixture inside it, then build an app that
+/// mounts the bucket. The bucket row must exist *before* the app is built
+/// so its `ServeDir` mount is registered.
+async fn setup_transform_mount() -> anyhow::Result<(TestServerWrapper, std::path::PathBuf)> {
+    let (state, _token, _header_key) = setup_test_client().await?;
+
+    let owner = create_client(state.db(), state.secrets(), "Transform Mount Owner").await?;
+    let owner_id = get_id(owner.id(), state.db()).await?;
+    let data = CreateBucketData {
+        name: "e2e-transform-mount".into(),
+        path: "/e2e-transform-mount".into(),
+        owner_type: AssetOwnerName::Client,
+        owner_id,
+        public: true,
+        size: None,
+        accepts: None,
+    };
+    bucket::create(&data, &state.config().static_folders, state.db()).await?;
+
+    let dir = root_dir()?.join("e2e-transform-mount");
+    tokio::fs::create_dir_all(&dir).await?;
+    tokio::fs::copy(
+        root_dir()?.join("test-assets/demo.jpg"),
+        dir.join("img.jpg"),
+    )
+    .await?;
+    tokio::fs::write(dir.join("notes.txt"), b"plain text fixture").await?;
+
+    let server = TestServerWrapper::new().await?;
+    Ok((server, dir))
+}
+
+/// Invalid operation arguments are rejected at sign time before any
+/// database lookup — the bucket PID below does not exist.
+#[tokio::test]
+async fn test_sign_download_rejects_invalid_transformation_operation() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let body = json!({
+        "path": "photos/a.jpg",
+        "bucket": "bkt-does-not-exist",
+        "expires": 60,
+        "image_transformation": { "operations": [{ "rotate": { "degrees": 45 } }] }
+    });
+    let resp = server
+        .post("/download/sign", &body)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("rotate")
+    );
+    Ok(())
+}
+
+/// The transformation source must be an image, checked before the
+/// database is touched.
+#[tokio::test]
+async fn test_sign_download_rejects_transformation_for_non_image() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let body = json!({
+        "path": "docs/readme.txt",
+        "bucket": "bkt-does-not-exist",
+        "expires": 60,
+        "image_transformation": { "operations": [] }
+    });
+    let resp = server
+        .post("/download/sign", &body)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("image/*")
+    );
+    Ok(())
+}
+
+/// The e2e environment runs from the workspace root, which has no
+/// `plugins.json` — so a sign request with a valid transformation must be
+/// rejected because the plugin is not installed (again, before the
+/// database lookup).
+#[tokio::test]
+async fn test_sign_download_transformation_requires_plugin() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let body = json!({
+        "path": "photos/a.jpg",
+        "bucket": "bkt-does-not-exist",
+        "expires": 60,
+        "image_transformation": {}
+    });
+    let resp = server
+        .post("/download/sign", &body)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("not installed")
+    );
+    Ok(())
+}
+
+/// Requests without the parameter must pass through the wrapper untouched
+/// and be served by `ServeDir` as before.
+#[tokio::test]
+async fn test_direct_download_passthrough_without_transformation() -> anyhow::Result<()> {
+    let (server, _) = setup_transform_mount().await?;
+
+    let original = tokio::fs::read(root_dir()?.join("test-assets/demo.jpg")).await?;
+    let resp = server.get("/e2e-transform-mount/img.jpg").await;
+
+    resp.assert_status_ok();
+    assert_eq!(resp.into_bytes().len(), original.len());
+    Ok(())
+}
+
+/// Malformed transformation JSON is rejected with a client-facing message.
+#[tokio::test]
+async fn test_direct_download_rejects_malformed_transformation() -> anyhow::Result<()> {
+    let (server, _) = setup_transform_mount().await?;
+
+    let resp = server
+        .get("/e2e-transform-mount/img.jpg?image_transformation=%7Bnot-valid-json")
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("invalid image_transformation")
+    );
+    Ok(())
+}
+
+/// The unauthenticated surface only accepts typed operations — raw FFmpeg
+/// filter strings are rejected.
+#[tokio::test]
+async fn test_direct_download_rejects_custom_filters() -> anyhow::Result<()> {
+    let (server, _) = setup_transform_mount().await?;
+
+    let query = encode_query_json(&json!({ "custom_filters": "eq=brightness=0.1" }));
+    let resp = server
+        .get(&format!(
+            "/e2e-transform-mount/img.jpg?image_transformation={query}"
+        ))
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("custom_filters")
+    );
+    Ok(())
+}
+
+/// A request-target containing a literal `..` segment is rejected with a
+/// clear 400. The axum-test client normalizes dot segments before sending
+/// (WHATWG URL rules), so this test speaks HTTP/1.1 over a raw socket to
+/// deliver the unnormalized path.
+#[tokio::test]
+async fn test_direct_download_rejects_parent_traversal() -> anyhow::Result<()> {
+    let (server, _) = setup_transform_mount().await?;
+    let port = server.port();
+
+    let response = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+        use std::io::{Read, Write};
+
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port))?;
+        stream.set_read_timeout(Some(std::time::Duration::from_secs(10)))?;
+        stream.write_all(
+            concat!(
+                "GET /e2e-transform-mount/../e2e-transform-mount/img.jpg",
+                "?image_transformation=%7B%7D HTTP/1.1\r\n",
+                "Host: 127.0.0.1\r\n",
+                "Connection: close\r\n",
+                "\r\n"
+            )
+            .as_bytes(),
+        )?;
+        let mut response = String::new();
+        stream.read_to_string(&mut response)?;
+        Ok(response)
+    })
+    .await??;
+
+    assert!(
+        response.starts_with("HTTP/1.1 400"),
+        "expected 400, got: {response}"
+    );
+    assert!(
+        response.contains("'..' is not allowed"),
+        "unexpected response: {response}"
+    );
+    Ok(())
+}
+
+/// Only image files can be transformed on the direct surface; a text file
+/// under the same mount is rejected on content type.
+#[tokio::test]
+async fn test_direct_download_requires_image_source() -> anyhow::Result<()> {
+    let (server, _) = setup_transform_mount().await?;
+
+    let resp = server
+        .get("/e2e-transform-mount/notes.txt?image_transformation=%7B%7D")
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("image/*")
+    );
+    Ok(())
+}
+
+/// A conditional request with a matching ETag is answered with `304 Not
+/// Modified` without invoking the plugin — the key is derived from the
+/// source file and the requested configuration.
+#[tokio::test]
+async fn test_direct_download_revalidates_with_etag() -> anyhow::Result<()> {
+    let (server, dir) = setup_transform_mount().await?;
+
+    let file = std::fs::canonicalize(dir.join("img.jpg"))?;
+    let metadata = std::fs::metadata(&file)?;
+    let mtime = metadata
+        .modified()
+        .ok()
+        .and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let config = ppdrive::server::ImageTransformationConfig::default();
+    let etag = config.cache_key(&file.to_string_lossy(), metadata.len(), mtime);
+
+    let query = encode_query_json(&json!({ "operations": [] }));
+    let resp = server
+        .get(&format!(
+            "/e2e-transform-mount/img.jpg?image_transformation={query}"
+        ))
+        .add_header("If-None-Match", format!("\"{etag}\""))
+        .await;
+
+    resp.assert_status(StatusCode::NOT_MODIFIED);
+    assert_eq!(
+        resp.headers().get(axum::http::header::ETAG),
+        Some(&axum::http::HeaderValue::from_str(&format!("\"{etag}\""))?)
+    );
+    Ok(())
+}
+
+/// A well-formed request must be rejected at the plugin gate (the e2e
+/// environment has no `image-transformation` plugin installed).
+#[tokio::test]
+async fn test_direct_download_transformation_requires_plugin() -> anyhow::Result<()> {
+    let (server, _) = setup_transform_mount().await?;
+
+    let resp = server
+        .get("/e2e-transform-mount/img.jpg?image_transformation=%7B%7D")
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("not installed")
+    );
     Ok(())
 }
 

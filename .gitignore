@@ -4,6 +4,7 @@ target/
 data.db*
 .ppdrive_secret
 ppd_config.toml
+plugins.json
 test-assets/uploads/
 tmp/
 uploads/

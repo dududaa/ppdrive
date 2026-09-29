@@ -1,3 +1,6 @@
+// Shared across test binaries; individual binaries use different subsets.
+#![allow(dead_code)]
+
 use axum::body::Bytes;
 use axum_test::{TestRequest, TestServer, TestServerConfig, Transport};
 use ppdrive::db::Database;
@@ -54,6 +57,15 @@ impl TestServerWrapper {
 
     pub fn get(&self, url: &str) -> TestRequest {
         self.server.get(url)
+    }
+
+    /// The bound port of the real HTTP transport, for tests that bypass
+    /// the client and speak HTTP directly.
+    pub fn port(&self) -> u16 {
+        self.server
+            .server_address()
+            .and_then(|address| address.port_or_known_default())
+            .expect("HTTP transport should expose a server port")
     }
 
     pub fn delete<B: Serialize>(&self, url: &str, body: &B) -> TestRequest {

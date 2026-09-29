@@ -67,4 +67,41 @@ impl MessageBroker {
             .map_err(|e| anyhow!("{e}"))?;
         Ok(())
     }
+
+    /// Fetch a cached transformed-download payload by cache key.
+    ///
+    /// Returns `Ok(None)` when the entry is absent (expired or never stored).
+    pub async fn get_transform_cache(&self, key: &str) -> anyhow::Result<Option<Vec<u8>>> {
+        let value = self
+            .conn()
+            .get::<_, Option<Vec<u8>>>(transform_cache_key(key))
+            .await
+            .map_err(|e| anyhow!("{e}"))?;
+        Ok(value)
+    }
+
+    /// Store a transformed-download payload, expiring after `ttl_secs`.
+    ///
+    /// A `ttl_secs` of 0 is a no-op (the cache is disabled).
+    pub async fn set_transform_cache(
+        &self,
+        key: &str,
+        value: &[u8],
+        ttl_secs: u64,
+    ) -> anyhow::Result<()> {
+        if ttl_secs == 0 {
+            return Ok(());
+        }
+        self.conn()
+            .set_ex::<_, &[u8], Value>(transform_cache_key(key), value, ttl_secs)
+            .await
+            .map_err(|e| anyhow!("{e}"))?;
+        Ok(())
+    }
+}
+
+/// Namespaced Redis key for a transformed-download cache entry, kept distinct
+/// from raw upload session ids.
+fn transform_cache_key(key: &str) -> String {
+    format!("ppdrive:xform:{key}")
 }

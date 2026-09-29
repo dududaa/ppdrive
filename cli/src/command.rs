@@ -35,6 +35,8 @@ impl Cli {
                         source,
                         build,
                     } => plugin::execute_add(id, version, *local, source.as_deref(), *build).await,
+                    PluginCommand::Activate { id } => plugin::execute_activate(id).await,
+                    PluginCommand::Deactivate { id } => plugin::execute_deactivate(id).await,
                     PluginCommand::List => plugin::execute_list().await,
                     PluginCommand::Remove { id } => plugin::execute_remove(id).await,
                     PluginCommand::Update { id } => plugin::execute_update(id.as_deref()).await,

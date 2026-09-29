@@ -170,6 +170,16 @@ pub enum PluginCommand {
         #[arg(long)]
         source: Option<String>,
     },
+    /// Activate an installed plugin (loaded by the server on next start)
+    Activate {
+        /// Plugin id (the `ppdrive-` prefix is optional)
+        id: String,
+    },
+    /// Deactivate an installed plugin (not loaded by the server)
+    Deactivate {
+        /// Plugin id (the `ppdrive-` prefix is optional)
+        id: String,
+    },
     /// List installed plugins
     List,
     /// Remove an installed plugin
