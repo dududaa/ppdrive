@@ -18,7 +18,6 @@ fn test_upload_config() -> UploadUrlConfig {
         asset_type: AssetType::File,
         path: "test-assets/uploads/creator.jpg".to_string(),
         expires: 120,
-        accepts: Some(vec!["*/*".to_string()]),
         ..Default::default()
     }
 }
@@ -161,6 +160,7 @@ async fn test_upload_session_and_play() -> anyhow::Result<()> {
     config.target_filesize = Some(file_data.len() as u64);
     config.create_parents = Some(true);
     config.overwrite = Some(true);
+    config.content_type = Some("image/jpeg".to_string());
 
     // Create session
     let resp = server
@@ -193,7 +193,7 @@ async fn test_upload_session_requires_target_filesize() -> anyhow::Result<()> {
         target_filesize: None,
         create_parents: Some(true),
         overwrite: Some(true),
-        accepts: Some(vec!["*/*".to_string()]),
+        content_type: Some("image/jpeg".to_string()),
         ..Default::default()
     };
 
@@ -1009,6 +1009,7 @@ async fn test_resumable_upload_flow() -> anyhow::Result<()> {
     config.overwrite = Some(true);
     config.resumable = Some(true);
     config.path = "test-assets/uploads/e2e-resumable.png".to_string();
+    config.content_type = Some("image/png".to_string());
 
     // Create resumable session
     let resp = server
@@ -1254,6 +1255,7 @@ async fn test_upload_overwrite_rejected_when_false() -> anyhow::Result<()> {
     config.target_filesize = Some(file_data.len() as u64);
     config.create_parents = Some(true);
     config.overwrite = Some(true);
+    config.content_type = Some("image/jpeg".to_string());
 
     // Upload once (succeeds)
     let resp = server

@@ -73,8 +73,7 @@ curl -X POST http://localhost:8000/upload/session \
 | `overwrite` | `bool` | No | Overwrite existing file |
 | `resumable` | `bool` | No | Enable chunked upload (requires Redis) |
 | `bucket` | `String` | No | Bucket PID to upload into |
-| `content_type` | `String` | If bucket has accepts | MIME type of the file |
-| `accepts` | `String[]` | If no bucket | MIME types accepted for this upload (max 20 items, e.g. `["image/*"]`) |
+| `content_type` | `String` | If no bucket or bucket has accepts | MIME type of the file |
 | `image_compression` | `Object` | No | Compress the image after upload — see [Image Compression](#image-compression) |
 | `image_transformation` | `Object` | No | Transform the image after upload, before compression — see [Image Transformation](#image-transformation) |
 
@@ -93,13 +92,12 @@ The `data` field contains a signed base64url token.
 - Files >= 2 MB **must** use `resumable: true`
 - `target_filesize` is required for file uploads
 - `expires` must be between 30 and 86400 seconds (24 hours max)
-- `accepts` list is limited to 20 items
 - Unknown JSON fields are rejected (requests must not contain extra keys)
 - Resumable uploads require Redis (`message_broker` in config)
 - If `bucket` is specified, the client must own it
 - If bucket has `accepts` restrictions, `content_type` is required
-- If `bucket` is not provided, `accepts` is required
-- If `accepts` is provided without a bucket, uploaded file MIME is validated against it
+- If `bucket` is not provided, `content_type` is required for file uploads
+- Without a bucket, the uploaded file's MIME type (inferred from its extension) must match the declared `content_type`
 - `image_compression` requires `content_type` to be an `image/*` type and the `image_compression` plugin to be installed
 - `image_compression.quality` must be 0–100; `width`/`height` must be ≥ 1 when given
 - `image_transformation` requires `content_type` to be an `image/*` type and the `image_transformation` plugin to be installed
@@ -306,7 +304,7 @@ At upload time, the server checks:
 
 Files can be uploaded directly to a path without a bucket, but only if the target path starts with a [configured static directory](/configuration/config-file/#static-folders) in `ppd_config.toml`. Paths outside of configured static directories require a bucket.
 
-The `accepts` field is **required** when uploading without a bucket. It specifies which MIME types are allowed for the upload.
+The `content_type` field is **required** when uploading without a bucket. It declares the file's MIME type, and the server verifies it against the actual file (inferred from its extension) when the upload completes.
 
 <Tabs>
 <TabItem label="JavaScript">
@@ -323,7 +321,7 @@ const sessionRes = await fetch("http://localhost:8000/upload/session", {
     path: "uploads/documents/report.pdf",
     target_filesize: 102400,
     expires: 120,
-    accepts: ["application/pdf"],
+    content_type: "application/pdf",
   }),
 });
 
@@ -347,14 +345,14 @@ curl -X POST http://localhost:8000/upload/session \
     "path": "uploads/documents/report.pdf",
     "target_filesize": 102400,
     "expires": 120,
-    "accepts": ["application/pdf"]
+    "content_type": "application/pdf"
   }'
 ```
 
 </TabItem>
 </Tabs>
 
-The uploaded file's MIME type (inferred from the file extension) is validated against the `accepts` list. No bucket ownership check is performed, but the upload will be rejected if the path doesn't start with a configured static directory.
+The uploaded file's MIME type (inferred from the file extension) must match the declared `content_type`; a mismatch rejects the upload and removes the temporary file. No bucket ownership check is performed, but the upload will be rejected if the path doesn't start with a configured static directory.
 
 ## Image Compression
 
@@ -367,7 +365,6 @@ Provide `image_compression` in the session config to compress the file once the 
   "target_filesize": 524288,
   "expires": 120,
   "content_type": "image/png",
-  "accepts": ["image/*"],
   "image_compression": {
     "format": "WebP",
     "quality": 80,
@@ -390,7 +387,7 @@ Provide `image_compression` in the session config to compress the file once the 
 
 ### Path rewriting
 
-When the option is set, the server rewrites the target path's extension (and `content_type`) to match the requested `format` **at session creation** — e.g. `avatar.png` with `format: "WebP"` is stored as `avatar.webp` with `content_type: "image/webp"`. Overwrite checks, `accepts` validation and asset registration all use the rewritten path, so `accepts` must admit the *output* type.
+When the option is set, the server rewrites the target path's extension (and `content_type`) to match the requested `format` **at session creation** — e.g. `avatar.png` with `format: "WebP"` is stored as `avatar.webp` with `content_type: "image/webp"`. Overwrite checks, MIME validation and asset registration all use the rewritten path, so a bucket's `accepts` list must admit the *output* type.
 
 ### Inline vs background
 
@@ -408,7 +405,6 @@ Provide `image_transformation` in the session config to transform the file once 
   "target_filesize": 524288,
   "expires": 120,
   "content_type": "image/png",
-  "accepts": ["image/*"],
   "image_transformation": {
     "operations": [
       { "crop": { "x": 0, "y": 0, "width": 800, "height": 600 } },
@@ -463,21 +459,20 @@ When `format` is set, the server rewrites the target path's extension (and `cont
 
 | Status | Message | Cause |
 |---|---|---|
-| 400 | `accepts is required when bucket is not provided` | No bucket and no accepts list |
-| 400 | `content_type is required...` | Bucket has MIME restrictions but no content_type provided |
-| 400 | `content_type '...' is not accepted...` | Declared MIME doesn't match bucket accepts |
-| 400 | `file type '...' is not accepted` | File MIME doesn't match accepts list (no bucket) |
+| 400 | `content_type is required when bucket is not provided` | No bucket and no content_type (file uploads) |
+| 400 | `content_type is required for buckets with MIME restrictions` | Bucket has MIME restrictions but no content_type provided |
+| 400 | `content_type '...' is not accepted by this bucket...` | Declared MIME doesn't match bucket accepts |
+| 400 | `file type '...' is not accepted by this bucket...` | Uploaded file MIME doesn't match bucket accepts |
+| 400 | `file MIME type '...' does not match declared content_type '...'` | Declared content_type doesn't match the file's extension (no bucket) |
 | 400 | `content_type is required when image_compression is set` | `image_compression` without a declared content_type |
 | 400 | `image_compression requires content_type to be an image/* type...` | Declared content_type is not an image |
 | 400 | `image-compression plugin is not installed` | `image_compression` requested but the plugin is missing or failed to load |
 | 400 | `image_compression only applies to file uploads` | `image_compression` on a `Folder` session |
-| 400 | `compressed output type '...' is not accepted` | Output format isn't in the `accepts` list (no bucket) |
 | 400 | `content_type is required when image_transformation is set` | `image_transformation` without a declared content_type |
 | 400 | `image_transformation requires content_type to be an image/* type...` | Declared content_type is not an image |
 | 400 | `image-transformation plugin is not installed` | `image_transformation` requested but the plugin is missing or failed to load |
 | 400 | `image_transformation only applies to file uploads` | `image_transformation` on a `Folder` session |
 | 400 | `image_transformation operation #N (...): ...` | Invalid operation arguments (rotate degrees, flip direction, ranges, NUL in `custom_filters`) |
-| 400 | `transformed output type '...' is not accepted` | Output format isn't in the `accepts` list (no bucket) |
 | 400 | `upload exceeded maximum chunk limit of 10000` | Resumable upload exceeded 10,000 chunks |
 | 403 | `Write access denied...` | Client doesn't own the bucket |
 | 408 | `Request Timeout` | Server did not receive a complete request within 30 seconds |

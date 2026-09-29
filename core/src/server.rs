@@ -195,13 +195,10 @@ pub struct UploadUrlConfig {
     #[validate(length(min = 1, max = 64))]
     pub bucket: Option<String>,
     /// MIME type of the file being uploaded (e.g. "image/png").
-    /// Required when the target bucket has an `accepts` restriction.
+    /// Required when the target bucket has an `accepts` restriction, and for
+    /// file uploads without a bucket.
     #[validate(length(min = 1, max = 128))]
     pub content_type: Option<String>,
-    /// MIME types accepted for this upload (e.g. ["image/png", "image/*"]).
-    /// Required when `bucket` is not provided.
-    #[validate(length(max = 20))]
-    pub accepts: Option<Vec<String>>,
     /// Whether the uploaded file should be publicly accessible.
     /// Only effective for files in private buckets. Defaults to false.
     pub public: Option<bool>,

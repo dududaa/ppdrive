@@ -108,7 +108,6 @@ pub(super) async fn create_session(
         // input format (and the existing extension/content_type).
         if let Some(format) = transformation.format {
             let output_mime = format.mime().to_string();
-            check_output_accepts(&config, &output_mime, "transformed")?;
             config.path = format.rewrite_path(&config.path);
             config.content_type = Some(output_mime);
         }
@@ -118,10 +117,9 @@ pub(super) async fn create_session(
         check_image_plugin("image_compression", &config).await?;
 
         // Store the output format: rewrite the path extension and content_type
-        // so the overwrite check, accepts validation and asset registration all
+        // so the overwrite check, MIME validation and asset registration all
         // refer to the file that will actually be written.
         let output_mime = compression.format.mime().to_string();
-        check_output_accepts(&config, &output_mime, "compressed")?;
         config.path = compression.rewrite_path(&config.path);
         config.content_type = Some(output_mime);
     }
@@ -155,10 +153,12 @@ pub(super) async fn create_session(
         }
     } else {
         if let AssetType::File = config.asset_type
-            && config.accepts.as_ref().is_none_or(|a| a.is_empty())
+            && config.content_type.is_none()
         {
-            return Err(api_error("accepts is required when bucket is not provided")
-                .with_status_code(StatusCode::BAD_REQUEST));
+            return Err(
+                api_error("content_type is required when bucket is not provided")
+                    .with_status_code(StatusCode::BAD_REQUEST),
+            );
         }
     }
 
@@ -441,20 +441,20 @@ async fn get_next_session(
                 }
             }
             None => {
-                if let Some(ref accepts) = config.accepts
-                    && !accepts.is_empty()
-                {
-                    let inferred_mime = mime_guess::from_path(target_path)
-                        .first_or_octet_stream()
-                        .to_string();
+                // File uploads without a bucket must declare a content_type
+                // (enforced at session creation); verify the declaration
+                // against the MIME type inferred from the final path.
+                let inferred_mime = mime_guess::from_path(target_path)
+                    .first_or_octet_stream()
+                    .to_string();
 
-                    if !bucket::mime_matches_accepts(&inferred_mime, accepts) {
-                        let _ = tokio::fs::remove_file(&tmp_path).await;
-                        let list = accepts.join(", ");
-                        return Err(anyhow!(
-                            "file type '{inferred_mime}' is not accepted. Accepted: {list}"
-                        ));
-                    }
+                if let Some(ref declared) = config.content_type
+                    && !bucket::mime_matches_accepts(declared, std::slice::from_ref(&inferred_mime))
+                {
+                    let _ = tokio::fs::remove_file(&tmp_path).await;
+                    return Err(anyhow!(
+                        "file MIME type '{inferred_mime}' does not match declared content_type '{declared}'"
+                    ));
                 }
 
                 if parent_dir != root_dir {
@@ -558,28 +558,6 @@ async fn check_image_plugin(option: &str, config: &UploadUrlConfig) -> Result<()
             .with_status_code(StatusCode::BAD_REQUEST));
     }
 
-    Ok(())
-}
-
-/// Reject the session when a rewritten output type is outside the upload's
-/// own `accepts` list. Bucket accepts are checked separately against the
-/// rewritten `content_type`. `label` describes the rewrite ("compressed",
-/// "transformed").
-fn check_output_accepts(
-    config: &UploadUrlConfig,
-    output_mime: &str,
-    label: &str,
-) -> Result<(), ResponseError> {
-    if let Some(accepts) = &config.accepts
-        && !accepts.is_empty()
-        && !bucket::mime_matches_accepts(output_mime, accepts)
-    {
-        let list = accepts.join(", ");
-        return Err(api_error(format!(
-            "{label} output type '{output_mime}' is not accepted. Accepted: {list}"
-        ))
-        .with_status_code(StatusCode::BAD_REQUEST));
-    }
     Ok(())
 }
 

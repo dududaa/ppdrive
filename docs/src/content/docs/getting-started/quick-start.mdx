@@ -247,7 +247,7 @@ name = "uploads"
 
 You can upload to `uploads/documents/report.pdf` without a bucket. Uploading to a path like `other/report.pdf` (not under a configured static directory) will fail.
 
-When uploading without a bucket, you must specify which MIME types are allowed via the `accepts` field:
+When uploading without a bucket, you must declare the file's MIME type via the `content_type` field — it is verified against the actual file when the upload completes:
 
 <Tabs>
 <TabItem label="JavaScript">
@@ -265,7 +265,7 @@ const sessionRes = await fetch("http://localhost:8000/upload/session", {
     path: "uploads/documents/report.pdf",
     target_filesize: 204800,
     expires: 120,
-    accepts: ["application/pdf"],
+    content_type: "application/pdf",
   }),
 });
 
@@ -291,7 +291,7 @@ curl -X POST http://localhost:8000/upload/session \
     "path": "uploads/documents/report.pdf",
     "target_filesize": 204800,
     "expires": 120,
-    "accepts": ["application/pdf"]
+    "content_type": "application/pdf"
   }'
 
 # Upload file

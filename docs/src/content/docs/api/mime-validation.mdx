@@ -148,6 +148,16 @@ Upload: report.pdf → inferred "application/pdf" → ✅ Match (exact)
 Upload: doc.txt → inferred "text/plain" → ❌ No match
 ```
 
+## Uploads Without a Bucket
+
+Uploads that don't specify a bucket have no `accepts` list. Instead, `content_type` is **required** at session creation, and at upload time the declared type is verified against the MIME type inferred from the file's extension — a mismatch rejects the upload and deletes the temporary file:
+
+```
+Declared content_type: "application/pdf"
+Upload: report.pdf → inferred "application/pdf" → ✅ Match
+Upload: photo.png  → inferred "image/png"        → ❌ Mismatch
+```
+
 ## See Also
 
 - [Bucket Commands](/cli/bucket/) — Creating buckets with MIME restrictions
