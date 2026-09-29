@@ -1,3 +1,4 @@
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::collections::HashSet;
 use sysinfo::{Disks, Networks, System};
 
@@ -458,10 +459,11 @@ fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
 }
 
 #[cfg(target_os = "windows")]
-fn osstr_from_wide(buf: &[u16]) -> &std::ffi::OsStr {
+fn osstr_from_wide(buf: &[u16]) -> std::ffi::OsString {
+    use std::os::windows::ffi::OsStringExt;
     // Find null terminator
     let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
-    std::ffi::OsStr::from_wide(&buf[..len])
+    std::ffi::OsString::from_wide(&buf[..len])
 }
 
 // ─── Fallback (unsupported platforms) ────────────────────────────────────────
