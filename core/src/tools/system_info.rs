@@ -398,12 +398,12 @@ fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
             windows_sys::Win32::Storage::FileSystem::GetVolumeInformationW(
                 root_wide.as_ptr(),
                 volume_name_buf.as_mut_ptr(),
-                volume_name_buf.len() as i32,
-                Some(&mut serial),
-                Some(&mut max_comp),
-                Some(&mut flags),
+                volume_name_buf.len() as u32,
+                &mut serial,
+                &mut max_comp,
+                &mut flags,
                 fs_type_buf.as_mut_ptr(),
-                fs_type_buf.len() as i32,
+                fs_type_buf.len() as u32,
             )
         };
 
@@ -430,7 +430,7 @@ fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
                 root_wide.as_ptr(),
                 &mut avail_bytes,
                 &mut total_bytes,
-                Some(&mut free_bytes),
+                &mut free_bytes,
             )
         };
 
@@ -458,10 +458,10 @@ fn mounted_devices_inner() -> Vec<MountedDeviceInfo> {
 }
 
 #[cfg(target_os = "windows")]
-fn osstr_from_wide(buf: &[u16]) -> &OsStr {
+fn osstr_from_wide(buf: &[u16]) -> &std::ffi::OsStr {
     // Find null terminator
     let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
-    OsStr::from_wide(&buf[..len])
+    std::ffi::OsStr::from_wide(&buf[..len])
 }
 
 // ─── Fallback (unsupported platforms) ────────────────────────────────────────
