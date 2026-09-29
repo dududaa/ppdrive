@@ -208,8 +208,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_token_validation() -> anyhow::Result<()> {
-        dotenvy::dotenv()?;
-        let url = env::var("DATABASE_URL")?;
+        // No `.env` on a fresh clone or CI runner — fall back to the same
+        // default the app config uses.
+        let _ = dotenvy::dotenv();
+        let url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:data.db".to_string());
         let db = Database::new(&url, 10).await?;
 
         AppSecrets::init().await?;
