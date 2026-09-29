@@ -115,10 +115,9 @@ fn detect_asset() -> Result<String, anyhow::Error> {
     let arch = std::env::consts::ARCH;
 
     match (os, arch) {
-        ("linux", "x86_64") => Ok("ppdrive-linux.tar.gz".to_string()),
-        ("linux", "aarch64") => Ok("ppdrive-linux-arm64.tar.gz".to_string()),
-        ("macos", "x86_64") => Ok("ppdrive-macos.tar.gz".to_string()),
-        ("macos", "aarch64") => Ok("ppdrive-macos-arm64.tar.gz".to_string()),
+        ("linux" | "macos", "x86_64" | "aarch64") => {
+            Ok(format!("ppdrive-server-{os}-{arch}.tar.gz"))
+        }
         _ => Err(anyhow!("unsupported platform: {os}/{arch}")),
     }
 }

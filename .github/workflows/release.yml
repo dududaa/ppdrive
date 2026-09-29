@@ -36,24 +36,24 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: ppdrive-linux.tar.gz
+            artifact_name: ppdrive-server-linux-x86_64.tar.gz
 
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact_name: ppdrive-linux-arm64.tar.gz
+            artifact_name: ppdrive-server-linux-aarch64.tar.gz
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: ppdrive-windows.tar.gz
+            artifact_name: ppdrive-server-windows-x86_64.tar.gz
             bin_ext: .exe
 
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: ppdrive-macos.tar.gz
+            artifact_name: ppdrive-server-macos-x86_64.tar.gz
 
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: ppdrive-macos-arm64.tar.gz
+            artifact_name: ppdrive-server-macos-aarch64.tar.gz
 
     steps:
       - uses: actions/checkout@v4

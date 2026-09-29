@@ -13,7 +13,7 @@ $Arch = if ([System.Environment]::Is64BitOperatingSystem) {
     Write-Error "32-bit Windows is not supported."
     exit 1
 }
-$Artifact = if ($Arch -eq "arm64") { "ppdrive-windows-arm64.tar.gz" } else { "ppdrive-windows.tar.gz" }
+$Artifact = if ($Arch -eq "arm64") { "ppdrive-server-windows-aarch64.tar.gz" } else { "ppdrive-server-windows-x86_64.tar.gz" }
 
 # 3. Fetch Latest Version from GitHub API
 Write-Host "Checking GitHub for the latest release..."

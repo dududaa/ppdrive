@@ -15,8 +15,8 @@ detect_asset() {
   case "$os" in
     Linux)
       case "$arch" in
-        x86_64|amd64) ASSET_PATTERN="ppdrive-linux.tar.gz" ;;
-        arm64|aarch64) ASSET_PATTERN="ppdrive-linux-arm64.tar.gz" ;;
+        x86_64|amd64) ASSET_PATTERN="ppdrive-server-linux-x86_64.tar.gz" ;;
+        arm64|aarch64) ASSET_PATTERN="ppdrive-server-linux-aarch64.tar.gz" ;;
         *)
           echo "❌ Unsupported architecture: $arch"
           echo "   Supported: x86_64, arm64"
@@ -26,8 +26,8 @@ detect_asset() {
       ;;
     Darwin)
       case "$arch" in
-        x86_64|amd64) ASSET_PATTERN="ppdrive-macos.tar.gz" ;;
-        arm64|aarch64) ASSET_PATTERN="ppdrive-macos-arm64.tar.gz" ;;
+        x86_64|amd64) ASSET_PATTERN="ppdrive-server-macos-x86_64.tar.gz" ;;
+        arm64|aarch64) ASSET_PATTERN="ppdrive-server-macos-aarch64.tar.gz" ;;
         *)
           echo "❌ Unsupported architecture: $arch"
           echo "   Supported: x86_64, arm64"
@@ -62,7 +62,7 @@ download_latest_release() {
   echo "📦 Fetching latest release info..."
   local api_url="https://api.github.com/repos/${REPO}/releases/latest"
   local download_url
-  download_url=$(curl -sL "$api_url" | grep "browser_download_url" | grep "$ASSET_PATTERN" | cut -d '"' -f 4)
+  download_url=$(curl -sL "$api_url" | grep "browser_download_url" | grep -F "$ASSET_PATTERN" | cut -d '"' -f 4)
 
   if [[ -z "$download_url" ]]; then
     echo "❌ Could not find a release asset matching pattern '$ASSET_PATTERN'."
