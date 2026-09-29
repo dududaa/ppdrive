@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|p| p.parse::<u16>().ok())
         .unwrap_or(config_port);
 
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", &port)).await?;
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     if let Ok(addr) = listener.local_addr() {
         tracing::info!("new service listening on {addr}");
     }
