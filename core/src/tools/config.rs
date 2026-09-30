@@ -58,6 +58,12 @@ pub struct AppConfig {
     #[serde(default)]
     pub audio_effects_background: Option<bool>,
 
+    /// Default for whether media streaming packaging runs after the
+    /// upload response (`true`) or inline before it (`false`). Per-upload
+    /// `media_streaming.background` overrides this.
+    #[serde(default)]
+    pub media_streaming_background: Option<bool>,
+
     /// TTL in seconds for transformed-download cache entries stored in the
     /// message broker. `0` disables server-side caching entirely.
     /// Requires `message_broker` to be configured. Defaults to 86400 (24h).
@@ -175,6 +181,7 @@ impl Default for AppConfig {
             image_transformation_background: None,
             audio_conversion_background: None,
             audio_effects_background: None,
+            media_streaming_background: None,
             transform_cache_ttl_secs: None,
             transform_cache_max_age_secs: None,
         }
@@ -206,12 +213,14 @@ image_conversion_background = true
 image_transformation_background = true
 audio_conversion_background = true
 audio_effects_background = true
+media_streaming_background = true
 "#;
         let config: AppConfig = toml::from_str(toml_content).unwrap();
         assert_eq!(config.image_conversion_background, Some(true));
         assert_eq!(config.image_transformation_background, Some(true));
         assert_eq!(config.audio_conversion_background, Some(true));
         assert_eq!(config.audio_effects_background, Some(true));
+        assert_eq!(config.media_streaming_background, Some(true));
     }
 
     #[test]
@@ -243,6 +252,8 @@ hasher = "HMAC256"
         assert_eq!(config.audio_effects_background, None);
         assert_eq!(AppConfig::default().audio_conversion_background, None);
         assert_eq!(AppConfig::default().audio_effects_background, None);
+        assert_eq!(config.media_streaming_background, None);
+        assert_eq!(AppConfig::default().media_streaming_background, None);
     }
 
     #[test]

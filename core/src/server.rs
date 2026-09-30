@@ -227,6 +227,11 @@ pub struct UploadUrlConfig {
     /// Requires the `audio-effects` plugin and an `audio/*` `content_type`.
     #[validate(nested)]
     pub audio_effects: Option<AudioEffectsConfig>,
+    /// Post-upload media streaming packaging (HLS/DASH; applied last, after
+    /// the file is renamed into place). Requires the `media-streaming`
+    /// plugin and a `video/*` or `audio/*` `content_type`.
+    #[validate(nested)]
+    pub media_streaming: Option<MediaStreamingConfig>,
 }
 
 impl UploadUrlConfig {
@@ -846,6 +851,149 @@ fn speed_factor_is_valid(factor: f32) -> bool {
         f /= 2.0;
     }
     true
+}
+
+/// Output protocol for a packaged media stream.
+///
+/// Variant names and serde representation match the `media-streaming`
+/// plugin's `StreamingProtocol`, so the JSON serialized here
+/// deserializes into its `StreamingOptions`.
+#[derive(Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum StreamingProtocol {
+    /// Apple HTTP Live Streaming: `master.m3u8` + variant playlists
+    /// over MPEG-TS segments.
+    #[default]
+    Hls,
+    /// MPEG-DASH: `manifest.mpd` over fragmented-MP4 segments.
+    Dash,
+}
+
+impl StreamingProtocol {
+    /// File name of the master playlist written for this protocol.
+    pub fn playlist_name(&self) -> &'static str {
+        match self {
+            StreamingProtocol::Hls => "master.m3u8",
+            StreamingProtocol::Dash => "manifest.mpd",
+        }
+    }
+}
+
+/// One adaptive rendition (quality level) of a packaged stream.
+///
+/// Sizing follows the same rules as video conversion: explicit
+/// `width`/`height` win, `scale` applies only when both are `None`,
+/// and `None`/`None`/`None` keeps the source dimensions.
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields, default)]
+pub struct RenditionSpec {
+    /// Target width in pixels for this rung.
+    pub width: Option<u32>,
+    /// Target height in pixels for this rung.
+    pub height: Option<u32>,
+    /// Scale factor when both dimensions are `None`. Must be finite
+    /// and > 0 when set (checked by
+    /// [`MediaStreamingConfig::validate_renditions`]).
+    pub scale: Option<f32>,
+    /// Per-rung quality override (0–100); falls back to
+    /// [`MediaStreamingConfig::quality`].
+    pub quality: Option<u8>,
+    /// Rung bitrate in bits per second used for playlist bandwidth
+    /// attributes; derived from the ladder table when `None`.
+    pub bitrate: Option<u64>,
+}
+
+/// Client-provided options for packaging the uploaded file into an
+/// HLS or DASH stream, applied by the `media-streaming` plugin.
+///
+/// The package (master playlist + segments) is written to
+/// [`MediaStreamingConfig::output_dir`] when set, otherwise to a
+/// sidecar directory beside the file (`<path>.stream`).
+#[derive(Serialize, Deserialize, Validate, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields, default)]
+pub struct MediaStreamingConfig {
+    /// Output protocol. Default: [`StreamingProtocol::Hls`].
+    pub protocol: StreamingProtocol,
+    /// Target segment duration in seconds (1–30). Default: 4.
+    #[validate(range(min = 1, max = 30))]
+    pub segment_duration: u32,
+    /// Base encoder quality on a 0–100 scale (values above 100 are
+    /// rejected here; the plugin clamps at 100). Default: 80.
+    #[validate(range(min = 0, max = 100))]
+    pub quality: u8,
+    /// Explicit rendition ladder; `None` derives one from the source
+    /// resolution. An empty list is rejected by
+    /// [`MediaStreamingConfig::validate_renditions`]. Default: `None`.
+    pub renditions: Option<Vec<RenditionSpec>>,
+    /// Output directory for the package, relative to the server root
+    /// (the same base as `path`; bucket rules apply). `None` writes to
+    /// a sidecar directory beside the upload (`<path>.stream`).
+    /// Must not contain the upload path. Default: `None`.
+    #[validate(length(min = 1, max = 2048))]
+    pub output_dir: Option<String>,
+    /// Delete the source file once the package is written. The
+    /// registered asset path then points at the master playlist.
+    /// Default: `true`.
+    pub delete_source: bool,
+    /// Package after responding (`true`) or before (`false`, inline
+    /// default). Falls back to `media_streaming_background` in
+    /// `ppd_config.toml`.
+    pub background: Option<bool>,
+}
+
+impl Default for MediaStreamingConfig {
+    fn default() -> Self {
+        MediaStreamingConfig {
+            protocol: StreamingProtocol::Hls,
+            segment_duration: 4,
+            quality: 80,
+            renditions: None,
+            output_dir: None,
+            delete_source: true,
+            background: None,
+        }
+    }
+}
+
+impl MediaStreamingConfig {
+    /// Pre-flight check for the rendition ladder, mirroring the
+    /// plugin's own `StreamingOptions::validate`: a non-empty list,
+    /// dimensions ≥ 1, quality ≤ 100, bitrate ≥ 1 and finite positive
+    /// scales — surfaced at session creation as a 400 instead of a
+    /// completion-time plugin failure.
+    pub fn validate_renditions(&self) -> Result<(), String> {
+        let Some(renditions) = &self.renditions else {
+            return Ok(());
+        };
+        if renditions.is_empty() {
+            return Err("media_streaming renditions must not be empty".to_string());
+        }
+        for (index, rendition) in renditions.iter().enumerate() {
+            if rendition.width == Some(0) || rendition.height == Some(0) {
+                return Err(format!(
+                    "media_streaming renditions[{index}] width/height must be at least 1"
+                ));
+            }
+            if rendition.quality.is_some_and(|quality| quality > 100) {
+                return Err(format!(
+                    "media_streaming renditions[{index}] quality must be 0–100"
+                ));
+            }
+            if rendition.bitrate == Some(0) {
+                return Err(format!(
+                    "media_streaming renditions[{index}] bitrate must be at least 1"
+                ));
+            }
+            if let Some(scale) = rendition.scale
+                && (!scale.is_finite() || scale <= 0.0)
+            {
+                return Err(format!(
+                    "media_streaming renditions[{index}] scale must be finite and greater than 0, got {scale}"
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -1746,5 +1894,232 @@ mod audio_tests {
         assert!(config.audio_effects.is_none());
         assert!(config.image_conversion.is_none());
         assert!(config.image_transformation.is_none());
+        assert!(config.media_streaming.is_none());
+    }
+}
+
+#[cfg(test)]
+mod media_streaming_tests {
+    use super::*;
+    use validator::Validate;
+
+    #[test]
+    fn media_streaming_applies_defaults() {
+        let json = r#"{
+            "asset_type": "File",
+            "expires": 120,
+            "path": "videos/clip.mp4",
+            "media_streaming": {}
+        }"#;
+        let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
+        let ms = config.media_streaming.unwrap();
+        assert_eq!(ms.protocol, StreamingProtocol::Hls);
+        assert_eq!(ms.segment_duration, 4);
+        assert_eq!(ms.quality, 80);
+        assert_eq!(ms.renditions, None);
+        assert_eq!(ms.output_dir, None);
+        assert!(ms.delete_source, "delete_source defaults to true");
+        assert_eq!(ms.background, None);
+    }
+
+    #[test]
+    fn media_streaming_missing_field_parses_to_none() {
+        let json = r#"{ "asset_type": "File", "expires": 120, "path": "videos/clip.mp4" }"#;
+        let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
+        assert!(config.media_streaming.is_none());
+    }
+
+    #[test]
+    fn media_streaming_parses_partial_options() {
+        let json = r#"{
+            "protocol": "dash",
+            "segment_duration": 6,
+            "quality": 70,
+            "output_dir": "streams/clip",
+            "delete_source": false,
+            "renditions": [{"width": 640, "scale": 0.5, "bitrate": 800000}]
+        }"#;
+        let ms: MediaStreamingConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(ms.protocol, StreamingProtocol::Dash);
+        assert_eq!(ms.segment_duration, 6);
+        assert_eq!(ms.quality, 70);
+        assert_eq!(ms.output_dir.as_deref(), Some("streams/clip"));
+        assert!(!ms.delete_source);
+        let renditions = ms.renditions.unwrap();
+        assert_eq!(renditions.len(), 1);
+        assert_eq!(renditions[0].width, Some(640));
+        assert_eq!(renditions[0].scale, Some(0.5));
+        assert_eq!(renditions[0].bitrate, Some(800_000));
+    }
+
+    #[test]
+    fn media_streaming_serializes_all_dispatch_fields() {
+        let config = MediaStreamingConfig {
+            protocol: StreamingProtocol::Dash,
+            segment_duration: 6,
+            quality: 70,
+            renditions: Some(vec![RenditionSpec {
+                height: Some(720),
+                ..Default::default()
+            }]),
+            output_dir: Some("streams/clip".to_string()),
+            delete_source: false,
+            background: Some(true),
+        };
+        let value = serde_json::to_value(&config).unwrap();
+        for key in [
+            "protocol",
+            "segment_duration",
+            "quality",
+            "renditions",
+            "output_dir",
+            "delete_source",
+            "background",
+        ] {
+            assert!(value.get(key).is_some(), "missing field '{key}'");
+        }
+        assert_eq!(value["protocol"], "dash");
+        assert_eq!(value["segment_duration"], 6);
+        assert_eq!(value["renditions"][0]["height"], 720);
+        assert_eq!(value["delete_source"], false);
+    }
+
+    #[test]
+    fn media_streaming_rejects_unknown_fields() {
+        let json = r#"{ "protocol": "hls", "fuzzy": true }"#;
+        assert!(serde_json::from_str::<MediaStreamingConfig>(json).is_err());
+    }
+
+    #[test]
+    fn media_streaming_validation_rules() {
+        let mut config = UploadUrlConfig::test();
+
+        config.media_streaming = Some(MediaStreamingConfig {
+            segment_duration: 0,
+            ..Default::default()
+        });
+        assert!(
+            config.validate().is_err(),
+            "segment_duration 0 must be rejected"
+        );
+
+        config.media_streaming = Some(MediaStreamingConfig {
+            segment_duration: 31,
+            ..Default::default()
+        });
+        assert!(
+            config.validate().is_err(),
+            "segment_duration 31 must be rejected"
+        );
+
+        config.media_streaming = Some(MediaStreamingConfig {
+            quality: 101,
+            ..Default::default()
+        });
+        assert!(config.validate().is_err(), "quality 101 must be rejected");
+
+        config.media_streaming = Some(MediaStreamingConfig {
+            output_dir: Some(String::new()),
+            ..Default::default()
+        });
+        assert!(
+            config.validate().is_err(),
+            "empty output_dir must be rejected"
+        );
+
+        config.media_streaming = Some(MediaStreamingConfig {
+            segment_duration: 30,
+            quality: 100,
+            output_dir: Some("streams/clip".to_string()),
+            ..Default::default()
+        });
+        assert!(config.validate().is_ok());
+        assert!(
+            config
+                .media_streaming
+                .unwrap()
+                .validate_renditions()
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn renditions_validation_rejects_bad_ladders() {
+        fn validate(renditions: Vec<RenditionSpec>) -> Result<(), String> {
+            MediaStreamingConfig {
+                renditions: Some(renditions),
+                ..Default::default()
+            }
+            .validate_renditions()
+        }
+
+        assert!(validate(Vec::new()).is_err(), "empty must be rejected");
+
+        assert!(
+            validate(vec![RenditionSpec {
+                width: Some(0),
+                ..Default::default()
+            }])
+            .is_err(),
+            "width 0 rejected"
+        );
+
+        assert!(
+            validate(vec![RenditionSpec {
+                quality: Some(101),
+                ..Default::default()
+            }])
+            .is_err(),
+            "quality 101 rejected"
+        );
+
+        assert!(
+            validate(vec![RenditionSpec {
+                bitrate: Some(0),
+                ..Default::default()
+            }])
+            .is_err(),
+            "bitrate 0 rejected"
+        );
+
+        for scale in [0.0, -1.0, f32::NAN, f32::INFINITY] {
+            assert!(
+                validate(vec![RenditionSpec {
+                    scale: Some(scale),
+                    ..Default::default()
+                }])
+                .is_err(),
+                "scale {scale} must be rejected"
+            );
+        }
+
+        assert!(
+            validate(vec![RenditionSpec {
+                width: Some(640),
+                height: Some(360),
+                scale: None,
+                quality: Some(75),
+                bitrate: Some(800_000),
+            }])
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn protocol_serializes_lowercase_with_playlist_name() {
+        assert_eq!(
+            serde_json::to_string(&StreamingProtocol::Hls).unwrap(),
+            "\"hls\""
+        );
+        assert_eq!(
+            serde_json::to_string(&StreamingProtocol::Dash).unwrap(),
+            "\"dash\""
+        );
+        assert_eq!(
+            serde_json::from_str::<StreamingProtocol>("\"dash\"").unwrap(),
+            StreamingProtocol::Dash
+        );
+        assert_eq!(StreamingProtocol::Hls.playlist_name(), "master.m3u8");
+        assert_eq!(StreamingProtocol::Dash.playlist_name(), "manifest.mpd");
     }
 }

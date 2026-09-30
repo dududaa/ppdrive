@@ -78,6 +78,7 @@ curl -X POST http://localhost:8000/upload/session \
 | `image_transformation` | `Object` | No | Transform the image after upload, before conversion — see [Image Transformation](#image-transformation) |
 | `audio_conversion` | `Object` | No | Convert the audio after upload — see [Audio Conversion](#audio-conversion) |
 | `audio_effects` | `Object` | No | Apply audio effects after upload, before conversion — see [Audio Effects](#audio-effects) |
+| `media_streaming` | `Object` | No | Package the file into an HLS/DASH stream after upload — see [Media Streaming](#media-streaming) |
 
 ### Response
 
@@ -108,6 +109,9 @@ The `data` field contains a signed base64url token.
 - `audio_conversion.quality` must be 0–100; `sample_rate` must be ≥ 1; `channels` must be 1 or 2
 - `audio_effects` requires `content_type` to be an `audio/*` type and the `audio_effects` plugin to be installed
 - `audio_effects.quality` must be 0–100; operation arguments are validated at session creation (see [Audio Effects](#audio-effects))
+- `media_streaming` requires `content_type` to be a `video/*` or `audio/*` type and the `media-streaming` plugin to be installed
+- `media_streaming.segment_duration` must be 1–30; `quality` must be 0–100; `renditions` must be non-empty when given, with `width`/`height` ≥ 1, `quality` ≤ 100, `bitrate` ≥ 1 and a finite positive `scale`
+- `media_streaming.output_dir` is resolved like `path` (no `..`, inside the server root and the bucket) and must not contain the upload path
 - Maximum 10,000 chunks per resumable upload
 
 ## Step 2: Upload File Data
@@ -567,6 +571,53 @@ Unlike image transformation, the effect pass always re-encodes: the server rewri
 - **Inline (default)** — the effect pass runs before the final rename; the upload response returns only once the file exists at its target path. Failures fail the upload (`500`).
 - **Background** — set `audio_effects.background: true` per upload, or `audio_effects_background = true` in `ppd_config.toml` (the per-upload option wins). If either audio option requests background handling, the whole chain (effects → convert → rename → register) runs after the response; failures are logged server-side only, as described above.
 
+## Media Streaming
+
+Provide `media_streaming` in the session config to package the uploaded file into an adaptive HLS or DASH stream once the upload completes. Unlike the other post-processing options the plugin is **file-based**: one call writes the master playlist plus every segment into an output directory. Packaging runs last — after any in-place conversion and the rename — and requires the `media-streaming` plugin to be installed and a `video/*` or `audio/*` `content_type` (video inputs become an adaptive ladder, audio-only inputs a single audio rendition).
+
+```json
+{
+  "asset_type": "File",
+  "path": "videos/clip.mp4",
+  "target_filesize": 5242880,
+  "expires": 300,
+  "content_type": "video/mp4",
+  "media_streaming": {
+    "protocol": "hls",
+    "segment_duration": 4,
+    "quality": 80,
+    "output_dir": "streams/clip",
+    "delete_source": false,
+    "background": false
+  }
+}
+```
+
+### Options
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `protocol` | `hls` \| `dash` | `hls` | `hls` writes `master.m3u8` + variant playlists over MPEG-TS segments; `dash` writes `manifest.mpd` over fragmented-MP4 segments |
+| `segment_duration` | `u32` (1–30) | `4` | Target seconds per segment |
+| `quality` | `u8` (0–100) | `80` | Base encoder quality for every rendition (and the shared AAC audio track) |
+| `renditions` | `Array` | `null` (auto) | Explicit ladder; `null` derives one from the source resolution (never upscales). Each rung takes `width`, `height`, `scale`, `quality` and `bitrate`: explicit dimensions win, `scale` applies when both are `None`, and `bitrate` feeds the playlist's bandwidth attribute |
+| `output_dir` | `String` | `null` (sidecar) | Output directory for the package, relative to the server root — the same bucket rules as `path` apply. `null` writes beside the upload into `<path>.stream/` |
+| `delete_source` | `bool` | `true` | Delete the source file once the package is written; the registered asset path then points at the master playlist |
+| `background` | `bool` | `null` (see below) | Package after responding (`true`) or inline (`false`) |
+
+### Output directory and bucket rules
+
+`output_dir` is resolved against the server root exactly like `path`: `..` components are rejected and — when a bucket is used — the directory must resolve inside the bucket. The sidecar default (`<path>.stream`) sits beside the file, so it inherits the same containment automatically. `output_dir` must not contain the upload path — packaging would wipe the source before reading it. An existing package directory is replaced on re-upload.
+
+### Serving the package
+
+Public buckets serve the package automatically: playlists and segments are plain files under the bucket's mount. Private buckets register only one asset (the source file, or the master playlist when `delete_source` is on) — HLS/DASH clients resolve relative segment URLs, so on-the-fly streaming pairs best with public buckets.
+
+### Inline vs background
+
+- **Inline (default)** — packaging runs after the rename; the upload response returns only once the package exists at its target directory. Failures fail the upload (`500`) and the source file is kept.
+- **Background** — set `media_streaming.background: true` per upload, or `media_streaming_background = true` in `ppd_config.toml` (the per-upload option wins). If any post-processing option requests background handling, the whole chain (process → rename → package → register) runs after the response; failures are logged server-side only, as described above.
+
 ## Error Responses
 
 | Status | Message | Cause |
@@ -595,6 +646,14 @@ Unlike image transformation, the effect pass always re-encodes: the server rewri
 | 400 | `audio-effects plugin is not installed` | `audio_effects` requested but the plugin is missing, deactivated or failed to load |
 | 400 | `audio_effects only applies to file uploads` | `audio_effects` on a `Folder` session |
 | 400 | `audio_effects operation #N (...): ...` | Invalid operation arguments (speed factor, echo decay, trim window, NUL in `custom_filters`) |
+| 400 | `content_type is required when media_streaming is set` | `media_streaming` without a declared content_type |
+| 400 | `media_streaming requires content_type to be a video/* or audio/* type...` | Declared content_type is neither video nor audio |
+| 400 | `media-streaming plugin is not installed` | `media_streaming` requested but the plugin is missing, deactivated or failed to load |
+| 400 | `media_streaming only applies to file uploads` | `media_streaming` on a `Folder` session |
+| 400 | `media_streaming renditions must not be empty` / `media_streaming renditions[N] ...` | Invalid rendition ladder at session creation |
+| 400 | `path traversal detected: '..' is not allowed` | `output_dir` (or `path`) escapes the server root |
+| 400 | `media_streaming output_dir must not contain the upload path` | `output_dir` is the upload path or one of its ancestors |
+| 400 | `media_streaming output_dir is not within the specified bucket` | `output_dir` resolves outside the bucket directory |
 | 400 | `upload exceeded maximum chunk limit of 10000` | Resumable upload exceeded 10,000 chunks |
 | 403 | `Write access denied...` | Client doesn't own the bucket |
 | 408 | `Request Timeout` | Server did not receive a complete request within 30 seconds |

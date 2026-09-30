@@ -100,7 +100,10 @@ pub(super) async fn create_session(
     // format, conversion runs last at completion so its rewrite wins.
     // The audio options follow the same rule — effects before conversion —
     // and can never combine with the image options: each requires its own
-    // `content_type` family, so a session validates for at most one of them.
+    // `content_type` family, so a session validates for at most one of
+    // them. `media_streaming` packages whatever the chain produced, after
+    // the rename: it accepts `video/*`/`audio/*` sources, so it may
+    // combine with the audio options (never with the image ones).
     if let Some(transformation) = config.image_transformation.clone() {
         transformation
             .validate_operations()
@@ -153,6 +156,19 @@ pub(super) async fn create_session(
         let output_mime = conversion.format.mime().to_string();
         config.path = conversion.rewrite_path(&config.path);
         config.content_type = Some(output_mime);
+    }
+
+    // Streaming runs last at completion — after the in-place chain and the
+    // rename — but its checks sit with the other option gates so a missing
+    // `content_type` reports the option (not the bucket) as the requirement.
+    if let Some(streaming) = config.media_streaming.clone() {
+        streaming
+            .validate_renditions()
+            .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
+        if let Some(output_dir) = &streaming.output_dir {
+            validate_streaming_output_dir(&state, &config, output_dir).await?;
+        }
+        check_media_plugin("media_streaming", &config).await?;
     }
 
     if let Some(bucket_id) = &config.bucket {
@@ -380,7 +396,7 @@ async fn get_next_session(
         tokio::fs::create_dir(&tmp_dir).await?;
     }
 
-    let config = info
+    let mut config = info
         .config
         .clone()
         .ok_or(anyhow!("missing configuration"))?;
@@ -507,9 +523,19 @@ async fn get_next_session(
             audio_conversion: config.audio_conversion.clone(),
         };
         // One flag for the whole post-processing chain: if any option asks
-        // for background handling, processing → rename → register all run
-        // after the response (order matters for output formats).
-        let background = post.background(state.config());
+        // for background handling, processing → rename → package → register
+        // all run after the response (order matters for output formats).
+        let background = {
+            let global = state.config();
+            post.background(global)
+                || config
+                    .media_streaming
+                    .as_ref()
+                    .map(|streaming| {
+                        resolve_background(streaming.background, global.media_streaming_background)
+                    })
+                    .unwrap_or(false)
+        };
 
         if background {
             // All bytes are in and validations passed; drop the session now
@@ -536,6 +562,7 @@ async fn get_next_session(
                 broker.remove_upload_info(&id).await?;
             }
 
+            apply_media_streaming(state, &mut config, target_path).await?;
             register_asset(state, &config, &info.client_id).await?;
             tracing::info!(path = %config.path, client_id = %info.client_id, "upload completed");
         }
@@ -547,8 +574,10 @@ async fn get_next_session(
 /// The post-processing options configured for one upload session, applied
 /// in place to the completed file.
 ///
-/// At most one media family is ever populated: the session-creation checks
-/// require either an `image/*` or an `audio/*` `content_type`, never both.
+/// At most one in-place family is ever populated: the session-creation
+/// checks require either an `image/*` or an `audio/*` `content_type`,
+/// never both. `media_streaming` is not part of this struct — it packages
+/// the file after the rename, once it sits at its target path.
 #[derive(Clone, Default)]
 struct PostProcessing {
     image_transformation: Option<ImageTransformationConfig>,
@@ -608,7 +637,10 @@ impl PostProcessing {
 ///
 /// `option` is the upload config field (snake_case, e.g. `image_conversion`);
 /// the media prefix (`image`, `audio`) and the plugin id
-/// (`image-conversion`) follow from it.
+/// (`image-conversion`) follow from it. The `media_streaming` option is
+/// the one exception: its `media` prefix maps to the plugin id
+/// (`media-streaming`) but its accepted families are `video/*` and
+/// `audio/*` — whatever FFmpeg can probe.
 async fn check_media_plugin(option: &str, config: &UploadUrlConfig) -> Result<(), ResponseError> {
     let plugin_id = option.replace('_', "-");
     let media = option.split('_').next().unwrap_or_default();
@@ -622,15 +654,105 @@ async fn check_media_plugin(option: &str, config: &UploadUrlConfig) -> Result<()
         api_error(format!("content_type is required when {option} is set"))
             .with_status_code(StatusCode::BAD_REQUEST),
     )?;
-    if !content_type.starts_with(&format!("{media}/")) {
+    let (family_ok, expected) = if media == "media" {
+        (
+            content_type.starts_with("video/") || content_type.starts_with("audio/"),
+            "a video/* or audio/*".to_string(),
+        )
+    } else {
+        (
+            content_type.starts_with(&format!("{media}/")),
+            format!("an {media}/*"),
+        )
+    };
+    if !family_ok {
         return Err(api_error(format!(
-            "{option} requires content_type to be an {media}/* type, got '{content_type}'"
+            "{option} requires content_type to be {expected} type, got '{content_type}'"
         ))
         .with_status_code(StatusCode::BAD_REQUEST));
     }
 
     if let Err(message) = crate::app::require_plugin(&plugin_id).await {
         return Err(api_error(message).with_status_code(StatusCode::BAD_REQUEST));
+    }
+
+    Ok(())
+}
+
+/// Canonicalize `path`, tolerating components that do not exist yet:
+/// the nearest existing ancestor is canonicalized and the remaining
+/// components are re-attached (the walk [`safe_path`] performs against
+/// the server root, generalized to any root).
+fn canonicalize_loose(path: &Path) -> anyhow::Result<PathBuf> {
+    let mut attempt = path.to_path_buf();
+    loop {
+        match std::fs::canonicalize(&attempt) {
+            Ok(canon) => {
+                if attempt == path {
+                    return Ok(canon);
+                }
+                let remaining = path.strip_prefix(&attempt).unwrap_or(Path::new(""));
+                return Ok(canon.join(remaining));
+            }
+            Err(err) => match attempt.parent() {
+                Some(parent) if parent != attempt => attempt = parent.to_path_buf(),
+                _ => {
+                    return Err(anyhow!("failed to resolve path {}: {err}", path.display()));
+                }
+            },
+        }
+    }
+}
+
+/// Resolve `media_streaming.output_dir` at session creation and enforce
+/// the same containment rules as the upload path: no traversal (via
+/// [`safe_path`], rooted at the server root) and — with a bucket — inside
+/// the bucket directory. The package directory must also not contain the
+/// upload path, or packaging would remove the source before reading it.
+async fn validate_streaming_output_dir(
+    state: &AppState,
+    config: &UploadUrlConfig,
+    output_dir: &str,
+) -> Result<(), ResponseError> {
+    let root_dir = state.config().root_dir().map_err(|err| {
+        api_error(format!("failed to resolve root directory: {err}"))
+            .with_status_code(StatusCode::INTERNAL_SERVER_ERROR)
+    })?;
+    let out_path = safe_path(&root_dir, output_dir)
+        .await
+        .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
+
+    let target_path = root_dir.join(config.path.trim_start_matches('/'));
+    if target_path.starts_with(&out_path) {
+        return Err(
+            api_error("media_streaming output_dir must not contain the upload path")
+                .with_status_code(StatusCode::BAD_REQUEST),
+        );
+    }
+
+    if let Some(bucket_id) = &config.bucket {
+        let bucket = bucket::get(bucket_id, state.db()).await?;
+        let bucket_root = root_dir.join(bucket.path.trim_start_matches('/'));
+        if !out_path.starts_with(&bucket_root) {
+            return Err(
+                api_error("media_streaming output_dir is not within the specified bucket")
+                    .with_status_code(StatusCode::BAD_REQUEST),
+            );
+        }
+        if bucket_root.exists() {
+            let canonical_bucket = std::fs::canonicalize(&bucket_root).map_err(|err| {
+                api_error(format!("failed to resolve bucket directory: {err}"))
+                    .with_status_code(StatusCode::BAD_REQUEST)
+            })?;
+            let canonical_out = canonicalize_loose(&out_path)
+                .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
+            if !canonical_out.starts_with(&canonical_bucket) {
+                return Err(api_error(
+                    "media_streaming output_dir is not within the specified bucket",
+                )
+                .with_status_code(StatusCode::BAD_REQUEST));
+            }
+        }
     }
 
     Ok(())
@@ -679,12 +801,138 @@ pub(crate) async fn run_media_plugin(
     .await?
 }
 
+/// Look up the `media-streaming` plugin and package `input` into
+/// `output_dir` on the blocking pool, returning the plugin's JSON
+/// description of the package (`{"playlist": ..., "files": [...]}`).
+///
+/// Unlike the byte-oriented plugins, this dispatch is file-based: the
+/// plugin reads the input path itself and writes many files.
+pub(crate) async fn run_media_streaming_plugin(
+    plugin_id: &str,
+    input: &Path,
+    output_dir: &Path,
+    options: &impl serde::Serialize,
+) -> anyhow::Result<Vec<u8>> {
+    let plugin = crate::app::require_plugin(plugin_id)
+        .await
+        .map_err(anyhow::Error::msg)?;
+    let options_json = serde_json::to_value(options)?;
+    let plugin_id_owned = plugin_id.to_string();
+    let input = input.to_path_buf();
+    let output_dir = output_dir.to_path_buf();
+
+    tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<u8>> {
+        let mut dispatcher = ppdrive::plugin::loader::PluginDispatcher::<Vec<u8>>::new();
+        let output = dispatcher
+            .dispatch(
+                plugin,
+                (input.as_path(), output_dir.as_path(), &options_json),
+            )
+            .map_err(|err| anyhow!("{plugin_id_owned} failed: {err}"))?;
+        Ok(output.clone())
+    })
+    .await?
+}
+
+/// Package the completed upload into an HLS/DASH stream directory.
+///
+/// Runs after the file is renamed into place: the `media-streaming`
+/// plugin is file-based (input path + output directory in, playlist JSON
+/// out), one call producing many files. The package is written to
+/// `media_streaming.output_dir` (the same bucket rules apply) or, when
+/// omitted, a sidecar directory beside the file (`<path>.stream`); an
+/// existing package directory is replaced. With `delete_source` (the
+/// default) the source file is removed once the package is written and
+/// the registered asset path becomes the master playlist.
+async fn apply_media_streaming(
+    state: &AppState,
+    config: &mut UploadUrlConfig,
+    target_path: &Path,
+) -> anyhow::Result<()> {
+    let Some(streaming) = config.media_streaming.clone() else {
+        return Ok(());
+    };
+    let root_dir = state.config().root_dir()?;
+
+    let out_dir = match &streaming.output_dir {
+        Some(output_dir) => safe_path(&root_dir, output_dir).await?,
+        None => {
+            let file_name = target_path
+                .file_name()
+                .ok_or_else(|| anyhow!("upload path has no file name"))?;
+            let mut sidecar = file_name.to_os_string();
+            sidecar.push(".stream");
+            target_path.with_file_name(sidecar)
+        }
+    };
+
+    // Defense in depth: packaging into a directory that contains the
+    // source would wipe it before the plugin ever reads it.
+    if target_path.starts_with(&out_dir) {
+        return Err(anyhow!(
+            "media_streaming output_dir must not contain the upload path"
+        ));
+    }
+
+    if out_dir.exists() {
+        tokio::fs::remove_dir_all(&out_dir).await?;
+    }
+    tokio::fs::create_dir_all(&out_dir).await?;
+
+    if let Some(bucket_id) = &config.bucket {
+        let bucket = bucket::get(bucket_id, state.db()).await?;
+        let bucket_root = root_dir.join(bucket.path.trim_start_matches('/'));
+        let canonical_bucket = std::fs::canonicalize(&bucket_root)
+            .map_err(|_| anyhow!("bucket directory not found"))?;
+        let canonical_out = std::fs::canonicalize(&out_dir)
+            .map_err(|err| anyhow!("failed to resolve output_dir: {err}"))?;
+        if !canonical_out.starts_with(&canonical_bucket) {
+            let _ = tokio::fs::remove_dir_all(&out_dir).await;
+            return Err(anyhow!(
+                "media_streaming output_dir is not within the specified bucket"
+            ));
+        }
+    }
+
+    let payload =
+        run_media_streaming_plugin("media-streaming", target_path, &out_dir, &streaming).await?;
+    let playlist = {
+        let value: serde_json::Value = serde_json::from_slice(&payload)?;
+        value
+            .get("playlist")
+            .and_then(|playlist| playlist.as_str())
+            .ok_or_else(|| anyhow!("media-streaming returned no playlist"))?
+            .to_string()
+    };
+
+    if streaming.delete_source {
+        let playlist_name = Path::new(&playlist)
+            .file_name()
+            .ok_or_else(|| anyhow!("media-streaming returned an invalid playlist path"))?;
+        tokio::fs::remove_file(target_path).await?;
+        let mut playlist_rel = out_dir
+            .strip_prefix(&root_dir)
+            .map_err(|_| anyhow!("output_dir is outside the server root"))?
+            .to_path_buf();
+        playlist_rel.push(playlist_name);
+        config.path = playlist_rel.to_string_lossy().replace('\\', "/");
+    }
+
+    tracing::info!(
+        plugin = "media-streaming",
+        output_dir = %out_dir.display(),
+        source_deleted = streaming.delete_source,
+        "upload packaged for streaming"
+    );
+    Ok(())
+}
+
 /// Finalize an upload after the success response has been sent.
 /// Failures are logged only (and the temp file cleaned up) — the client
 /// can no longer learn about them.
 async fn finalize_in_background(
     state: AppState,
-    config: UploadUrlConfig,
+    mut config: UploadUrlConfig,
     client_id: String,
     tmp_path: PathBuf,
     target_path: PathBuf,
@@ -693,6 +941,7 @@ async fn finalize_in_background(
     let result = async {
         post.apply(&tmp_path).await?;
         tokio::fs::rename(&tmp_path, &target_path).await?;
+        apply_media_streaming(&state, &mut config, &target_path).await?;
         register_asset(&state, &config, &client_id).await?;
         anyhow::Ok(())
     }

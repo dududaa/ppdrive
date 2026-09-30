@@ -551,6 +551,209 @@ async fn test_audio_effects_plugin_not_installed() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn test_media_streaming_requires_media_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/stream.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("application/pdf".to_string());
+    config.media_streaming = Some(ppdrive::server::MediaStreamingConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("media_streaming requires content_type to be a video/* or audio/* type")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_media_streaming_requires_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/stream.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = None;
+    config.media_streaming = Some(ppdrive::server::MediaStreamingConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("content_type is required when media_streaming is set")
+    );
+    Ok(())
+}
+
+/// The e2e environment runs from the workspace root, which has no
+/// `plugins.json` — so a valid media-streaming request must be rejected
+/// because the plugin is not installed.
+#[tokio::test]
+async fn test_media_streaming_plugin_not_installed() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/stream.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("video/mp4".to_string());
+    config.media_streaming = Some(ppdrive::server::MediaStreamingConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("media-streaming plugin is not installed")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_media_streaming_output_dir_rejects_traversal() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/stream.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("video/mp4".to_string());
+    config.media_streaming = Some(ppdrive::server::MediaStreamingConfig {
+        output_dir: Some("streams/../../escape".to_string()),
+        ..Default::default()
+    });
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    // output_dir is validated before the plugin gate, so the traversal
+    // error surfaces even though no plugin is installed.
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("path traversal detected")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_media_streaming_output_dir_must_not_contain_upload_path() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/stream.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("video/mp4".to_string());
+    config.media_streaming = Some(ppdrive::server::MediaStreamingConfig {
+        output_dir: Some("test-assets/uploads".to_string()),
+        ..Default::default()
+    });
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("output_dir must not contain the upload path")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_media_streaming_rejects_bad_renditions() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/stream.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("video/mp4".to_string());
+    config.media_streaming = Some(ppdrive::server::MediaStreamingConfig {
+        renditions: Some(Vec::new()),
+        ..Default::default()
+    });
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    // Renditions are validated before the plugin gate.
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("renditions must not be empty")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_media_streaming_only_applies_to_file_uploads() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.asset_type = AssetType::Folder;
+    config.path = "test-assets/uploads/folder".to_string();
+    config.media_streaming = Some(ppdrive::server::MediaStreamingConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("media_streaming only applies to file uploads")
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn test_upload_to_named_bucket() -> anyhow::Result<()> {
     let (_, token, header_key) = setup_test_client().await?;
     let server = TestServerWrapper::new().await?;

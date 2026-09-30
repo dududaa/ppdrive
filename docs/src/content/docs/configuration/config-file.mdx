@@ -62,6 +62,11 @@ hasher = "Blake3"
 # The per-upload audio_effects.background option overrides this
 # audio_effects_background = true
 
+# Whether media streaming packaging runs after the upload response
+# (optional, default: false). false = package inline before the upload
+# completes. The per-upload media_streaming.background option overrides this
+# media_streaming_background = true
+
 # Server-side cache TTL for transformed download responses in seconds
 # (optional, default: 86400). Requires message_broker; 0 disables the cache
 # transform_cache_ttl_secs = 86400
@@ -96,6 +101,7 @@ path = "/static"
 | `image_transformation_background` | `bool` | `false` | Whether image transformation runs after the upload response instead of inline. The per-upload `image_transformation.background` option overrides this. If either processing option requests background, the whole transform → convert chain runs after the response |
 | `audio_conversion_background` | `bool` | `false` | Whether audio conversion runs after the upload response instead of inline. The per-upload `audio_conversion.background` option overrides this |
 | `audio_effects_background` | `bool` | `false` | Whether audio effects run after the upload response instead of inline. The per-upload `audio_effects.background` option overrides this. If either audio option requests background, the whole effects → convert chain runs after the response |
+| `media_streaming_background` | `bool` | `false` | Whether media streaming packaging runs after the upload response instead of inline. The per-upload `media_streaming.background` option overrides this. If any post-processing option requests background, the whole process → rename → package → register chain runs after the response |
 | `transform_cache_ttl_secs` | `u64` | `86400` | Server-side cache TTL (seconds) for transformed download responses, stored in the message broker. `0` disables server-side caching; without `message_broker` every transformed request runs the plugin |
 | `transform_cache_max_age_secs` | `u64` | `3600` | `Cache-Control: max-age` (seconds) advertised on transformed download responses. For signed downloads the value is capped at the token's remaining lifetime |
 | `static_folders` | `Array` | `[]` | Directories to serve as static files |
