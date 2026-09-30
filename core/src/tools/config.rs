@@ -34,11 +34,11 @@ pub struct AppConfig {
 
     pub plugins: Option<HashMap<String, HashMap<String, String>>>,
 
-    /// Default for whether image compression runs after the upload response
+    /// Default for whether image conversion runs after the upload response
     /// (`true`) or inline before it (`false`). Per-upload
-    /// `image_compression.background` overrides this.
-    #[serde(default)]
-    pub image_compression_background: Option<bool>,
+    /// `image_conversion.background` overrides this.
+    #[serde(default, alias = "image_compression_background")]
+    pub image_conversion_background: Option<bool>,
 
     /// Default for whether image transformation runs after the upload
     /// response (`true`) or inline before it (`false`). Per-upload
@@ -171,7 +171,7 @@ impl Default for AppConfig {
             #[cfg(feature = "server")]
             hasher: Hasher::HMAC256,
             plugins: None,
-            image_compression_background: None,
+            image_conversion_background: None,
             image_transformation_background: None,
             audio_conversion_background: None,
             audio_effects_background: None,
@@ -197,34 +197,47 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_image_compression_background() {
+    fn parses_image_conversion_background() {
         let toml_content = r#"
 database_url = "sqlite:data.db"
 client_header_key = "x-ppdrive-client"
 hasher = "HMAC256"
-image_compression_background = true
+image_conversion_background = true
 image_transformation_background = true
 audio_conversion_background = true
 audio_effects_background = true
 "#;
         let config: AppConfig = toml::from_str(toml_content).unwrap();
-        assert_eq!(config.image_compression_background, Some(true));
+        assert_eq!(config.image_conversion_background, Some(true));
         assert_eq!(config.image_transformation_background, Some(true));
         assert_eq!(config.audio_conversion_background, Some(true));
         assert_eq!(config.audio_effects_background, Some(true));
     }
 
     #[test]
-    fn image_compression_background_defaults_to_none() {
+    fn legacy_image_compression_background_still_parses() {
+        // Config files written before the rename keep working.
+        let toml_content = r#"
+database_url = "sqlite:data.db"
+client_header_key = "x-ppdrive-client"
+hasher = "HMAC256"
+image_compression_background = true
+"#;
+        let config: AppConfig = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.image_conversion_background, Some(true));
+    }
+
+    #[test]
+    fn image_conversion_background_defaults_to_none() {
         let toml_content = r#"
 database_url = "sqlite:data.db"
 client_header_key = "x-ppdrive-client"
 hasher = "HMAC256"
 "#;
         let config: AppConfig = toml::from_str(toml_content).unwrap();
-        assert_eq!(config.image_compression_background, None);
+        assert_eq!(config.image_conversion_background, None);
         assert_eq!(config.image_transformation_background, None);
-        assert_eq!(AppConfig::default().image_compression_background, None);
+        assert_eq!(AppConfig::default().image_conversion_background, None);
         assert_eq!(AppConfig::default().image_transformation_background, None);
         assert_eq!(config.audio_conversion_background, None);
         assert_eq!(config.audio_effects_background, None);

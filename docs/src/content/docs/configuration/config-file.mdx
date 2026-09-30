@@ -42,10 +42,10 @@ message_broker = "redis://localhost:6379"
 # Options: "HMAC256" or "Blake3"
 hasher = "Blake3"
 
-# Whether image compression runs after the upload response (optional, default: false)
-# false = compress inline before the upload completes
-# The per-upload image_compression.background option overrides this
-# image_compression_background = true
+# Whether image conversion runs after the upload response (optional, default: false)
+# false = convert inline before the upload completes
+# The per-upload image_conversion.background option overrides this
+# image_conversion_background = true
 
 # Whether image transformation runs after the upload response (optional, default: false)
 # false = transform inline before the upload completes
@@ -92,8 +92,8 @@ path = "/static"
 | `db_pool_size` | `u32` | `10` | Max database connections in pool |
 | `message_broker` | `String` | `null` | Redis URL for resumable uploads and server-side caching of transformed download responses |
 | `hasher` | `String` | `HMAC256` | Hash algorithm: `HMAC256` or `Blake3` |
-| `image_compression_background` | `bool` | `false` | Whether image compression runs after the upload response instead of inline. The per-upload `image_compression.background` option overrides this |
-| `image_transformation_background` | `bool` | `false` | Whether image transformation runs after the upload response instead of inline. The per-upload `image_transformation.background` option overrides this. If either processing option requests background, the whole transform → compress chain runs after the response |
+| `image_conversion_background` | `bool` | `false` | Whether image conversion runs after the upload response instead of inline. The per-upload `image_conversion.background` option overrides this |
+| `image_transformation_background` | `bool` | `false` | Whether image transformation runs after the upload response instead of inline. The per-upload `image_transformation.background` option overrides this. If either processing option requests background, the whole transform → convert chain runs after the response |
 | `audio_conversion_background` | `bool` | `false` | Whether audio conversion runs after the upload response instead of inline. The per-upload `audio_conversion.background` option overrides this |
 | `audio_effects_background` | `bool` | `false` | Whether audio effects run after the upload response instead of inline. The per-upload `audio_effects.background` option overrides this. If either audio option requests background, the whole effects → convert chain runs after the response |
 | `transform_cache_ttl_secs` | `u64` | `86400` | Server-side cache TTL (seconds) for transformed download responses, stored in the message broker. `0` disables server-side caching; without `message_broker` every transformed request runs the plugin |

@@ -210,14 +210,14 @@ async fn test_upload_session_requires_target_filesize() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn test_image_compression_requires_image_content_type() -> anyhow::Result<()> {
+async fn test_image_conversion_requires_image_content_type() -> anyhow::Result<()> {
     let (_, token, header_key) = setup_test_client().await?;
     let server = TestServerWrapper::new().await?;
 
     let mut config = test_upload_config();
     config.target_filesize = Some(1024);
     config.content_type = Some("application/pdf".to_string());
-    config.image_compression = Some(ppdrive::server::ImageCompressionConfig::default());
+    config.image_conversion = Some(ppdrive::server::ImageConversionConfig::default());
 
     let resp = server
         .post("/upload/session", &config)
@@ -229,14 +229,14 @@ async fn test_image_compression_requires_image_content_type() -> anyhow::Result<
 }
 
 #[tokio::test]
-async fn test_image_compression_requires_content_type() -> anyhow::Result<()> {
+async fn test_image_conversion_requires_content_type() -> anyhow::Result<()> {
     let (_, token, header_key) = setup_test_client().await?;
     let server = TestServerWrapper::new().await?;
 
     let mut config = test_upload_config();
     config.target_filesize = Some(1024);
     config.content_type = None;
-    config.image_compression = Some(ppdrive::server::ImageCompressionConfig::default());
+    config.image_conversion = Some(ppdrive::server::ImageConversionConfig::default());
 
     let resp = server
         .post("/upload/session", &config)
@@ -248,10 +248,10 @@ async fn test_image_compression_requires_content_type() -> anyhow::Result<()> {
 }
 
 /// The e2e environment runs from the workspace root, which has no
-/// `plugins.json` — so a valid image-compression request must be rejected
+/// `plugins.json` — so a valid image-conversion request must be rejected
 /// because the plugin is not installed.
 #[tokio::test]
-async fn test_image_compression_plugin_not_installed() -> anyhow::Result<()> {
+async fn test_image_conversion_plugin_not_installed() -> anyhow::Result<()> {
     let (_, token, header_key) = setup_test_client().await?;
     let server = TestServerWrapper::new().await?;
 
@@ -259,7 +259,7 @@ async fn test_image_compression_plugin_not_installed() -> anyhow::Result<()> {
     config.path = "test-assets/uploads/compress.jpg".to_string();
     config.target_filesize = Some(1024);
     config.content_type = Some("image/jpeg".to_string());
-    config.image_compression = Some(ppdrive::server::ImageCompressionConfig::default());
+    config.image_conversion = Some(ppdrive::server::ImageConversionConfig::default());
 
     let resp = server
         .post("/upload/session", &config)

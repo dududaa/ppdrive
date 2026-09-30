@@ -96,8 +96,8 @@ pub(super) async fn create_session(
         .validate()
         .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
 
-    // Transformation first, compression second: when both specify an output
-    // format, compression runs last at completion so its rewrite wins.
+    // Transformation first, conversion second: when both specify an output
+    // format, conversion runs last at completion so its rewrite wins.
     // The audio options follow the same rule — effects before conversion —
     // and can never combine with the image options: each requires its own
     // `content_type` family, so a session validates for at most one of them.
@@ -116,14 +116,17 @@ pub(super) async fn create_session(
         }
     }
 
-    if let Some(compression) = config.image_compression.clone() {
-        check_media_plugin("image_compression", &config).await?;
+    if let Some(conversion) = config.image_conversion.clone() {
+        conversion
+            .validate_scale()
+            .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
+        check_media_plugin("image_conversion", &config).await?;
 
         // Store the output format: rewrite the path extension and content_type
         // so the overwrite check, MIME validation and asset registration all
         // refer to the file that will actually be written.
-        let output_mime = compression.format.mime().to_string();
-        config.path = compression.rewrite_path(&config.path);
+        let output_mime = conversion.format.mime().to_string();
+        config.path = conversion.rewrite_path(&config.path);
         config.content_type = Some(output_mime);
     }
 
@@ -499,7 +502,7 @@ async fn get_next_session(
 
         let post = PostProcessing {
             image_transformation: config.image_transformation.clone(),
-            image_compression: config.image_compression.clone(),
+            image_conversion: config.image_conversion.clone(),
             audio_effects: config.audio_effects.clone(),
             audio_conversion: config.audio_conversion.clone(),
         };
@@ -549,7 +552,7 @@ async fn get_next_session(
 #[derive(Clone, Default)]
 struct PostProcessing {
     image_transformation: Option<ImageTransformationConfig>,
-    image_compression: Option<ImageCompressionConfig>,
+    image_conversion: Option<ImageConversionConfig>,
     audio_effects: Option<AudioEffectsConfig>,
     audio_conversion: Option<AudioConversionConfig>,
 }
@@ -564,9 +567,9 @@ impl PostProcessing {
             .map(|t| resolve_background(t.background, global.image_transformation_background))
             .unwrap_or(false)
             || self
-                .image_compression
+                .image_conversion
                 .as_ref()
-                .map(|c| resolve_background(c.background, global.image_compression_background))
+                .map(|c| resolve_background(c.background, global.image_conversion_background))
                 .unwrap_or(false)
             || self
                 .audio_effects
@@ -581,14 +584,14 @@ impl PostProcessing {
     }
 
     /// Apply the configured post-processing to `path` in place, each
-    /// family in chain order: image transform → compress, audio
+    /// family in chain order: image transform → conversion, audio
     /// effects → conversion.
     async fn apply(&self, path: &Path) -> anyhow::Result<()> {
         if let Some(transformation) = &self.image_transformation {
             apply_media_plugin("image-transformation", path, transformation).await?;
         }
-        if let Some(compression) = &self.image_compression {
-            apply_media_plugin("image-compression", path, compression).await?;
+        if let Some(conversion) = &self.image_conversion {
+            apply_media_plugin("image-conversion", path, conversion).await?;
         }
         if let Some(effects) = &self.audio_effects {
             apply_media_plugin("audio-effects", path, effects).await?;
@@ -603,9 +606,9 @@ impl PostProcessing {
 /// Shared preconditions for the media processing options: file uploads only,
 /// a declared `<media>/*` `content_type`, and the matching plugin installed.
 ///
-/// `option` is the upload config field (snake_case, e.g. `image_compression`);
+/// `option` is the upload config field (snake_case, e.g. `image_conversion`);
 /// the media prefix (`image`, `audio`) and the plugin id
-/// (`image-compression`) follow from it.
+/// (`image-conversion`) follow from it.
 async fn check_media_plugin(option: &str, config: &UploadUrlConfig) -> Result<(), ResponseError> {
     let plugin_id = option.replace('_', "-");
     let media = option.split('_').next().unwrap_or_default();

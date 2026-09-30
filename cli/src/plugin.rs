@@ -423,7 +423,7 @@ fn find_release_asset<'a>(
     let ext = expected.rsplit('.').next().unwrap_or("so");
     let suffix = format!(".{ext}");
     // Compare with `_` normalized to `-` so assets published under the
-    // legacy underscore convention (`ppdrive_image_compression-...`) still match.
+    // legacy underscore convention (`ppdrive_image_conversion-...`) still match.
     let norm = |s: &str| s.replace('_', "-");
     let expected_norm = norm(&expected);
     let prefix_norm = norm(&format!("{id}-"));
@@ -645,7 +645,7 @@ fn find_built_lib(target_dir: &Path, name: &str) -> Result<PathBuf, anyhow::Erro
     }
 
     // Match by normalized file stem against the full id (`ppdrive-dashboard`)
-    // or the short id (`image-compression`), accepting either separator.
+    // or the short id (`image-conversion`), accepting either separator.
     let norm = |s: &str| s.replace('_', "-");
     let wanted = [norm(name), norm(plugin_short_id(name))];
 

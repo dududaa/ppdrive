@@ -3,7 +3,7 @@ title: Plugin Commands
 description: Install, activate and manage PPDRIVE plugins.
 ---
 
-Plugins extend the server with dynamically loaded native libraries — the dashboard UI, image compression, image transformation, audio conversion and audio effects ship as plugins. Plugin commands work without a database or config file.
+Plugins extend the server with dynamically loaded native libraries — the dashboard UI, image conversion, image transformation, audio conversion and audio effects ship as plugins. Plugin commands work without a database or config file.
 
 ## Install a Plugin
 
@@ -35,7 +35,7 @@ ppdrive plugin add <ID> --source <SOURCE> [OPTIONS]
 
 ```sh
 # Install from a remote repository, building the plugin from source
-ppdrive plugin add image_compression --source github:owner/image-compression --build
+ppdrive plugin add image_conversion --source github:owner/image-conversion --build
 
 # Install a prebuilt release asset (media plugins ship from ppdrive-media)
 ppdrive plugin add audio_conversion --source github:dududaa/ppdrive-media
@@ -108,7 +108,7 @@ Update re-fetches from the plugin's recorded source: remote plugins are re-insta
 
 ```sh
 # Update one plugin
-ppdrive plugin update image_compression
+ppdrive plugin update image_conversion
 
 # Update everything
 ppdrive plugin update
@@ -124,4 +124,4 @@ ppdrive plugin update
 
 - [CLI Overview](/cli/overview/) — All commands at a glance
 - [Config File](/configuration/config-file/) — Global upload-processing options
-- [Upload Flow](/api/upload/) — Post-processing session options: `image_compression`, `image_transformation`, `audio_conversion` and `audio_effects`
+- [Upload Flow](/api/upload/) — Post-processing session options: `image_conversion`, `image_transformation`, `audio_conversion` and `audio_effects`

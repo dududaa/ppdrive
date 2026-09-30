@@ -31,7 +31,7 @@ of APIs for remote file management and storage.
   users can access to assets. 
 - **Ease of Use**: If you're already familiar with sending HTTP requests, using PPDRIVE feels natural. We also provide a
   cli-tool for configuration, client management, plugin management and so on.
-- **Plugins**: Extend the server with dynamically loaded plugins — the dashboard UI, image compression, image
+- **Plugins**: Extend the server with dynamically loaded plugins — the dashboard UI, image conversion, image
   transformation...etc — all ship as plugins and install with a single CLI command (`ppdrive plugin add`).
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
 - **Speed**: Very fast operation handlers.
@@ -53,11 +53,11 @@ Please see the [Documentation Website](https://ppdrive.dududaa.org).
   - [x] Dashboard UI
   - [ ] Media
     - [x] Image Transformation
-    - [x] Image Compression
+    - [x] Image Conversion
     - [ ] Video Transformation
-    - [ ] Video Compression
-    - [ ] Audio Conversion
-    - [ ] Audio Effects
+    - [ ] Video Conversion
+    - [x] Audio Conversion
+    - [x] Audio Effects
   - [ ] Live File Streaming
   - [ ] PDF Utilities
   - [ ] And many more.

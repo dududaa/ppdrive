@@ -19,8 +19,8 @@ pub fn plugin_short_id(id: &str) -> &str {
 }
 
 /// Canonicalize a plugin id: strip either prefix convention and normalize
-/// `_` separators to `-` (e.g. `ppdrive_image_compression` →
-/// `image-compression`). All ids are stored and compared in this form.
+/// `_` separators to `-` (e.g. `ppdrive_image_conversion` →
+/// `image-conversion`). All ids are stored and compared in this form.
 pub fn normalize_plugin_id(id: &str) -> String {
     plugin_short_id(id).replace('_', "-")
 }
@@ -192,20 +192,14 @@ mod tests {
     #[test]
     fn normalize_enforces_hyphen_convention() {
         assert_eq!(
-            normalize_plugin_id("ppdrive_image_compression"),
-            "image-compression"
+            normalize_plugin_id("ppdrive_image_conversion"),
+            "image-conversion"
         );
+        assert_eq!(normalize_plugin_id("image_conversion"), "image-conversion");
+        assert_eq!(normalize_plugin_id("image-conversion"), "image-conversion");
         assert_eq!(
-            normalize_plugin_id("image_compression"),
-            "image-compression"
-        );
-        assert_eq!(
-            normalize_plugin_id("image-compression"),
-            "image-compression"
-        );
-        assert_eq!(
-            normalize_plugin_id("ppdrive-image-compression"),
-            "image-compression"
+            normalize_plugin_id("ppdrive-image-conversion"),
+            "image-conversion"
         );
     }
 
@@ -214,22 +208,22 @@ mod tests {
         assert_eq!(plugin_full_id("dashboard"), "ppdrive-dashboard");
         assert_eq!(plugin_full_id("ppdrive_dashboard"), "ppdrive-dashboard");
         assert_eq!(
-            plugin_full_id("image_compression"),
-            "ppdrive-image-compression"
+            plugin_full_id("image_conversion"),
+            "ppdrive-image-conversion"
         );
         assert_eq!(
-            plugin_full_id(&plugin_full_id("image_compression")),
-            "ppdrive-image-compression",
+            plugin_full_id(&plugin_full_id("image_conversion")),
+            "ppdrive-image-conversion",
             "full id must be idempotent"
         );
     }
 
     #[test]
     fn same_id_matches_across_conventions() {
-        assert!(same_id("image_compression", "image-compression"));
-        assert!(same_id("ppdrive_image_compression", "image-compression"));
+        assert!(same_id("image_conversion", "image-conversion"));
+        assert!(same_id("ppdrive_image_conversion", "image-conversion"));
         assert!(same_id("ppdrive-dashboard", "dashboard"));
-        assert!(!same_id("image-compression", "image-transformation"));
+        assert!(!same_id("image-conversion", "image-transformation"));
     }
 
     #[test]
@@ -244,8 +238,8 @@ mod tests {
             "so"
         };
         assert_eq!(
-            plugin_lib_name(&plugin_full_id("image_compression")),
-            format!("ppdrive-image-compression-{os}-{arch}.{ext}")
+            plugin_lib_name(&plugin_full_id("image_conversion")),
+            format!("ppdrive-image-conversion-{os}-{arch}.{ext}")
         );
     }
 
@@ -257,8 +251,8 @@ mod tests {
         };
 
         registry.add(PluginEntry {
-            id: "ppdrive_image_compression".to_string(),
-            filename: "ppdrive_image_compression-linux-x86_64.so".to_string(),
+            id: "ppdrive_image_conversion".to_string(),
+            filename: "ppdrive_image_conversion-linux-x86_64.so".to_string(),
             version: "local".to_string(),
             installed_at: "now".to_string(),
             source: None,
@@ -266,14 +260,14 @@ mod tests {
             active: true,
         });
 
-        assert_eq!(registry.list()[0].id, "image-compression");
-        assert!(registry.is_installed("image_compression"));
-        assert!(registry.is_installed("ppdrive-image-compression"));
-        assert_eq!(registry.list()[0].full_id(), "ppdrive-image-compression");
+        assert_eq!(registry.list()[0].id, "image-conversion");
+        assert!(registry.is_installed("image_conversion"));
+        assert!(registry.is_installed("ppdrive-image-conversion"));
+        assert_eq!(registry.list()[0].full_id(), "ppdrive-image-conversion");
         // Stored filename is preserved so already-installed libraries keep loading.
         assert_eq!(
             registry.list()[0].filename,
-            "ppdrive_image_compression-linux-x86_64.so"
+            "ppdrive_image_conversion-linux-x86_64.so"
         );
     }
 

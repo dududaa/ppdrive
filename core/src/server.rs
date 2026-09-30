@@ -209,11 +209,12 @@ pub struct UploadUrlConfig {
     /// Whether the uploaded file should be publicly accessible.
     /// Only effective for files in private buckets. Defaults to false.
     pub public: Option<bool>,
-    /// Post-upload image compression. Requires the `image_compression`
+    /// Post-upload image conversion. Requires the `image-conversion`
     /// plugin and an `image/*` `content_type`.
     #[validate(nested)]
-    pub image_compression: Option<ImageCompressionConfig>,
-    /// Post-upload image transformation (applied before compression).
+    #[serde(alias = "image_compression")]
+    pub image_conversion: Option<ImageConversionConfig>,
+    /// Post-upload image transformation (applied before conversion).
     /// Requires the `image_transformation` plugin and an `image/*`
     /// `content_type`.
     #[validate(nested)]
@@ -240,11 +241,11 @@ impl UploadUrlConfig {
     }
 }
 
-/// Output format for post-upload image compression.
+/// Output format for post-upload image conversion.
 ///
 /// Variant names and serde representation match
-/// `image_compression::ImageFormat` so the JSON serialized here
-/// deserializes into the plugin's `CompressionOptions`.
+/// `image_conversion::ImageFormat` so the JSON serialized here
+/// deserializes into the plugin's `ConversionOptions`.
 #[derive(Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ImageFormat {
     #[default]
@@ -285,11 +286,11 @@ impl ImageFormat {
     }
 }
 
-/// Client-provided options for compressing the file after upload,
-/// applied by the `image_compression` plugin.
+/// Client-provided options for converting the file after upload,
+/// applied by the `image-conversion` plugin.
 #[derive(Serialize, Deserialize, Validate, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields, default)]
-pub struct ImageCompressionConfig {
+pub struct ImageConversionConfig {
     /// Output format. Default: [`ImageFormat::Jpeg`].
     pub format: ImageFormat,
     /// Quality on a 0–100 scale (values above 100 are rejected here;
@@ -302,24 +303,51 @@ pub struct ImageCompressionConfig {
     /// Target height in pixels; `None` keeps the source height. Must be ≥ 1.
     #[validate(range(min = 1))]
     pub height: Option<u32>,
-    /// Compress after responding (`true`) or before (`false`, inline default).
-    /// Falls back to `image_compression_background` in `ppd_config.toml`.
+    /// Proportional resize factor, applied only when both `width` and
+    /// `height` are `None`. Must be finite and > 0 (checked by
+    /// [`ImageConversionConfig::validate_scale`]). Default: `None`.
+    pub scale: Option<f32>,
+    /// Encoding effort on a 0–100 scale (AVIF only; values above 100 are
+    /// rejected here, the plugin clamps at 100). Default: `None`.
+    #[validate(range(min = 0, max = 100))]
+    pub effort: Option<u8>,
+    /// Maximum output size in bytes; must be ≥ 1 when set. The encoder
+    /// lowers quality until the output fits. Default: `None`.
+    #[validate(range(min = 1))]
+    pub max_bytes: Option<u64>,
+    /// Convert after responding (`true`) or before (`false`, inline default).
+    /// Falls back to `image_conversion_background` in `ppd_config.toml`.
     pub background: Option<bool>,
 }
 
-impl Default for ImageCompressionConfig {
+impl Default for ImageConversionConfig {
     fn default() -> Self {
-        ImageCompressionConfig {
+        ImageConversionConfig {
             format: ImageFormat::Jpeg,
             quality: 80,
             width: None,
             height: None,
+            scale: None,
+            effort: None,
+            max_bytes: None,
             background: None,
         }
     }
 }
 
-impl ImageCompressionConfig {
+impl ImageConversionConfig {
+    /// Pre-flight check for `scale`: the plugin rejects non-finite and
+    /// non-positive factors when it runs (long after the session is
+    /// accepted), so surface them at session creation as a 400 instead.
+    pub fn validate_scale(&self) -> Result<(), String> {
+        match self.scale {
+            Some(scale) if !scale.is_finite() || scale <= 0.0 => Err(format!(
+                "image_conversion scale must be finite and greater than 0, got {scale}"
+            )),
+            _ => Ok(()),
+        }
+    }
+
     /// Rewrite `path`'s extension to match the output format
     /// (e.g. `images/photo.png` → `images/photo.webp`).
     pub fn rewrite_path(&self, path: &str) -> String {
@@ -327,7 +355,7 @@ impl ImageCompressionConfig {
     }
 }
 
-/// Resolve whether compression runs in the background:
+/// Resolve whether post-processing runs in the background:
 /// client option → global config → inline (`false`).
 pub fn resolve_background(client: Option<bool>, global: Option<bool>) -> bool {
     client.or(global).unwrap_or(false)
@@ -378,7 +406,7 @@ pub enum TransformOperation {
 }
 
 /// Client-provided options for transforming the file after upload,
-/// applied by the `image_transformation` plugin before compression.
+/// applied by the `image_transformation` plugin before conversion.
 #[derive(Serialize, Deserialize, Validate, Default, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields, default)]
 pub struct ImageTransformationConfig {
@@ -901,83 +929,149 @@ mod tests {
 }
 
 #[cfg(test)]
-mod image_compression_tests {
+mod image_conversion_tests {
     use super::*;
     use validator::Validate;
 
     #[test]
-    fn image_compression_applies_defaults() {
+    fn image_conversion_applies_defaults() {
         let json = r#"{
             "asset_type": "File",
             "expires": 120,
             "path": "images/a.png",
-            "image_compression": { "format": "WebP", "width": 800 }
+            "image_conversion": { "format": "WebP", "width": 800 }
         }"#;
         let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
-        let ic = config.image_compression.unwrap();
+        let ic = config.image_conversion.unwrap();
         assert_eq!(ic.format, ImageFormat::WebP);
         assert_eq!(ic.quality, 80);
         assert_eq!(ic.width, Some(800));
         assert_eq!(ic.height, None);
+        assert_eq!(ic.scale, None);
+        assert_eq!(ic.effort, None);
+        assert_eq!(ic.max_bytes, None);
         assert_eq!(ic.background, None);
     }
 
     #[test]
-    fn image_compression_missing_field_parses_to_none() {
+    fn image_conversion_missing_field_parses_to_none() {
         let json = r#"{ "asset_type": "File", "expires": 120, "path": "images/a.png" }"#;
         let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
-        assert!(config.image_compression.is_none());
+        assert!(config.image_conversion.is_none());
     }
 
     #[test]
-    fn image_compression_serializes_all_dispatch_fields() {
-        let config = ImageCompressionConfig {
+    fn legacy_image_compression_key_still_deserializes() {
+        // Sessions signed and requests sent before the rename keep working.
+        let json = r#"{
+            "asset_type": "File",
+            "expires": 120,
+            "path": "images/a.png",
+            "image_compression": { "format": "WebP", "quality": 70 }
+        }"#;
+        let config: UploadUrlConfig = serde_json::from_str(json).unwrap();
+        let ic = config.image_conversion.unwrap();
+        assert_eq!(ic.format, ImageFormat::WebP);
+        assert_eq!(ic.quality, 70);
+    }
+
+    #[test]
+    fn image_conversion_serializes_all_dispatch_fields() {
+        let config = ImageConversionConfig {
             format: ImageFormat::Avif,
             quality: 60,
             width: Some(100),
             height: None,
+            scale: Some(0.5),
+            effort: Some(50),
+            max_bytes: Some(4096),
             background: Some(true),
         };
         let value = serde_json::to_value(&config).unwrap();
-        for key in ["format", "quality", "width", "height", "background"] {
+        for key in [
+            "format",
+            "quality",
+            "width",
+            "height",
+            "scale",
+            "effort",
+            "max_bytes",
+            "background",
+        ] {
             assert!(value.get(key).is_some(), "missing field '{key}'");
         }
         assert_eq!(value["format"], "Avif");
         assert_eq!(value["quality"], 60);
+        assert_eq!(value["scale"], 0.5);
+        assert_eq!(value["effort"], 50);
+        assert_eq!(value["max_bytes"], 4096);
     }
 
     #[test]
-    fn image_compression_rejects_unknown_fields() {
+    fn image_conversion_rejects_unknown_fields() {
         let json = r#"{
             "format": "Jpeg", "quality": 80, "width": null,
             "height": null, "background": null, "fuzzy": true
         }"#;
-        assert!(serde_json::from_str::<ImageCompressionConfig>(json).is_err());
+        assert!(serde_json::from_str::<ImageConversionConfig>(json).is_err());
     }
 
     #[test]
-    fn image_compression_validation_rules() {
+    fn image_conversion_validation_rules() {
         let mut config = UploadUrlConfig::test();
 
-        config.image_compression = Some(ImageCompressionConfig {
+        config.image_conversion = Some(ImageConversionConfig {
             quality: 101,
             ..Default::default()
         });
         assert!(config.validate().is_err(), "quality 101 must be rejected");
 
-        config.image_compression = Some(ImageCompressionConfig {
+        config.image_conversion = Some(ImageConversionConfig {
             width: Some(0),
             ..Default::default()
         });
         assert!(config.validate().is_err(), "width 0 must be rejected");
 
-        config.image_compression = Some(ImageCompressionConfig {
+        config.image_conversion = Some(ImageConversionConfig {
+            effort: Some(101),
+            ..Default::default()
+        });
+        assert!(config.validate().is_err(), "effort 101 must be rejected");
+
+        config.image_conversion = Some(ImageConversionConfig {
+            max_bytes: Some(0),
+            ..Default::default()
+        });
+        assert!(config.validate().is_err(), "max_bytes 0 must be rejected");
+
+        config.image_conversion = Some(ImageConversionConfig {
             quality: 100,
             width: Some(1),
             height: Some(1),
+            scale: Some(0.5),
+            effort: Some(100),
+            max_bytes: Some(1),
             ..Default::default()
         });
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn scale_validation_rejects_non_finite_and_non_positive() {
+        let mut config = ImageConversionConfig::default();
+        for scale in [0.0, -0.5, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            config.scale = Some(scale);
+            assert!(
+                config.validate_scale().is_err(),
+                "scale {scale} must be rejected"
+            );
+        }
+
+        config.scale = Some(0.5);
+        assert!(config.validate_scale().is_ok());
+
+        config.scale = None;
+        assert!(config.validate_scale().is_ok());
     }
 
     #[test]
@@ -994,7 +1088,7 @@ mod image_compression_tests {
 
     #[test]
     fn rewrite_path_uses_output_extension() {
-        let webp = ImageCompressionConfig {
+        let webp = ImageConversionConfig {
             format: ImageFormat::WebP,
             ..Default::default()
         };
@@ -1002,7 +1096,7 @@ mod image_compression_tests {
         assert_eq!(webp.rewrite_path("photo"), "photo.webp");
         assert_eq!(webp.rewrite_path("a.b/photo.jpg"), "a.b/photo.webp");
 
-        let avif = ImageCompressionConfig {
+        let avif = ImageConversionConfig {
             format: ImageFormat::Avif,
             ..Default::default()
         };
@@ -1650,7 +1744,7 @@ mod audio_tests {
         let config: UploadUrlConfig = serde_json::from_str(legacy).unwrap();
         assert!(config.audio_conversion.is_none());
         assert!(config.audio_effects.is_none());
-        assert!(config.image_compression.is_none());
+        assert!(config.image_conversion.is_none());
         assert!(config.image_transformation.is_none());
     }
 }

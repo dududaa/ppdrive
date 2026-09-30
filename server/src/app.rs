@@ -105,7 +105,7 @@ impl LivePlugins {
 
 static LIVE_PLUGINS: OnceLock<LivePlugins> = OnceLock::new();
 
-/// Load a plugin by short id (e.g. `image-compression`), or explain why it
+/// Load a plugin by short id (e.g. `image-conversion`), or explain why it
 /// is unavailable: not installed, deactivated with `ppdrive plugin
 /// deactivate`, or present in the registry but failed to load.
 pub(crate) async fn require_plugin(id: &str) -> Result<&'static LoadedPlugin, String> {

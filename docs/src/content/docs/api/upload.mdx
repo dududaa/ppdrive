@@ -74,8 +74,8 @@ curl -X POST http://localhost:8000/upload/session \
 | `resumable` | `bool` | No | Enable chunked upload (requires Redis) |
 | `bucket` | `String` | No | Bucket PID to upload into |
 | `content_type` | `String` | If no bucket or bucket has accepts | MIME type of the file |
-| `image_compression` | `Object` | No | Compress the image after upload — see [Image Compression](#image-compression) |
-| `image_transformation` | `Object` | No | Transform the image after upload, before compression — see [Image Transformation](#image-transformation) |
+| `image_conversion` | `Object` | No | Convert the image after upload — see [Image Conversion](#image-conversion) |
+| `image_transformation` | `Object` | No | Transform the image after upload, before conversion — see [Image Transformation](#image-transformation) |
 | `audio_conversion` | `Object` | No | Convert the audio after upload — see [Audio Conversion](#audio-conversion) |
 | `audio_effects` | `Object` | No | Apply audio effects after upload, before conversion — see [Audio Effects](#audio-effects) |
 
@@ -100,8 +100,8 @@ The `data` field contains a signed base64url token.
 - If bucket has `accepts` restrictions, `content_type` is required
 - If `bucket` is not provided, `content_type` is required for file uploads
 - Without a bucket, the uploaded file's MIME type (inferred from its extension) must match the declared `content_type`
-- `image_compression` requires `content_type` to be an `image/*` type and the `image_compression` plugin to be installed
-- `image_compression.quality` must be 0–100; `width`/`height` must be ≥ 1 when given
+- `image_conversion` requires `content_type` to be an `image/*` type and the `image_conversion` plugin to be installed
+- `image_conversion.quality` must be 0–100; `width`/`height` must be ≥ 1 when given; `effort` must be 0–100; `max_bytes` must be ≥ 1; `scale` must be finite and > 0
 - `image_transformation` requires `content_type` to be an `image/*` type and the `image_transformation` plugin to be installed
 - `image_transformation.quality` must be 0–100; operation arguments are validated at session creation (see [Image Transformation](#image-transformation))
 - `audio_conversion` requires `content_type` to be an `audio/*` type and the `audio_conversion` plugin to be installed
@@ -360,9 +360,9 @@ curl -X POST http://localhost:8000/upload/session \
 
 The uploaded file's MIME type (inferred from the file extension) must match the declared `content_type`; a mismatch rejects the upload and removes the temporary file. No bucket ownership check is performed, but the upload will be rejected if the path doesn't start with a configured static directory.
 
-## Image Compression
+## Image Conversion
 
-Provide `image_compression` in the session config to compress the file once the upload completes. Requires the `image_compression` plugin to be installed and an `image/*` `content_type`.
+Provide `image_conversion` in the session config to convert the file once the upload completes. Requires the `image-conversion` plugin to be installed and an `image/*` `content_type`.
 
 ```json
 {
@@ -371,7 +371,7 @@ Provide `image_compression` in the session config to compress the file once the 
   "target_filesize": 524288,
   "expires": 120,
   "content_type": "image/png",
-  "image_compression": {
+  "image_conversion": {
     "format": "WebP",
     "quality": 80,
     "width": 1600,
@@ -386,10 +386,13 @@ Provide `image_compression` in the session config to compress the file once the 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `format` | `Jpeg` \| `Png` \| `WebP` \| `Avif` | `Jpeg` | Output format |
-| `quality` | `u8` (0–100) | `80` | Compression quality |
+| `quality` | `u8` (0–100) | `80` | Output quality |
 | `width` | `u32` | `null` | Target width in pixels (≥ 1); `null` keeps the source width |
 | `height` | `u32` | `null` | Target height in pixels (≥ 1); `null` keeps the source height |
-| `background` | `bool` | `null` (see below) | Compress after responding (`true`) or inline (`false`) |
+| `scale` | `f32` | `null` | Proportional resize, applied only when both `width` and `height` are `null`; must be finite and > 0 |
+| `effort` | `u8` (0–100) | `null` | Encoding effort (AVIF only) |
+| `max_bytes` | `u64` | `null` | Output size budget in bytes (≥ 1); the encoder lowers quality until the file fits |
+| `background` | `bool` | `null` (see below) | Convert after responding (`true`) or inline (`false`) |
 
 ### Path rewriting
 
@@ -397,12 +400,12 @@ When the option is set, the server rewrites the target path's extension (and `co
 
 ### Inline vs background
 
-- **Inline (default)** — compression runs before the final rename; the upload response returns only once the file exists at its target path. Compression failures fail the upload (`500`).
-- **Background** — set `image_compression.background: true` per upload, or `image_compression_background = true` in `ppd_config.toml` (the per-upload option wins). The response is sent immediately after all bytes are received and validated; compression, rename and registration then run in a background task. Failures are logged server-side only — the client has already received a success response, and the file may briefly be missing at the target path.
+- **Inline (default)** — conversion runs before the final rename; the upload response returns only once the file exists at its target path. Conversion failures fail the upload (`500`).
+- **Background** — set `image_conversion.background: true` per upload, or `image_conversion_background = true` in `ppd_config.toml` (the per-upload option wins). The response is sent immediately after all bytes are received and validated; conversion, rename and registration then run in a background task. Failures are logged server-side only — the client has already received a success response, and the file may briefly be missing at the target path.
 
 ## Image Transformation
 
-Provide `image_transformation` in the session config to transform the file once the upload completes. When both options are set, transformation runs first and compression second, so compression's output format wins. Requires the `image_transformation` plugin to be installed and an `image/*` `content_type`.
+Provide `image_transformation` in the session config to transform the file once the upload completes. When both options are set, transformation runs first and conversion second, so conversion's output format wins. Requires the `image_transformation` plugin to be installed and an `image/*` `content_type`.
 
 ```json
 {
@@ -454,12 +457,12 @@ Each entry is tagged with its operation name; operations run in the order given.
 
 ### Path rewriting
 
-When `format` is set, the server rewrites the target path's extension (and `content_type`) to match it **at session creation** — exactly like compression (see above). With `format: null` nothing is rewritten and the output keeps the input format. When both options are set, the compression rewrite wins because compression runs last.
+When `format` is set, the server rewrites the target path's extension (and `content_type`) to match it **at session creation** — exactly like image conversion (see above). With `format: null` nothing is rewritten and the output keeps the input format. When both options are set, the conversion rewrite wins because conversion runs last.
 
 ### Inline vs background
 
 - **Inline (default)** — transformation runs before the final rename; the upload response returns only once the file exists at its target path. Transformation failures fail the upload (`500`).
-- **Background** — set `image_transformation.background: true` per upload, or `image_transformation_background = true` in `ppd_config.toml` (the per-upload option wins). If either option requests background handling, the whole chain (transform → compress → rename → register) runs after the response; failures are logged server-side only, as described above.
+- **Background** — set `image_transformation.background: true` per upload, or `image_transformation_background = true` in `ppd_config.toml` (the per-upload option wins). If either option requests background handling, the whole chain (transform → convert → rename → register) runs after the response; failures are logged server-side only, as described above.
 
 ## Audio Conversion
 
@@ -496,7 +499,7 @@ Provide `audio_conversion` in the session config to transcode the file once the 
 
 ### Path rewriting
 
-When the option is set, the server rewrites the target path's extension (and `content_type`) to match the requested `format` **at session creation** — exactly like image compression (see above). Both Ogg Vorbis and Opus are stored with `content_type: "audio/ogg"`. Overwrite checks, MIME validation and asset registration all use the rewritten path, so a bucket's `accepts` list must admit the *output* type.
+When the option is set, the server rewrites the target path's extension (and `content_type`) to match the requested `format` **at session creation** — exactly like image conversion (see above). Both Ogg Vorbis and Opus are stored with `content_type: "audio/ogg"`. Overwrite checks, MIME validation and asset registration all use the rewritten path, so a bucket's `accepts` list must admit the *output* type.
 
 ### Inline vs background
 
@@ -573,10 +576,11 @@ Unlike image transformation, the effect pass always re-encodes: the server rewri
 | 400 | `content_type '...' is not accepted by this bucket...` | Declared MIME doesn't match bucket accepts |
 | 400 | `file type '...' is not accepted by this bucket...` | Uploaded file MIME doesn't match bucket accepts |
 | 400 | `file MIME type '...' does not match declared content_type '...'` | Declared content_type doesn't match the file's extension (no bucket) |
-| 400 | `content_type is required when image_compression is set` | `image_compression` without a declared content_type |
-| 400 | `image_compression requires content_type to be an image/* type...` | Declared content_type is not an image |
-| 400 | `image-compression plugin is not installed` | `image_compression` requested but the plugin is missing, deactivated or failed to load |
-| 400 | `image_compression only applies to file uploads` | `image_compression` on a `Folder` session |
+| 400 | `content_type is required when image_conversion is set` | `image_conversion` without a declared content_type |
+| 400 | `image_conversion requires content_type to be an image/* type...` | Declared content_type is not an image |
+| 400 | `image-conversion plugin is not installed` | `image_conversion` requested but the plugin is missing, deactivated or failed to load |
+| 400 | `image_conversion only applies to file uploads` | `image_conversion` on a `Folder` session |
+| 400 | `image_conversion scale must be finite and greater than 0, got ...` | Invalid `scale` at session creation |
 | 400 | `content_type is required when image_transformation is set` | `image_transformation` without a declared content_type |
 | 400 | `image_transformation requires content_type to be an image/* type...` | Declared content_type is not an image |
 | 400 | `image-transformation plugin is not installed` | `image_transformation` requested but the plugin is missing, deactivated or failed to load |

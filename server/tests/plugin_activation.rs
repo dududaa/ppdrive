@@ -10,7 +10,7 @@ mod common;
 
 use axum::http::StatusCode;
 use ppdrive::root_dir;
-use ppdrive::server::{AssetType, ImageCompressionConfig, UploadUrlConfig};
+use ppdrive::server::{AssetType, ImageConversionConfig, UploadUrlConfig};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -35,8 +35,8 @@ async fn write_test_registry() -> anyhow::Result<std::path::PathBuf> {
                 "active": false
             },
             {
-                "id": "image-compression",
-                "filename": "ppdrive-image-compression-missing-linux-x86_64.so",
+                "id": "image-conversion",
+                "filename": "ppdrive-image-conversion-missing-linux-x86_64.so",
                 "version": "1.0.0",
                 "installed_at": "2026-01-01T00:00:00Z",
                 "active": true
@@ -83,7 +83,7 @@ async fn test_registry_activation_gates_report_why() -> anyhow::Result<()> {
         path: "test-assets/uploads/activation-test.jpg".to_string(),
         content_type: Some("image/jpeg".to_string()),
         target_filesize: Some(10),
-        image_compression: Some(ImageCompressionConfig::default()),
+        image_conversion: Some(ImageConversionConfig::default()),
         expires: 120,
         ..Default::default()
     };
