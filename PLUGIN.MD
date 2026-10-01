@@ -63,7 +63,7 @@ Failure semantics:
 
 ### Media Plugins
 
-All seven media plugins are published as prebuilt libraries (and source) from **[dududaa/ppdrive-media](https://github.com/dududaa/ppdrive-media)** GitHub releases.
+All seven media plugins are published as prebuilt libraries (and source) from **[dududaa/ppff](https://github.com/dududaa/ppff)** GitHub releases.
 
 | Plugin id | Session option | What it does |
 |---|---|---|
@@ -78,13 +78,13 @@ All seven media plugins are published as prebuilt libraries (and source) from **
 Install any of them with:
 
 ```sh
-ppdrive plugin add image-conversion      --source github:dududaa/ppdrive-media
-ppdrive plugin add image-transformation  --source github:dududaa/ppdrive-media
-ppdrive plugin add audio-conversion      --source github:dududaa/ppdrive-media
-ppdrive plugin add audio-effects         --source github:dududaa/ppdrive-media
-ppdrive plugin add video-conversion      --source github:dududaa/ppdrive-media
-ppdrive plugin add video-transformation  --source github:dududaa/ppdrive-media
-ppdrive plugin add media-streaming       --source github:dududaa/ppdrive-media
+ppdrive plugin add image-conversion      --source github:dududaa/ppff
+ppdrive plugin add image-transformation  --source github:dududaa/ppff
+ppdrive plugin add audio-conversion      --source github:dududaa/ppff
+ppdrive plugin add audio-effects         --source github:dududaa/ppff
+ppdrive plugin add video-conversion      --source github:dududaa/ppff
+ppdrive plugin add video-transformation  --source github:dududaa/ppff
+ppdrive plugin add media-streaming       --source github:dududaa/ppff
 ```
 
 Notes:
@@ -143,7 +143,7 @@ ppdrive plugin update [<ID>]
 
 ## Writing a Plugin
 
-The reference implementation of every pattern below lives in **[dududaa/ppdrive-media](https://github.com/dududaa/ppdrive-media)** (media plugins) and **[dududaa/ppdrive-dashboard](https://github.com/dududaa/ppdrive-dashboard)** (router plugin).
+The reference implementation of every pattern below lives in **[dududaa/ppff](https://github.com/dududaa/ppff)** (media plugins) and **[dududaa/ppdrive-dashboard](https://github.com/dududaa/ppdrive-dashboard)** (router plugin).
 
 ### 1. Choose an integration point
 
@@ -260,7 +260,7 @@ Box::into_raw(Box::new(resp))
 | `[lib]` name | short id, underscores | `image_conversion` |
 | Installed library file | `ppdrive-<short id>-<os>-<arch>.<ext>` | `ppdrive-image-conversion-linux-x86_64.so` |
 
-`<os>` is `linux` / `macos` / `windows`, `<arch>` is e.g. `x86_64` / `aarch64`, `<ext>` is `so` / `dylib` / `dll`. For remote installs the CLI downloads exactly this asset name from your repository's GitHub releases, so publish per-platform artifacts under those names (see ppdrive-media's release assets).
+`<os>` is `linux` / `macos` / `windows`, `<arch>` is e.g. `x86_64` / `aarch64`, `<ext>` is `so` / `dylib` / `dll`. For remote installs the CLI downloads exactly this asset name from your repository's GitHub releases, so publish per-platform artifacts under those names (see ppff's release assets).
 
 ### 6. Build and install locally
 
@@ -281,7 +281,7 @@ Exercise the slot end to end: create an upload session with the matching option 
 ### 7. Publish
 
 1. Tag a release of your plugin repository.
-2. Attach one asset per supported platform named `ppdrive-<id>-<os>-<arch>.<ext>` (CI example: ppdrive-media's `Release` workflow).
+2. Attach one asset per supported platform named `ppdrive-<id>-<os>-<arch>.<ext>` (CI example: ppff's `Release` workflow).
 3. Users then install with `ppdrive plugin add <id> --source github:owner/repo` — no source toolchain required on the server.
 
 Alternatively distribute source only and let users pass `--build` (remote source archives or `.git` URLs require it).
@@ -289,7 +289,7 @@ Alternatively distribute source only and let users pass `--build` (remote source
 ### Compatibility
 
 - The dispatch ABI is plain C (`extern "C"`, `#[repr(C)]` response) and stable across PPDRIVE versions; the only symbol requirement is `plugin_dispatch`.
-- Depend on the newest published `ppdrive` core crate for `DispatchResponse` (and `AppState` + the `server` feature for router plugins). Plugins built against the 0.2 core run unchanged on the 0.3 server — ppdrive-media's v0.3.0 plugins are built that way.
+- Depend on the newest published `ppdrive` core crate for `DispatchResponse` (and `AppState` + the `server` feature for router plugins). Plugins built against the 0.2 core run unchanged on the 0.3 server — ppff's v0.3.0 plugins are built that way.
 - Rebuild plugins when your platform, toolchain or engine (FFmpeg, codecs) changes; keep them on the same machine as the server, in `libs/`.
 
 ## Troubleshooting
@@ -312,4 +312,4 @@ Alternatively distribute source only and let users pass `--build` (remote source
 - [Upload API](https://ppdrive.dududaa.org/api/upload/) — session options each media plugin receives
 - [Download API](https://ppdrive.dududaa.org/api/download/) — transformed downloads
 - [Configuration file](https://ppdrive.dududaa.org/configuration/config-file/) — `*_background` and cache knobs
-- [ppdrive-media](https://github.com/dududaa/ppdrive-media) · [ppdrive-dashboard](https://github.com/dududaa/ppdrive-dashboard) — reference plugins
+- [ppff](https://github.com/dududaa/ppff) · [ppdrive-dashboard](https://github.com/dududaa/ppdrive-dashboard) — reference plugins

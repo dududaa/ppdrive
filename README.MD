@@ -71,13 +71,13 @@ Please see the [Documentation Website](https://ppdrive.dududaa.org).
 Almost everything beyond the core upload/download/bucket API — the dashboard UI, image conversion and transformation, audio conversion and effects, video conversion and transformation, HLS/DASH packaging — ships as a dynamically loaded plugin, installed with a single CLI command:
 
 ```sh
-ppdrive plugin add video-conversion --source github:dududaa/ppdrive-media
+ppdrive plugin add video-conversion --source github:dududaa/ppff
 ppdrive serve
 ```
 
 - **[PLUGIN.MD](PLUGIN.MD)** — the plugin guide: what plugins are, how the server invokes them, the official plugin list with install commands, and a step-by-step guide to writing your own
 - [Plugin CLI reference](https://ppdrive.dududaa.org/cli/plugin/) — all `ppdrive plugin` commands and flags
-- [dududaa/ppdrive-media](https://github.com/dududaa/ppdrive-media) — official media plugins (source + prebuilt releases)
+- [dududaa/ppff](https://github.com/dududaa/ppff) — official media plugins (source + prebuilt releases)
 - [dududaa/ppdrive-dashboard](https://github.com/dududaa/ppdrive-dashboard) — dashboard UI plugin (build from source)
 
 ---
