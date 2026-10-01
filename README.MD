@@ -54,8 +54,8 @@ Please see the [Documentation Website](https://ppdrive.dududaa.org).
   - [ ] Media
     - [x] Image Transformation
     - [x] Image Conversion
-    - [ ] Video Transformation
-    - [ ] Video Conversion
+    - [x] Video Transformation
+    - [x] Video Conversion
     - [x] Audio Conversion
     - [x] Audio Effects
     - [x] Media Streaming
