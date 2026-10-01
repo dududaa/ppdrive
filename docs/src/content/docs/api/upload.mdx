@@ -78,6 +78,8 @@ curl -X POST http://localhost:8000/upload/session \
 | `image_transformation` | `Object` | No | Transform the image after upload, before conversion — see [Image Transformation](#image-transformation) |
 | `audio_conversion` | `Object` | No | Convert the audio after upload — see [Audio Conversion](#audio-conversion) |
 | `audio_effects` | `Object` | No | Apply audio effects after upload, before conversion — see [Audio Effects](#audio-effects) |
+| `video_conversion` | `Object` | No | Convert the video after upload — see [Video Conversion](#video-conversion) |
+| `video_transformation` | `Object` | No | Transform the video after upload, before conversion — see [Video Transformation](#video-transformation) |
 | `media_streaming` | `Object` | No | Package the file into an HLS/DASH stream after upload — see [Media Streaming](#media-streaming) |
 
 ### Response
@@ -109,6 +111,10 @@ The `data` field contains a signed base64url token.
 - `audio_conversion.quality` must be 0–100; `sample_rate` must be ≥ 1; `channels` must be 1 or 2
 - `audio_effects` requires `content_type` to be an `audio/*` type and the `audio_effects` plugin to be installed
 - `audio_effects.quality` must be 0–100; operation arguments are validated at session creation (see [Audio Effects](#audio-effects))
+- `video_conversion` requires `content_type` to be a `video/*` type and the `video_conversion` plugin to be installed
+- `video_conversion.quality` and `effort` must be 0–100; `width`/`height` must be ≥ 1 when given; `max_bytes` must be ≥ 1; `fps` must be 1–1000; `keyframe_interval` must be ≥ 1; `scale` must be finite and > 0
+- `video_transformation` requires `content_type` to be a `video/*` type and the `video_transformation` plugin to be installed
+- `video_transformation.quality` must be 0–100; operation arguments are validated at session creation (see [Video Transformation](#video-transformation))
 - `media_streaming` requires `content_type` to be a `video/*` or `audio/*` type and the `media-streaming` plugin to be installed
 - `media_streaming.segment_duration` must be 1–30; `quality` must be 0–100; `renditions` must be non-empty when given, with `width`/`height` ≥ 1, `quality` ≤ 100, `bitrate` ≥ 1 and a finite positive `scale`
 - `media_streaming.output_dir` is resolved like `path` (no `..`, inside the server root and the bucket) and must not contain the upload path
@@ -571,6 +577,114 @@ Unlike image transformation, the effect pass always re-encodes: the server rewri
 - **Inline (default)** — the effect pass runs before the final rename; the upload response returns only once the file exists at its target path. Failures fail the upload (`500`).
 - **Background** — set `audio_effects.background: true` per upload, or `audio_effects_background = true` in `ppd_config.toml` (the per-upload option wins). If either audio option requests background handling, the whole chain (effects → convert → rename → register) runs after the response; failures are logged server-side only, as described above.
 
+## Video Conversion
+
+Provide `video_conversion` in the session config to transcode the file once the upload completes. Requires the `video_conversion` plugin to be installed and a `video/*` `content_type`. The plugin needs FFmpeg shared libraries on the host — see the [plugin command](/cli/plugin/) for installation.
+
+```json
+{
+  "asset_type": "File",
+  "path": "uploads/video/clip.avi",
+  "target_filesize": 52428800,
+  "expires": 300,
+  "content_type": "video/x-msvideo",
+  "video_conversion": {
+    "format": "Mp4",
+    "quality": 80,
+    "width": 1280,
+    "background": false
+  }
+}
+```
+
+### Options
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `format` | `Mp4` \| `WebM` \| `Mov` \| `Mkv` \| `Avi` \| `Mp4Av1` \| `WebMAv1` \| `MkvAv1` \| `Mp4Hevc` \| `MovHevc` | `Mp4` | Output container/codec (H.264, VP9, AV1 or H.265) |
+| `quality` | `u8` (0–100) | `80` | Encoding quality, mapped to the encoder's CRF scale |
+| `width` | `u32` | `null` | Target width in pixels (≥ 1); with only `height`, the other side keeps the aspect ratio |
+| `height` | `u32` | `null` | Target height in pixels (≥ 1); with only `width`, the other side keeps the aspect ratio |
+| `scale` | `f32` | `null` | Proportional resize factor, applied only when both `width` and `height` are `null`; must be finite and > 0 |
+| `effort` | `u8` (0–100) | `null` | Encoder effort |
+| `max_bytes` | `u64` | `null` | Maximum output size in bytes (≥ 1); the encoder lowers quality until the output fits |
+| `fps` | `u32` (1–1000) | `null` | Constant output frame rate; `null` keeps the source timing |
+| `drop_audio` | `bool` | `false` | Drop the source audio track instead of stream-copying it |
+| `keyframe_interval` | `u32` | `null` | Maximum keyframe distance in frames (≥ 1); `null` keeps the encoder default GOP |
+| `background` | `bool` | `null` (see below) | Convert after responding (`true`) or inline (`false`) |
+
+### Path rewriting
+
+When the option is set, the server rewrites the target path's extension (and `content_type`) to match the requested `format` **at session creation** — exactly like image/audio conversion. Overwrite checks, MIME validation and asset registration all use the rewritten path, so a bucket's `accepts` list must admit the *output* type.
+
+### Inline vs background
+
+- **Inline (default)** — conversion runs before the final rename; the upload response returns only once the file exists at its target path. Conversion failures fail the upload (`500`).
+- **Background** — set `video_conversion.background: true` per upload, or `video_conversion_background = true` in `ppd_config.toml` (the per-upload option wins). The response is sent immediately after all bytes are received and validated; conversion, rename and registration then run in a background task. Failures are logged server-side only, as described above.
+
+## Video Transformation
+
+Provide `video_transformation` in the session config to run a filter pass over the file once the upload completes. When both video options are set, transformation runs first and conversion second, so conversion's output format wins. Requires the `video_transformation` plugin to be installed and a `video/*` `content_type`.
+
+```json
+{
+  "asset_type": "File",
+  "path": "uploads/video/clip.mp4",
+  "target_filesize": 52428800,
+  "expires": 300,
+  "content_type": "video/mp4",
+  "video_transformation": {
+    "operations": [
+      { "crop": { "x": 0, "y": 0, "width": 1280, "height": 720 } },
+      { "scale": { "width": 640, "height": 360 } },
+      { "rotate": { "degrees": 90 } }
+    ],
+    "custom_filters": null,
+    "format": null,
+    "quality": null,
+    "background": false
+  }
+}
+```
+
+### Options
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `operations` | `Object[]` | `[]` | Typed operations applied in order — see below |
+| `custom_filters` | `String` | `null` | Raw FFmpeg filter string appended after `operations` (must not contain NUL bytes) |
+| `format` | `Mp4` \| `WebM` \| `Mov` \| `Mkv` \| `Avi` \| `Mp4Av1` \| `WebMAv1` \| `MkvAv1` \| `Mp4Hevc` \| `MovHevc` | `null` | Output container; `null` keeps the input container when it is MP4/MOV/WebM/Matroska (otherwise the plugin falls back to `Mp4`) |
+| `quality` | `u8` (0–100) | `null` (plugin default 80) | Encoder quality for the output format |
+| `background` | `bool` | `null` (see below) | Process after responding (`true`) or inline (`false`) |
+
+### Operations
+
+Each entry is tagged with its operation name; operations run in the order given. Arguments are validated at session creation — invalid values are rejected before any file is received.
+
+| Operation | Fields | Description |
+|---|---|---|
+| `crop` | `x`, `y`, `width`, `height` (`u32`, non-zero) | Extract a rectangle; bounds are validated against the source frame when the plugin runs |
+| `scale` | `width`, `height` (`u32`, non-zero) | Exact resize |
+| `rotate` | `degrees` (90, 180 or 270) | Lossless rotation via transpose passes |
+| `flip` | `horizontal`, `vertical` (`bool`, at least one true) | Mirror the frame (both = 180° via flips) |
+| `grayscale` | — | Desaturate to gray |
+| `adjust` | `brightness` (-1..=1), `contrast` (-1000..=1000), `saturation` (0..=3), all finite | Color adjustment |
+| `blur` | `sigma` (`f32`, finite and > 0) | Gaussian blur |
+| `sharpen` | `amount` (`f32`, finite) | Unsharp masking; the plugin clamps to -2..=5 |
+| `pad` | `left`, `top`, `right`, `bottom` (`u32`), `color` (non-empty FFmpeg color name or `#RRGGBB`) | Add a painted border |
+| `trim` | `start` (`f64`, finite and ≥ 0), `duration` (`f64`, finite and > 0, optional) | Keep only `[start, start + duration)` of the source timeline; also applies to the audio track |
+| `speed` | `factor` (`f64`, finite and > 0) | Change playback speed; the audio track is dropped |
+| `reverse` | — | Play the video backwards; the audio track is dropped and clips whose frame buffering would exceed 1 GiB are rejected |
+
+### Path rewriting
+
+The pass always re-encodes. When `format` is set, the server rewrites the target path's extension (and `content_type`) **at session creation** to that format — exactly like image transformation. When `format` is omitted the input container is kept (MP4/MOV/WebM/Matroska; anything else falls back to MP4 by the plugin) and the path is left unchanged. When `video_conversion` is also set, its rewrite wins because conversion runs last.
+
+### Inline vs background
+
+- **Inline (default)** — the filter pass runs before the final rename; the upload response returns only once the file exists at its target path. Failures fail the upload (`500`).
+- **Background** — set `video_transformation.background: true` per upload, or `video_transformation_background = true` in `ppd_config.toml` (the per-upload option wins). If either video option requests background handling, the whole chain (transform → convert → rename → register) runs after the response; failures are logged server-side only, as described above.
+
 ## Media Streaming
 
 Provide `media_streaming` in the session config to package the uploaded file into an adaptive HLS or DASH stream once the upload completes. Unlike the other post-processing options the plugin is **file-based**: one call writes the master playlist plus every segment into an output directory. Packaging runs last — after any in-place conversion and the rename — and requires the `media-streaming` plugin to be installed and a `video/*` or `audio/*` `content_type` (video inputs become an adaptive ladder, audio-only inputs a single audio rendition).
@@ -646,6 +760,16 @@ Public buckets serve the package automatically: playlists and segments are plain
 | 400 | `audio-effects plugin is not installed` | `audio_effects` requested but the plugin is missing, deactivated or failed to load |
 | 400 | `audio_effects only applies to file uploads` | `audio_effects` on a `Folder` session |
 | 400 | `audio_effects operation #N (...): ...` | Invalid operation arguments (speed factor, echo decay, trim window, NUL in `custom_filters`) |
+| 400 | `content_type is required when video_conversion is set` | `video_conversion` without a declared content_type |
+| 400 | `video_conversion requires content_type to be a video/* type...` | Declared content_type is not video |
+| 400 | `video-conversion plugin is not installed` | `video_conversion` requested but the plugin is missing, deactivated or failed to load |
+| 400 | `video_conversion only applies to file uploads` | `video_conversion` on a `Folder` session |
+| 400 | `video_conversion scale must be finite and greater than 0, got ...` | Invalid `scale` at session creation |
+| 400 | `content_type is required when video_transformation is set` | `video_transformation` without a declared content_type |
+| 400 | `video_transformation requires content_type to be a video/* type...` | Declared content_type is not video |
+| 400 | `video-transformation plugin is not installed` | `video_transformation` requested but the plugin is missing, deactivated or failed to load |
+| 400 | `video_transformation only applies to file uploads` | `video_transformation` on a `Folder` session |
+| 400 | `video_transformation operation #N (...): ...` | Invalid operation arguments (rotate degrees, speed factor, trim window, NUL in `custom_filters`) |
 | 400 | `content_type is required when media_streaming is set` | `media_streaming` without a declared content_type |
 | 400 | `media_streaming requires content_type to be a video/* or audio/* type...` | Declared content_type is neither video nor audio |
 | 400 | `media-streaming plugin is not installed` | `media_streaming` requested but the plugin is missing, deactivated or failed to load |

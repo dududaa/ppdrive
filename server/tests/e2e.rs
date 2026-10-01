@@ -635,6 +635,181 @@ async fn test_media_streaming_plugin_not_installed() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn test_video_conversion_requires_video_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/clip.jpg".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("image/jpeg".to_string());
+    config.video_conversion = Some(ppdrive::server::VideoConversionConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("video_conversion requires content_type to be a video/* type")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_video_transformation_requires_content_type() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/clip.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = None;
+    config.video_transformation = Some(ppdrive::server::VideoTransformationConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("content_type is required when video_transformation is set")
+    );
+    Ok(())
+}
+
+/// The e2e environment runs from the workspace root, which has no
+/// `plugins.json` — so a valid video-conversion request must be rejected
+/// because the plugin is not installed.
+#[tokio::test]
+async fn test_video_conversion_plugin_not_installed() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/clip.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("video/mp4".to_string());
+    config.video_conversion = Some(ppdrive::server::VideoConversionConfig::default());
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("video-conversion plugin is not installed")
+    );
+    Ok(())
+}
+
+/// Operation arguments are rejected at session creation, before the
+/// plugin gate.
+#[tokio::test]
+async fn test_video_transformation_rejects_invalid_rotate() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/clip.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("video/mp4".to_string());
+    config.video_transformation = Some(ppdrive::server::VideoTransformationConfig {
+        operations: vec![ppdrive::server::VideoTransformOperation::Rotate { degrees: 45 }],
+        ..Default::default()
+    });
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("degrees must be 90, 180 or 270")
+    );
+    Ok(())
+}
+
+/// `scale` is pre-flighted at session creation so a bad factor is a
+/// client error, not a background-task failure.
+#[tokio::test]
+async fn test_video_conversion_rejects_zero_scale() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/clip.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("video/mp4".to_string());
+    config.video_conversion = Some(ppdrive::server::VideoConversionConfig {
+        scale: Some(0.0),
+        ..Default::default()
+    });
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(
+        error["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("video_conversion scale must be finite and greater than 0")
+    );
+    Ok(())
+}
+
+/// Range validation on the option runs with the rest of the config
+/// validation, before any media-plugin checks.
+#[tokio::test]
+async fn test_video_conversion_rejects_zero_fps() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let mut config = test_upload_config();
+    config.path = "test-assets/uploads/clip.mp4".to_string();
+    config.target_filesize = Some(1024);
+    config.content_type = Some("video/mp4".to_string());
+    config.video_conversion = Some(ppdrive::server::VideoConversionConfig {
+        fps: Some(0),
+        ..Default::default()
+    });
+
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+
+    resp.assert_status_bad_request();
+    let error: Value = resp.json();
+    assert!(!error["error"].as_str().unwrap_or_default().is_empty());
+    Ok(())
+}
+
+#[tokio::test]
 async fn test_media_streaming_output_dir_rejects_traversal() -> anyhow::Result<()> {
     let (_, token, header_key) = setup_test_client().await?;
     let server = TestServerWrapper::new().await?;

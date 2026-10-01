@@ -107,12 +107,13 @@ pub(super) async fn create_session(
 
     // Transformation first, conversion second: when both specify an output
     // format, conversion runs last at completion so its rewrite wins.
-    // The audio options follow the same rule — effects before conversion —
-    // and can never combine with the image options: each requires its own
-    // `content_type` family, so a session validates for at most one of
-    // them. `media_streaming` packages whatever the chain produced, after
-    // the rename: it accepts `video/*`/`audio/*` sources, so it may
-    // combine with the audio options (never with the image ones).
+    // The audio and video options follow the same rule — transformation
+    // before conversion — and can never combine across families: each
+    // requires its own `content_type` family, so a session validates for at
+    // most one of them. `media_streaming` packages whatever the chain
+    // produced, after the rename: it accepts `video/*`/`audio/*` sources,
+    // so it may combine with the audio or video options (never with the
+    // image ones).
     if let Some(transformation) = config.image_transformation.clone() {
         transformation
             .validate_operations()
@@ -158,6 +159,35 @@ pub(super) async fn create_session(
 
     if let Some(conversion) = config.audio_conversion.clone() {
         check_media_plugin("audio_conversion", &config).await?;
+
+        // Store the output format: rewrite the path extension and content_type
+        // so the overwrite check, MIME validation and asset registration all
+        // refer to the file that will actually be written.
+        let output_mime = conversion.format.mime().to_string();
+        config.path = conversion.rewrite_path(&config.path);
+        config.content_type = Some(output_mime);
+    }
+
+    if let Some(transformation) = config.video_transformation.clone() {
+        transformation
+            .validate_operations()
+            .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
+        check_media_plugin("video_transformation", &config).await?;
+
+        // Rewrite only when an output format is requested; `None` keeps the
+        // input container (and the existing extension/content_type).
+        if let Some(format) = transformation.format {
+            let output_mime = format.mime().to_string();
+            config.path = format.rewrite_path(&config.path);
+            config.content_type = Some(output_mime);
+        }
+    }
+
+    if let Some(conversion) = config.video_conversion.clone() {
+        conversion
+            .validate_scale()
+            .map_err(|err| api_error(err).with_status_code(StatusCode::BAD_REQUEST))?;
+        check_media_plugin("video_conversion", &config).await?;
 
         // Store the output format: rewrite the path extension and content_type
         // so the overwrite check, MIME validation and asset registration all
@@ -530,6 +560,8 @@ async fn get_next_session(
             image_conversion: config.image_conversion.clone(),
             audio_effects: config.audio_effects.clone(),
             audio_conversion: config.audio_conversion.clone(),
+            video_transformation: config.video_transformation.clone(),
+            video_conversion: config.video_conversion.clone(),
         };
         // One flag for the whole post-processing chain: if any option asks
         // for background handling, processing → rename → package → register
@@ -593,6 +625,8 @@ struct PostProcessing {
     image_conversion: Option<ImageConversionConfig>,
     audio_effects: Option<AudioEffectsConfig>,
     audio_conversion: Option<AudioConversionConfig>,
+    video_transformation: Option<VideoTransformationConfig>,
+    video_conversion: Option<VideoConversionConfig>,
 }
 
 impl PostProcessing {
@@ -619,11 +653,21 @@ impl PostProcessing {
                 .as_ref()
                 .map(|c| resolve_background(c.background, global.audio_conversion_background))
                 .unwrap_or(false)
+            || self
+                .video_transformation
+                .as_ref()
+                .map(|t| resolve_background(t.background, global.video_transformation_background))
+                .unwrap_or(false)
+            || self
+                .video_conversion
+                .as_ref()
+                .map(|c| resolve_background(c.background, global.video_conversion_background))
+                .unwrap_or(false)
     }
 
     /// Apply the configured post-processing to `path` in place, each
     /// family in chain order: image transform → conversion, audio
-    /// effects → conversion.
+    /// effects → conversion, video transform → conversion.
     async fn apply(&self, path: &Path) -> anyhow::Result<()> {
         if let Some(transformation) = &self.image_transformation {
             apply_media_plugin("image-transformation", path, transformation).await?;
@@ -637,6 +681,12 @@ impl PostProcessing {
         if let Some(conversion) = &self.audio_conversion {
             apply_media_plugin("audio-conversion", path, conversion).await?;
         }
+        if let Some(transformation) = &self.video_transformation {
+            apply_media_plugin("video-transformation", path, transformation).await?;
+        }
+        if let Some(conversion) = &self.video_conversion {
+            apply_media_plugin("video-conversion", path, conversion).await?;
+        }
         Ok(())
     }
 }
@@ -645,7 +695,7 @@ impl PostProcessing {
 /// a declared `<media>/*` `content_type`, and the matching plugin installed.
 ///
 /// `option` is the upload config field (snake_case, e.g. `image_conversion`);
-/// the media prefix (`image`, `audio`) and the plugin id
+/// the media prefix (`image`, `audio`, `video`) and the plugin id
 /// (`image-conversion`) follow from it. The `media_streaming` option is
 /// the one exception: its `media` prefix maps to the plugin id
 /// (`media-streaming`) but its accepted families are `video/*` and
@@ -669,9 +719,14 @@ async fn check_media_plugin(option: &str, config: &UploadUrlConfig) -> Result<()
             "a video/* or audio/*".to_string(),
         )
     } else {
+        let article = if media.starts_with(['a', 'e', 'i', 'o', 'u']) {
+            "an"
+        } else {
+            "a"
+        };
         (
             content_type.starts_with(&format!("{media}/")),
-            format!("an {media}/*"),
+            format!("{article} {media}/*"),
         )
     };
     if !family_ok {

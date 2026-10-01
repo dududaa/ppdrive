@@ -227,6 +227,15 @@ pub struct UploadUrlConfig {
     /// Requires the `audio-effects` plugin and an `audio/*` `content_type`.
     #[validate(nested)]
     pub audio_effects: Option<AudioEffectsConfig>,
+    /// Post-upload video conversion. Requires the `video-conversion`
+    /// plugin and a `video/*` `content_type`.
+    #[validate(nested)]
+    pub video_conversion: Option<VideoConversionConfig>,
+    /// Post-upload video transformation (applied before conversion).
+    /// Requires the `video-transformation` plugin and a `video/*`
+    /// `content_type`.
+    #[validate(nested)]
+    pub video_transformation: Option<VideoTransformationConfig>,
     /// Post-upload media streaming packaging (HLS/DASH; applied last, after
     /// the file is renamed into place). Requires the `media-streaming`
     /// plugin and a `video/*` or `audio/*` `content_type`.
@@ -851,6 +860,339 @@ fn speed_factor_is_valid(factor: f32) -> bool {
         f /= 2.0;
     }
     true
+}
+
+/// Output container/codec pair for post-upload video processing.
+///
+/// Variant names and serde representation match
+/// `video_conversion::VideoFormat` so the JSON serialized here
+/// deserializes into the plugins' options.
+#[derive(Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum VideoFormat {
+    /// Lossy H.264 in an MP4 container.
+    #[default]
+    Mp4,
+    /// Lossy VP9 in a WebM container.
+    WebM,
+    /// Lossy H.264 in a QuickTime MOV container.
+    Mov,
+    /// Lossy H.264 in a Matroska container.
+    Mkv,
+    /// Lossy H.264 in an AVI container.
+    Avi,
+    /// Lossy AV1 in an MP4 container.
+    Mp4Av1,
+    /// Lossy AV1 in a WebM container.
+    WebMAv1,
+    /// Lossy AV1 in a Matroska container.
+    MkvAv1,
+    /// Lossy H.265/HEVC in an MP4 container.
+    Mp4Hevc,
+    /// Lossy H.265/HEVC in a QuickTime MOV container.
+    MovHevc,
+}
+
+impl VideoFormat {
+    /// File extension used when this format is written to storage.
+    pub fn extension(&self) -> &'static str {
+        match self {
+            VideoFormat::Mp4 | VideoFormat::Mp4Av1 | VideoFormat::Mp4Hevc => "mp4",
+            VideoFormat::WebM | VideoFormat::WebMAv1 => "webm",
+            VideoFormat::Mov | VideoFormat::MovHevc => "mov",
+            VideoFormat::Mkv | VideoFormat::MkvAv1 => "mkv",
+            VideoFormat::Avi => "avi",
+        }
+    }
+
+    /// MIME type of this format.
+    ///
+    /// Matches what `mime_guess` infers from [`VideoFormat::extension`],
+    /// so the completion-time MIME check accepts the rewritten path.
+    pub fn mime(&self) -> &'static str {
+        match self {
+            VideoFormat::Mp4 | VideoFormat::Mp4Av1 | VideoFormat::Mp4Hevc => "video/mp4",
+            VideoFormat::WebM | VideoFormat::WebMAv1 => "video/webm",
+            VideoFormat::Mov | VideoFormat::MovHevc => "video/quicktime",
+            VideoFormat::Mkv | VideoFormat::MkvAv1 => "video/x-matroska",
+            VideoFormat::Avi => "video/x-msvideo",
+        }
+    }
+
+    /// Rewrite `path`'s extension to this format
+    /// (e.g. `videos/clip.avi` → `videos/clip.mp4`).
+    pub fn rewrite_path(&self, path: &str) -> String {
+        Path::new(path)
+            .with_extension(self.extension())
+            .to_string_lossy()
+            .into_owned()
+    }
+}
+
+/// Client-provided options for converting the file after upload,
+/// applied by the `video-conversion` plugin.
+#[derive(Serialize, Deserialize, Validate, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields, default)]
+pub struct VideoConversionConfig {
+    /// Output format. Default: [`VideoFormat::Mp4`].
+    pub format: VideoFormat,
+    /// Quality on a 0–100 scale (values above 100 are rejected here;
+    /// the plugin clamps at 100). Default: 80.
+    #[validate(range(min = 0, max = 100))]
+    pub quality: u8,
+    /// Target width in pixels; `None` keeps the source width. Must be ≥ 1.
+    #[validate(range(min = 1))]
+    pub width: Option<u32>,
+    /// Target height in pixels; `None` keeps the source height. Must be ≥ 1.
+    #[validate(range(min = 1))]
+    pub height: Option<u32>,
+    /// Proportional resize factor, applied only when both `width` and
+    /// `height` are `None`. Must be finite and > 0 (checked by
+    /// [`VideoConversionConfig::validate_scale`]). Default: `None`.
+    pub scale: Option<f32>,
+    /// Encoding effort on a 0–100 scale. Default: `None`.
+    #[validate(range(min = 0, max = 100))]
+    pub effort: Option<u8>,
+    /// Maximum output size in bytes; must be ≥ 1 when set. The encoder
+    /// lowers quality until the output fits. Default: `None`.
+    #[validate(range(min = 1))]
+    pub max_bytes: Option<u64>,
+    /// Constant output frame rate; must be within 1..=1000 when set.
+    /// Default: `None` keeps the source timing.
+    #[validate(range(min = 1, max = 1000))]
+    pub fps: Option<u32>,
+    /// Drop the source audio track instead of stream-copying it.
+    /// Default: `false`.
+    pub drop_audio: bool,
+    /// Maximum keyframe distance in frames; must be ≥ 1 when set.
+    /// Default: `None` keeps the encoder default GOP.
+    #[validate(range(min = 1))]
+    pub keyframe_interval: Option<u32>,
+    /// Convert after responding (`true`) or before (`false`, inline default).
+    /// Falls back to `video_conversion_background` in `ppd_config.toml`.
+    pub background: Option<bool>,
+}
+
+impl Default for VideoConversionConfig {
+    fn default() -> Self {
+        VideoConversionConfig {
+            format: VideoFormat::Mp4,
+            quality: 80,
+            width: None,
+            height: None,
+            scale: None,
+            effort: None,
+            max_bytes: None,
+            fps: None,
+            drop_audio: false,
+            keyframe_interval: None,
+            background: None,
+        }
+    }
+}
+
+impl VideoConversionConfig {
+    /// Pre-flight check for `scale`: the plugin rejects non-finite and
+    /// non-positive factors when it runs (long after the session is
+    /// accepted), so surface them at session creation as a 400 instead.
+    pub fn validate_scale(&self) -> Result<(), String> {
+        match self.scale {
+            Some(scale) if !scale.is_finite() || scale <= 0.0 => Err(format!(
+                "video_conversion scale must be finite and greater than 0, got {scale}"
+            )),
+            _ => Ok(()),
+        }
+    }
+
+    /// Rewrite `path`'s extension to match the output format
+    /// (e.g. `videos/clip.avi` → `videos/clip.mp4`).
+    pub fn rewrite_path(&self, path: &str) -> String {
+        self.format.rewrite_path(path)
+    }
+}
+
+/// A single typed transformation applied by the `video_transformation`
+/// plugin. Operations run in the order given.
+///
+/// Variant names, snake_case tags and field names match
+/// `video_transformation::TransformOperation`, so the JSON serialized
+/// here deserializes into the plugin's `TransformOptions`.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum VideoTransformOperation {
+    /// Extract a rectangle; bounds are validated against the source video.
+    Crop {
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    },
+    /// Exact resize; dimensions must be non-zero.
+    Scale { width: u32, height: u32 },
+    /// Rotate by 90, 180 or 270 degrees.
+    Rotate { degrees: u16 },
+    /// Mirror the frame; at least one of `horizontal`/`vertical` must be true.
+    Flip { horizontal: bool, vertical: bool },
+    /// Desaturate to gray.
+    Grayscale,
+    /// Color adjustment; values are validated before upload.
+    Adjust {
+        brightness: f32,
+        contrast: f32,
+        saturation: f32,
+    },
+    /// Gaussian blur; `sigma` must be finite and > 0.
+    Blur { sigma: f32 },
+    /// Unsharp masking; `amount` must be finite (the plugin clamps it).
+    Sharpen { amount: f32 },
+    /// Add a border painted in `color` (FFmpeg color name or `#RRGGBB`).
+    Pad {
+        left: u32,
+        top: u32,
+        right: u32,
+        bottom: u32,
+        color: String,
+    },
+    /// Keep only `[start, start + duration)` seconds of the source
+    /// timeline (`duration` omitted = through the end). The window is
+    /// selected before any filter runs and applies to the audio track too.
+    Trim { start: f64, duration: Option<f64> },
+    /// Change playback speed (2.0 = twice as fast, 0.5 = half speed);
+    /// `factor` must be finite and > 0. The audio track is dropped.
+    Speed { factor: f64 },
+    /// Play the video backwards. The audio track is dropped; the plugin
+    /// rejects clips whose frame buffering would exceed 1 GiB.
+    Reverse,
+}
+
+/// Client-provided options for transforming the file after upload,
+/// applied by the `video-transformation` plugin before conversion.
+#[derive(Serialize, Deserialize, Validate, Default, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields, default)]
+pub struct VideoTransformationConfig {
+    /// Typed operations, applied in order.
+    pub operations: Vec<VideoTransformOperation>,
+    /// Raw FFmpeg filter string appended after the typed operations.
+    pub custom_filters: Option<String>,
+    /// Output format; `None` keeps the input container when it is
+    /// MP4/MOV/WebM/Matroska (no path rewrite), otherwise the plugin
+    /// falls back to MP4.
+    pub format: Option<VideoFormat>,
+    /// Encoder quality 0–100; `None` means 80.
+    #[validate(range(min = 0, max = 100))]
+    pub quality: Option<u8>,
+    /// Process after responding (`true`) or inline (`false`, default).
+    /// Falls back to `video_transformation_background` in `ppd_config.toml`.
+    pub background: Option<bool>,
+}
+
+impl VideoTransformationConfig {
+    /// Validate operation arguments that don't depend on the source video.
+    /// Returns a client-facing error message on the first violation.
+    pub fn validate_operations(&self) -> Result<(), String> {
+        for (i, op) in self.operations.iter().enumerate() {
+            let at = |what: &str| format!("video_transformation operation #{i} ({what})");
+            match op {
+                VideoTransformOperation::Crop { width, height, .. } => {
+                    if *width == 0 || *height == 0 {
+                        return Err(format!("{}: width and height must be non-zero", at("crop")));
+                    }
+                }
+                VideoTransformOperation::Scale { width, height } => {
+                    if *width == 0 || *height == 0 {
+                        return Err(format!(
+                            "{}: width and height must be non-zero",
+                            at("scale")
+                        ));
+                    }
+                }
+                VideoTransformOperation::Rotate { degrees } => {
+                    if !matches!(degrees, 90 | 180 | 270) {
+                        return Err(format!(
+                            "{}: degrees must be 90, 180 or 270, got {degrees}",
+                            at("rotate")
+                        ));
+                    }
+                }
+                VideoTransformOperation::Flip {
+                    horizontal,
+                    vertical,
+                } => {
+                    if !horizontal && !vertical {
+                        return Err(format!(
+                            "{}: at least one of horizontal/vertical must be true",
+                            at("flip")
+                        ));
+                    }
+                }
+                VideoTransformOperation::Grayscale => {}
+                VideoTransformOperation::Adjust {
+                    brightness,
+                    contrast,
+                    saturation,
+                } => {
+                    if !brightness.is_finite() || !(-1.0..=1.0).contains(brightness) {
+                        return Err(format!(
+                            "{}: brightness must be finite and within -1..=1",
+                            at("adjust")
+                        ));
+                    }
+                    if !contrast.is_finite() || !(-1000.0..=1000.0).contains(contrast) {
+                        return Err(format!(
+                            "{}: contrast must be finite and within -1000..=1000",
+                            at("adjust")
+                        ));
+                    }
+                    if !saturation.is_finite() || !(0.0..=3.0).contains(saturation) {
+                        return Err(format!(
+                            "{}: saturation must be finite and within 0..=3",
+                            at("adjust")
+                        ));
+                    }
+                }
+                VideoTransformOperation::Blur { sigma } => {
+                    if !sigma.is_finite() || *sigma <= 0.0 {
+                        return Err(format!("{}: sigma must be finite and > 0", at("blur")));
+                    }
+                }
+                VideoTransformOperation::Sharpen { amount } => {
+                    if !amount.is_finite() {
+                        return Err(format!("{}: amount must be finite", at("sharpen")));
+                    }
+                }
+                VideoTransformOperation::Pad { color, .. } => {
+                    if color.is_empty() {
+                        return Err(format!("{}: color must not be empty", at("pad")));
+                    }
+                }
+                VideoTransformOperation::Trim { start, duration } => {
+                    if !start.is_finite() || *start < 0.0 {
+                        return Err(format!("{}: start must be finite and >= 0", at("trim")));
+                    }
+                    if let Some(duration) = duration
+                        && (!duration.is_finite() || *duration <= 0.0)
+                    {
+                        return Err(format!("{}: duration must be finite and > 0", at("trim")));
+                    }
+                }
+                VideoTransformOperation::Speed { factor } => {
+                    if !factor.is_finite() || *factor <= 0.0 {
+                        return Err(format!("{}: factor must be finite and > 0", at("speed")));
+                    }
+                }
+                VideoTransformOperation::Reverse => {}
+            }
+        }
+
+        if let Some(filters) = &self.custom_filters
+            && filters.contains('\0')
+        {
+            return Err(
+                "video_transformation custom_filters must not contain NUL bytes".to_string(),
+            );
+        }
+
+        Ok(())
+    }
 }
 
 /// Output protocol for a packaged media stream.

@@ -58,6 +58,18 @@ pub struct AppConfig {
     #[serde(default)]
     pub audio_effects_background: Option<bool>,
 
+    /// Default for whether video conversion runs after the upload response
+    /// (`true`) or inline before it (`false`). Per-upload
+    /// `video_conversion.background` overrides this.
+    #[serde(default)]
+    pub video_conversion_background: Option<bool>,
+
+    /// Default for whether video transformation runs after the upload
+    /// response (`true`) or inline before it (`false`). Per-upload
+    /// `video_transformation.background` overrides this.
+    #[serde(default)]
+    pub video_transformation_background: Option<bool>,
+
     /// Default for whether media streaming packaging runs after the
     /// upload response (`true`) or inline before it (`false`). Per-upload
     /// `media_streaming.background` overrides this.
@@ -181,6 +193,8 @@ impl Default for AppConfig {
             image_transformation_background: None,
             audio_conversion_background: None,
             audio_effects_background: None,
+            video_conversion_background: None,
+            video_transformation_background: None,
             media_streaming_background: None,
             transform_cache_ttl_secs: None,
             transform_cache_max_age_secs: None,
@@ -213,6 +227,8 @@ image_conversion_background = true
 image_transformation_background = true
 audio_conversion_background = true
 audio_effects_background = true
+video_conversion_background = true
+video_transformation_background = true
 media_streaming_background = true
 "#;
         let config: AppConfig = toml::from_str(toml_content).unwrap();
@@ -220,6 +236,8 @@ media_streaming_background = true
         assert_eq!(config.image_transformation_background, Some(true));
         assert_eq!(config.audio_conversion_background, Some(true));
         assert_eq!(config.audio_effects_background, Some(true));
+        assert_eq!(config.video_conversion_background, Some(true));
+        assert_eq!(config.video_transformation_background, Some(true));
         assert_eq!(config.media_streaming_background, Some(true));
     }
 
@@ -252,6 +270,10 @@ hasher = "HMAC256"
         assert_eq!(config.audio_effects_background, None);
         assert_eq!(AppConfig::default().audio_conversion_background, None);
         assert_eq!(AppConfig::default().audio_effects_background, None);
+        assert_eq!(config.video_conversion_background, None);
+        assert_eq!(config.video_transformation_background, None);
+        assert_eq!(AppConfig::default().video_conversion_background, None);
+        assert_eq!(AppConfig::default().video_transformation_background, None);
         assert_eq!(config.media_streaming_background, None);
         assert_eq!(AppConfig::default().media_streaming_background, None);
     }
