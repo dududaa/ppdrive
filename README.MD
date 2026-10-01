@@ -32,7 +32,8 @@ of APIs for remote file management and storage.
 - **Ease of Use**: If you're already familiar with sending HTTP requests, using PPDRIVE feels natural. We also provide a
   cli-tool for configuration, client management, plugin management and so on.
 - **Plugins**: Extend the server with dynamically loaded plugins — the dashboard UI, image conversion, image
-  transformation...etc — all ship as plugins and install with a single CLI command (`ppdrive plugin add`).
+  transformation...etc — all ship as plugins and install with a single CLI command (`ppdrive plugin add`). See the
+  [plugin guide](PLUGIN.MD).
 - **Transparency**: The codebase is right here! Have a look at it, modify it and help us shape the future.
 - **Speed**: Very fast operation handlers.
 - **Cross Platform**: PPDRIVE can run on Linux, macOS and Windows. Useful for local development.
@@ -62,6 +63,22 @@ Please see the [Documentation Website](https://ppdrive.dududaa.org).
   - [ ] Live File Streaming
   - [ ] PDF Utilities
   - [ ] And many more.
+
+---
+
+## Plugins
+
+Almost everything beyond the core upload/download/bucket API — the dashboard UI, image conversion and transformation, audio conversion and effects, video conversion and transformation, HLS/DASH packaging — ships as a dynamically loaded plugin, installed with a single CLI command:
+
+```sh
+ppdrive plugin add video-conversion --source github:dududaa/ppdrive-media
+ppdrive serve
+```
+
+- **[PLUGIN.MD](PLUGIN.MD)** — the plugin guide: what plugins are, how the server invokes them, the official plugin list with install commands, and a step-by-step guide to writing your own
+- [Plugin CLI reference](https://ppdrive.dududaa.org/cli/plugin/) — all `ppdrive plugin` commands and flags
+- [dududaa/ppdrive-media](https://github.com/dududaa/ppdrive-media) — official media plugins (source + prebuilt releases)
+- [dududaa/ppdrive-dashboard](https://github.com/dududaa/ppdrive-dashboard) — dashboard UI plugin (build from source)
 
 ---
 
