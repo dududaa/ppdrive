@@ -574,11 +574,33 @@ pub async fn execute_update(id: Option<&str>) -> Result<(), anyhow::Error> {
 }
 
 /// `cargo build --release --lib --package {package}` in `source_dir`.
+///
+/// Plugin repositories keep the cdylib entry point in a separate
+/// `<package>-plugin` crate (`ppdrive-image-conversion-plugin` produces
+/// `libimage_conversion_plugin.so`), so that package is preferred when it
+/// exists; otherwise `package` itself is the cdylib.
 async fn build_from_source(source_dir: &str, package: &str) -> Result<(), anyhow::Error> {
+    let plugin_package = format!("{package}-plugin");
+    match run_cargo_build(source_dir, &plugin_package).await {
+        Ok(()) => {
+            println!("cargo build --release --lib --package {plugin_package} finished.");
+            Ok(())
+        }
+        Err(err) if err.to_string().contains("did not match any packages") => {
+            run_cargo_build(source_dir, package).await?;
+            println!("cargo build --release --lib --package {package} finished.");
+            Ok(())
+        }
+        Err(err) => Err(err),
+    }
+}
+
+/// Run `cargo build --release --lib --package {package}` in `source_dir`,
+/// reporting the captured stderr when cargo exits non-zero.
+async fn run_cargo_build(source_dir: &str, package: &str) -> Result<(), anyhow::Error> {
     println!("Building package '{package}'...");
 
     let source_dir = source_dir.to_string();
-    let package_label = package.to_string();
     let package = package.to_string();
     let output = tokio::task::spawn_blocking(move || {
         std::process::Command::new("cargo")
@@ -595,7 +617,6 @@ async fn build_from_source(source_dir: &str, package: &str) -> Result<(), anyhow
         return Err(anyhow::anyhow!("cargo build failed:\n{stderr}"));
     }
 
-    println!("cargo build --release --lib --package {package_label} finished.");
     Ok(())
 }
 
@@ -661,7 +682,11 @@ fn find_built_lib(target_dir: &Path, name: &str) -> Result<PathBuf, anyhow::Erro
             }
             let stem = &file_name[..file_name.len() - suffix.len()];
             let stem = stem.strip_prefix("lib").unwrap_or(stem);
-            if wanted.iter().any(|w| norm(stem) == *w) {
+            // The `-plugin` entry crate of a plugin-crate layout is named
+            // `<short>_plugin` (release artifacts rename it to the full id).
+            let stem_norm = norm(stem);
+            let stem_core = stem_norm.strip_suffix("-plugin").unwrap_or(&stem_norm);
+            if wanted.iter().any(|w| stem_norm == *w || stem_core == *w) {
                 return Ok(entry.path());
             }
             if file_name.starts_with("lib") {

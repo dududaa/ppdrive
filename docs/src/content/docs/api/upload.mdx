@@ -668,9 +668,9 @@ Public buckets serve the package automatically: playlists and segments are plain
 - **30s** global request timeout (returns HTTP 408)
 
 Rate limit headers are included in responses:
-- `X-RateLimit-Limit` — Maximum requests per second
-- `X-RateLimit-Remaining` — Requests remaining in the current window
-- `X-RateLimit-Retry-After` — Seconds until the rate limit resets
+- `x-ratelimit-limit` — Burst capacity allowed for the client
+- `x-ratelimit-remaining` — Requests remaining in the current window
+- `retry-after` — (HTTP 429 only) Seconds until the rate limit resets, mirrored as `x-ratelimit-after`
 
 ## Private Bucket Assets
 

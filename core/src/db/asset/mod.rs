@@ -8,7 +8,15 @@ use models::{Asset, PermissionLevel, PermissionWithGrantee};
 pub mod models;
 
 /// Register a file in the assets table after upload.
+///
+/// When the path is already registered (overwrite upload) the existing row
+/// is returned unchanged so the asset's identity and granted permissions
+/// stay stable across re-uploads.
 pub async fn register(db: &Database, bucket_id: i32, path: &str) -> anyhow::Result<Asset> {
+    if let Some(existing) = get_by_bucket_and_path(db, bucket_id, path).await? {
+        return Ok(existing);
+    }
+
     let pid = generate_nano_id(32);
     let created_at = instance_as_string()?;
 
@@ -20,15 +28,22 @@ pub async fn register(db: &Database, bucket_id: i32, path: &str) -> anyhow::Resu
         db.placeholder(4)
     );
 
-    let asset = sqlx::query_as::<_, Asset>(query)
+    match sqlx::query_as::<_, Asset>(query)
         .bind(&pid)
         .bind(bucket_id)
         .bind(path)
         .bind(&created_at)
         .fetch_one(&**db)
-        .await?;
-
-    Ok(asset)
+        .await
+    {
+        Ok(asset) => Ok(asset),
+        Err(err) => {
+            if let Some(existing) = get_by_bucket_and_path(db, bucket_id, path).await? {
+                return Ok(existing);
+            }
+            Err(err.into())
+        }
+    }
 }
 
 /// Get an asset by PID.

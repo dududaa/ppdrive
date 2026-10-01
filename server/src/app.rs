@@ -241,6 +241,9 @@ async fn create_app_inner(
         let mut builder = GovernorConfigBuilder::default();
         builder.per_second(100).burst_size(200);
         let mut builder = builder.key_extractor(SmartIpKeyExtractor);
+        // Emit x-ratelimit-limit / x-ratelimit-remaining on responses,
+        // as documented in the upload API reference.
+        let mut builder = builder.use_headers();
         Some(
             builder
                 .finish()
@@ -274,7 +277,7 @@ async fn create_app_inner(
             }),
         );
 
-    let root = ppdrive::root_dir().unwrap_or_default();
+    let root = state.config().root_dir().unwrap_or_default();
     let paths = bucket::get_public_paths(state.db())
         .await
         .unwrap_or_else(|e| {

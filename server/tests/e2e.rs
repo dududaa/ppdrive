@@ -806,6 +806,23 @@ async fn test_upload_to_named_bucket() -> anyhow::Result<()> {
         )
         .await;
     resp.assert_status_ok();
+
+    // Overwriting the same path must reuse the existing asset row instead of
+    // violating UNIQUE (bucket_id, path).
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+    resp.assert_status_ok();
+    let session_token: String = resp.json();
+
+    let resp = server
+        .post_bytes(
+            &format!("/upload/session/play/{session_token}"),
+            Bytes::copy_from_slice(&file_data),
+        )
+        .await;
+    resp.assert_status_ok();
     Ok(())
 }
 

@@ -9,10 +9,35 @@ use crate::db::Database;
 use crate::tools::config::StaticFolder;
 use crate::utils::{asset_owner_id, instance_as_string};
 use crate::{generate_nano_id, paths_cross, sql_safe};
-use anyhow::anyhow;
 use models::{Bucket, CreateBucketData};
 use sqlx::Row;
 use std::path::PathBuf;
+
+/// A [`create`] failure: `Conflict`/`Forbidden` are client mistakes
+/// (the HTTP layer maps them to 409/403 with the message intact),
+/// while `Internal` is an infrastructure failure whose message must
+/// stay server-side.
+#[derive(Debug)]
+pub enum CreateError {
+    /// The path already exists, crosses a static folder, or breaks a
+    /// parent privacy policy.
+    Conflict(String),
+    /// A parent path belongs to a different entity.
+    Forbidden(String),
+    /// Database or configuration failure.
+    Internal(anyhow::Error),
+}
+
+impl std::fmt::Display for CreateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CreateError::Conflict(msg) | CreateError::Forbidden(msg) => f.write_str(msg),
+            CreateError::Internal(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl std::error::Error for CreateError {}
 
 /// Check if a MIME type matches any entry in an accepts list.
 ///
@@ -39,7 +64,7 @@ pub async fn create(
     data: &CreateBucketData,
     static_folders: &[StaticFolder],
     db: &Database,
-) -> anyhow::Result<String> {
+) -> Result<String, CreateError> {
     let CreateBucketData {
         name,
         public,
@@ -62,39 +87,61 @@ pub async fn create(
         let default_path = format!("/{}", folder.name);
         let folder_path = folder.path.as_deref().unwrap_or(&default_path);
         if paths_cross(&path, folder_path) {
-            return Err(anyhow!(
+            return Err(CreateError::Conflict(format!(
                 "Bucket path '{path}' conflicts with static folder '{}' at '{folder_path}'",
                 folder.name
-            ));
+            )));
         }
     }
 
-    let owner_id = asset_owner_id(*owner_type, *owner_id, db).await?;
+    let query = sql_safe!("SELECT pid FROM buckets WHERE path = {}", db.placeholder(1));
+    let duplicate: Option<String> = sqlx::query_scalar(query)
+        .fetch_optional(&**db)
+        .await
+        .map_err(|err| CreateError::Internal(err.into()))?;
+    if duplicate.is_some() {
+        return Err(CreateError::Conflict(format!(
+            "Bucket path '{path}' already exists"
+        )));
+    }
 
-    let valid_parents_owner = validate_parent_ownership(&path, owner_id, db).await?;
+    let owner_id = asset_owner_id(*owner_type, *owner_id, db)
+        .await
+        .map_err(CreateError::Internal)?;
+
+    let valid_parents_owner = validate_parent_ownership(&path, owner_id, db)
+        .await
+        .map_err(CreateError::Internal)?;
     if !valid_parents_owner {
-        return Err(anyhow!(
+        return Err(CreateError::Forbidden(
             "Bucket parent(s) is owned by a different entity. Please choose a another path."
+                .to_string(),
         ));
     }
 
-    let private_parents = validate_parents_privacy(&path, db).await?;
+    let private_parents = validate_parents_privacy(&path, db)
+        .await
+        .map_err(CreateError::Internal)?;
     if !public && !private_parents {
-        return Err(anyhow!(
+        return Err(CreateError::Conflict(
             "One or all of the bucket parents is public. This is not allowed for private buckets."
+                .to_string(),
         ));
     }
 
-    let has_private_parents = validate_parent_privacy_reverse(&path, db).await?;
+    let has_private_parents = validate_parent_privacy_reverse(&path, db)
+        .await
+        .map_err(CreateError::Internal)?;
     if *public && has_private_parents {
-        return Err(anyhow!(
+        return Err(CreateError::Conflict(
             "One or all of the bucket parents is private. This is not allowed for public buckets."
+                .to_string(),
         ));
     }
 
     let pid = generate_nano_id(32);
     let accepts = accepts.as_ref().map(|s| s.join(","));
-    let created_at = instance_as_string()?;
+    let created_at = instance_as_string().map_err(CreateError::Internal)?;
 
     let placeholder_len = 8;
     let mut placeholders = Vec::with_capacity(placeholder_len as usize);
@@ -113,11 +160,18 @@ pub async fn create(
         .bind(accepts)
         .bind(created_at)
         .bind(owner_id)
-        .bind(path)
+        .bind(&path)
         .bind(name)
         .bind(i32::from(*public))
         .execute(&**db)
-        .await?;
+        .await
+        .map_err(|err| match &err {
+            // Lost a race against a concurrent create of the same path.
+            sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
+                CreateError::Conflict(format!("Bucket path '{path}' already exists"))
+            }
+            _ => CreateError::Internal(err.into()),
+        })?;
 
     Ok(pid)
 }

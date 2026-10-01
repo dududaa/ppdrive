@@ -61,7 +61,16 @@ pub(super) async fn create_bucket(
         accepts: req.accepts,
     };
 
-    let pid = bucket::create(&data, &state.config().static_folders, state.db()).await?;
+    let pid = match bucket::create(&data, &state.config().static_folders, state.db()).await {
+        Ok(pid) => pid,
+        Err(bucket::CreateError::Conflict(message)) => {
+            return Err(api_error(message).with_status_code(StatusCode::CONFLICT));
+        }
+        Err(bucket::CreateError::Forbidden(message)) => {
+            return Err(api_error(message).with_status_code(StatusCode::FORBIDDEN));
+        }
+        Err(bucket::CreateError::Internal(err)) => return Err(err.into()),
+    };
 
     let root_dir = state.config().root_dir()?;
     let bucket_dir = root_dir.join(data.path.trim_start_matches('/'));

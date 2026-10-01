@@ -45,7 +45,16 @@ async fn safe_path(root: &Path, user_path: &str) -> anyhow::Result<PathBuf> {
         }
 
         let joined = root.join(cleaned);
-        let canonical_root = std::fs::canonicalize(&root)?;
+        // A fresh install has no storage directory yet; create it on
+        // demand so session creation does not fail with a raw io error.
+        let canonical_root = match std::fs::canonicalize(&root) {
+            Ok(canonical) => canonical,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                std::fs::create_dir_all(&root)?;
+                std::fs::canonicalize(&root)?
+            }
+            Err(err) => return Err(err.into()),
+        };
 
         // Walk up from the target path until we find an existing ancestor to canonicalize.
         let canonical_joined = {

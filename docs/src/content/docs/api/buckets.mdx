@@ -85,6 +85,7 @@ The `data` field contains the bucket's public PID — use it for upload/download
 - `size` must be at least 1 if provided
 - Unknown JSON fields are rejected (requests must not contain extra keys)
 - Bucket path must not conflict with a [static folder](/configuration/config-file/#static-folders)
+- Bucket path must be unique — one bucket per path
 - Privacy levels must match: private buckets cannot be created inside public buckets, and public buckets cannot be created inside private buckets
 - The client must own all parent paths
 
@@ -101,6 +102,7 @@ The `data` field contains the bucket's public PID — use it for upload/download
 | 403 | `Bucket parent(s) is owned by a different entity...` | Path overlaps another client's bucket |
 | 408 | `Request Timeout` | Server did not receive a complete request within 30 seconds |
 | 409 | `Bucket path '...' conflicts with static folder...` | Path crosses a configured static folder |
+| 409 | `Bucket path '...' already exists` | Path already registered by another bucket |
 | 409 | `One or all of the bucket parents is private/public...` | Privacy level mismatch with parent bucket |
 
 ## Upload to a Bucket
