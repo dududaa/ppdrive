@@ -65,7 +65,7 @@ Assembles the complete Axum router:
 1. Creates `AppState` (loads config, secrets, DB, broker)
 2. Builds CORS layer from config
 3. Nests upload, download, and bucket routes
-4. Mounts public bucket paths as static file services
+4. Loads the in-memory bucket registry (reconciled with the database) and registers a fallback that serves bucket paths through it
 5. Mounts configured static folders
 6. Adds tracing, rate limiting (100 req/s per IP), and timeout (30s) middleware
 7. Spawns background temp file cleanup task (hourly)
@@ -77,6 +77,7 @@ Assembles the complete Axum router:
 - `config` — `AppConfig` (parsed TOML)
 - `db` — `Database` (connection pool)
 - `broker` — Optional `MessageBroker` (Redis)
+- `buckets` — `BucketRegistry` (in-memory bucket paths for direct serving)
 
 ### `src/routers/mod.rs`
 

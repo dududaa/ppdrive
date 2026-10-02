@@ -10,15 +10,14 @@ use crate::routers::{
 };
 use axum::Router;
 use axum::body::Body;
-use axum::extract::MatchedPath;
+use axum::extract::{MatchedPath, State};
 use axum::http::header::{
     ACCEPT, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
 };
-use axum::http::{HeaderName, HeaderValue, Method, Request, StatusCode};
+use axum::http::{HeaderName, HeaderValue, Method, Request, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use metrics_exporter_prometheus::PrometheusHandle;
-use ppdrive::db::bucket;
 use ppdrive::plugin::PluginRegistry;
 use ppdrive::plugin::loader::{LoadedPlugin, PluginDispatcher};
 use ppdrive::state::AppState;
@@ -143,56 +142,107 @@ fn whitelist_to_origins(origins: &Option<Vec<String>>) -> AllowOrigin {
     }
 }
 
-/// Wraps a `ServeDir` mount so `?image_transformation=` requests are served
-/// as transformed renditions; every other request passes through untouched.
+/// Serve one request against a directory mount.
+///
+/// `?image_transformation=` requests are served as transformed renditions;
+/// every other request falls through to a plain [`ServeDir`]. Shared by the
+/// static-folder mounts and the bucket-serving fallback so both surfaces
+/// behave identically.
+async fn serve_mount(state: AppState, base: PathBuf, request: Request<Body>) -> Response {
+    let wants_transform = request.method() == Method::GET
+        && request.uri().query().is_some_and(|query| {
+            query
+                .split('&')
+                .any(|pair| pair.split('=').next() == Some("image_transformation"))
+        });
+
+    if wants_transform {
+        serve_direct_transformed(state, base, request).await
+    } else {
+        let mut inner = ServeDir::new(base);
+        match inner.call(request).await {
+            Ok(response) => response.into_response(),
+            Err(infallible) => match infallible {},
+        }
+    }
+}
+
+/// Wraps a directory mount so `?image_transformation=` requests are served as
+/// transformed renditions; every other request passes through untouched.
 ///
 /// `base` is the filesystem directory backing the mount — the transform
 /// handler resolves files under it with the same traversal discipline as
 /// `ServeDir`.
 #[derive(Clone)]
-struct TransformMount<S> {
-    inner: S,
+struct TransformMount {
     base: PathBuf,
     state: AppState,
 }
 
-impl<S> Service<Request<Body>> for TransformMount<S>
-where
-    S: Service<Request<Body>, Error = std::convert::Infallible> + Clone + Send + Sync + 'static,
-    S::Response: IntoResponse,
-    S::Future: Send + 'static,
-{
+impl Service<Request<Body>> for TransformMount {
     type Response = Response;
     type Error = std::convert::Infallible;
     type Future = Pin<Box<dyn Future<Output = Result<Response, Self::Error>> + Send>>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx)
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, request: Request<Body>) -> Self::Future {
-        let wants_transform = request.method() == Method::GET
-            && request.uri().query().is_some_and(|query| {
-                query
-                    .split('&')
-                    .any(|pair| pair.split('=').next() == Some("image_transformation"))
-            });
-
-        if wants_transform {
-            let state = self.state.clone();
-            let base = self.base.clone();
-            Box::pin(async move { Ok(serve_direct_transformed(state, base, request).await) })
-        } else {
-            let mut inner = self.inner.clone();
-            Box::pin(async move {
-                match inner.call(request).await {
-                    Ok(response) => Ok(response.into_response()),
-                    Err(infallible) => match infallible {},
-                }
-            })
-        }
+        let state = self.state.clone();
+        let base = self.base.clone();
+        Box::pin(async move { Ok(serve_mount(state, base, request).await) })
     }
 }
+
+/// Serve a request that matched no other route against the bucket registry.
+///
+/// The longest segment-aligned registry prefix wins — the same outcome as the
+/// per-bucket `nest_service` mounts this replaces — and the matched prefix is
+/// stripped from the URI before the request reaches [`serve_mount`]. Unknown
+/// paths and private buckets return the plain 404 that axum's default
+/// fallback produced.
+async fn serve_bucket_path(state: AppState, root: PathBuf, request: Request<Body>) -> Response {
+    let Some((prefix, public)) = state.buckets().longest_match(request.uri().path()) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    if !public {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
+    let base = root.join(prefix.trim_start_matches('/'));
+    let request = strip_mount_prefix(request, &prefix);
+    serve_mount(state, base, request).await
+}
+
+/// Strip the matched bucket prefix from the request URI, mirroring axum's own
+/// `nest_service` prefix stripping: the remainder keeps a leading `/` (an
+/// exact match becomes `/`) and the query string is preserved.
+fn strip_mount_prefix(mut request: Request<Body>, prefix: &str) -> Request<Body> {
+    let uri = request.uri();
+    let after = uri.path().strip_prefix(prefix).unwrap_or(uri.path());
+    let path = if after.starts_with('/') {
+        after.to_string()
+    } else {
+        format!("/{after}")
+    };
+    let path_and_query = match uri.query() {
+        Some(query) => format!("{path}?{query}"),
+        None => path,
+    };
+    let mut parts = uri.clone().into_parts();
+    parts.path_and_query = Some(
+        path_and_query
+            .parse()
+            .expect("stripped mount path is a valid path-and-query"),
+    );
+    *request.uri_mut() = Uri::from_parts(parts).expect("stripped mount URI is valid");
+    request
+}
+
+/// Default seconds between background bucket-registry reconciliations when
+/// `bucket_reload_interval` is not configured (`0` disables the task).
+const DEFAULT_BUCKET_RELOAD_INTERVAL_SECS: u64 = 15;
 
 /// Build the complete Axum application: router, CORS, tracing, static dirs, state.
 ///
@@ -278,25 +328,32 @@ async fn create_app_inner(
         );
 
     let root = state.config().root_dir().unwrap_or_default();
-    let paths = bucket::get_public_paths(state.db())
-        .await
-        .unwrap_or_else(|e| {
-            tracing::error!("failed to load public bucket paths: {e}");
-            vec![]
-        });
 
-    for path in &paths {
-        // Strip leading '/' to get a relative filesystem path, then resolve against root.
-        let relative = path.trim_start_matches('/');
-        let base = root.join(relative);
-        app = app.nest_service(
-            path,
-            TransformMount {
-                inner: ServeDir::new(base.clone()),
-                base,
-                state: state.clone(),
-            },
-        );
+    // Load the bucket registry that backs direct serving at bucket paths.
+    // From here on it stays current through API write-through (create
+    // handlers upsert immediately) and the reconciliation task below, so
+    // buckets are available right after they are created — no restart.
+    if let Err(err) = state.buckets().refresh(state.db()).await {
+        tracing::error!("failed to load bucket registry: {err}");
+    }
+
+    // Reconcile the registry with the database so buckets created outside
+    // this process (the CLI, another instance sharing the database) become
+    // visible without a restart. `0` disables the task.
+    let reload_secs = state
+        .config()
+        .bucket_reload_interval
+        .unwrap_or(DEFAULT_BUCKET_RELOAD_INTERVAL_SECS);
+    if reload_secs > 0 {
+        let state = state.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(reload_secs)).await;
+                if let Err(err) = state.buckets().refresh(state.db()).await {
+                    tracing::warn!("bucket registry reconciliation failed: {err}");
+                }
+            }
+        });
     }
 
     for folder in state.config().static_folders.clone() {
@@ -305,7 +362,6 @@ async fn create_app_inner(
         app = app.nest_service(
             &mount_path,
             TransformMount {
-                inner: ServeDir::new(base.clone()),
                 base,
                 state: state.clone(),
             },
@@ -320,6 +376,18 @@ async fn create_app_inner(
         let dispatched = dispatcher.dispatch(plugin, state.clone())?;
         app = app.merge(dispatched.clone());
     }
+
+    // Bucket paths are served by one fallback consulting the registry —
+    // registered after the dashboard so explicit routes always win, and
+    // before the layers below so CORS/timeout/metrics/rate-limit cover it
+    // exactly as they covered the old per-bucket mounts.
+    let fallback_root = root.clone();
+    app = app.fallback(
+        move |State(state): State<AppState>, request: Request<Body>| {
+            let root = fallback_root.clone();
+            async move { serve_bucket_path(state, root, request).await }
+        },
+    );
 
     let mut app = app
         .layer(cors)

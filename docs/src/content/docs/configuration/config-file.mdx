@@ -85,6 +85,12 @@ hasher = "Blake3"
 # (optional, default: 3600)
 # transform_cache_max_age_secs = 3600
 
+# Seconds between background reconciliations of the in-memory bucket registry
+# with the database (optional, default: 15; 0 disables). Buckets created
+# through the API register immediately either way — this covers writers that
+# bypass the API (the CLI, another instance sharing the database)
+# bucket_reload_interval = 15
+
 # Static file directories to serve (optional)
 # Files are served at /{name} by default, or at a custom path
 [[static_folders]]
@@ -116,6 +122,7 @@ path = "/static"
 | `media_streaming_background` | `bool` | `false` | Whether media streaming packaging runs after the upload response instead of inline. The per-upload `media_streaming.background` option overrides this. If any post-processing option requests background, the whole process → rename → package → register chain runs after the response |
 | `transform_cache_ttl_secs` | `u64` | `86400` | Server-side cache TTL (seconds) for transformed download responses, stored in the message broker. `0` disables server-side caching; without `message_broker` every transformed request runs the plugin |
 | `transform_cache_max_age_secs` | `u64` | `3600` | `Cache-Control: max-age` (seconds) advertised on transformed download responses. For signed downloads the value is capped at the token's remaining lifetime |
+| `bucket_reload_interval` | `u64` | `15` | Seconds between background reconciliations of the in-memory bucket registry with the database. `0` disables the task. Buckets created through the API register immediately regardless; the reconciliation covers writers that bypass the API (the CLI, another instance sharing the database) |
 | `static_folders` | `Array` | `[]` | Directories to serve as static files |
 
 ## Static Folders

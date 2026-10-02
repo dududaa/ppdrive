@@ -82,6 +82,9 @@ pub(super) async fn create_bucket(
         return Err(api_error("failed to create bucket directory"));
     }
 
+    // Register the bucket immediately so it is served without a restart.
+    state.buckets().upsert(&data.path, data.public).await;
+
     tracing::info!(bucket_pid = %pid, name = %data.name, path = %data.path, "bucket created");
     Ok(api_response(pid)?.with_status_code(StatusCode::CREATED))
 }

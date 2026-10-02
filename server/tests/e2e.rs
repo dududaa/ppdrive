@@ -132,6 +132,149 @@ async fn test_create_bucket_empty_path_rejected() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// A bucket path that would collide with a system API route is rejected at
+/// creation — such a bucket could never be reached while serving.
+#[tokio::test]
+async fn test_create_bucket_reserved_path_rejected() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    for path in ["buckets", "auth", "assets"] {
+        let body = json!({
+            "name": "reserved-bucket",
+            "path": path,
+            "public": true
+        });
+        let resp = server
+            .post("/buckets", &body)
+            .add_header(&header_key, &token)
+            .await;
+        resp.assert_status(StatusCode::CONFLICT);
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Live bucket serving (registry-backed; no restart)
+// ---------------------------------------------------------------------------
+
+/// A public bucket created *after* the app is already serving must be
+/// reachable immediately: the create handler writes the registry through.
+#[tokio::test]
+async fn test_public_bucket_created_after_startup_serves_immediately() -> anyhow::Result<()> {
+    let (state, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let body = json!({
+        "name": "e2e-live-bucket",
+        "path": "e2e-live-bucket",
+        "public": true
+    });
+    let resp = server
+        .post("/buckets", &body)
+        .add_header(&header_key, &token)
+        .await;
+    resp.assert_status(StatusCode::CREATED);
+
+    let dir = state.config().root_dir()?.join("e2e-live-bucket");
+    tokio::fs::create_dir_all(&dir).await?;
+    tokio::fs::write(dir.join("hello.txt"), b"served without restart").await?;
+
+    let resp = server.get("/e2e-live-bucket/hello.txt").await;
+    resp.assert_status_ok();
+    let body = resp.into_bytes();
+    assert_eq!(&body[..], b"served without restart");
+    Ok(())
+}
+
+/// A private bucket is never served directly at its path — downloads go
+/// through the authenticated routes instead.
+#[tokio::test]
+async fn test_private_bucket_is_not_served_directly() -> anyhow::Result<()> {
+    let (state, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    let body = json!({
+        "name": "e2e-private-bucket",
+        "path": "e2e-private-bucket",
+        "public": false
+    });
+    let resp = server
+        .post("/buckets", &body)
+        .add_header(&header_key, &token)
+        .await;
+    resp.assert_status(StatusCode::CREATED);
+
+    let dir = state.config().root_dir()?.join("e2e-private-bucket");
+    tokio::fs::create_dir_all(&dir).await?;
+    tokio::fs::write(dir.join("secret.txt"), b"not for the public").await?;
+
+    let resp = server.get("/e2e-private-bucket/secret.txt").await;
+    resp.assert_status(StatusCode::NOT_FOUND);
+    Ok(())
+}
+
+/// The registry reconciles with the database: a row written outside the API
+/// — exactly what `ppdrive bucket create` does — appears after `refresh`,
+/// the same call the background reconciliation task makes.
+#[tokio::test]
+async fn test_bucket_registry_refresh_picks_up_direct_database_writes() -> anyhow::Result<()> {
+    let (state, _token, _header_key) = setup_test_client().await?;
+
+    let owner = create_client(state.db(), state.secrets(), "Refresh Owner").await?;
+    let owner_id = get_id(owner.id(), state.db()).await?;
+    let data = CreateBucketData {
+        name: "refresh-bucket".into(),
+        path: "/refresh-bucket".into(),
+        owner_type: AssetOwnerName::Client,
+        owner_id,
+        public: true,
+        size: None,
+        accepts: None,
+    };
+    bucket::create(&data, &state.config().static_folders, state.db()).await?;
+
+    // The API never ran, so the registry does not know the bucket yet.
+    assert!(
+        state
+            .buckets()
+            .longest_match("/refresh-bucket/f.txt")
+            .is_none()
+    );
+
+    state.buckets().refresh(state.db()).await?;
+    let (path, public) = state
+        .buckets()
+        .longest_match("/refresh-bucket/f.txt")
+        .expect("refreshed registry should serve out-of-band bucket");
+    assert_eq!(path, "/refresh-bucket");
+    assert!(public);
+    Ok(())
+}
+
+/// Config-driven static folders still serve files through the shared mount
+/// logic. Skipped when no static folder is configured (a clean checkout has
+/// no `ppd_config.toml`).
+#[tokio::test]
+async fn test_static_folder_serves_files() -> anyhow::Result<()> {
+    let (state, _token, _header_key) = setup_test_client().await?;
+    let Some(folder) = state.config().static_folders.first().cloned() else {
+        return Ok(());
+    };
+    let server = TestServerWrapper::new().await?;
+
+    let mount = folder.path.clone().unwrap_or(format!("/{}", folder.name));
+    let dir = root_dir()?.join(&folder.name);
+    tokio::fs::create_dir_all(&dir).await?;
+    tokio::fs::write(dir.join("e2e-static-note.txt"), b"static folder body").await?;
+
+    let resp = server.get(&format!("{mount}/e2e-static-note.txt")).await;
+    resp.assert_status_ok();
+    let body = resp.into_bytes();
+    assert_eq!(&body[..], b"static folder body");
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Upload flow
 // ---------------------------------------------------------------------------
@@ -1225,9 +1368,9 @@ fn encode_query_json(value: &Value) -> String {
 }
 
 /// Register a public bucket backed by `e2e-transform-mount/` (gitignored),
-/// drop an image and a text fixture inside it, then build an app that
-/// mounts the bucket. The bucket row must exist *before* the app is built
-/// so its `ServeDir` mount is registered.
+/// drop an image and a text fixture inside it, then build the app. The row is
+/// loaded into the serving registry at startup (buckets created later are
+/// registered immediately through the API handler instead).
 async fn setup_transform_mount() -> anyhow::Result<(TestServerWrapper, std::path::PathBuf)> {
     let (state, _token, _header_key) = setup_test_client().await?;
 

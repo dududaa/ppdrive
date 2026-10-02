@@ -86,6 +86,14 @@ pub struct AppConfig {
     /// responses. Defaults to 3600 (1h).
     #[serde(default)]
     pub transform_cache_max_age_secs: Option<u64>,
+
+    /// Seconds between background reconciliations of the in-memory bucket
+    /// registry with the database. `0` disables background reloads. Buckets
+    /// created through the API are registered immediately regardless of this
+    /// setting; the reconciliation covers writers that bypass the API (the
+    /// CLI, another instance sharing the database). Defaults to 15.
+    #[serde(default)]
+    pub bucket_reload_interval: Option<u64>,
 }
 
 impl AppConfig {
@@ -198,6 +206,7 @@ impl Default for AppConfig {
             media_streaming_background: None,
             transform_cache_ttl_secs: None,
             transform_cache_max_age_secs: None,
+            bucket_reload_interval: None,
         }
     }
 }

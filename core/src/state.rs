@@ -1,9 +1,11 @@
 use crate::broker::MessageBroker;
 use crate::config::AppConfig;
+use crate::db::bucket::BucketRegistry;
 use crate::db::{Database, DbPool};
 use crate::hasher::Hasher;
 use crate::secrets::AppSecrets;
 use serde::de::DeserializeOwned;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -11,6 +13,7 @@ pub struct AppState {
     config: AppConfig,
     db: Database,
     broker: Option<MessageBroker>,
+    buckets: Arc<BucketRegistry>,
 }
 
 impl AppState {
@@ -25,6 +28,7 @@ impl AppState {
             config,
             db,
             broker: None,
+            buckets: Arc::new(BucketRegistry::new()),
         })
     }
 
@@ -44,6 +48,7 @@ impl AppState {
             config,
             db,
             broker,
+            buckets: Arc::new(BucketRegistry::new()),
         })
     }
 
@@ -57,6 +62,11 @@ impl AppState {
 
     pub fn db(&self) -> &Database {
         &self.db
+    }
+
+    /// In-memory bucket registry backing direct serving at bucket paths.
+    pub fn buckets(&self) -> &BucketRegistry {
+        &self.buckets
     }
 
     pub fn pool(&self) -> &DbPool {

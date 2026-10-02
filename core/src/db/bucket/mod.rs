@@ -4,12 +4,14 @@
 //! and that the requesting entity owns all ancestor paths.
 
 pub mod models;
+pub mod registry;
 
 use crate::db::Database;
 use crate::tools::config::StaticFolder;
 use crate::utils::{asset_owner_id, instance_as_string};
 use crate::{generate_nano_id, paths_cross, sql_safe};
 use models::{Bucket, CreateBucketData};
+pub use registry::BucketRegistry;
 use sqlx::Row;
 use std::path::PathBuf;
 
@@ -19,8 +21,8 @@ use std::path::PathBuf;
 /// stay server-side.
 #[derive(Debug)]
 pub enum CreateError {
-    /// The path already exists, crosses a static folder, or breaks a
-    /// parent privacy policy.
+    /// The path already exists, crosses a static folder, occupies a reserved
+    /// system path, or breaks a parent privacy policy.
     Conflict(String),
     /// A parent path belongs to a different entity.
     Forbidden(String),
@@ -82,6 +84,10 @@ pub async fn create(
     } else {
         format!("/{path}")
     };
+
+    if let Err(message) = validate_reserved_path(&path) {
+        return Err(CreateError::Conflict(message));
+    }
 
     for folder in static_folders {
         let default_path = format!("/{}", folder.name);
@@ -211,10 +217,15 @@ pub async fn get(pid: &str, db: &Database) -> anyhow::Result<Bucket> {
     Ok(data)
 }
 
-pub async fn get_public_paths(db: &Database) -> anyhow::Result<Vec<String>> {
-    let query = sql_safe!("SELECT path FROM buckets WHERE public = 1");
-    let result = sqlx::query_scalar(query).fetch_all(&**db).await?;
-    Ok(result)
+/// Fetch every bucket path with its public flag — the snapshot the serving
+/// registry is rebuilt from on load and on each reconciliation.
+pub async fn get_paths_with_privacy(db: &Database) -> anyhow::Result<Vec<(String, bool)>> {
+    let query = sql_safe!("SELECT path, public FROM buckets");
+    let rows = sqlx::query(query).fetch_all(&**db).await?;
+    Ok(rows
+        .iter()
+        .map(|row| (row.get("path"), row.get::<i32, _>("public") != 0))
+        .collect())
 }
 
 /// Fetch all bucket paths from the database.
@@ -323,4 +334,89 @@ async fn validate_parent_ownership(
     }
 
     Ok(true)
+}
+
+/// Top-level paths owned by the server itself: the API routes plus the
+/// default dashboard plugin routes. A bucket occupying one of these would be
+/// shadowed by the system routes when serving requests, so it could never be
+/// reached — reject it at creation instead of failing silently later.
+///
+/// The `/assets` and `/dashboard` entries cover the dashboard plugin's
+/// default `base_path`; a reconfigured dashboard path is not tracked here.
+const RESERVED_PATHS: &[&str] = &[
+    "health",
+    "metrics",
+    "auth",
+    "buckets",
+    "upload",
+    "download",
+    "assets",
+    "dashboard",
+];
+
+/// Reject `/` and paths at or under a reserved system path.
+///
+/// Called with a normalized path (leading `/`, no trailing `/`).
+fn validate_reserved_path(path: &str) -> Result<(), String> {
+    if path == "/" {
+        return Err("Bucket path must not be the root '/'".to_string());
+    }
+    for reserved in RESERVED_PATHS {
+        let reserved = format!("/{reserved}");
+        if path == reserved || path.starts_with(&format!("{reserved}/")) {
+            return Err(format!(
+                "Bucket path '{path}' conflicts with the reserved system path '{reserved}'"
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_reserved_path;
+
+    #[test]
+    fn rejects_root_path() {
+        assert!(validate_reserved_path("/").is_err());
+    }
+
+    #[test]
+    fn rejects_reserved_paths_and_their_children() {
+        for path in [
+            "/buckets",
+            "/buckets/anything",
+            "/auth",
+            "/auth/deep/child",
+            "/upload",
+            "/download",
+            "/assets",
+            "/dashboard",
+            "/health",
+            "/metrics",
+        ] {
+            assert!(
+                validate_reserved_path(path).is_err(),
+                "{path} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn allows_regular_and_lookalike_paths() {
+        for path in [
+            "/photos",
+            "/photos/sub",
+            "/uploads",
+            "/bucket",
+            "/authx",
+            "/health-data",
+            "/dashboard-v2",
+        ] {
+            assert!(
+                validate_reserved_path(path).is_ok(),
+                "{path} should be allowed"
+            );
+        }
+    }
 }
