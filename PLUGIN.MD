@@ -91,7 +91,7 @@ Notes:
 
 - By default the matching prebuilt asset (`ppdrive-<id>-<os>-<arch>.<ext>`) is downloaded from the repository's **latest** release. Pin a release with `--version` — the version **without** the `v` prefix (e.g. `--version 0.3.0` resolves tag `v0.3.0`).
 - Prebuilt assets cover **linux-x86_64, macos-x86_64, macos-aarch64 and windows-x86_64**. On other platforms (e.g. linux-aarch64) add `--build` to compile from the release source archive instead.
-- The media plugins need the FFmpeg shared libraries (libav*) present on the host.
+- Prebuilt media plugins are self-contained: FFmpeg and the codecs are statically linked inside, so the host does **not** need FFmpeg (or matching libav*) libraries installed.
 - Underscore ids work too: `ppdrive plugin add image_conversion …` normalizes to `image-conversion`.
 
 ### Dashboard
@@ -290,7 +290,7 @@ Alternatively distribute source only and let users pass `--build` (remote source
 
 - The dispatch ABI is plain C (`extern "C"`, `#[repr(C)]` response) and stable across PPDRIVE versions; the only symbol requirement is `plugin_dispatch`.
 - Depend on the newest published `ppdrive` core crate for `DispatchResponse` (and `AppState` + the `server` feature for router plugins). Plugins built against the 0.2 core run unchanged on the 0.3 server — ppff's v0.3.0 plugins are built that way.
-- Rebuild plugins when your platform, toolchain or engine (FFmpeg, codecs) changes; keep them on the same machine as the server, in `libs/`.
+- Prebuilt plugins embed their own FFmpeg, so rebuild when your platform or Rust toolchain changes; keep them on the same machine as the server, in `libs/`.
 
 ## Troubleshooting
 
