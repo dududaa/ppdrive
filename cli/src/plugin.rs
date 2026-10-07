@@ -205,6 +205,11 @@ pub async fn install_remote(
         let (release_version, json) = fetch_github_release(&repo, version).await?;
         let asset = find_release_asset(&json, &full_id)?;
 
+        // Fetch the shared media runtime this plugin links against before
+        // downloading the plugin itself, so a failed runtime download leaves
+        // no unregistered plugin file behind.
+        ensure_runtime(&json, &release_version, libs_dir).await?;
+
         let download_url = asset["browser_download_url"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("missing download URL for asset"))?;
@@ -408,6 +413,75 @@ async fn fetch_github_release(
         .ok_or_else(|| anyhow::anyhow!("missing tag_name in release response"))?;
 
     Ok((tag_name.trim_start_matches('v').to_string(), json))
+}
+
+/// Marker file in `libs_dir` recording which runtime version is extracted.
+const RUNTIME_VERSION_FILE: &str = ".ppdrive-runtime-version";
+
+/// True once `libs_dir` holds an extracted runtime (any avcodec library).
+async fn runtime_extracted(libs_dir: &Path) -> bool {
+    let Ok(mut dir) = tokio::fs::read_dir(libs_dir).await else {
+        return false;
+    };
+    while let Ok(Some(entry)) = dir.next_entry().await {
+        if entry.file_name().to_string_lossy().contains("avcodec") {
+            return true;
+        }
+    }
+    false
+}
+
+/// Download and extract the shared ppdrive-media runtime for this platform
+/// into `libs_dir`, next to the plugins that link against it.
+///
+/// The runtime tarball ships in the same release as the plugin artifacts, so
+/// `json` is the release that `release_version` names. Releases predating the
+/// shared runtime (static plugins that bundle everything) publish no such
+/// asset and are skipped. A successful install is recorded in a marker file
+/// so repeated installs of the same release are free.
+async fn ensure_runtime(
+    json: &serde_json::Value,
+    release_version: &str,
+    libs_dir: &Path,
+) -> Result<(), anyhow::Error> {
+    let marker = libs_dir.join(RUNTIME_VERSION_FILE);
+    if let Ok(current) = tokio::fs::read_to_string(&marker).await
+        && current.trim() == release_version
+        && runtime_extracted(libs_dir).await
+    {
+        return Ok(());
+    }
+
+    let asset_name = format!(
+        "ppdrive-media-runtime-{}-{}.tar.gz",
+        std::env::consts::OS,
+        std::env::consts::ARCH,
+    );
+    let Some(asset) = json["assets"].as_array().and_then(|assets| {
+        assets
+            .iter()
+            .find(|a| a["name"].as_str() == Some(asset_name.as_str()))
+    }) else {
+        // Static-era release: the plugins themselves bundle everything.
+        return Ok(());
+    };
+
+    let url = asset["browser_download_url"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("missing download URL for runtime asset '{asset_name}'"))?;
+
+    println!("Downloading {asset_name}...");
+    let tarball = libs_dir.join(".ppdrive-runtime.tarball");
+    download_file(url, &tarball).await?;
+    extract_tarball(&tarball, libs_dir)?;
+    let _ = tokio::fs::remove_file(&tarball).await;
+
+    tokio::fs::write(&marker, format!("{release_version}\n"))
+        .await
+        .with_context(|| format!("failed to write {}", marker.display()))?;
+
+    println!("Installed media runtime {release_version}");
+    Ok(())
 }
 
 /// Find a release asset whose base name matches `id`.

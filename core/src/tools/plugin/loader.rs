@@ -71,8 +71,28 @@ unsafe impl Sync for LoadedPlugin {}
 
 impl LoadedPlugin {
     pub fn load(path: &Path, id: String) -> anyhow::Result<Self> {
-        let lib = unsafe { Library::new(path) }
-            .with_context(|| format!("failed to load plugin from {}", path.display()))?;
+        #[cfg(windows)]
+        let lib = {
+            use libloading::os::windows::{LOAD_WITH_ALTERED_SEARCH_PATH, Library as OsLibrary};
+            // LOAD_WITH_ALTERED_SEARCH_PATH resolves the plugin's dependent
+            // DLLs (the shared ppdrive-media-runtime) relative to the
+            // plugin's directory, not the process CWD/PATH. It requires an
+            // absolute path, so canonicalize first (the \\?\ form is
+            // accepted by LoadLibraryExW).
+            let abs = std::fs::canonicalize(path)
+                .with_context(|| format!("failed to resolve plugin path {}", path.display()))?;
+            unsafe { OsLibrary::load_with_flags(&abs, LOAD_WITH_ALTERED_SEARCH_PATH) }
+                .map(Library::from)
+        };
+        #[cfg(not(windows))]
+        let lib = unsafe { Library::new(path) };
+
+        let lib = lib.map_err(|err| {
+            anyhow!(
+                "failed to load plugin from {}. Error: {err}",
+                path.display()
+            )
+        })?;
 
         let dispatch_fn = unsafe {
             *lib.get::<unsafe extern "C" fn(*mut c_void) -> *mut DispatchResponse>(

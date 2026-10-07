@@ -91,7 +91,7 @@ Notes:
 
 - By default the matching prebuilt asset (`ppdrive-<id>-<os>-<arch>.<ext>`) is downloaded from the repository's **latest** release. Pin a release with `--version` — the version **without** the `v` prefix (e.g. `--version 0.3.0` resolves tag `v0.3.0`).
 - Prebuilt assets cover **linux-x86_64, macos-x86_64, macos-aarch64 and windows-x86_64**. On other platforms (e.g. linux-aarch64) add `--build` to compile from the release source archive instead.
-- Prebuilt media plugins are self-contained: FFmpeg and the codecs are statically linked inside, so the host does **not** need FFmpeg (or matching libav*) libraries installed.
+- Prebuilt media plugins ship with a **shared media runtime**: the installer downloads the `ppdrive-media-runtime-<os>-<arch>.tar.gz` bundle from the same release and extracts it into `libs/` next to the plugins (releases ≥ 0.3.1). FFmpeg and the codecs live in that one bundle, shared by every installed plugin — the host does **not** need FFmpeg (or matching libav*) libraries installed. Older, statically linked releases are self-contained and install nothing extra.
 - Underscore ids work too: `ppdrive plugin add image_conversion …` normalizes to `image-conversion`.
 
 ### Dashboard
