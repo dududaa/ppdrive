@@ -57,14 +57,7 @@ pub async fn execute() -> Result<(), anyhow::Error> {
             continue;
         }
         let dest = install_dir.join(name);
-        tokio::fs::copy(&src, &dest).await?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let perms = std::fs::Permissions::from_mode(0o755);
-            std::fs::set_permissions(&dest, perms)?;
-        }
+        replace_file(&src, &dest).with_context(|| format!("failed to replace {name}"))?;
 
         updated.push(name.to_string());
         println!("Updated {name}");
@@ -87,6 +80,46 @@ pub async fn execute() -> Result<(), anyhow::Error> {
         println!("Restart your server if it's running.");
     }
 
+    Ok(())
+}
+
+/// Replace `dest` with the file at `src`.
+///
+/// The new file is staged beside the destination (`<name>.new`) and renamed
+/// over it. Writing into a file that is currently being executed fails with
+/// `ETXTBSY` ("Text file busy") on Unix — which is exactly the case for the
+/// running `ppdrive` process updating its own binary, or a running `server`
+/// — while rename only swaps the directory entry, letting existing processes
+/// keep the old inode until they restart. On any failure the staging file is
+/// removed and `dest` is left untouched.
+fn replace_file(src: &Path, dest: &Path) -> Result<(), anyhow::Error> {
+    let file_name = dest
+        .file_name()
+        .context("destination has no file name")?
+        .to_string_lossy()
+        .into_owned();
+    let staging = dest.with_file_name(format!("{file_name}.new"));
+
+    let result = || -> Result<(), anyhow::Error> {
+        std::fs::copy(src, &staging).with_context(|| {
+            format!("failed to stage {} as {}", src.display(), staging.display())
+        })?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o755))?;
+        }
+
+        std::fs::rename(&staging, dest)
+            .with_context(|| format!("failed to rename {} into place", staging.display()))?;
+        Ok(())
+    };
+
+    if let Err(err) = result() {
+        let _ = std::fs::remove_file(&staging);
+        return Err(err);
+    }
     Ok(())
 }
 
@@ -181,4 +214,78 @@ fn update_symlinks(install_dir: &Path) -> Result<(), anyhow::Error> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::replace_file;
+    use std::path::Path;
+
+    fn scratch_dir(tag: &str) -> std::path::PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("ppdrive-replace-test-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// A plain copy into a running executable fails with ETXTBSY; the staged
+    /// rename must succeed while the old process keeps running.
+    #[cfg(unix)]
+    #[test]
+    fn replace_file_over_running_executable() -> anyhow::Result<()> {
+        let dir = scratch_dir("running");
+        let dest = dir.join("sleeper");
+        let src = dir.join("sleeper-new");
+        std::fs::copy("/bin/sleep", &dest)?;
+        std::fs::copy("/bin/sleep", &src)?;
+
+        let mut child = std::process::Command::new(&dest).arg("30").spawn()?;
+        std::thread::sleep(std::time::Duration::from_millis(150));
+
+        // The pre-fix approach — copying over the destination — must fail
+        // while the executable is running.
+        assert!(
+            std::fs::copy(&src, &dest).is_err(),
+            "copy into a running executable should fail with ETXTBSY"
+        );
+
+        let replaced = replace_file(&src, &dest);
+        let killed = child.kill();
+
+        let _ = std::fs::remove_dir_all(&dir);
+        killed?;
+        replaced?;
+        Ok(())
+    }
+
+    #[test]
+    fn replace_file_cleans_staging_and_preserves_dest_on_failure() {
+        let dir = scratch_dir("failure");
+        let dest = dir.join("binary");
+        std::fs::write(&dest, b"old").unwrap();
+
+        let missing = dir.join("missing-new");
+        assert!(replace_file(&missing, &dest).is_err());
+
+        assert!(!dir.join("binary.new").exists(), "staging must be removed");
+        assert_eq!(std::fs::read(&dest).unwrap(), b"old", "dest untouched");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn replace_file_swaps_content() -> anyhow::Result<()> {
+        let dir = scratch_dir("swap");
+        let dest: &Path = &dir.join("binary");
+        let src: &Path = &dir.join("binary-new");
+        std::fs::write(dest, b"old")?;
+        std::fs::write(src, b"new")?;
+
+        replace_file(src, dest)?;
+
+        assert_eq!(std::fs::read(dest)?, b"new");
+        assert!(!dir.join("binary.new").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+        Ok(())
+    }
 }

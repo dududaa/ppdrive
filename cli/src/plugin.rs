@@ -795,9 +795,16 @@ async fn download_file(url: &str, dest: &std::path::Path) -> Result<(), anyhow::
         .read_to_vec()
         .context("failed to read download body")?;
 
-    tokio::fs::write(dest, body)
+    // Stage beside the destination and rename into place: writing over a
+    // library the server has loaded as executable fails with ETXTBSY on Unix,
+    // and a partial download must never replace a good file.
+    let staging = dest.with_extension("part");
+    tokio::fs::write(&staging, body)
         .await
-        .with_context(|| format!("failed to write {}", dest.display()))?;
+        .with_context(|| format!("failed to write {}", staging.display()))?;
+    tokio::fs::rename(&staging, dest)
+        .await
+        .with_context(|| format!("failed to replace {}", dest.display()))?;
 
     Ok(())
 }
