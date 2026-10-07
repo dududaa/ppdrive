@@ -344,15 +344,18 @@ pub(super) async fn play_session(
         let canonical_bucket = std::fs::canonicalize(&bucket_root).map_err(|_| {
             api_error("bucket directory not found").with_status_code(StatusCode::BAD_REQUEST)
         })?;
-        let canonical_target = std::fs::canonicalize(&target_path)
-            .or_else(|_| {
-                let parent = target_path.parent().unwrap_or(&root_dir);
-                std::fs::canonicalize(parent)
-                    .map(|p| p.join(target_path.file_name().unwrap_or_default()))
-            })
-            .map_err(|_| {
-                api_error("failed to resolve target path").with_status_code(StatusCode::BAD_REQUEST)
-            })?;
+
+        // The target rarely exists yet on a first upload — canonicalize_loose
+        // walks to the nearest existing ancestor and re-attaches the missing
+        // components, so a not-yet-created file or parent directory does not
+        // fail the containment check before create_parents has run.
+        let canonical_target = canonicalize_loose(&target_path).map_err(|err| {
+            tracing::error!(
+                "failed to resolve upload target {}: {err}",
+                target_path.display()
+            );
+            api_error("failed to resolve target path").with_status_code(StatusCode::BAD_REQUEST)
+        })?;
         if !canonical_target.starts_with(&canonical_bucket) {
             return Err(api_error("upload path is not within the specified bucket")
                 .with_status_code(StatusCode::FORBIDDEN));
@@ -372,6 +375,7 @@ pub(super) async fn play_session(
         .await
         .map(|m| m.is_dir())
         .unwrap_or(false);
+
     if parent_dir != root_dir && !parent_exists && !config.create_parents.unwrap_or_default() {
         return Err(
             api_error("Parent directory does not exist").with_status_code(StatusCode::NOT_FOUND)
@@ -470,6 +474,20 @@ async fn get_next_session(
     }
 
     if completed {
+        // The play handler guarantees the parent exists when create_parents
+        // is off (404 otherwise), so a missing parent here means it was
+        // requested: create it before the rename — bucket uploads reach the
+        // rename too, and previously only non-bucket uploads created parents.
+        if parent_dir != root_dir {
+            let parent_exists = tokio::fs::metadata(parent_dir)
+                .await
+                .map(|m| m.is_dir())
+                .unwrap_or(false);
+            if !parent_exists {
+                tokio::fs::create_dir_all(&parent_dir).await?;
+            }
+        }
+
         match &config.bucket {
             Some(bucket_id) => {
                 let bucket = bucket::get(bucket_id, state.db()).await?;
@@ -541,16 +559,6 @@ async fn get_next_session(
                     return Err(anyhow!(
                         "file MIME type '{inferred_mime}' does not match declared content_type '{declared}'"
                     ));
-                }
-
-                if parent_dir != root_dir {
-                    let parent_exists = tokio::fs::metadata(parent_dir)
-                        .await
-                        .map(|m| m.is_dir())
-                        .unwrap_or(false);
-                    if !parent_exists {
-                        tokio::fs::create_dir_all(&parent_dir).await?;
-                    }
                 }
             }
         }

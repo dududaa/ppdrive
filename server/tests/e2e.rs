@@ -1144,6 +1144,100 @@ async fn test_upload_to_named_bucket() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// The first upload into a bucket subdirectory that does not exist yet must
+/// succeed with `create_parents` (creating the directory chain), and a missing
+/// parent without the flag must surface as 404 — not the 400 resolve error
+/// that fired when the containment check canonicalized a non-existent path.
+#[tokio::test]
+async fn test_first_upload_into_new_bucket_subdirectory() -> anyhow::Result<()> {
+    let (_, token, header_key) = setup_test_client().await?;
+    let server = TestServerWrapper::new().await?;
+
+    // Prior runs may have left the directory on disk; start from a clean
+    // bucket so the upload genuinely creates the chain.
+    let bucket_fs_root = root_dir()?.join("e2e-nested-upload-bucket");
+    if bucket_fs_root.exists() {
+        tokio::fs::remove_dir_all(&bucket_fs_root).await?;
+    }
+
+    let bucket_body = json!({
+        "name": "nested-upload-bucket",
+        "path": "e2e-nested-upload-bucket",
+        "public": false
+    });
+    let resp = server
+        .post("/buckets", &bucket_body)
+        .add_header(&header_key, &token)
+        .await;
+    resp.assert_status(StatusCode::CREATED);
+    let bucket_pid: String = resp.json();
+
+    let filepath = root_dir()?.join("test-assets/demo.jpg");
+    let mut file_data = vec![];
+    OpenOptions::new()
+        .read(true)
+        .open(&filepath)
+        .await?
+        .read_to_end(&mut file_data)
+        .await?;
+
+    // create_parents: the very first upload creates the subdirectory chain.
+    let config = UploadUrlConfig {
+        asset_type: AssetType::File,
+        path: "e2e-nested-upload-bucket/a/b/first.jpg".to_string(),
+        bucket: Some(bucket_pid.clone()),
+        target_filesize: Some(file_data.len() as u64),
+        create_parents: Some(true),
+        overwrite: Some(true),
+        expires: 120,
+        ..Default::default()
+    };
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+    resp.assert_status_ok();
+    let session_token: String = resp.json();
+    let resp = server
+        .post_bytes(
+            &format!("/upload/session/play/{session_token}"),
+            Bytes::copy_from_slice(&file_data),
+        )
+        .await;
+    resp.assert_status_ok();
+
+    let written = root_dir()?.join("e2e-nested-upload-bucket/a/b/first.jpg");
+    assert!(
+        written.is_file(),
+        "nested first upload must create parents and write the file"
+    );
+
+    // Without create_parents a missing parent reports 404, not a resolve error.
+    let config = UploadUrlConfig {
+        asset_type: AssetType::File,
+        path: "e2e-nested-upload-bucket/other/second.jpg".to_string(),
+        bucket: Some(bucket_pid),
+        target_filesize: Some(file_data.len() as u64),
+        expires: 120,
+        ..Default::default()
+    };
+    let resp = server
+        .post("/upload/session", &config)
+        .add_header(&header_key, &token)
+        .await;
+    resp.assert_status_ok();
+    let session_token: String = resp.json();
+    let resp = server
+        .post_bytes(
+            &format!("/upload/session/play/{session_token}"),
+            Bytes::copy_from_slice(&file_data),
+        )
+        .await;
+    resp.assert_status(StatusCode::NOT_FOUND);
+
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Download flow
 // ---------------------------------------------------------------------------
