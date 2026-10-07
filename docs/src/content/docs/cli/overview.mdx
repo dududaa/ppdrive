@@ -15,7 +15,7 @@ ppdrive [OPTIONS] <COMMAND>
 
 | Command | Description |
 |---|---|
-| `ppdrive serve` | Start the HTTP server |
+| `ppdrive serve` | Start the HTTP server (binds `127.0.0.1` by default; add `--host 0.0.0.0` to serve across the network) |
 | `ppdrive configure` | Open config file in editor |
 | `ppdrive update` | Update to the latest version |
 | `ppdrive uninstall` | Remove ppdrive and optionally data |
@@ -73,6 +73,9 @@ ppdrive
 ```sh
 # Start server on custom port
 ppdrive serve --port 3000
+
+# Serve across the local network
+ppdrive serve --host 0.0.0.0
 
 # Create a client
 ppdrive client create --name "Mobile App"

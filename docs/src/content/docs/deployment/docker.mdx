@@ -114,7 +114,8 @@ COPY --from=builder /app/core/migrations ./migrations
 RUN chown -R ppdrive:ppdrive /app
 USER ppdrive
 EXPOSE 8000
-CMD ["server"]
+# Containers must bind all interfaces for `docker run -p` publishing to work
+CMD ["server", "--host", "0.0.0.0"]
 ```
 
 ## Production Docker Compose

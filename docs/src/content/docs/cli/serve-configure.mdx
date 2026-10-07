@@ -8,7 +8,7 @@ description: Start the server and manage configuration.
 Start the PPDRIVE HTTP server.
 
 ```sh
-ppdrive serve [--port <PORT>]
+ppdrive serve [--port <PORT>] [--host <ADDR>]
 ```
 
 ### Arguments
@@ -16,24 +16,33 @@ ppdrive serve [--port <PORT>]
 | Flag | Default | Description |
 |---|---|---|
 | `--port` | `8000` | Port to listen on |
+| `--host` | `127.0.0.1` | Address to bind. Use `0.0.0.0` to serve across the local network |
 
 ### Examples
 
 ```sh
-# Start on default port (8000)
+# Start on default port (8000), reachable from this machine only
 ppdrive serve
 
 # Start on custom port
 ppdrive serve --port 3000
 
-# Positional syntax also works
-ppdrive serve 3000
+# Serve across the local network (other devices on your Wi-Fi/LAN can reach it)
+ppdrive serve --host 0.0.0.0
+
+# Bind to a specific interface address
+ppdrive serve --host 192.168.1.20
 ```
+
+:::note[Network access]
+Exposing the server with `--host 0.0.0.0` makes it reachable from every device on your network — use it when you need it, and prefer the loopback default otherwise. If the port is not reachable, allow it through your firewall (e.g. `sudo ufw allow 8000/tcp`). Browser apps on other origins still need `allowed_origins` in `ppd_config.toml`.
+:::
 
 ### Behavior
 
-- In **debug mode** (development): runs `cargo run -p ppdrive_server <port>`
-- In **release mode** (production): runs `./server <port>`
+- In **debug mode** (development): runs `cargo run -p ppdrive_server -- <port> --host <ADDR>`
+- In **release mode** (production): runs `./server <port> --host <ADDR>`
+- Flags are only forwarded when set; the server falls back to `127.0.0.1` and the configured port
 
 ### What Happens on Start
 
@@ -42,7 +51,7 @@ ppdrive serve 3000
 3. Connects to the database and runs migrations
 4. Optionally connects to Redis (if `message_broker` is configured)
 5. Mounts public bucket paths and static folders
-6. Starts listening for HTTP requests
+6. Starts listening for HTTP requests on `<host>:<port>` (default `127.0.0.1:8000`)
 
 ### Output
 

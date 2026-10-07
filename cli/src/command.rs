@@ -184,12 +184,16 @@ impl Cli {
                 }
             },
 
-            CliCommand::Serve { port } => {
+            CliCommand::Serve { port, host } => {
                 if cfg!(debug_assertions) {
                     let mut cmd = Command::new("cargo");
-                    cmd.args(["run", "-p", "ppdrive_server"]);
+                    // `--` so cargo forwards flags like `--host` to the server
+                    cmd.args(["run", "-p", "ppdrive_server", "--"]);
                     if let Some(port) = port {
                         cmd.arg(port.to_string());
+                    }
+                    if let Some(host) = host {
+                        cmd.args(["--host", host]);
                     }
                     let status = cmd.status()?;
                     if !status.success() {
@@ -200,6 +204,9 @@ impl Cli {
                     let mut cmd = Command::new(&server_path);
                     if let Some(port) = port {
                         cmd.arg(port.to_string());
+                    }
+                    if let Some(host) = host {
+                        cmd.args(["--host", host]);
                     }
                     let status = cmd.status()?;
                     if !status.success() {
@@ -252,6 +259,10 @@ enum CliCommand {
     Serve {
         #[arg(long = "port")]
         port: Option<u16>,
+        /// Address to bind (default 127.0.0.1; use 0.0.0.0 to serve across
+        /// the local network)
+        #[arg(long = "host")]
+        host: Option<String>,
     },
     Configure,
     /// create a new client
@@ -273,4 +284,46 @@ enum CliCommand {
         #[command(subcommand)]
         command: UserCommand,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serve_defaults_to_no_host_and_no_port() {
+        let cli = Cli::try_parse_from(["ppdrive", "serve"]).unwrap();
+        match cli.command {
+            CliCommand::Serve { port, host } => {
+                assert_eq!(port, None);
+                assert_eq!(host, None);
+            }
+            _ => panic!("expected serve command"),
+        }
+    }
+
+    #[test]
+    fn serve_parses_host_flag() {
+        let cli = Cli::try_parse_from(["ppdrive", "serve", "--host", "0.0.0.0"]).unwrap();
+        match cli.command {
+            CliCommand::Serve { port, host } => {
+                assert_eq!(port, None);
+                assert_eq!(host.as_deref(), Some("0.0.0.0"));
+            }
+            _ => panic!("expected serve command"),
+        }
+    }
+
+    #[test]
+    fn serve_parses_port_and_host_together() {
+        let cli = Cli::try_parse_from(["ppdrive", "serve", "--port", "3000", "--host", "0.0.0.0"])
+            .unwrap();
+        match cli.command {
+            CliCommand::Serve { port, host } => {
+                assert_eq!(port, Some(3000));
+                assert_eq!(host.as_deref(), Some("0.0.0.0"));
+            }
+            _ => panic!("expected serve command"),
+        }
+    }
 }

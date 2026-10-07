@@ -114,6 +114,8 @@ sudo systemctl start ppdrive
 
 ## Reverse Proxy
 
+The server binds `127.0.0.1` by default, so the proxy reaches it over loopback without exposing the port to the network. Only pass `--host 0.0.0.0` (or another address) to `ExecStart` if your proxy runs on a different machine.
+
 ### Nginx
 
 ```nginx
