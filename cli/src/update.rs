@@ -164,17 +164,14 @@ async fn download_release(
 
     let url = format!("https://github.com/{REPO}/releases/download/v{version}/{asset_name}");
 
-    let mut resp = ureq::get(&url)
+    let resp = ureq::get(&url)
         .header("User-Agent", "ppdrive-updater")
         .call()
         .context("failed to start download")?;
 
     let tarball_path = temp_dir.join(asset_name);
-    let body = resp
-        .body_mut()
-        .read_to_vec()
-        .context("failed to read download body")?;
-    std::fs::write(&tarball_path, body)?;
+    crate::write_body_to_file(resp.into_body().into_reader(), &tarball_path)
+        .with_context(|| format!("failed to download {asset_name}"))?;
 
     Ok(tarball_path)
 }

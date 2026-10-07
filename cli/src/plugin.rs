@@ -785,26 +785,22 @@ fn find_extracted_dir(temp_dir: &Path) -> Option<PathBuf> {
 }
 
 async fn download_file(url: &str, dest: &std::path::Path) -> Result<(), anyhow::Error> {
-    let mut resp = ureq::get(url)
+    let resp = ureq::get(url)
         .header("User-Agent", "ppdrive-plugin-manager")
         .call()
         .with_context(|| format!("failed to download {url}"))?;
 
-    let body = resp
-        .body_mut()
-        .read_to_vec()
-        .context("failed to read download body")?;
-
     // Stage beside the destination and rename into place: writing over a
     // library the server has loaded as executable fails with ETXTBSY on Unix,
-    // and a partial download must never replace a good file.
+    // and a partial download must never replace a good file. The body is
+    // streamed to disk because ureq's read_to_vec() caps at 10MB, which the
+    // media runtime bundle exceeds.
     let staging = dest.with_extension("part");
-    tokio::fs::write(&staging, body)
-        .await
-        .with_context(|| format!("failed to write {}", staging.display()))?;
-    tokio::fs::rename(&staging, dest)
-        .await
-        .with_context(|| format!("failed to replace {}", dest.display()))?;
+    crate::write_body_to_file(resp.into_body().into_reader(), &staging)?;
+    if let Err(err) = std::fs::rename(&staging, dest) {
+        let _ = std::fs::remove_file(&staging);
+        return Err(err).with_context(|| format!("failed to replace {}", dest.display()));
+    }
 
     Ok(())
 }
