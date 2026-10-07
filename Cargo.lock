@@ -2158,7 +2158,7 @@ checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
 name = "ppdrive"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "anyhow",
  "argon2",
@@ -2192,7 +2192,7 @@ dependencies = [
 
 [[package]]
 name = "ppdrive_cli"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2207,7 +2207,7 @@ dependencies = [
 
 [[package]]
 name = "ppdrive_server"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "anyhow",
  "axum",
