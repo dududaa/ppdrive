@@ -90,7 +90,7 @@ PPDRIVE works with any language that can send HTTP requests. We encourage develo
 
 | Language | Repository | Author |
 |----------|-----------|--------|
-| *(none yet — be the first!)* | | |
+| Python | https://github.com/Agentfield247/ppdrive-python-sdk | @Agentfield247 |
 
 ### Build an SDK?
 
